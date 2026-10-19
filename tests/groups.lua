@@ -10,7 +10,8 @@ local function WithGroups(fn)
 		local G = ns.Groups
 		local saved = { after = G.after, random = G.random, party = C_PartyInfo, invite = InviteUnit, members = GetNumGroupMembers,
 			inGroup = IsInGroup, leader = UnitIsGroupLeader, count = GetNumQuestLogEntries, title = GetQuestLogTitle,
-			unitName = UnitName, unitClass = UnitClass, inRaid = IsInRaid }
+			unitFull = UnitFullName, unitName = UnitName, unitClass = UnitClass, inRaid = IsInRaid, split = ns.splitNames, zone = GetRealZoneText,
+			kings = ns.KingsScreen }
 		local ok, err = pcall(function()
 			G.Reset()
 			w.invited = {}
@@ -18,19 +19,38 @@ local function WithGroups(fn)
 			G.random = function(a) return a or 0 end
 			C_PartyInfo = { InviteUnit = function(name) w.invited[#w.invited + 1] = name end }
 			InviteUnit = nil
-			-- (The game's party units: w.party = { { name, realm, class file } }, ourselves not among them.)
+			-- (The game's party units: w.party = { { name, second, class file } }, ourselves not among
+			-- them; w.raid, a raid's units, ourselves among them. UnitFullName answers as the client
+			-- does: on WoW: Forever (ns.splitNames, which a test sets) the second value is the
+			-- surname, "Brenna", "Stoutheart" (tests/run.lua's "WoW: Forever names"); elsewhere it is
+			-- the realm, none on ours.)
 			w.party = {}
-			GetNumGroupMembers = function() return w.members or (#w.party > 0 and #w.party + 1 or 0) end
+			GetNumGroupMembers = function() return w.members or (w.raid and #w.raid) or (#w.party > 0 and #w.party + 1 or 0) end
 			IsInGroup = function() return GetNumGroupMembers() > 0 end
-			IsInRaid = function() return false end
+			IsInRaid = function() return w.raid ~= nil end
 			local playerClass = UnitClass
-			UnitName = function(unit)
-				local m = w.party[tonumber(tostring(unit):match("^party(%d)$") or "")]
-				if m then return m[1], m[2] end
-				return nil
+			local function Unit(unit)
+				local i = tostring(unit):match("^party(%d)$")
+				if i then return w.party[tonumber(i)] end
+				i = tostring(unit):match("^raid(%d+)$")
+				return i and w.raid and w.raid[tonumber(i)] or nil
 			end
+			UnitFullName = function(unit)
+				local m = Unit(unit)
+				if m then return m[1], m[2] ~= "" and m[2] or nil end
+				return saved.unitFull(unit)
+			end
+			-- (UnitName answers the same way on Forever: the surname where the realm goes.)
+			UnitName = function(unit)
+				local m = Unit(unit)
+				if m then return m[1], m[2] ~= "" and m[2] or nil end
+				if saved.unitName then return saved.unitName(unit) end
+			end
+			ns.splitNames = nil
+			saved.classNames = LOCALIZED_CLASS_NAMES_MALE
+			LOCALIZED_CLASS_NAMES_MALE = { PRIEST = "Priest", MAGE = "Mage", WARRIOR = "Warrior" }
 			UnitClass = function(unit)
-				local m = w.party[tonumber(tostring(unit):match("^party(%d)$") or "")]
+				local m = Unit(unit)
 				if m then return m[3], m[3] end
 				return playerClass(unit)
 			end
@@ -49,7 +69,8 @@ local function WithGroups(fn)
 		end)
 		G.after, G.random, C_PartyInfo, InviteUnit, GetNumGroupMembers = saved.after, saved.random, saved.party, saved.invite, saved.members
 		IsInGroup, UnitIsGroupLeader, GetNumQuestLogEntries, GetQuestLogTitle = saved.inGroup, saved.leader, saved.count, saved.title
-		UnitName, UnitClass, IsInRaid = saved.unitName, saved.unitClass, saved.inRaid
+		UnitFullName, UnitName, UnitClass, IsInRaid, ns.splitNames, GetRealZoneText = saved.unitFull, saved.unitName, saved.unitClass, saved.inRaid, saved.split, saved.zone
+		ns.KingsScreen, LOCALIZED_CLASS_NAMES_MALE = saved.kings, saved.classNames
 		if saved.alert then ns.PlayAlert = saved.alert end
 		G.Reset()
 		if not ok then error(err, 0) end
@@ -125,20 +146,33 @@ test("1.2 groups: a listing's message, its checks, its words made safe; later fi
 	eq(G.Decode("GL~a~Olympus II~D~DM~18~PR~113~1~~Elwynn~10~0~~").zone, "", "a dungeon has no zone")
 	eq(G.Decode("GL~a~Olympus II~D~DM~18~PR~113~1~~~4~0~~"), nil, "every 4: too often")
 	eq(G.NeedShort("113"), "1T 1H 3D"); eq(G.NeedShort("0++"), "H+ D+"); eq(G.NeedShort("000"), ns.L.GROUPS_FULL)
-	-- Who else is in a group (GM): names, classes, roles when known; a raid's past 250 bytes counted.
-	local m = G.DecodeMembers(G.EncodeMembers("a7", { { name = "Brenna Stoutheart-Realm", class = "PR", role = "H" }, { name = "Cora-Other", class = "MA" } }))
-	eq(m.id, "a7"); eq(m.more, 0); eq(#m.members, 2)
-	eq(m.members[1].name, "Brenna Stoutheart-Realm"); eq(m.members[1].role, "H"); eq(m.members[2].role, nil); eq(m.members[2].class, "MA")
-	local many = {}
-	for i = 1, 39 do many[i] = { name = ("Raider Number%02d-SomeLongRealm"):format(i), class = "WA", role = "D" } end
-	local gm = G.EncodeMembers("zz", many)
+	-- Who else is in a group (GM, review of 1.2): how many, by class and role, never a name.
+	local counts = G.MemberCounts({ { name = "Brenna Stoutheart-Realm", class = "PR", role = "H" }, { name = "Cora-Other", class = "MA" },
+		{ name = "Dora-Realm", class = "PR", role = "H" }, { name = "Eda-Realm", class = "" } })
+	local gm = G.EncodeMembers("a7", counts)
+	eq(gm, "GM~a7~---1,MA-1,PRH2", "an unknown class, a mage of no role set, two priest healers")
+	assert(not gm:find("Brenna", 1, true) and not gm:find("Cora", 1, true), "no name travels")
+	local m = G.DecodeMembers(gm)
+	eq(m.id, "a7"); eq(m.total, 4); eq(#m.counts, 3)
+	eq(m.counts[1].class, ""); eq(m.counts[1].role, nil); eq(m.counts[1].count, 1)
+	eq(m.counts[2].class, "MA"); eq(m.counts[2].role, nil)
+	eq(m.counts[3].class, "PR"); eq(m.counts[3].role, "H"); eq(m.counts[3].count, 2)
+	-- The most a raid can say (39 others, each of a class and role of its own): one message.
+	local many, classes = {}, { "", "WA", "PA", "HU", "RO", "PR", "SH", "MA", "WL", "DR" }
+	for _, class in ipairs(classes) do for _, role in ipairs({ "T", "H", "D", false }) do
+		if #many < 39 then many[#many + 1] = { name = "x", class = class, role = role or nil } end
+	end end
+	gm = G.EncodeMembers("zz", G.MemberCounts(many))
 	assert(#gm <= 250, "one message: " .. #gm)
-	m = G.DecodeMembers(gm)
-	eq(#m.members + m.more, 39, "every name listed or counted")
-	assert(m.more > 0)
-	eq(G.EncodeMembers("a7", { { name = "Bad~Name,x:y|z", class = "PR" } }), "GM~a7~0~BadNamexyz:PR:", "no separator travels in a name")
-	eq(G.DecodeMembers("GM~a7~0~Name:Pr:"), nil); eq(G.DecodeMembers("GM~a7~0~Name:PR:X"), nil); eq(G.DecodeMembers("GM~a7~x~"), nil)
-	eq(#G.DecodeMembers("GM~a7~0~").members, 0, "nobody else: the list emptied")
+	eq(G.DecodeMembers(gm).total, 39)
+	eq(#G.DecodeMembers("GM~a7~").counts, 0, "nobody else: the counts emptied")
+	-- (Review of 1.2, B2: GM travels without the logged API, so it takes no words at all: a
+	-- modified client's sentences, a name, more than 39, a pair twice, a count of 0 are refused.)
+	for _, bad in ipairs({ "GM~a7~0~buy gold at some site dot com now:WA:T,another sentence of words here:PR:H",
+		"GM~a7~0~Name:PR:", "GM~a7~Aldric:PR:H", "GM~a7~PRH0", "GM~a7~PRX1", "GM~a7~PrH1", "GM~a7~PRH100", "GM~a7~PRH20,MAD20",
+		"GM~a7~PRH1,PRH1", "GM~a7~PRH1,", "GM~a7~,PRH1", "GM~a7~-H1", "GM~ABC~PRH1", "GM~a7~x~", 42 }) do
+		eq(G.DecodeMembers(bad), nil, tostring(bad))
+	end
 	-- The longest it gets: one message.
 	local worst = G.Encode({ id = "zz", guild = string.rep("\195\169", 24), kind = "Q", target = "9999999", level = 60, class = "WA", need = "+++",
 		size = 40, min = 60, zone = string.rep("\195\169", 15), every = 30, age = 29, title = string.rep("\195\169", 30), note = string.rep("\195\169", 30) })
@@ -600,58 +634,70 @@ test("1.2 groups: a quest by a typed name (an elite, a rare): its dialog, then t
 	end)
 end)
 
-test("1.2 groups: who is in a listed group: the leader's GM after the listing, with the roles he invited; on hover; again when it changes", function()
+test("1.2 groups: who is in a listed group: the leader's GM counts them by class and role, never by name (review of 1.2); on hover and on its card; again when it changes", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
+		ns.splitNames = true
 		assert(G.Post("D", "DM", nil, "113", ""))
 		eq(Sent(w, "GM~"), nil, "alone: no GM")
 		local id = G.Mine().id
 		G.HandleApply("WHISPER", "Brenna Stoutheart-Realm", G.EncodeApply(id, "Olympus Zeus", "H", 20, "PR", ""))
 		G.Invite("Brenna Stoutheart-Realm")
-		-- She and a friend from the chat join; the next tick sends the listing and who is in it.
-		w.party = { { "Brenna Stoutheart", "", "PRIEST" }, { "Cora", "Other", "MAGE" } }
+		-- She and a friend from the chat (outside Olympus) join; the next send carries the listing
+		-- and how many are in it. (Forever's unit names: a first name, then the surname.)
+		w.party = { { "Brenna", "Stoutheart", "PRIEST" }, { "Cora", "Wildmane", "MAGE" } }
 		w.clock = w.clock + G.UPDATE_GAP
 		G.Tick()
 		local gm = Sent(w, "GM~")
 		assert(gm, "a GM")
-		eq(gm.logged, nil, "names, not words")
-		local m = G.DecodeMembers(gm.msg)
-		eq(m.id, id); eq(#m.members, 2)
-		eq(m.members[1].name, "Brenna Stoutheart-Realm"); eq(m.members[1].role, "H"); eq(m.members[1].class, "PR")
-		eq(m.members[2].name, "Cora-Other"); eq(m.members[2].role, nil); eq(m.members[2].class, "MA")
+		eq(gm.logged, nil, "numbers only: no words to log")
+		eq(gm.msg, "GM~" .. id .. "~MA-1,PRH1", "a mage of no role set, a priest healer")
+		assert(not gm.msg:find("Brenna", 1, true) and not gm.msg:find("Cora", 1, true), "no name goes out: " .. gm.msg)
 		eq(G.Decode(Sent(w, "GL~").msg).size, 3)
-		-- Another Board shows them in the card's tooltip.
-		local gl = Sent(w, "GL~").msg
-		-- (A reader of another Olympus guild: the leader's guild by its claim.)
-		GetGuildInfo = function() return "Olympus Zeus", "Member", 3 end
-		ns.me = "Reader-Realm"
-		G.HandleMembers("CHANNEL", "Soldier-Realm", gm.msg)
-		eq(#G.List("D"), 0, "a GM before its listing is nothing")
-		G.HandlePost("CHANNEL", "Soldier-Realm", gl)
-		G.HandleMembers("GUILD", "Soldier-Realm", gm.msg)
-		G.HandleMembers("CHANNEL", "Other-Realm", gm.msg)
-		eq(G.List("D")[1].members, nil, "only its leader's, only on the channel")
-		G.HandleMembers("CHANNEL", "Soldier-Realm", gm.msg)
-		G.Show("D", true)
-		local tip = Tip(Line(B.Lines(), "[Deadmines]"))
-		assert(tip:find(ns.L.GROUPS_IN_GROUP, 1, true) and tip:find("Brenna Stoutheart", 1, true) and tip:find(ns.L.GROUPS_ROLE_H, 1, true)
-			and tip:find("Cora-Other", 1, true), tip)
-		-- An ignored name is left out.
-		G.HandleMembers("CHANNEL", "Soldier-Realm", G.EncodeMembers(id, { { name = "Troll-Realm", class = "WA" } }))
-		eq(#G.List("D")[1].members, 0)
-		-- Back on the leader's client: Cora leaves; the GM goes again, she isn't in it.
-		AsSoldier()
-		w.party = { { "Brenna Stoutheart", "", "PRIEST" } }
+		local gl, first = Sent(w, "GL~").msg, gm.msg
+		-- Cora leaves; the GM goes again, with the priest alone.
+		w.party = { { "Brenna", "Stoutheart", "PRIEST" } }
 		w.clock = w.clock + 30
 		G.Tick()
 		w.clock = w.clock + G.UPDATE_GAP
 		G.Tick()
-		m = G.DecodeMembers(Sent(w, "GM~").msg)
-		eq(#m.members, 1)
+		eq(Sent(w, "GM~").msg, "GM~" .. id .. "~PRH1")
 		-- The Board's ask is answered with the GM too.
 		B.HandleAsk("CHANNEL", "Asker-Realm", "GQ~")
 		for _, t in ipairs(w.later) do if t.where == "board answer" then t.fn() end end
-		eq(LastWhisper(w).to, "Asker-Realm"); assert(LastWhisper(w).msg:find("^GM~"), LastWhisper(w).msg)
+		eq(LastWhisper(w).to, "Asker-Realm"); eq(LastWhisper(w).msg, "GM~" .. id .. "~PRH1")
+		-- Another Board (a reader of another Olympus guild: the leader's guild by its claim) shows
+		-- the counts in the card's tooltip and on its card.
+		G.Reset()
+		w.party = {}
+		GetGuildInfo = function() return "Olympus Zeus", "Member", 3 end
+		ns.me = "Reader-Realm"
+		G.HandleMembers("CHANNEL", "Soldier-Realm", first)
+		eq(#G.List("D"), 0, "a GM before its listing is nothing")
+		G.HandlePost("CHANNEL", "Soldier-Realm", gl)
+		G.HandleMembers("GUILD", "Soldier-Realm", first)
+		G.HandleMembers("CHANNEL", "Other-Realm", first)
+		eq(G.List("D")[1].counts, nil, "only its leader's, only on the channel")
+		G.HandleMembers("CHANNEL", "Soldier-Realm", first)
+		G.Show("D", true)
+		local card = Line(B.Lines(), "[Deadmines]")
+		assert(card and card.text:find("Soldier", 1, true), Texts(B.Lines()))
+		local tip = Tip(card)
+		assert(tip:find(ns.L.GROUPS_IN_GROUP, 1, true) and tip:find(ns.L.GROUPS_COUNT:format("Priest", 1), 1, true) and tip:find(ns.L.GROUPS_ROLE_H, 1, true)
+			and tip:find(ns.L.GROUPS_COUNT:format("Mage", 1), 1, true) and tip:find(ns.L.GROUPS_ROLE_UNSET, 1, true), tip)
+		card.onClick()
+		local lines = B.Lines()
+		local priests = Line(lines, ns.L.GROUPS_COUNT:format("Priest", 1))
+		assert(priests and priests.right:find(ns.L.GROUPS_ROLE_H, 1, true), Texts(lines))
+		assert(not Texts(lines):find("Brenna", 1, true) and not Texts(lines):find("Cora", 1, true), Texts(lines))
+		-- The same counts again change nothing.
+		local changes = 0
+		G.after = function(_, where, f) if where == "groups changed" then changes = changes + 1 end return f() end
+		G.HandleMembers("CHANNEL", "Soldier-Realm", first)
+		eq(changes, 0, "the same counts: no redraw")
+		G.HandleMembers("CHANNEL", "Soldier-Realm", "GM~" .. id .. "~PRH1")
+		eq(changes, 1, "new counts: one")
+		eq(#G.List("D")[1].counts, 1)
 	end)
 end)
 
@@ -727,8 +773,9 @@ end)
 test("1.2 groups: our own group shows in the list, marked, with its card and our roster on hover; someone else's card in full; the notices", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
+		ns.splitNames = true
 		assert(G.Post("D", "SFK", nil, "103", "bring food", 18))
-		w.party = { { "Brenna Stoutheart", "", "PRIEST" } }
+		w.party = { { "Brenna", "Stoutheart", "PRIEST" } }
 		G.SetMemberRole("Brenna Stoutheart-Realm", "H")
 		G.Show("D", true)
 		local lines = B.Lines()
@@ -747,11 +794,11 @@ test("1.2 groups: our own group shows in the list, marked, with its card and our
 		-- Someone else's group: its card has its leader, needs, minimum, note and members, then Apply.
 		G.HandlePost("CHANNEL", "Aldric-Realm", G.Encode({ id = "a1", guild = "Olympus Zeus", kind = "D", target = "DM", level = 20, class = "WA",
 			need = "011", size = 2, min = 16, every = 5, age = 0, note = "chill run" }))
-		G.HandleMembers("CHANNEL", "Aldric-Realm", G.EncodeMembers("a1", { { name = "Cora-Realm", class = "MA", role = "D" } }))
+		G.HandleMembers("CHANNEL", "Aldric-Realm", G.EncodeMembers("a1", { { class = "MA", role = "D", count = 1 } }))
 		Line(B.Lines(), "[Deadmines]").onClick()
 		lines = B.Lines()
 		for _, want in ipairs({ ns.L.GROUPS_CARD_LEADER:format("Aldric", "Olympus Zeus"), ns.L.GROUPS_NEEDS:format("Healer, Damage"),
-			ns.L.GROUPS_MIN_TIP:format(16), '"chill run"', ns.L.GROUPS_IN_GROUP, "Cora", ns.L.GROUPS_APPLY_AS:format(ns.L.GROUPS_ROLE_H) }) do
+			ns.L.GROUPS_MIN_TIP:format(16), '"chill run"', ns.L.GROUPS_IN_GROUP, ns.L.GROUPS_COUNT:format("Mage", 1), ns.L.GROUPS_APPLY_AS:format(ns.L.GROUPS_ROLE_H) }) do
 			assert(Line(lines, want), want .. "\n" .. Texts(lines))
 		end
 		-- The notices: in an instance, not our group's leader, a raid's party of five.
@@ -861,5 +908,305 @@ test("1.2 groups: a listing repeats every 5 minutes while few are up (up to 30 w
 		eq(#G.List("D"), 1, "two refreshes missed: still there at 11 minutes")
 		w.clock = w.clock + 60
 		eq(#G.List("D"), 0, "gone at 12")
+	end)
+end)
+
+---------------------------------------------------------------------------
+-- The review of 1.2 (PR #62): each finding's regression test, failing on the PR's head.
+---------------------------------------------------------------------------
+
+test("1.2 groups review (B1): on WoW: Forever an invited applicant who joins is recognised; the unit functions give the surname where the realm goes", function()
+	WithGroups(function(w, G, B)
+		AsSoldier()
+		ns.splitNames = true
+		assert(G.Post("D", "DM", nil, "112", ""))
+		local id = G.Mine().id
+		G.HandleApply("WHISPER", "Aldric Stoutheart-Realm", G.EncodeApply(id, "Olympus Zeus", "T", 20, "WA", ""))
+		eq(#G.Applicants(), 1)
+		G.Invite("Aldric Stoutheart-Realm")
+		-- As tests/run.lua's "WoW: Forever names" models the client: "Aldric", "Stoutheart".
+		w.party = { { "Aldric", "Stoutheart", "WARRIOR" } }
+		eq(G.GroupMembers()[1].name, "Aldric Stoutheart-Realm", "the name the server stamps, the one he applied under")
+		G.CheckJoins()
+		eq(G.Mine().need, "012", "the tank who joined comes off the need")
+		eq(#G.Applicants(), 0, "his application done")
+		eq(G.Pending()["Aldric Stoutheart-Realm"], nil)
+		assert(w.printed[#w.printed]:find(ns.L.GROUPS_JOINED:format("Aldric Stoutheart", ns.L.GROUPS_ROLE_T), 1, true), w.printed[#w.printed])
+		-- Two minutes on, no "didn't join" line: he is in.
+		w.clock = w.clock + G.INVITE_WAIT
+		G.CheckJoins()
+		assert(not w.printed[#w.printed]:find(ns.L.GROUPS_NOT_JOINED:format("Aldric Stoutheart", ns.L.GROUPS_ROLE_T), 1, true), w.printed[#w.printed])
+		-- In a raid, ourselves among its units, the leader is never one of the others.
+		w.raid = { { "Soldier", "", "PRIEST" }, { "Aldric", "Stoutheart", "WARRIOR" } }
+		local others = G.GroupMembers()
+		eq(#others, 1); eq(others[1].name, "Aldric Stoutheart-Realm")
+	end)
+end)
+
+test("1.2 groups review (B3): the listing dialog says what goes out: counts by class and role, never the group's names", function()
+	WithGroups(function(w, G, B)
+		AsSoldier()
+		G.Show("D", true)
+		G.Compose("D")
+		G.ChooseTarget("DM")
+		G.PromptList()
+		local p = w.popups[#w.popups]
+		eq(p.name, "OLYMPUS_GROUPS_LIST")
+		local text = ns.L.GROUPS_LIST_ASK
+		assert(text:find("by class and role", 1, true) and text:find("never their names", 1, true), text)
+		assert(ns.L.GROUPS_YOURS_TIP:find("never their names", 1, true), ns.L.GROUPS_YOURS_TIP)
+	end)
+end)
+
+test("1.2 groups review (B4): a typed name's listing carries the leader's zone only while he shares it, never from an instance, read again at each send", function()
+	WithGroups(function(w, G, B)
+		AsSoldier()
+		GetRealZoneText = function() return "Duskwood" end
+		w.share = false
+		G.Show("Q", true)
+		G.Compose("Q")
+		G.ConfirmName({}, "Mor'Ladim")
+		eq(G.Composing().zone, "", "no zone kept with a typed name")
+		-- The dialog says the zone goes only while it does.
+		G.PromptList()
+		assert(not w.popups[#w.popups].a:find("Duskwood", 1, true), w.popups[#w.popups].a)
+		w.share = true
+		G.PromptList()
+		assert(w.popups[#w.popups].a:find(ns.L.GROUPS_ZONE:format("Duskwood"), 1, true), w.popups[#w.popups].a)
+		w.share = false
+		G.PromptList()
+		G.ConfirmList(w.popups[#w.popups].data, "")
+		eq(G.Decode(Sent(w, "GL~").msg).zone, "", "not shared: no zone sent")
+		-- He shares it now: the next send carries it; from an instance, none again.
+		w.share = true
+		w.clock = w.clock + G.UPDATE_GAP
+		G.StepOwnNeed("D")
+		eq(G.Decode(Sent(w, "GL~").msg).zone, "Duskwood", "shared: the zone he is in")
+		IsInInstance = function() return true end
+		eq(G.Decode(G.Message(G.Mine(), w.clock)).zone, "", "from an instance: none")
+		IsInInstance = function() return false end
+		-- A quest from his log keeps its log's zone (where the quest is, not where he is).
+		eq(G.OwnZone({ kind = "Q", target = "176", zone = "Elwynn Forest" }), "Elwynn Forest")
+		w.share = false
+		eq(G.OwnZone({ kind = "Q", target = "176", zone = "Elwynn Forest" }), "Elwynn Forest")
+	end)
+end)
+
+test("1.2 groups review (B5): on the King's screen a quest's title and zone are a player's words: a typed name never shows, a log quest only as his own log has it", function()
+	WithGroups(function(w, G, B)
+		AsSoldier()
+		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("t1", "Olympus Zeus", "Q", "0", "012", 0, "rude note", "some rude words"))
+		G.HandlePost("CHANNEL", "Brenna-Realm", G.Encode({ id = "b1", guild = "Olympus Zeus", kind = "Q", target = "176", level = 12, class = "MA",
+			need = "012", size = 1, every = 5, age = 0, title = "more rude words", zone = "rude zone" }))
+		G.HandlePost("CHANNEL", "Cora-Realm", G.Encode({ id = "c1", guild = "Olympus Zeus", kind = "Q", target = "33", level = 12, class = "MA",
+			need = "012", size = 1, every = 5, age = 0, title = "rude again", zone = "rude place" }))
+		w.quests = { { title = "Elwynn Forest", header = true }, { title = "Kill Hogger", level = 11, id = 176, group = 3 } }
+		G.Show("Q", true)
+		-- Anyone else's screen: as they came.
+		assert(Line(B.Lines(), "[some rude words]"), Texts(B.Lines()))
+		ns.KingsScreen = function() return true end
+		local lines = B.Lines()
+		local function Clean(where, text) assert(not tostring(text):find("rude", 1, true), where .. ": " .. tostring(text)) end
+		Clean("the rows", Texts(lines))
+		assert(Line(lines, "[" .. ns.L.GROUPS_QUEST_UNNAMED .. "]"), Texts(lines))
+		assert(Line(lines, "[Kill Hogger]"), "quest 176 by his own log's title")
+		for _, l in ipairs(lines) do if l.tooltip then Clean("a tooltip", Tip(l)) end end
+		assert(Tip(Line(lines, "[Kill Hogger]")):find(ns.L.GROUPS_ZONE:format("Elwynn Forest"), 1, true), "his own log's zone")
+		for _, who in ipairs({ "Aldric", "Brenna", "Cora" }) do
+			for _, l in ipairs(B.Lines()) do if l.text and l.text:find(who, 1, true) and l.onClick then l.onClick() break end end
+			Clean(who .. "'s card", Texts(B.Lines()))
+		end
+		-- The search reads what shows: the hidden words find nothing.
+		eq(Line(B.Lines(ns.Fold("rude")), "Aldric"), nil)
+		-- His own typed listing on his own screen: no typed name either.
+		eq(G.Target("Q", "0", "Mor'Ladim"), ns.L.GROUPS_QUEST_UNNAMED)
+	end)
+end)
+
+test("1.2 groups review (B6): the Board's answer share counts group listings too, so about ANSWER_TARGET holders answer an ask", function()
+	WithGroups(function(w, G, B)
+		AsSoldier()
+		for i = 1, 99 do
+			G.HandlePost("CHANNEL", ("Holder%02d-Realm"):format(i), Listing(("%02d"):format(i), "Olympus Zeus", "D", "DM", "113", 0))
+		end
+		eq(G.Count(), 99)
+		eq(B.Count(), 0)
+		assert(G.Post("D", "SFK", nil, "113", ""))
+		-- 0.9 > 40 / 100: this holder is not among the ~40 who answer.
+		B.random = function(a) if a then return a end return 0.9 end
+		B.HandleAsk("CHANNEL", "Asker-Realm", "GQ~")
+		local answering = false
+		for _, t in ipairs(w.later) do if t.where == "board answer" then answering = true end end
+		eq(answering, false, "with 100 listings up, a 0.9 draw does not answer")
+		-- 0.3 < 0.4: it does.
+		B.random = function(a) if a then return a end return 0.3 end
+		B.HandleAsk("CHANNEL", "Asker2-Realm", "GQ~")
+		for _, t in ipairs(w.later) do if t.where == "board answer" then answering = true end end
+		eq(answering, true)
+	end)
+end)
+
+test("1.2 groups review (B7): /oly group before the game restarts after the update (Groups.lua not loaded yet) says to restart, no error", function()
+	local savedSlash, savedEvents, savedDialogs = {}, #EVENT_SCRIPTS, {}
+	for k, v in pairs(SlashCmdList) do savedSlash[k] = v end
+	for k, v in pairs(StaticPopupDialogs) do savedDialogs[k] = v end
+	local savedGroups = ns.Groups
+	local ok, err = pcall(function()
+		-- Core.lua as the game loads it at a /reload after the update: its stand-in for a file the
+		-- game hasn't read yet.
+		local fresh = setmetatable({}, { __index = ns })
+		assert(loadfile(H.ADDON_DIR .. "Core.lua"))("Olympus", fresh)
+		local standIn = rawget(fresh, "Groups")
+		assert(type(standIn) == "table" and standIn.missing == true, "Groups.lua stood in for")
+		-- (Its "restart the game" line is that namespace's print, as it is the game's.)
+		local printed = {}
+		fresh.Print = function(msg) printed[#printed + 1] = tostring(msg) end
+		WithBoard(function(w, B)
+			AsSoldier()
+			ns.Groups = standIn
+			B.Slash("group", "")
+			eq(#printed, 1); eq(printed[1], ns.L.RESTART_NEEDED)
+			B.Slash("groups", "raid")
+			eq(#printed, 2); eq(printed[2], ns.L.RESTART_NEEDED)
+			-- The Board itself goes on as it was: its page (no section strip), its link, its answers.
+			local lines = B.Lines()
+			for _, l in ipairs(lines) do assert(l.id ~= "board-sections", "no section strip without Groups.lua") end
+			assert(B.LinkLine())
+			assert(B.Raise("D", ""))
+			B.HandleAsk("CHANNEL", "Asker-Realm", "GQ~")
+			for _, t in ipairs(w.later) do if t.where == "board answer" then t.fn() end end
+			assert(w.whispered[#w.whispered].msg:find("^G1~"), "the flag answers as before")
+		end)
+	end)
+	ns.Groups = savedGroups
+	for k in pairs(SlashCmdList) do SlashCmdList[k] = savedSlash[k] end
+	for k, v in pairs(savedSlash) do SlashCmdList[k] = v end
+	for k in pairs(StaticPopupDialogs) do StaticPopupDialogs[k] = savedDialogs[k] end
+	for k, v in pairs(savedDialogs) do StaticPopupDialogs[k] = v end
+	for i = #EVENT_SCRIPTS, savedEvents + 1, -1 do EVENT_SCRIPTS[i] = nil end
+	if not ok then error(err, 0) end
+end)
+
+test("1.2 groups review (8): a quest's zone is the sender's words too: heard without the logged API it shows without it", function()
+	WithGroups(function(w, G, B)
+		AsSoldier()
+		w.logged = false
+		G.HandlePost("CHANNEL", "Aldric-Realm", G.Encode({ id = "a1", guild = "Olympus Zeus", kind = "Q", target = "176", level = 12, class = "MA",
+			need = "012", size = 1, every = 5, age = 0, title = "Kill Hogger", zone = "some words here" }))
+		local e = G.List("Q")[1]
+		eq(e.zone, ""); eq(e.title, ""); eq(e.note, "")
+		w.logged = true
+		G.HandlePost("CHANNEL", "Brenna-Realm", G.Encode({ id = "b1", guild = "Olympus Zeus", kind = "Q", target = "176", level = 12, class = "MA",
+			need = "012", size = 1, every = 5, age = 0, title = "Kill Hogger", zone = "Elwynn Forest" }))
+		for _, x in ipairs(G.List("Q")) do if x.sender == "Brenna-Realm" then eq(x.zone, "Elwynn Forest") end end
+	end)
+end)
+
+test("1.2 groups review (9): the Quests section reads the quest log once for the whole page, however many listings it shows", function()
+	WithGroups(function(w, G, B)
+		AsSoldier()
+		w.quests = { { title = "Elwynn Forest", header = true }, { title = "Kill Hogger", level = 11, id = 176, group = 3 } }
+		for i = 1, 8 do
+			G.HandlePost("CHANNEL", ("Lead%d-Realm"):format(i), G.Encode({ id = "q" .. i, guild = "Olympus Zeus", kind = "Q", target = tostring(170 + i),
+				level = 12, class = "MA", need = "012", size = 1, every = 5, age = 0, title = "Quest " .. i, zone = "Elwynn Forest" }))
+		end
+		local reads, count = 0, GetNumQuestLogEntries
+		GetNumQuestLogEntries = function() reads = reads + 1 return count() end
+		G.Show("Q", true)
+		G.SetFilter("Q", "log")
+		B.Lines()
+		eq(reads, 1, "one read of the log for the page")
+		G.SetFilter("Q", "all")
+		reads = 0
+		local lines = B.Lines()
+		eq(reads, 1)
+		assert(Line(lines, ns.L.GROUPS_IN_LOG), "quest 176 marked: " .. Texts(lines))
+		GetNumQuestLogEntries = count
+	end)
+end)
+
+test("1.2 groups review (10): a roster change redraws the Board only when it changes what it shows: never without a listing or an invite", function()
+	WithGroups(function(w, G, B)
+		AsSoldier()
+		local changes, roster = 0, 0
+		G.after = function(_, where, f) if where == "groups changed" then changes = changes + 1 end return f() end
+		-- (The harness's ns.Fire does nothing: this one counts what Groups.lua tells.)
+		local savedFire = ns.Fire
+		ns.Fire = function(name) if name == "GROUPS_ROSTER" then roster = roster + 1 end end
+		local ok, err = pcall(function()
+			w.party = { { "Aldric", "", "WARRIOR" } }
+			G.OnRoster()
+			eq(changes, 0, "no listing, no invite: nothing on the Board changed")
+			eq(roster, 1, "the API is told (its MY_GROUP_CHANGED)")
+			assert(G.Post("D", "DM", nil, "113", ""))
+			changes = 0
+			w.party = { { "Aldric", "", "WARRIOR" }, { "Brenna", "", "PRIEST" } }
+			G.OnRoster()
+			eq(changes, 1, "our listed group's roster: redrawn once")
+		end)
+		ns.Fire = savedFire
+		if not ok then error(err, 0) end
+	end)
+end)
+
+test("1.2 groups review (11): an application for a role the listing no longer wants is refused; the chat line comes once for each applicant or new role", function()
+	WithGroups(function(w, G, B)
+		AsSoldier()
+		assert(G.Post("D", "DM", nil, "103", ""))
+		local id = G.Mine().id
+		G.HandleApply("WHISPER", "Aldric-Realm", G.EncodeApply(id, "Olympus Zeus", "H", 20, "PR", ""))
+		eq(#G.Applicants(), 0, "no healer wanted: refused")
+		local before = #w.printed
+		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "Olympus Zeus", "D", 20, "MA", ""))
+		eq(#G.Applicants(), 1); eq(#w.printed, before + 1, "a new applicant: one line")
+		w.clock = w.clock + G.APPLY_GAP
+		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "Olympus Zeus", "D", 20, "MA", ""))
+		eq(#w.printed, before + 1, "the same application again: no second line")
+		w.clock = w.clock + G.APPLY_GAP
+		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "Olympus Zeus", "T", 20, "MA", ""))
+		eq(#w.printed, before + 2, "another role: its line"); eq(G.Applicants()[1].role, "T")
+		-- Her earlier application stays as it was when the new role is one no longer wanted.
+		G.Mine().need = "003"
+		w.clock = w.clock + G.APPLY_GAP
+		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "Olympus Zeus", "H", 20, "MA", ""))
+		eq(G.Applicants()[1].role, "T")
+	end)
+end)
+
+test("1.2 groups review (12): a refused game invite never breaks the click: nothing marked invited, nobody told, the player told", function()
+	WithGroups(function(w, G, B)
+		AsSoldier()
+		assert(G.Post("D", "DM", nil, "113", ""))
+		local id = G.Mine().id
+		G.HandleApply("WHISPER", "Aldric-Realm", G.EncodeApply(id, "Olympus Zeus", "T", 20, "WA", ""))
+		C_PartyInfo = { InviteUnit = function() error("refused") end }
+		local whispers = #w.whispered
+		local ok, why = G.Invite("Aldric-Realm")
+		eq(ok, false); eq(why, "invite")
+		eq(G.Pending()["Aldric-Realm"], nil); eq(G.Applicants()[1].state, "new")
+		eq(#w.whispered, whispers, "no GR~I")
+		eq(w.printed[#w.printed], ns.L.GROUPS_INVITE_FAILED)
+		eq(select(2, G.InviteFlag("Brenna-Realm", "T")), "invite")
+	end)
+end)
+
+test("1.2 groups review (13, 15): /oly status counts the groups (no name); players looking are sorted with their fit worked out once each", function()
+	WithGroups(function(w, G, B)
+		AsSoldier()
+		assert(G.Post("D", "DM", nil, "103", ""))
+		local status = ns.StatusText()
+		assert(status:find("board groups: groups 0  |  mine: D DM", 1, true), status)
+		for i = 1, 6 do
+			B.HandlePost("CHANNEL", ("Flag%d-Realm"):format(i), B.Encode({ id = "f" .. i, guild = "Olympus Zeus", flag = "D", level = 40, class = "PR",
+				every = 10, age = i, roles = i % 2 == 0 and "T" or "H", picks = "D:DM" }))
+		end
+		local calls, fits = 0, G.Fits
+		G.Fits = function(...) calls = calls + 1 return fits(...) end
+		local list = G.Looking("D")
+		G.Fits = fits
+		eq(#list, 6)
+		eq(calls, 6, "once a flag")
+		eq(list[1].sender, "Flag2-Realm", "the ones that fit first (a tank wanted), newest first")
+		eq(list[4].sender, "Flag1-Realm")
 	end)
 end)

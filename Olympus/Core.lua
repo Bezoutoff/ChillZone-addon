@@ -1770,6 +1770,7 @@ StandIn("Church", { "Slash" }) -- 1.1.6: the Missionary Church of Olympus (Churc
 StandIn("WatchChat", {}) -- 1.1.6: chat moderation (deleted lines, timeouts, sanctions' bars)
 StandIn("Wanted", { "SightingsSlash", "Slash" }) -- 1.2: the Horde Most Wanted ledger and its sightings (1.2.3: /oly wanted)
 StandIn("Board", { "Slash" }) -- (1.1: the Board)
+StandIn("Groups", { "Slash" }) -- 1.2: the Board's group listings (Groups.lua)
 StandIn("Week", {}) -- (1.1: the King's week)
 -- 1.1: net-off (Moderation.lua), alt links (Alts.lua), the King's key rotation (Keys.lua).
 StandIn("Moderation", { "Slash" })

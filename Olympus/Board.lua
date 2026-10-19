@@ -5,8 +5,9 @@ local L = ns.L
 -- share. One click raises a flag (a dungeon, a raid, PvP or a layer) with a short note if the
 -- player wants one; the card shows the poster's zone only while they share it (/oly location on)
 -- and says the zone is hidden otherwise. A click on someone else's card whispers them. Nothing
--- here invites, queues or forms a group: the whisper is the player's own, and so is any invite
--- that follows (the game's own, from the person card or the chat). A page of the Realm tab, like
+-- here queues or forms a group by itself: the whisper is the player's own. 1.2: the Board's
+-- sections (Groups.lua) list groups looking for players, and a leader invites an applicant, or a
+-- flag's player, with the game's own invite from his click alone. A page of the Realm tab, like
 -- the Olympus chats (Views.lua); /oly lfg opens it.
 -- A camp (Fern's #25) is the same message with flag C: the player drops it where they stand, it
 -- carries the zone and nothing finer, it needs their /oly location on, and it ends by itself
@@ -674,8 +675,11 @@ function Board.HandleAsk(dist, sender, text)
 	if answered[sender] and now - answered[sender] < Board.ANSWER_REPEAT then return end
 	if Recent(answersSent, now, 60) >= Board.ANSWERS_PER_MIN then return end
 	if ns.Comm.QueueSize() >= Board.ANSWER_QUEUE or Locked() then return end
-	-- A full Board: only a share of its holders answer (about ANSWER_TARGET in all).
-	if Board.random() > math.min(1, Board.ANSWER_TARGET / math.max(1, (Board.Count()))) then return end
+	-- A full Board: only a share of its holders answer (about ANSWER_TARGET in all). (Review of
+	-- 1.2: its group listings' holders answer too, so they count among them.)
+	local G = ns.Groups
+	local holders = Board.Count() + (G and not G.missing and G.Count and (tonumber((G.Count())) or 0) or 0)
+	if Board.random() > math.min(1, Board.ANSWER_TARGET / math.max(1, holders)) then return end
 	answered[sender] = now
 	answersSent[#answersSent + 1] = now
 	answersGiven = answersGiven + 1
@@ -1124,6 +1128,7 @@ function Board.Slash(cmd, rest)
 		end
 		return Board.PromptCamp(rest)
 	end
+	-- (Groups.lua, 1.2: a stand-in until the game restarts after the update, Core.lua.)
 	if cmd == "group" or cmd == "groups" then return ns.Groups.Slash(rest) end
 	-- (/oly lfg and /oly week: the Board on its flags, where the week is too.)
 	if ns.Groups and not ns.Groups.missing and ns.Groups.Show then ns.Groups.Show("flags", true) end

@@ -2824,6 +2824,99 @@ test("gamepad main shortcut (Shift + the guild key): no binding at gamepad login
 	GP.Covers("main-key")
 end)
 
+-- 1.2, the Board's group listings (Groups.lua, the review of PR #62): its sections in Olympus's
+-- own window, drawn and clicked by the player, with the gamepad UI on from the login and across a
+-- switch each way. The quest log's functions (GetNumQuestLogEntries, GetQuestLogTitle, C_QuestLog)
+-- are not in tests/fixtures/forever-api.lua yet: Groups.lua is the first to read them, and the
+-- fixture is made from the client's own UI source, which only the author has. Until he regenerates
+-- it (scripts/forever-api.lua) they read as missing here, so the Quests section shows an empty log
+-- (its typed name, its other members' listings) and never a stand-in the client may lack.
+local QUEST_LOG = { "GetNumQuestLogEntries", "GetQuestLogTitle", "C_QuestLog" }
+local function BoardRow(C, text)
+	for _, w in ipairs(C.created) do
+		local l = rawget(w, "line")
+		if type(l) == "table" and l.onClick and type(l.text) == "string" and l.text:find(text, 1, true) and w:IsVisible() then return w end
+	end
+end
+local function BoardStrip(C)
+	for _, w in ipairs(C.created) do
+		local l = rawget(w, "line")
+		if type(l) == "table" and l.id == "board-sections" and w:IsVisible() then return w end
+	end
+end
+local function BoardGroupsFlow(C, mode)
+	local ns = C.ns
+	local G, B, L = ns.Groups, ns.Board, ns.L
+	local function Click(text)
+		local row = assert(BoardRow(C, text), "the Board shows a row: " .. text)
+		C.Click(row); C.Advance(0.2)
+	end
+	G.Reset()
+	-- Another Olympus guild's listings of each kind, how many are in one, a flag for several places.
+	local function Listing(sender, id, kind, target, title, zone)
+		G.HandlePost("CHANNEL", sender, G.Encode({ id = id, guild = "Olympus Zeus", kind = kind, target = target, level = 40, class = "WA",
+			need = "113", size = 2, every = 5, age = 0, title = title, zone = zone }))
+	end
+	Listing("Leader-Realm", "a1", "D", "DM")
+	Listing("Raider-Realm", "b1", "R", "MC")
+	Listing("Fighter-Realm", "c1", "P", "WSG")
+	Listing("Quester-Realm", "d1", "Q", "176", "Kill Hogger", "Elwynn Forest")
+	G.HandleMembers("CHANNEL", "Leader-Realm", "GM~a1~MA-1")
+	B.HandlePost("CHANNEL", "Looker-Realm", B.Encode({ id = "f1", guild = "Olympus Zeus", flag = "D", level = 40, class = "PR", every = 10, age = 0,
+		roles = "T", picks = "D:DM;P:*" }))
+	B.Open()
+	C.Advance(1)
+	-- Each section from the strip, the player's click; each listing's card opened.
+	for i, who in ipairs({ "Leader", "Raider", "Fighter", "Quester" }) do
+		local strip = assert(BoardStrip(C), "the Board's sections")
+		C.Click(assert(rawget(strip, "nav")[i + 1], "section " .. i)); C.Advance(0.2)
+		eq(G.View(), G.KINDS[i])
+		Click(who)
+		assert(BoardRow(C, "> " .. L.GROUPS_WHISPER:format(who)), "its card under it")
+	end
+	-- Quests: a name typed (its dialog, Olympus's own with the gamepad UI).
+	Click(L.GROUPS_LIST:format(L.GROUPS_KIND_Q))
+	Click(L.GROUPS_TYPE_NAME)
+	ns.HideDialog("OLYMPUS_GROUPS_NAME")
+	Click("> " .. L.GROUPS_CANCEL)
+	-- Our own listing: a dungeon group, an applicant invited by the leader's click (the game's
+	-- invite, roster-actions), a flag's player invited the same way.
+	C.Click(rawget(assert(BoardStrip(C)), "nav")[2]); C.Advance(0.2)
+	assert(G.Post("D", "DM", nil, "113", ""))
+	G.HandleApply("WHISPER", "Applicant-Realm", G.EncodeApply(G.Mine().id, "Olympus Zeus", "T", 40, "WA", ""))
+	ns.UI.Refresh(); C.Advance(0.2)
+	Click("Applicant")
+	C.invited = nil
+	Click("> " .. L.GROUPS_INVITE_AS:format(L.GROUPS_ROLE_T))
+	eq(C.invited, "Applicant", "the game's invite, from the click")
+	Click("Looker")
+	Click("> " .. L.GROUPS_INVITE_AS:format(L.GROUPS_ROLE_T))
+	eq(C.invited, "Looker")
+	-- Our group's need edited, the listing lowered; the flags again.
+	Click(L.GROUPS_WANTED:format(L.GROUPS_ROLE_H, ""))
+	Click("> " .. L.GROUPS_LOWER)
+	eq(G.Mine(), nil)
+	C.Click(rawget(assert(BoardStrip(C)), "nav")[1]); C.Advance(0.2)
+	eq(G.View(), "flags")
+end
+
+for _, initialPad in ipairs({ false, true }) do
+	test("gamepad Board groups (1.2): " .. (initialPad and "gamepad" or "mouse") .. " login, every section drawn and clicked (Quests too), the game's invite from a click alone, a switch each way", function()
+		local C, ns = Session(initialPad)
+		for _, name in ipairs(QUEST_LOG) do C.Absent(name, "Groups.lua's quest log: not in the client fixture until it is regenerated (scripts/forever-api.lua)") end
+		GP.Covers("roster-actions")
+		for _, mode in ipairs({ initialPad, not initialPad, initialPad }) do
+			C.Switch(mode); C.Advance(1)
+			local mark = C.Mark()
+			BoardGroupsFlow(C, mode)
+			Check(C.Since(mark), "the Board's groups, " .. (mode and "gamepad" or "mouse and keyboard"))
+			local ids = Ids(C.Since(mark))
+			assert((ids["roster-actions"] or 0) >= 2, "the two invites, from the clicks")
+		end
+		Check(C.ledger, "the Board's groups"); NoErrors(C, "the Board's groups")
+	end)
+end
+
 if MODE == "--discover" then
 	local C, ns = Boot({ discover = true, gamepad = arg and arg[2] == "gamepad" })
 	Login(C)

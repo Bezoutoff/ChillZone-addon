@@ -839,8 +839,8 @@ what each player chose to share, and the King's week.
   the place is usually run from; players under it can't apply), then a short note in a box that
   says what goes out first. Each group's row says where and who; on its right, what it still
   needs in short ("1T 1H 3D"), its minimum level, its size and age. Hovering it shows it in full
-  (the leader's guild, level and class, its needs in words, a quest's zone, the note, and who is
-  in the group with their roles); a click opens its **card** under it, the same, with **Apply
+  (the leader's guild, level and class, its needs in words, a quest's zone, the note, and how
+  many are in the group by class and role, never their names); a click opens its **card** under it, the same, with **Apply
   as** each role it still needs and **Whisper**. Your own group is in the list too, first, marked
   *(your group)*. Players **Apply as** a role your group still needs, with a note of their own;
   it reaches you alone, by whisper, with a sound (the `groups` switch of `/oly sound`) and a line
@@ -851,8 +851,12 @@ what each player chose to share, and the King's week.
   let lapse (2 minutes) leaves the role wanted, and their application waits again. Under **Your
   group** you also change what the group still needs (a click on each role, for a role switch or
   a friend from the chat: every Board sees it within seconds) and see who is in your group, a
-  click setting each one's role (the game doesn't tell addons a player's role); it shows on your
-  group's card on every Board. It says so when you are in an instance (the game holds addon
+  click setting each one's role (the game doesn't tell addons a player's role); your group's
+  card on every Board counts them by class and role, never by name (people outside Olympus may be
+  among them, and nobody else in your group chose to go on the Board). A name you typed for a
+  quest carries the zone you are in only while you share it (`/oly location on`, never from an
+  instance), as a flag does. On the King's screen a quest's title and zone show only as his own
+  quest log has that quest (a typed name never), as notes never do. It says so when you are in an instance (the game holds addon
   messages there: your listing refreshes once you are out), when another player leads your group
   (only the leader can invite), and when a raid or PvP group of five has to be converted to a raid
   before anyone else can join. When nothing is left to find, or a party reaches five, the listing
@@ -2358,8 +2362,8 @@ message (the game adds it). What goes where:
 | A pinned line (1.1): its words, your guild and, as on every message, your name | the King's, his Stewards' and Hands': everyone on the Olympus channel. A guild master's, and a higher rank's takedown of it: his guild alone (over guild chat) | when you pin one (only while your Olympus chats are on, never while the moderators have you off), again every 5 minutes while it lasts (2 hours at most, a `/reload` included), and when you take it down (`/oly pin off` with nothing pinned on your screen too, once a minute at most: a `/reload` on the Forever beta forgets your pin); a pin you took down (its number and your guild), when you take it down and again when its setter's addon repeats it, once a minute at most, never while the moderators have you off |
 | A flag on the Board (1.1): your guild, level and class, the flag (dungeon, raid, PvP or layer), your note (with the logged API), and your zone only while you share it; 1.2: the roles you play and the places you picked, when you raise a flag for several places | everyone on the Olympus channel, and whispered to a player whose Board asked for the flags up | when you raise it, then every 10 to 30 minutes for an hour at most, until you lower it |
 | The Board's ask (1.1): nothing but your name | everyone on the Olympus channel | once a session, the first time you open the Board |
-| A group listing on the Board (1.2): your guild, level and class, where (a place, a quest's number, title and zone from your log, or a name you typed and the zone you are in), the roles still needed, the minimum level, your group's size and your note (with the logged API when it has words) | everyone on the Olympus channel, and whispered to a player whose Board asked | when you list it, after a change (someone joined or left, you changed what it needs), then every 5 to 30 minutes for an hour at most (a quest's half an hour), until you lower it |
-| Who else is in your listed group (1.2): each one's name and class, and their role when an application you invited said it or you set it | everyone on the Olympus channel, and whispered with your listing to a player whose Board asked | after your listing while anyone is in your group, and when someone joins or leaves |
+| A group listing on the Board (1.2): your guild, level and class, where (a place, a quest's number, title and zone from your log, or a name you typed, with the zone you are in only while you share it and never from an instance), the roles still needed, the minimum level, your group's size and your note (with the logged API when it has words) | everyone on the Olympus channel, and whispered to a player whose Board asked | when you list it, after a change (someone joined or left, you changed what it needs), then every 5 to 30 minutes for an hour at most (a quest's half an hour), until you lower it |
+| How many others are in your listed group (1.2): counts by class and role (the role when an application you invited said it or you set it), never their names | everyone on the Olympus channel, and whispered with your listing to a player whose Board asked | after your listing while anyone is in your group, and when someone joins or leaves |
 | An application to a group (1.2): your guild, level, class, the role you chose and your note (with the logged API); or that you withdraw it | that group's leader alone (a whisper) | only when you click Apply as, or withdraw |
 | A leader's answer to an application (1.2): invited, declined, or the listing closed | that applicant alone (a whisper) | when the leader clicks Invite or Decline, and when the listing closes (10 of those waiting at most) |
 | A guild Agenda entry (1.2.4): its title, time, setter and guild | that guild alone (over guild chat), from its own master or verified Heraldry correspondent | when scheduled, then every 10 minutes while within a day, every 30 otherwise; the saved audience and current authority are checked again |
@@ -3260,8 +3264,9 @@ Gundlach and contributors (speedata, 3-clause BSD) for Olympus Link's QR code
 - **Code and ideas:** RoyLeviGit (Olympus chats in their own chat window), Artz (hiding the
   Issue Reporter), bjess9 (CI and the shared checks), hypertectonic (Chattynator's tabs),
   Bernardo Costa / Costafitness (exact layer-hop confirmation and stale-request regressions,
-  adapted from PR #51), and Rick-laboratory (bounded transport, cancellation and admission
-  regressions, adapted from PR #52).
+  adapted from PR #51), Rick-laboratory (bounded transport, cancellation and admission
+  regressions, adapted from PR #52), and HTX (the Board's group listings, applications and
+  invites, adapted from PR #62).
 - **Feature requests:** Fernmelder, whose 39 posts became 1.1 (the Fernmelder release);
   shenanigans_ (the nameplate marks), Valdericht (`<OLYMPIAN>`), Pyralis Ashandar (taking
   donations), Zeal (what the King hides stays off the channel), and FedGuy / Fed Olympus

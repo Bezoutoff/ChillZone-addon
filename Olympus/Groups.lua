@@ -19,20 +19,26 @@ local L = ns.L
 --               wanted) or "+" (any number)
 --       size    how many are in the leader's group now, 1-40
 --       min     the lowest level that may apply, 2-99, or empty for any
---       zone    a quest's zone as the leader's log (or his map, for a typed name) says it,
---               ZONE_MAX bytes at most; empty for the other kinds
+--       zone    a quest's zone as the leader's log says it, ZONE_MAX bytes at most; for a typed
+--               name, the zone he is in only while he shares it (/oly location on) and never
+--               from an instance, read again at each send (Board.SharedZone's rule); empty
+--               otherwise and for the other kinds
 --       every   minutes to its next refresh (EVERY_MIN-EVERY_MAX: 5 while few groups are up, so
 --               a leader who left is gone from every Board within about 12 minutes); age:
 --               minutes since it was listed
 --       title   a quest's title as the leader's log has it (empty for the other kinds)
 --       note    the leader's own words, Board.NOTE_MAX bytes at most, the last field
---   The listing goes with the logged API whenever it carries words (a note or a quest's title).
+--   The listing goes with the logged API whenever it carries words (a note, a quest's title or
+--   zone); one heard without it shows without them.
 --   GX~<id>                                         lowered by its leader
---   GM~<id>~<more>~<name>:<class>:<role>,...        who else is in the leader's group, after
---                                                   its GL and whenever it changes: a name, the
---                                                   class code, the role when an application
---                                                   said it (else empty); `more` not listed
---                                                   (a raid's names past one message)
+--   GM~<id>~<class><role><count>,...                how many others are in the leader's group,
+--                                                   by class and role, after its GL and whenever
+--                                                   it changes: the class's two-letter code (--
+--                                                   unknown), the role T, H, D (- not set), how
+--                                                   many (1-39, 39 in all at most). Never a name:
+--                                                   the group's members never chose to go on the
+--                                                   Board (people outside Olympus among them), and
+--                                                   it holds no words a modified client could fill.
 --   GA~<id>~<guild>~<role>~<level>~<class>~<note>   an application, whispered to the leader
 --                                                   (role T, H or D; the note logged)
 --   GW~<id>                                         an application withdrawn (whispered)
@@ -42,7 +48,9 @@ local L = ns.L
 -- handler for these: they leave them unread, and their Board is unchanged.
 -- What applies to a flag applies here (Board.lua): Olympus guilds only, our own guild's names
 -- from our roster, one guild per sender, a name the moderators took off (net-off) neither lists
--- nor applies, an ignored player's listings and applications are left out.
+-- nor applies, an ignored player's listings and applications are left out. On the King's screen
+-- (his stream, ns.KingsScreen) the words the Board hides stay out: the notes, and a quest's title
+-- and zone unless his own log has that quest (Groups.Target).
 
 local Groups = {}
 ns.Groups = Groups
@@ -70,7 +78,7 @@ Groups.SIZE = { D = 5, Q = 5, R = 40, P = 40 }
 Groups.STEPS = { D = "01234", Q = "01234", R = "012345+", P = "012345+" }
 Groups.DEFAULT_NEED = { D = "113", Q = "012", R = "+++", P = "0++" }
 Groups.MIN_STEPS = { 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 58, 60 } -- a minimum level's click steps (and the place's own)
-Groups.MEMBERS_MAX = 39      -- names a GM may list
+Groups.MEMBERS_MAX = 39      -- others a GM may count (a raid of 40, its leader aside)
 Groups.EVERY_MIN, Groups.EVERY_MAX = 5, 30 -- minutes between a listing's refreshes, by how many are up
 Groups.ZONE_MAX = 30         -- bytes of a quest's zone
 Groups.INVITE_WAIT = 120     -- seconds an invite waits for its player to join before its role is wanted again
@@ -234,36 +242,69 @@ function Groups.Decode(s)
 		min = CleanMin(min), zone = kind == "Q" and Groups.CleanZone(zone) or "", every = every, age = age, title = title, note = ns.Board.CleanNote(rest:match("^[^~]*")) }
 end
 
--- Who else is in a group: { { name, class, role } }, as one GM of 250 bytes at most (the names
--- that don't fit are counted in `more`).
-function Groups.EncodeMembers(id, list)
-	local parts, more, len = {}, 0, 0
-	local head = ("GM~%s~"):format(id)
+-- How many others are in a group, by class and role (review of 1.2: never their names):
+-- { { class, role, count } } from the members as GroupMembers gives them, one entry for each class
+-- and role, in a fixed order (by class, then T, H, D, none), MEMBERS_MAX others at most counted.
+local ROLE_ORDER = { T = 1, H = 2, D = 3 }
+function Groups.MemberCounts(list)
+	local by, out, total = {}, {}, 0
 	for _, m in ipairs(list or {}) do
-		local name = tostring(m.name or ""):gsub("[~,:|%c]", "")
-		local entry = ("%s:%s:%s"):format(name, tostring(m.class or ""):match("^%u%u$") or "", Groups.ROLE[m.role] and m.role or "")
-		-- (room for the separator and for `more`, three digits at most)
-		if name ~= "" and #parts < Groups.MEMBERS_MAX and #head + 3 + len + #entry + 1 <= 250 then
-			parts[#parts + 1] = entry
-			len = len + #entry + 1
-		else
-			more = more + 1
+		if total >= Groups.MEMBERS_MAX then break end
+		local class = tostring(m.class or ""):match("^%u%u$") or ""
+		local role = Groups.ROLE[m.role] and m.role or nil
+		local key = class .. ":" .. (role or "")
+		local e = by[key]
+		if not e then
+			e = { class = class, role = role, count = 0 }
+			by[key] = e
+			out[#out + 1] = e
+		end
+		e.count = e.count + 1
+		total = total + 1
+	end
+	table.sort(out, function(a, b)
+		if a.class ~= b.class then return a.class < b.class end
+		return (ROLE_ORDER[a.role] or 4) < (ROLE_ORDER[b.role] or 4)
+	end)
+	return out
+end
+
+-- The GM: counts alone, at most 6 bytes an entry (39 entries fit one message of 250 bytes).
+function Groups.EncodeMembers(id, counts)
+	local parts = {}
+	for _, e in ipairs(counts or {}) do
+		local n = math.floor(tonumber(e.count) or 0)
+		if n >= 1 then
+			parts[#parts + 1] = (tostring(e.class or ""):match("^%u%u$") or "--") .. (Groups.ROLE[e.role] and e.role or "-") .. n
 		end
 	end
-	return head .. more .. "~" .. table.concat(parts, ",")
+	return ("GM~%s~%s"):format(id, table.concat(parts, ","))
 end
+-- The GM as { id, counts }, or nil for anything malformed: an entry that is not a class code (or
+-- --), a role (or -) and a count, a pair twice, more than MEMBERS_MAX in all.
 function Groups.DecodeMembers(s)
 	if type(s) ~= "string" then return nil end
-	local id, more, rest = s:match("^GM~([0-9a-z][0-9a-z]?)~(%d%d?%d?)~([^~]*)")
+	local id, rest = s:match("^GM~([0-9a-z][0-9a-z]?)~([^~]*)$")
 	if not id then return nil end
-	local list = {}
-	for entry in rest:gmatch("[^,]+") do
-		local name, class, role = entry:match("^([^:]+):(%u?%u?):([THD]?)$")
-		if not name or #name > 60 or (class ~= "" and #class ~= 2) then return nil end
-		if #list >= Groups.MEMBERS_MAX then return nil end
-		list[#list + 1] = { name = name, class = class, role = role ~= "" and role or nil }
+	local counts, seen, total = {}, {}, 0
+	for entry in (rest .. ","):gmatch("([^,]*),") do
+		if entry == "" then
+			if rest ~= "" then return nil end
+		else
+			local class, role, n = entry:match("^(%u%u)([THD%-])(%d%d?)$")
+			if not class then class, role, n = entry:match("^(%-%-)([THD%-])(%d%d?)$") end
+			n = tonumber(n)
+			if not class or not n or n < 1 then return nil end
+			class, role = class ~= "--" and class or "", role ~= "-" and role or nil
+			local key = class .. ":" .. (role or "")
+			if seen[key] then return nil end
+			seen[key] = true
+			total = total + n
+			if total > Groups.MEMBERS_MAX then return nil end
+			counts[#counts + 1] = { class = class, role = role, count = n }
+		end
 	end
-	return { id = id, more = tonumber(more), members = list }
+	return { id = id, counts = counts, total = total }
 end
 
 function Groups.EncodeApply(id, guild, role, level, class, note)
@@ -287,9 +328,15 @@ end
 function Groups.KindLabel(kind) return L["GROUPS_KIND_" .. tostring(kind)] or tostring(kind) end
 function Groups.RoleLabel(role) return L["GROUPS_ROLE_" .. tostring(role)] or tostring(role) end
 
--- Where a listing is for: a place's name, a quest's title, or "Other".
+-- Where a listing is for: a place's name, a quest's title, or "Other". On the King's screen (his
+-- stream, ns.KingsScreen) a quest's title is a player's words, as a note is (review of 1.2): it
+-- shows only as his own quest log has that quest, else "A quest"; a typed name never.
 function Groups.Target(kind, target, title)
 	if kind == "Q" then
+		if ns.KingsScreen() then
+			local q = tostring(target) ~= "0" and Groups.LogQuest(target)
+			return q and q.title or L.GROUPS_QUEST_UNNAMED
+		end
 		title = Groups.CleanTitle(title)
 		return title ~= "" and title or L.GROUPS_QUEST_UNNAMED
 	end
@@ -421,11 +468,49 @@ function Groups.CurrentZone()
 	local z = GetRealZoneText and GetRealZoneText() or (GetZoneText and GetZoneText()) or ""
 	return Groups.CleanZone(type(z) == "string" and z or "")
 end
-
-local function InLog(target)
-	for _, q in ipairs(Groups.QuestLog()) do if tostring(q.id) == tostring(target) then return true end end
-	return false
+-- The zone a typed name's listing carries (review of 1.2): ours only while we share where we are
+-- (/oly location on) and never from an instance, as a flag's (Board.SharedZone); else none.
+function Groups.SharedZone()
+	if not (ns.Layers and ns.Layers.Sharing and ns.Layers.Sharing()) then return "" end
+	if IsInInstance and IsInInstance() then return "" end
+	return Groups.CurrentZone()
 end
+
+-- The quest log for one page (review of 1.2: read once for all its rows, never once a row):
+-- Groups.WithLog holds what Log reads until it returns; outside it each Log reads afresh (a
+-- tooltip on hover).
+local logHeld, logMemo = false, nil
+local function Log()
+	if logHeld and logMemo then return logMemo end
+	local list, by = Groups.QuestLog(), {}
+	for _, q in ipairs(list) do by[tostring(q.id)] = q end
+	local snap = { list = list, by = by }
+	if logHeld then logMemo = snap end
+	return snap
+end
+function Groups.WithLog(fn, ...)
+	if logHeld then return fn(...) end
+	logHeld, logMemo = true, nil
+	local res = { pcall(fn, ...) }
+	logHeld, logMemo = false, nil
+	if not res[1] then error(res[2], 0) end
+	return unpack(res, 2, table.maxn(res))
+end
+-- A quest of our log by its ID: { id, title, level, zone, group }, or nil.
+function Groups.LogQuest(target) return Log().by[tostring(target)] end
+local function InLog(target) return Log().by[tostring(target)] ~= nil end
+
+-- A quest listing's zone as this screen shows it: the King's (his stream) only as his own log
+-- has that quest, as its title (Groups.Target).
+local function ShownZone(e)
+	if e.kind ~= "Q" then return "" end
+	if ns.KingsScreen() then
+		local q = tostring(e.target) ~= "0" and Groups.LogQuest(e.target)
+		return q and q.zone or ""
+	end
+	return e.zone or ""
+end
+Groups.ShownZone = ShownZone
 
 -- The listings of a kind (all when none), newest first; for quests, the ones in our log first.
 function Groups.List(kind, now)
@@ -435,11 +520,9 @@ function Groups.List(kind, now)
 	for _, e in pairs(posts) do
 		if not kind or e.kind == kind then out[#out + 1] = e end
 	end
-	if kind == "Q" and #out > 0 then
-		for _, q in ipairs(Groups.QuestLog()) do have[tostring(q.id)] = true end
-	end
+	if kind == "Q" and #out > 0 then have = Log().by end
 	table.sort(out, function(a, b)
-		local ha, hb = have[a.target] or false, have[b.target] or false
+		local ha, hb = have[a.target] ~= nil, have[b.target] ~= nil
 		if ha ~= hb then return ha end
 		if a.raisedAt ~= b.raisedAt then return a.raisedAt > b.raisedAt end
 		return a.sender < b.sender
@@ -478,9 +561,10 @@ function Groups.HandlePost(dist, sender, text)
 		return
 	end
 	if not Claimed(sender, e.guild) then return end
-	if (e.note ~= "" or e.title ~= "") and UnloggedWords() then
+	-- (A quest's zone is the sender's words too: review of 1.2.)
+	if (e.note ~= "" or e.title ~= "" or e.zone ~= "") and UnloggedWords() then
 		ns.Log("group listing from %s shown without its words: not sent with the logged API", sender)
-		e.note, e.title = "", ""
+		e.note, e.title, e.zone = "", "", ""
 	end
 	Prune(now)
 	if lowered[sender .. "#" .. e.id] then return end
@@ -517,8 +601,8 @@ function Groups.HandleLower(dist, sender, text)
 	end
 end
 
--- Who else is in a listed group (GM), from its leader: after his GL, on the channel or whispered
--- in answer to our ask. A name the moderators took off, or one we ignore, is left out.
+-- How many others are in a listed group, by class and role (GM), from its leader: after his GL,
+-- on the channel or whispered in answer to our ask.
 function Groups.HandleMembers(dist, sender, text)
 	local now = ns.Now()
 	if dist == "WHISPER" then
@@ -532,13 +616,9 @@ function Groups.HandleMembers(dist, sender, text)
 	sender = ns.FullName(sender)
 	local e = posts[sender]
 	if not e or e.id ~= m.id then return end
-	local list = {}
-	for _, x in ipairs(m.members) do
-		local M = ns.Moderation
-		local hidden = M and M.Hides and M.Hides(x.name, nil, true)
-		if not hidden and not Ignored(x.name) then list[#list + 1] = x end
-	end
-	e.members, e.more = list, m.more
+	local sig = Groups.EncodeMembers(m.id, m.counts)
+	if e.countsSig == sig then return end
+	e.counts, e.countsSig = m.counts, sig
 	Changed()
 end
 
@@ -566,17 +646,18 @@ local function GroupSize()
 end
 
 -- Who else is in our group now: { name, class, role }, the role from an application we invited
--- (the game says no role here). raid1..N with a raid (ourselves among them), else party1..4.
+-- (the game says no role here). raid1..N with a raid (ourselves among them), else party1..4. The
+-- name as the server writes it (ns.UnitFullName: on WoW: Forever the unit functions give the
+-- surname where the realm goes), the one an application came under.
 function Groups.GroupMembers()
 	local out = {}
 	local raid = IsInRaid and IsInRaid()
 	local n = GetNumGroupMembers and tonumber(GetNumGroupMembers()) or 0
-	if n <= 1 or not UnitName then return out end
+	if n <= 1 then return out end
 	for i = 1, raid and n or (n - 1) do
 		local unit = (raid and "raid" or "party") .. i
-		local name, realm = UnitName(unit)
-		if type(name) == "string" and name ~= "" then
-			local full = ns.FullName(ns.Normal(name), type(realm) == "string" and realm ~= "" and realm or nil)
+		local full = ns.UnitFullName(unit)
+		if type(full) == "string" and full ~= "" then
 			if full ~= ns.me then
 				local a = applicants[full]
 				local level = UnitLevel and tonumber(UnitLevel(unit)) or nil
@@ -598,13 +679,22 @@ end
 local function MyClass() return ns.Board.MyClass and ns.Board.MyClass() or "" end
 local function MyLevel() return ns.Board.MyLevel and ns.Board.MyLevel() or 1 end
 
+-- The zone our listing carries now: a log quest's, as its log said it; a typed name's, ours
+-- while we share it (Groups.SharedZone, read again at each send).
+local function OwnZone(p)
+	if p.kind ~= "Q" then return "" end
+	if p.target == "0" then return Groups.SharedZone() end
+	return p.zone or ""
+end
+Groups.OwnZone = OwnZone
+
 local function Message(p, now)
 	return Groups.Encode({ id = p.id, guild = GetGuildInfo("player"), kind = p.kind, target = p.target, level = MyLevel(), class = MyClass(),
-		need = p.need, size = GroupSize(), min = p.min, zone = p.zone, every = p.every, age = math.floor((now - p.raisedAt) / 60), title = p.title, note = p.note })
+		need = p.need, size = GroupSize(), min = p.min, zone = OwnZone(p), every = p.every, age = math.floor((now - p.raisedAt) / 60), title = p.title, note = p.note })
 end
 Groups.Message = Message
 
-local function Words(p) return p.note ~= "" or (p.kind == "Q" and (p.title or "") ~= "") end
+local function Words(p) return p.note ~= "" or (p.kind == "Q" and ((p.title or "") ~= "" or OwnZone(p) ~= "")) end
 
 -- Our listing and the applications to it are kept for a /reload (per character).
 local function Save()
@@ -647,15 +737,15 @@ end
 
 local function QueueKey(p) return "group" .. p.id end
 
--- Our GM: who else is in our group, sent after our GL while there is anyone (and once more
--- when the last one leaves).
+-- Our GM: how many others are in our group, by class and role, sent after our GL while there is
+-- anyone (and once more when the last one leaves).
 local function SendMembers(p)
 	local list = Groups.GroupMembers()
 	local sig = MembersSig(list)
 	p.membersSig = sig
 	if #list == 0 and not p.membersSent then return end
 	p.membersSent = #list > 0
-	ns.Comm.Send("CHANNEL", Groups.EncodeMembers(p.id, list), "groupm" .. p.id)
+	ns.Comm.Send("CHANNEL", Groups.EncodeMembers(p.id, Groups.MemberCounts(list)), "groupm" .. p.id)
 end
 
 -- Minutes between a listing's refreshes: EVERY_MIN while few are up, up to EVERY_MAX when the
@@ -747,7 +837,7 @@ end
 function Groups.AnswerMessage(now)
 	if not own then return nil end
 	local list = Groups.GroupMembers()
-	return Message(own, now or ns.Now()), Words(own), #list > 0 and Groups.EncodeMembers(own.id, list) or nil
+	return Message(own, now or ns.Now()), Words(own), #list > 0 and Groups.EncodeMembers(own.id, Groups.MemberCounts(list)) or nil
 end
 
 -- A change of our listing (an invite took a role) goes out soon: at once unless it just went.
@@ -768,6 +858,9 @@ function Groups.HandleApply(dist, sender, text)
 	local now = ns.Now()
 	local old = applicants[sender]
 	if old and now - old.at < Groups.APPLY_GAP then return end
+	-- (Review of 1.2: a role the listing no longer wants is refused, as the applicant's own
+	-- addon refuses it; their earlier application, if any, stays as it was.)
+	if not Groups.Wants(own.need, a.role) then return end
 	if not old then
 		local n = 0
 		for _ in pairs(applicants) do n = n + 1 end
@@ -778,7 +871,11 @@ function Groups.HandleApply(dist, sender, text)
 	-- (A sound of its own, the "groups" switch of /oly sound; once for each new applicant.)
 	if not old then ns.PlayAlert("soft", "groups") end
 	Save()
-	ns.Print(L.GROUPS_APPLICANT:format(ns.DisplayName(sender) or sender, Groups.RoleLabel(a.role), Groups.Target(own.kind, own.target, own.title)))
+	-- The chat line for a new applicant, or one who changed role (review of 1.2: not again for the
+	-- same application repeated).
+	if not old or old.role ~= a.role then
+		ns.Print(L.GROUPS_APPLICANT:format(ns.DisplayName(sender) or sender, Groups.RoleLabel(a.role), Groups.Target(own.kind, own.target, own.title)))
+	end
 	Changed()
 end
 
@@ -803,10 +900,15 @@ local function MayInvite()
 	return true
 end
 
--- The game's invite, from the leader's click (the gp:roster-actions entry: never otherwise).
+-- The game's invite, from the leader's click (the gp:roster-actions entry: never otherwise),
+-- protected (review of 1.2: a refused invite never breaks the click), as FarkleTable's. Whether
+-- the game took the call.
 local function GameInvite(name) -- gp:roster-actions
 	local target = ns.TellName(name) or name
-	if C_PartyInfo and C_PartyInfo.InviteUnit then C_PartyInfo.InviteUnit(target) elseif InviteUnit then InviteUnit(target) end -- gp:roster-actions
+	local ok
+	if C_PartyInfo and C_PartyInfo.InviteUnit then ok = pcall(C_PartyInfo.InviteUnit, target) elseif InviteUnit then ok = pcall(InviteUnit, target) end -- gp:roster-actions
+	if not ok then ns.Log("groups: the game's invite of %s failed", tostring(target)) end
+	return ok == true
 end
 
 -- The leader's click on Invite (as the role they applied for): the game's invite and the applicant
@@ -816,7 +918,7 @@ function Groups.Invite(name)
 	local a = applicants[name]
 	if not own or not a then return false end
 	if not MayInvite() then return false, "leader" end
-	GameInvite(name)
+	if not GameInvite(name) then ns.Print(L.GROUPS_INVITE_FAILED) return false, "invite" end
 	a.state = "invited"
 	pending[name] = { role = a.role, at = ns.Now() }
 	ns.Comm.Whisper(name, ("GR~%s~I"):format(own.id))
@@ -839,12 +941,17 @@ end
 
 -- Who of our invites joined (their role taken off the need, their application done), and whose
 -- invite lapsed (INVITE_WAIT: their role wanted again, their application waiting again).
+-- Whether anything changed.
 function Groups.CheckJoins(now)
 	now = now or ns.Now()
 	local here = {}
 	for _, m in ipairs(Groups.GroupMembers()) do here[m.name] = true end
 	if not next(here) then wipe(roles) end -- (no group: no roles to keep)
-	if not own then wipe(pending) return end
+	if not own then
+		local had = next(pending) ~= nil
+		wipe(pending)
+		return had
+	end
 	local changed = false
 	for name, p in pairs(pending) do
 		if here[name] then
@@ -861,15 +968,16 @@ function Groups.CheckJoins(now)
 			ns.Print(L.GROUPS_NOT_JOINED:format(ns.DisplayName(name) or name, Groups.RoleLabel(p.role)))
 		end
 	end
-	if not changed then return end
+	if not changed then return false end
 	if own.need == "000" then
 		ns.Print(L.GROUPS_FILLED)
 		Groups.Close(true)
-		return
+		return true
 	end
 	Update(now)
 	Save()
 	Changed()
+	return true
 end
 
 -- The leader changes what the listing needs (a member switched roles, a friend came from the chat):
@@ -1069,32 +1177,48 @@ function Groups.NeedShort(need)
 	return #parts > 0 and table.concat(parts, " ") or L.GROUPS_FULL
 end
 
--- Our own listing as the list shows it (first, marked as ours), with our group as it is now.
+-- Our own listing as the list shows it (first, marked as ours), with our group as it is now: its
+-- members by name (ours to see) and the counts that go out.
 function Groups.OwnEntry()
 	if not own then return nil end
+	local members = Groups.GroupMembers()
 	return { sender = ns.me, id = own.id, guild = GetGuildInfo("player") or "", kind = own.kind, target = own.target, title = own.title,
-		level = MyLevel(), class = MyClass(), need = own.need, size = GroupSize(), min = own.min, zone = own.zone or "", note = own.note,
-		raisedAt = own.raisedAt, members = Groups.GroupMembers(), mine = true }
+		level = MyLevel(), class = MyClass(), need = own.need, size = GroupSize(), min = own.min, zone = OwnZone(own), note = own.note,
+		raisedAt = own.raisedAt, members = members, counts = Groups.MemberCounts(members), mine = true }
 end
 
 -- Whether we could join a group: of its minimum level, and it still needs someone.
 local function CanJoin(e) return not (e.min and MyLevel() < e.min) and e.need ~= "000" end
 
--- Who is in a group: the names its leader's GM gave (ours: our group as it is), each with its
--- class, its level when we know it and its role when an application or the leader said it.
+-- One count of a group's others: "Priest x2" in the class's colour (an unknown class plain).
+local function CountText(c)
+	local class = ClassName(c.class) or L.GROUPS_CLASS_UNKNOWN
+	return Colored(L.GROUPS_COUNT:format(class, c.count), c.class)
+end
+
+-- Who is in a group: ours by name (our own group, as it is); anyone else's as its leader's GM
+-- counts them, by class and role (review of 1.2: never their names).
 function Groups.MembersTip(tt, e)
-	local list = e.members or {}
-	if #list == 0 and (e.more or 0) == 0 then return end
-	tt:AddLine(L.GROUPS_IN_GROUP, 1, 0.82, 0)
-	for _, m in ipairs(list) do
-		local class = ClassName(m.class)
-		local bits = {}
-		if m.role then bits[#bits + 1] = Groups.RoleLabel(m.role) end
-		if m.level then bits[#bits + 1] = L.LEVEL_N:format(m.level) end
-		if class then bits[#bits + 1] = class end
-		tt:AddLine(Colored(ns.DisplayName(m.name) or m.name, m.class) .. (#bits > 0 and ("  " .. Grey(table.concat(bits, ", "))) or ""), 1, 1, 1)
+	if e.mine then
+		local list = e.members or {}
+		if #list == 0 then return end
+		tt:AddLine(L.GROUPS_IN_GROUP, 1, 0.82, 0)
+		for _, m in ipairs(list) do
+			local class = ClassName(m.class)
+			local bits = {}
+			if m.role then bits[#bits + 1] = Groups.RoleLabel(m.role) end
+			if m.level then bits[#bits + 1] = L.LEVEL_N:format(m.level) end
+			if class then bits[#bits + 1] = class end
+			tt:AddLine(Colored(ns.DisplayName(m.name) or m.name, m.class) .. (#bits > 0 and ("  " .. Grey(table.concat(bits, ", "))) or ""), 1, 1, 1)
+		end
+		return
 	end
-	if (e.more or 0) > 0 then tt:AddLine(Grey(L.GROUPS_MORE:format(e.more)), 1, 1, 1) end
+	local counts = e.counts or {}
+	if #counts == 0 then return end
+	tt:AddLine(L.GROUPS_IN_GROUP, 1, 0.82, 0)
+	for _, c in ipairs(counts) do
+		tt:AddLine(CountText(c) .. "  " .. Grey(c.role and Groups.RoleLabel(c.role) or L.GROUPS_ROLE_UNSET), 1, 1, 1)
+	end
 end
 
 -- A listing in full, on hover: where, its leader, what it needs, its minimum, zone and note, who is in it.
@@ -1105,7 +1229,8 @@ function Groups.ListingTip(tt, e)
 	tt:AddLine(("%s <%s>  %s"):format(who, ns.Codec.Plain(e.guild), L.LEVEL_N:format(e.level)) .. (class and ("  " .. class) or ""), 1, 1, 1)
 	tt:AddLine(L.GROUPS_NEEDS:format(Groups.NeedText(e.need)) .. "  (" .. SizeText(e.kind, e.size) .. ")", 1, 1, 1, true)
 	if e.min then tt:AddLine(L.GROUPS_MIN_TIP:format(e.min), 1, 1, 1, true) end
-	if e.kind == "Q" and (e.zone or "") ~= "" then tt:AddLine(L.GROUPS_ZONE:format(e.zone), 1, 1, 1, true) end
+	local zone = ShownZone(e)
+	if zone ~= "" then tt:AddLine(L.GROUPS_ZONE:format(zone), 1, 1, 1, true) end
 	if e.kind == "Q" and InLog(e.target) then tt:AddLine(L.GROUPS_IN_LOG, 0.25, 1, 0.25) end
 	if e.note ~= "" and not ns.KingsScreen() then tt:AddLine('"' .. e.note .. '"', 1, 1, 1, true) end
 	Groups.MembersTip(tt, e)
@@ -1173,13 +1298,21 @@ local function CardLines(lines, e)
 	Add(L.GROUPS_CARD_LEADER:format(Colored(who, e.class), ns.Codec.Plain(e.guild)), Grey(L.LEVEL_N:format(e.level) .. (class and ("  " .. class) or "")))
 	Add(L.GROUPS_NEEDS:format(Groups.NeedText(e.need)), SizeText(e.kind, e.size))
 	if e.min then Add(L.GROUPS_MIN_TIP:format(e.min)) end
-	if e.kind == "Q" and (e.zone or "") ~= "" then Add(L.GROUPS_ZONE:format(e.zone)) end
+	local zone = ShownZone(e)
+	if zone ~= "" then Add(L.GROUPS_ZONE:format(zone)) end
 	if e.note ~= "" and not ns.KingsScreen() then Add('"' .. e.note .. '"') end
-	local list = e.members or {}
-	if #list > 0 or (e.more or 0) > 0 then
+	if e.mine then
+		local list = e.members or {}
+		if #list > 0 then
+			Add(Gold(L.GROUPS_IN_GROUP))
+			for _, m in ipairs(list) do lines[#lines + 1] = MemberRow(m, 3) end
+		end
+	elseif #(e.counts or {}) > 0 then
+		-- (Review of 1.2: anyone else's group by class and role, never by name.)
 		Add(Gold(L.GROUPS_IN_GROUP))
-		for _, m in ipairs(list) do lines[#lines + 1] = MemberRow(m, 3) end
-		if (e.more or 0) > 0 then lines[#lines + 1] = { indent = 3, text = Grey(L.GROUPS_MORE:format(e.more)) } end
+		for _, c in ipairs(e.counts) do
+			lines[#lines + 1] = { indent = 3, text = CountText(c), right = c.role and Green(Groups.RoleLabel(c.role)) or Grey(L.GROUPS_ROLE_UNSET) }
+		end
 	end
 	if e.mine then Add(Grey(L.GROUPS_MANAGE_ABOVE)) return end
 	CardActions(lines, e)
@@ -1193,7 +1326,6 @@ function Groups.ApplicantTip(tt, a)
 	tt:AddLine(("<%s>  %s"):format(ns.Codec.Plain(a.guild), L.LEVEL_N:format(a.level)) .. (class and ("  " .. class) or ""), 1, 1, 1)
 	if a.note ~= "" and not ns.KingsScreen() then tt:AddLine('"' .. a.note .. '"', 1, 1, 1, true) end
 	tt:AddLine(ns.Ago(a.at), 0.6, 0.6, 0.6)
-	if Groups.GearTip then Groups.GearTip(tt, a) end
 	tt:AddLine(L.GROUPS_APPLICANT_TIP, 0.6, 0.6, 0.6, true)
 end
 
@@ -1209,7 +1341,6 @@ local function ApplicantLines(lines, a)
 		tooltip = function(tt) Groups.ApplicantTip(tt, a) end }
 	if opened == a.name then
 		if a.note ~= "" and not ns.KingsScreen() then lines[#lines + 1] = { indent = 2, text = '"' .. a.note .. '"' } end
-		if Groups.GearLines then Groups.GearLines(lines, a) end
 		if not waiting then
 			lines[#lines + 1] = { indent = 2, text = Gold("> " .. L.GROUPS_INVITE_AS:format(Groups.RoleLabel(a.role))), onClick = function() Groups.Invite(a.name) end }
 		end
@@ -1335,7 +1466,9 @@ function Groups.ConfirmName(data, name)
 	data.answered = true
 	name = Groups.CleanTitle(name)
 	if name == "" or not compose or compose.kind ~= "Q" then return end
-	Groups.ChooseTarget("0", name, Groups.CurrentZone())
+	-- (Review of 1.2: no zone kept for a typed name; it carries ours at each send only while we
+	-- share it, Groups.OwnZone.)
+	Groups.ChooseTarget("0", name, "")
 	return true
 end
 
@@ -1360,7 +1493,7 @@ local function ComposerLines(lines, kind)
 		if kind == "Q" then
 			lines[#lines + 1] = { indent = 2, text = Gold("> " .. L.GROUPS_TYPE_NAME), onClick = function() Groups.PromptName() end,
 				tooltip = function(tt) tt:AddLine(L.GROUPS_TYPE_NAME, 1, 0.82, 0); tt:AddLine(L.GROUPS_TYPE_NAME_TIP, 1, 1, 1, true) end }
-			local log = Groups.QuestLog()
+			local log = Log().list
 			for _, quest in ipairs(log) do
 				local qq = quest
 				lines[#lines + 1] = { indent = 2, text = Gold("> " .. quest.title),
@@ -1383,8 +1516,9 @@ local function ComposerLines(lines, kind)
 end
 
 -- A kind's section of the Board: what it is, our group (or how to list one) with its applications,
--- the groups listed (ours first) with their filters, then the players looking.
-function Groups.Lines(lines, q)
+-- the groups listed (ours first) with their filters, then the players looking. The quest log is
+-- read once for the whole page (Groups.WithLog).
+local function PageLines(lines, q)
 	local kind = view
 	if not q then
 		lines[#lines + 1] = { indent = 0, text = Grey(L.GROUPS_EXPLAIN), gapAfter = true }
@@ -1431,6 +1565,7 @@ function Groups.Lines(lines, q)
 	Groups.LookingLines(lines, kind, q)
 	return lines
 end
+function Groups.Lines(lines, q) return Groups.WithLog(PageLines, lines, q) end
 
 ---------------------------------------------------------------------------
 -- A flag for several places and roles (1.2: Board.lua carries them after the flag's note)
@@ -1572,13 +1707,19 @@ end
 function Groups.Looking(kind)
 	local out = {}
 	if kind == "Q" then return out end
+	-- (Review of 1.2: whether each fits is worked out once, before the sort, not in its comparator.)
+	local fits = {}
 	for _, e in ipairs(ns.Board.List("flag")) do
-		if FlagPick(e, kind) then out[#out + 1] = e end
+		if FlagPick(e, kind) then
+			out[#out + 1] = e
+			fits[e] = Groups.Fits(e)
+		end
 	end
 	table.sort(out, function(a, b)
-		local fa, fb = Groups.Fits(a), Groups.Fits(b)
+		local fa, fb = fits[a], fits[b]
 		if fa ~= fb then return fa end
-		return a.raisedAt > b.raisedAt
+		if a.raisedAt ~= b.raisedAt then return a.raisedAt > b.raisedAt end
+		return a.sender < b.sender
 	end)
 	return out
 end
@@ -1600,7 +1741,7 @@ end
 function Groups.InviteFlag(name, role)
 	if not own or not Groups.ROLE[role] then return false end
 	if not MayInvite() then return false, "leader" end
-	GameInvite(name)
+	if not GameInvite(name) then ns.Print(L.GROUPS_INVITE_FAILED) return false, "invite" end
 	pending[name] = { role = role, at = ns.Now() }
 	ns.Print(L.GROUPS_INVITED:format(ns.DisplayName(name) or name, Groups.RoleLabel(role)))
 	opened = nil
@@ -1656,11 +1797,13 @@ end
 -- The dialogs: what goes out, and a note (optional)
 ---------------------------------------------------------------------------
 
+-- (Review of 1.2: the dialog says what goes out, the zone among it when one does.)
 function Groups.PromptList(note)
 	local c = compose
 	if not c or not c.target then return end
+	local zone = OwnZone({ kind = c.kind, target = c.target, zone = c.zone })
 	local what = ("%s: %s  (%s)"):format(Groups.KindLabel(c.kind), Groups.Target(c.kind, c.target, c.title), L.GROUPS_NEEDS:format(Groups.NeedText(c.need)))
-		.. (c.min and ("  " .. L.GROUPS_MIN_TIP:format(c.min)) or "")
+		.. (c.min and ("  " .. L.GROUPS_MIN_TIP:format(c.min)) or "") .. (zone ~= "" and ("  " .. L.GROUPS_ZONE:format(zone)) or "")
 	return ns.ShowDialog("OLYMPUS_GROUPS_LIST", what, ns.Comm.Audience(), { kind = c.kind, target = c.target, title = c.title, need = c.need,
 		min = c.min, zone = c.zone, note = ns.Board.CleanNote(note) })
 end
@@ -1769,15 +1912,22 @@ ns.Comm.Handle("GW", function(...) Groups.HandleWithdraw(...) end)
 ns.Comm.Handle("GR", function(...) Groups.HandleAnswer(...) end)
 
 -- Someone joined or left our group: our invites checked a second later (the event comes in bursts).
-ns.RegisterEvent("GROUP_ROSTER_UPDATE", function()
+-- The Board is redrawn only when that changes what it shows (review of 1.2: not on every client
+-- at every roster update, with its camps on the map): an invite joined or lapsed (CheckJoins says
+-- so itself), or our listed group's roster. GROUPS_ROSTER tells the API (its MY_GROUP_CHANGED,
+-- built only while an addon listens).
+function Groups.OnRoster()
 	if rosterPending then return end
 	rosterPending = true
 	Groups.after(1, "groups roster", function()
 		rosterPending = false
-		ns.SafeCall("groups joins", Groups.CheckJoins)
-		Changed()
+		local changed = false
+		ns.SafeCall("groups joins", function() changed = Groups.CheckJoins() end)
+		if not changed and own then Changed() end
+		ns.Fire("GROUPS_ROSTER")
 	end)
-end)
+end
+ns.RegisterEvent("GROUP_ROSTER_UPDATE", function() Groups.OnRoster() end)
 
 ns.On("LOGIN", function()
 	Groups.Restore()
