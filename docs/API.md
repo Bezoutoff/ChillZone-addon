@@ -699,8 +699,9 @@ not kept (the Board forgets it): `applied` is then `nil`.
 
 #### `handle:GetLooking([kind])`
 
-The section's **Players looking**: the flags that name that kind, the ones that fit the player's
-own listing first. Without `kind`, the dungeon, raid and PvP sections in turn: a player whose flag
+The section's **Players looking**: the player's own flag first when it names that kind
+(`own = true`, as the Board's flags page shows it), then the others' flags that name it, the ones
+that fit the player's own listing first. Without `kind`, the dungeon, raid and PvP sections in turn: a player whose flag
 names two kinds is in both, as on the Board. No flag looks for a quest (`{}`).
 
 ```lua
@@ -708,7 +709,8 @@ names two kinds is in both, as on the Board. No flag looks for a quest (`{}`).
 	{ kind = "dungeon", name = "Example-Realm", guild = "Olympus Example", class = "WA", level = 20,
 		roles = { tank = true, healer = false, damage = false }, -- what his flag says he plays
 		places = { "DM", "SFK" }, -- the places it names in that kind, or "any"
-		fits = false }, -- it fits the player's own listing (its place, a role it needs, its minimum)
+		fits = false, -- it fits the player's own listing (its place, a role it needs, its minimum)
+		own = false }, -- true for the player's own flag (which never fits his own listing)
 }
 ```
 

@@ -2398,11 +2398,28 @@ test("1.2 the API groups: Has; GetGroups and GetLooking copy what the Board's se
 	w:Run(2)
 	local looking = Do(w, viewer, api, "GetLooking")
 	eq(#looking, 2)
-	eq(Keys(looking[1]), "class,fits,guild,kind,level,name,places,roles")
+	eq(Keys(looking[1]), "class,fits,guild,kind,level,name,own,places,roles")
+	eq(looking[1].own, false, "another player's flag")
 	eq(looking[1].kind, "dungeon"); eq(looking[1].name, quester.name); eq(table.concat(looking[1].places, ","), "DM,SFK")
 	eq(looking[1].roles.tank, true); eq(looking[1].roles.healer, false); eq(looking[1].fits, false, "no listing of ours")
 	eq(looking[2].kind, "pvp"); eq(looking[2].places, "any")
 	eq(#Do(w, viewer, api, "GetLooking", "pvp"), 1); eq(#Do(w, viewer, api, "GetLooking", "quest"), 0, "no flag looks for a quest")
+	-- (Daniel's test of a companion, 1.2) The player's own flag is on the list too, first, marked own:
+	-- the Board's flags page shows it, and a companion's list of players looking must not leave it out.
+	-- (The client's own map names, which the Board's flags page reads for his flag's zone while he
+	-- shares his location: the real C_Map has GetMapInfo, the viewer's stand-in above only the best map.)
+	viewer.globals.C_Map.GetMapInfo = function(id) return id == 1453 and { name = "Stormwind City" } or nil end
+	assert(w:As(viewer, viewer.ns.Board.Raise, "D", "", { roles = "D", picks = "D:*" }))
+	w:Run(2)
+	local withMine = Do(w, viewer, api, "GetLooking", "dungeon")
+	eq(#withMine, 2)
+	eq(withMine[1].own, true); eq(withMine[1].name, viewer.name); eq(withMine[1].places, "any")
+	eq(withMine[1].roles.damage, true); eq(withMine[1].fits, false, "his own flag never fits his own listing")
+	eq(withMine[2].own, false); eq(withMine[2].name, quester.name)
+	eq(#Do(w, viewer, api, "GetLooking", "raid"), 0, "his flag names no raid")
+	w:As(viewer, viewer.ns.Board.Lower, true)
+	w:Run(2)
+	eq(#Do(w, viewer, api, "GetLooking", "dungeon"), 1, "taken down: gone from the list")
 	-- Copies: changing one changes nothing of Olympus's.
 	rows = Do(w, viewer, api, "GetGroups")
 	rows[1].need.tank, rows[1].leader = 9, "x"

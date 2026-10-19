@@ -828,7 +828,23 @@ local function LookingRow(e, k)
 	end
 	return { kind = KIND_NAME[k], name = name, guild = Plain(e.guild, 64), class = ClassCode(e.class), level = Num(e.level, true),
 		roles = { tank = roles:find("T", 1, true) ~= nil, healer = roles:find("H", 1, true) ~= nil, damage = roles:find("D", 1, true) ~= nil },
-		places = places, fits = Call("Groups", "Fits", e) == true }
+		places = places, fits = Call("Groups", "Fits", e) == true, own = false }
+end
+
+-- The player's own flag in that kind, as the Board's flags page shows it (own = true, never fits his
+-- own listing): his name, guild, class and level from the game. (1.2, Daniel's test of a companion:
+-- its list of players looking had every flag but his own.)
+local function OwnLookingRow(k)
+	local mine = Call("Board", "Mine")
+	if type(mine) ~= "table" then return nil end
+	local classFile = UnitClass and select(2, UnitClass("player")) or nil
+	local e = { sender = ns.me, flag = mine.flag, roles = mine.roles, picks = mine.picks,
+		guild = GetGuildInfo and (GetGuildInfo("player")) or nil,
+		class = Call("Roster", "ClassCode", classFile), level = UnitLevel and UnitLevel("player") or nil }
+	if not Call("Groups", "FlagPickOf", e, k) then return nil end
+	local row = LookingRow(e, k)
+	if row then row.own, row.fits = true, false end
+	return row
 end
 
 -- A kind's Players looking (each section's, dungeons, raids and PvP in turn, without one: a
@@ -837,6 +853,8 @@ function API.Looking(kind)
 	if not HasGroups() then return nil end
 	local out = {}
 	for _, k in ipairs(kind and { kind } or { "D", "R", "P" }) do
+		local own = OwnLookingRow(k)
+		if own and #out < API.MAX_LOOKING then out[#out + 1] = own end
 		for _, e in ipairs(Call("Groups", "Looking", k) or {}) do
 			if #out >= API.MAX_LOOKING then break end
 			out[#out + 1] = LookingRow(e, k)
