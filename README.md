@@ -868,7 +868,9 @@ what each player chose to share, and the King's week.
   **Lower your listing** or `/oly group off` takes it down for everyone at once. Five
   applications of yours wait at most; a click withdraws one. Listings for a quest in your own
   log come first, marked. Nothing joins a queue, and nothing invites anyone without the
-  leader's click. Clients before 1.2 never see listings (their Board is unchanged).
+  leader's click. Clients before 1.2 never see listings (their Board is unchanged). Another
+  addon you allowed on the privacy page (the Olympus API, below) may show its own panel in place
+  of **Your group**; the switch above it brings Olympus's own back, kept for your account.
 - **A flag for several places, with your roles** (1.2): under the one-click flags, **Raise a flag
   for several places, with your roles** picks the roles you play (any of Tank, Healer, Damage)
   and up to 8 dungeons, raids and PvP spots, or **Any** of a kind, in one flag. Its card says
