@@ -216,6 +216,10 @@ ns.GAMEPAD = {
 	{ id = "load-companion", kind = "load", files = { "ArenaNet.lua" },
 		guard = "own", toPad = "stays", toMouse = "nothing", safe = "keep",
 		why = "Loading Olympus's own load-on-demand companion, Olympus_Arena (C_AddOns.LoadAddOn), when the player opens the Arena. The load itself touches nothing of the game's UI; what the companion's files reach of it is tagged and registered here like Olympus's own (the audit scans Olympus_Arena/ too)." },
+	-- 1.2: a companion addon's panel on the Board's Your group (API.lua's ui.board-groups).
+	{ id = "board-panel", kind = "api-panel", files = { "API.lua", "Groups.lua", "Views.lua" },
+		guard = "own", toPad = "stays", toMouse = "nothing", safe = "keep",
+		why = "A companion addon's group panel in place of the Board's Your group (API.lua's RegisterGroupPanel): a frame Olympus creates in its own window, anchors, shows and hides; the companion's build and refresh run protected inside it. Nothing of the game's UI is touched, in either mode, and the player's switch on the Board brings Olympus's own back." },
 	{ id = "lib-stub", kind = "library", files = {}, vendor = { "libs/LibStub/LibStub.lua" }, globals = { "LibStub" },
 		guard = "own", toPad = "stays", toMouse = "nothing", safe = "keep",
 		why = "LibStub, the libraries' shared registry: it keeps itself in its own global, as in every addon that carries it." },

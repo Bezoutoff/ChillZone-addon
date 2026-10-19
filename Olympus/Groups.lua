@@ -139,6 +139,11 @@ Groups.PLACES = {
 }
 local placeByKey = {}
 for _, p in ipairs(Groups.PLACES) do placeByKey[p.key] = p end
+-- Whether a key is one of this version's places of that kind (OD, OR and OP, "Other", are not).
+function Groups.KnownPlace(kind, key)
+	local p = placeByKey[key]
+	return p ~= nil and p.kind == kind and p.name ~= nil
+end
 
 -- Swappable in tests.
 Groups.after = function(seconds, where, fn) ns.After(seconds, where, fn) end
@@ -159,6 +164,7 @@ local lastList, lists = -math.huge, {}
 local view = "flags"   -- the Board's section shown: "flags" (Board.lua's page) or a kind
 local opened           -- the card (a leader's name) or applicant opened, its actions under it
 local compose          -- the listing being made: { kind, target, title, need }
+local flagCompose      -- the flag for several places being made (1.2): { roles = { T = true... }, picks = { D = { any, keys = { [key] = true } } }, open = kind }
 
 local function Gold(s) return "|cffffd200" .. s .. "|r" end
 local function Grey(s) return "|cff9d9d9d" .. s .. "|r" end
@@ -995,17 +1001,20 @@ function Groups.StepOwnNeed(role)
 	Update(ns.Now())
 	Save()
 	Redraw()
+	Changed()
 end
--- A member's role as the leader sets it (Tank, Healer, Damage, none, in turn): shown on the
--- group's card on every Board (the GM). The game says no role here.
-function Groups.SetMemberRole(name, role)
-	if role == nil then
+-- A member's role as the leader sets it (Tank, Healer, Damage, none, in turn; `exact`: that role,
+-- nil for none, as the API sets it): counted on the group's card on every Board (the GM). The
+-- game says no role here.
+function Groups.SetMemberRole(name, role, exact)
+	if role == nil and not exact then
 		local cur = roles[name]
 		role = cur == nil and "T" or cur == "T" and "H" or cur == "H" and "D" or nil
 	end
 	roles[name] = Groups.ROLE[role] and role or nil
 	if own then Update(ns.Now()) end
 	Redraw()
+	Changed()
 end
 
 function Groups.Decline(name)
@@ -1524,7 +1533,11 @@ local function PageLines(lines, q)
 		lines[#lines + 1] = { indent = 0, text = Grey(L.GROUPS_EXPLAIN), gapAfter = true }
 		lines[#lines + 1] = { header = true, text = L.GROUPS_YOURS,
 			tooltip = function(tt) tt:AddLine(L.GROUPS_YOURS, 1, 0.82, 0); tt:AddLine(L.GROUPS_YOURS_TIP, 1, 1, 1, true) end }
-		if own and own.kind == kind then
+		-- 1.2 (API.lua's ui.board-groups): a companion addon's panel in place of what follows, with
+		-- the player's switch back to Olympus's own (Groups.PanelLines); the composer stays ours.
+		if Groups.PanelLines(lines, kind, compose and compose.kind == kind and not own and function() ComposerLines(lines, kind) end) then
+			-- (drawn there)
+		elseif own and own.kind == kind then
 			OwnLines(lines)
 		elseif own then
 			local k = own.kind
@@ -1568,10 +1581,163 @@ end
 function Groups.Lines(lines, q) return Groups.WithLog(PageLines, lines, q) end
 
 ---------------------------------------------------------------------------
+-- A companion addon's panel in place of Your group (1.2, API.lua's ui.board-groups)
+---------------------------------------------------------------------------
+-- One panel a session (the first registered keeps it): an Olympus-owned frame on the Board's page,
+-- under the Your group heading, built and refreshed by the companion's own functions (protected:
+-- an error is logged and never breaks the Board). It replaces Olympus's own lines there (the
+-- applications, the roster, what the group needs, the way to list one) while its addon has the
+-- player's Yes (`allowed`), its build did not fail, and the player has not chosen Olympus's own
+-- with the switch above it (kept for the account: ns.db.groupsPanel = "olympus"). The sections,
+-- the listings, their cards, the filters and the players looking stay Olympus's.
+Groups.PANEL_MIN, Groups.PANEL_MAX = 20, 600 -- the panel's height, as its frame sets it, bounded
+local panel -- { owner, label, build, refresh, allowed, frame, built, failed }
+-- A frame is never destroyed in the game: an owner's, once made, is kept for the session and given
+-- back (with what its build made in it) if it registers again, so taking a panel off and putting it
+-- back makes no new frame.
+local heldPanels = {} -- [owner] = { frame, built }
+
+function Groups.RegisterPanel(owner, spec)
+	if type(owner) ~= "string" or owner == "" then return false, "invalid-owner" end
+	if panel then return false, panel.owner == owner and "registered" or "panel-full" end
+	if type(spec) ~= "table" or type(spec.label) ~= "string" or type(spec.build) ~= "function"
+		or (spec.refresh ~= nil and type(spec.refresh) ~= "function") or type(spec.allowed) ~= "function" then
+		return false, "invalid-spec"
+	end
+	local kept = heldPanels[owner]
+	panel = { owner = owner, label = spec.label, build = spec.build, refresh = spec.refresh, allowed = spec.allowed,
+		frame = kept and kept.frame, built = kept and kept.built }
+	Redraw()
+	return true
+end
+-- Its owner's panel taken off: its frame hidden (kept for it), Olympus's own lines back.
+function Groups.UnregisterPanel(owner)
+	if not panel or panel.owner ~= owner then return false, "unregistered" end
+	if panel.frame then
+		panel.frame:Hide()
+		heldPanels[owner] = { frame = panel.frame, built = panel.built }
+	end
+	panel = nil
+	Redraw()
+	return true
+end
+function Groups.PanelOwner() return panel and panel.owner or nil end
+-- Whether the companion's panel takes Your group's place now (its Yes, the player's choice).
+function Groups.PanelInUse()
+	if not panel or panel.failed then return false end
+	local ok, yes = pcall(panel.allowed)
+	if not ok or yes ~= true then return false end
+	return not (ns.db and ns.db.groupsPanel == "olympus")
+end
+-- Whether it shows on the screen now: in use, the Olympus window open on the Board's group
+-- section, and its frame drawn there.
+function Groups.PanelShown()
+	if not Groups.PanelInUse() or not panel.frame or not Groups.Showing() then return false end
+	if not (ns.Views and ns.Views.BoardShown and ns.Views.BoardShown() and ns.UI and ns.UI.IsShown and ns.UI.IsShown()) then return false end
+	local ok, shown = pcall(panel.frame.IsVisible, panel.frame)
+	return ok and shown == true
+end
+-- The switch: Olympus's own panel (true) or the companion's (false), for the account.
+function Groups.UseOwnPanel(on)
+	if ns.db then ns.db.groupsPanel = on and "olympus" or nil end
+	Redraw()
+end
+
+-- The panel's row on the Board (Views.Render's line.panel): the frame anchored in it, built once
+-- and refreshed at each draw after; its height, and the frame (so a row drawn with another line
+-- later hides it).
+local function DrawPanel(row, width) -- gp:board-panel
+	local p = panel
+	if not p then return 0 end
+	if not p.frame then p.frame = CreateFrame("Frame", nil, row) end
+	local f = p.frame
+	f:SetParent(row)
+	f:ClearAllPoints()
+	f:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+	f:SetWidth(width)
+	if not p.built then
+		local ok = pcall(p.build, f)
+		if ok then p.built = true else p.failed = true end
+	elseif p.refresh then
+		if not pcall(p.refresh, f) then ns.Log("groups: the companion's panel refresh failed") end
+	end
+	if p.failed then
+		ns.Log("groups: the companion's panel build failed: Olympus's own Your group instead")
+		f:Hide()
+		Changed()
+		return 0, f
+	end
+	f:Show()
+	local h = tonumber(f:GetHeight()) or 0
+	return math.max(Groups.PANEL_MIN, math.min(Groups.PANEL_MAX, h)), f
+end
+Groups.DrawPanel = DrawPanel
+
+-- Under Your group: with a panel registered and its Yes, the switch between it and Olympus's own;
+-- with it in use, the composer while one is open (`composer`), then the panel. Whether it drew Your
+-- group's lines (else Olympus's own follow).
+function Groups.PanelLines(lines, kind, composer)
+	if not panel or panel.failed then return false end
+	local ok, yes = pcall(panel.allowed)
+	if not ok or yes ~= true then return false end
+	local ownChosen = ns.db and ns.db.groupsPanel == "olympus"
+	local label = panel.label
+	lines[#lines + 1] = { id = "board-panel-switch", nav = {
+		{ text = label, selected = not ownChosen, onClick = ownChosen and function() Groups.UseOwnPanel(false) end or nil,
+			tooltip = function(tt) tt:AddLine(label, 1, 0.82, 0); tt:AddLine(L.GROUPS_PANEL_THEIRS_TIP, 1, 1, 1, true) end },
+		{ text = L.GROUPS_PANEL_OWN, selected = ownChosen, onClick = not ownChosen and function() Groups.UseOwnPanel(true) end or nil,
+			tooltip = function(tt) tt:AddLine(L.GROUPS_PANEL_OWN, 1, 0.82, 0); tt:AddLine(L.GROUPS_PANEL_OWN_TIP, 1, 1, 1, true) end },
+	} }
+	if ownChosen then return false end
+	if composer then composer() end
+	lines[#lines + 1] = { id = "board-panel", panel = DrawPanel }
+	return true
+end
+
+-- What the API opens of Olympus's own (API.lua's groups.manage): a listing's card on the Board (the
+-- player applies or whispers there himself), the composer of a listing, or of a flag. Each opens
+-- the Board on its section; none sends anything.
+function Groups.OpenListing(leader, id)
+	local kind, key
+	if leader == ns.me and own and own.id == id then
+		kind, key = own.kind, "own"
+	else
+		local e = posts[leader]
+		if not e or e.id ~= id then return false, "unknown" end
+		kind, key = e.kind, leader
+	end
+	Groups.Show(kind, true)
+	opened = key
+	ns.Board.Open()
+	Redraw()
+	return true
+end
+function Groups.OpenComposer(kind)
+	if own then kind = own.kind elseif not Groups.KIND[kind] then return false, "kind" end
+	Groups.Show(kind, true)
+	if not own and not (compose and compose.kind == kind) then compose = { kind = kind, need = Groups.DEFAULT_NEED[kind] } end
+	ns.Board.Open()
+	Redraw()
+	return true
+end
+-- The flag for several places, on the Board's flags (kind: that kind's places opened); with a flag
+-- of ours up, the flags page where it is.
+function Groups.OpenFlagComposer(kind)
+	if kind ~= nil and not (kind == "D" or kind == "R" or kind == "P") then return false, "kind" end
+	Groups.Show("flags", true)
+	if not ns.Board.Mine() then
+		if not flagCompose then flagCompose = { roles = {}, picks = {} } end
+		if kind then flagCompose.open = kind end
+	end
+	ns.Board.Open()
+	Redraw()
+	return true
+end
+
+---------------------------------------------------------------------------
 -- A flag for several places and roles (1.2: Board.lua carries them after the flag's note)
 ---------------------------------------------------------------------------
 
-local flagCompose -- { roles = { T = true... }, picks = { D = { any, keys = { [key] = true } } }, open = kind }
 
 -- "Any dungeon, Warsong Gulch, Arathi Basin": a flag's picks by name (Board.ParsePicks' list).
 function Groups.PicksText(list)
@@ -1685,6 +1851,7 @@ local function FlagPick(e, kind)
 	for _, p in ipairs(list) do if p.kind == kind then return p end end
 	return nil
 end
+Groups.FlagPickOf = FlagPick -- (a flag's pick of a kind, API.lua; Groups.FlagPick is the composer's click)
 -- Whether a flag fits our listing: it looks for our place (or anything of its kind), plays a role
 -- we still need, and is of our minimum level. A flag that names no roles never fits for sure.
 function Groups.Fits(e, mine)
@@ -1898,7 +2065,8 @@ function Groups.Reset()
 	wipe(posts); wipe(lastNewId); wipe(lowered); wipe(applicants); wipe(apps); wipe(usedIds); wipe(lists)
 	wipe(pending); wipe(roles); wipe(filters)
 	rosterPending = false
-	own, opened, compose, view, flagCompose = nil, nil, nil, "flags", nil
+	own, opened, compose, view, flagCompose, panel = nil, nil, nil, "flags", nil, nil
+	wipe(heldPanels)
 	lastList = -math.huge
 	changePending = false
 	if ns.rdb then ns.rdb.groups = nil end

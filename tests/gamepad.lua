@@ -1172,6 +1172,9 @@ local function World(C, opts)
 	})
 	E.C_AddOns = Namespace("C_AddOns", {
 		IsAddOnLoaded = function(name) return C.loadedAddOns[name] == true end,
+		-- (1.2: another installed addon's TOC fields, as the API's Register reads its Title; the
+		-- fixture's "api", AddOnsDocumentation.lua's GetAddOnMetadata(name, variable).)
+		GetAddOnMetadata = function(name, field) local t = C.addOnTitles[name] return field == "Title" and t or nil end,
 		LoadAddOn = Fn("C_AddOns.LoadAddOn", function(name)
 			if name == "Blizzard_WorldMap" and not rawget(E, "WorldMapFrame") then
 				C.absent.WorldMapFrame = nil
@@ -1183,6 +1186,7 @@ local function World(C, opts)
 		end),
 	})
 	C.loadedAddOns = { Blizzard_WorldMap = not opts.worldMapOnDemand }
+	C.addOnTitles = {}
 	-- (The game's default key for "Open chat", Enter: Bindings.xml's OPENCHAT.)
 	-- (1.2.1: and for "Guild & Communities", J: Forever's TOGGLEGUILDTAB, MainKey.lua's Shift + it.)
 	E.GetBindingKey = function(action)
@@ -2914,6 +2918,65 @@ for _, initialPad in ipairs({ false, true }) do
 			assert((ids["roster-actions"] or 0) >= 2, "the two invites, from the clicks")
 		end
 		Check(C.ledger, "the Board's groups"); NoErrors(C, "the Board's groups")
+	end)
+end
+
+-- 1.2, a companion addon's group panel on the Board (API.lua's RegisterGroupPanel, the registry's
+-- board-panel): an Olympus-owned frame in Olympus's own window, in place of Your group while the
+-- addon has the player's Yes; the player's switch on the Board brings Olympus's own back. With the
+-- gamepad UI on from the login and across a switch each way it stays Olympus's own window's.
+for _, initialPad in ipairs({ false, true }) do
+	test("gamepad Board group panel (1.2): " .. (initialPad and "gamepad" or "mouse") .. " login, a companion's panel in place of Your group, the switch back and forth, a switch of input each way", function()
+		local C, ns = Session(initialPad)
+		for _, name in ipairs(QUEST_LOG) do C.Absent(name, "Groups.lua's quest log: not in the client fixture until it is regenerated (scripts/forever-api.lua)") end
+		GP.Covers("board-panel")
+		ns.Groups.Reset()
+		C.loadedAddOns.GroupFinder, C.addOnTitles.GroupFinder = true, "Group Finder"
+		local api = assert(C.env.OlympusAPI.Register("GroupFinder"), "the companion's handle")
+		ns.Consent.Choose("api:groupfinder", true)
+		local builds, refreshes, button = 0, 0, nil
+		eq(api:RegisterGroupPanel({ label = "Group Finder",
+			build = function(frame)
+				builds = builds + 1
+				button = C.env.CreateFrame("Button", nil, frame)
+				button:SetSize(120, 20)
+				button:SetPoint("TOPLEFT", frame, "TOPLEFT", 4, -4)
+				frame:SetHeight(120)
+			end,
+			refresh = function() refreshes = refreshes + 1 end }), true)
+		ns.Groups.Show("D", true)
+		ns.Board.Open()
+		C.Advance(1)
+		for _, mode in ipairs({ initialPad, not initialPad, initialPad }) do
+			C.Switch(mode); C.Advance(1)
+			local mark = C.Mark()
+			ns.UI.Refresh(); C.Advance(0.2)
+			eq(builds, 1, "built once")
+			assert(refreshes >= 1, "refreshed as the Board redraws")
+			eq(api:IsGroupPanelShown(), true, "in place of Your group")
+			assert(button:IsVisible(), "the companion's own button, in Olympus's window")
+			eq(BoardRow(C, ns.L.GROUPS_LIST:format(ns.L.GROUPS_KIND_D)), nil, "Olympus's own lines give it their place")
+			-- The player's switch: Olympus's own, then the companion's again.
+			local switch
+			for _, w in ipairs(C.created) do
+				local l = rawget(w, "line")
+				if type(l) == "table" and l.id == "board-panel-switch" and w:IsVisible() then switch = w end
+			end
+			assert(switch, "the switch on the Board")
+			C.Click(rawget(switch, "nav")[2]); C.Advance(0.2)
+			eq(api:IsGroupPanelShown(), false); assert(not button:IsVisible())
+			assert(BoardRow(C, ns.L.GROUPS_LIST:format(ns.L.GROUPS_KIND_D)), "Olympus's own Your group")
+			eq(ns.db.groupsPanel, "olympus", "kept for the account")
+			C.Click(rawget(switch, "nav")[1]); C.Advance(0.2)
+			eq(api:IsGroupPanelShown(), true)
+			Check(C.Since(mark), "the group panel, " .. (mode and "gamepad" or "mouse and keyboard"))
+		end
+		-- The companion takes it off: the Board's own back.
+		eq(api:UnregisterGroupPanel(), true)
+		ns.UI.Refresh(); C.Advance(0.2)
+		assert(not button:IsVisible())
+		assert(BoardRow(C, ns.L.GROUPS_LIST:format(ns.L.GROUPS_KIND_D)))
+		Check(C.ledger, "the group panel"); NoErrors(C, "the group panel")
 	end)
 end
 
