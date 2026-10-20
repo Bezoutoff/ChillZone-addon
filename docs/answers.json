@@ -1080,8 +1080,8 @@
         "What's net-off?",
         "Can moderators hide spammers?"
       ],
-      "answer": "Moderators can hide a character or take a guild off the network for everyone. Decrees lists who, why, by whom and when for every member, with a red reason line when it is you or your guild; authorized officers also see the section in The Watch.",
-      "in_game": "Moderators can hide a character or guild from the network. Decrees stays member-visible and shows your own reason; authorized officers also see net-off in The Watch.",
+      "answer": "Moderators can hide a character or take a guild off the network for everyone. The Watch lists who, why, by whom and when for the moderators and the guilds' officers; when it is you or your guild, a red line on Decrees gives you the reason.",
+      "in_game": "Moderators can hide a character or guild from the network. The list is in The Watch for staff; when it is you or your guild, a red line on Decrees gives your reason.",
       "sources": [
         "README.md:612-693"
       ]

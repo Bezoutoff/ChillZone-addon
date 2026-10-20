@@ -382,8 +382,8 @@ what each player chose to share, and the King's week.
 
 ### Net-off (1.1): the moderators hide a character or take a guild off the network
 The King, his Steward, a Hand (the King's list or a Steward's) or a High Councillor of the
-author's signed list can hide one character for the whole army: **Hide a character** on the
-**Decrees** tab (the name or your target, then the reason), or `/oly netoff Name: reason`. Every
+author's signed list can hide one character for the whole army: **Hide a character** in
+**The Watch** (the name or your target, then the reason), or `/oly netoff Name: reason`. Every
 addon then hides that character on every Olympus surface: their [Olympus], [Captains] and
 [Lords] lines (and the lines the Olympus chats kept), their pinned line, their decrees, their layer and hop offers,
 their Vox Populi votes and questions, their requests at court, and (1.1, Konig's review) their

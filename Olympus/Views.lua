@@ -2924,10 +2924,11 @@ local function DecreeLines(q)
 	-- writs, for whoever they are for (Acts.lua).
 	for _, l in ipairs(ns.HeldLines()) do lines[#lines + 1] = l end
 	for _, l in ipairs(ns.Acts and ns.Acts.WritLines and ns.Acts.WritLines() or {}) do lines[#lines + 1] = l end
-	-- Net-off is realm-wide, not the Watch's private guild list. Keep its read-only disclosure and
-	-- the current player's SelfOff reason on this member-visible page; issuers' controls stay on the
-	-- same rows, while Watch may also reuse them for authorized officers.
-	for _, l in ipairs(ns.Moderation.Lines and ns.Moderation.Lines() or {}) do lines[#lines + 1] = l end
+	-- Net-off (1.4.0, the author: the hidden list left this page for The Watch, Moderation.Lines there):
+	-- only the viewer's own notice, when a word hides him or his guild (the reason on hover), or his
+	-- guild's timed word (its parchment again). A hidden officer cannot enter The Watch, so this
+	-- line is where he reads why; nobody else's name shows here.
+	for _, l in ipairs(ns.Moderation.SelfLines and ns.Moderation.SelfLines() or {}) do lines[#lines + 1] = l end
 	lines[#lines + 1] = { header = true, text = L.DECREES }
 	local decrees = ns.Decree.Active()
 	if #decrees == 0 then lines[#lines + 1] = { text = Grey(L.NO_DECREES), gapAfter = true } end

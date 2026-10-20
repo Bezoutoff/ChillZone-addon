@@ -2500,24 +2500,37 @@ local function TagsShown()
 end
 Watch.TagsShown = TagsShown
 
+-- 1.4.0 (the author: the hidden list left the Decrees tab, it is The Watch's alone): one who gives
+-- net-off words without the desk (a Steward or a Hand who is not his guild's officer) gets its
+-- section on a page of its own, the list and his buttons (Moderation.Lines). The desk's viewers
+-- read it on the desk. Never in a role preview (ViewAs.lua): the role's, not the author's.
+local function NetoffShown()
+	local M = ns.Moderation
+	return not Watch.DeskShown() and not MemberPreview() and type(M) == "table" and not M.missing
+		and type(M.CanIssue) == "function" and M.CanIssue() == true
+end
+Watch.NetoffShown = NetoffShown
+
 -- The tab (UI.AddTab's visible).
 function Watch.TabVisible() return Watch.DeskShown() or Watch.JudgmentsShown() or ChatShown()
-	or (ns.JusticeTasks and ns.JusticeTasks.Visible()) or TagsShown() or false end
+	or (ns.JusticeTasks and ns.JusticeTasks.Visible()) or TagsShown() or NetoffShown() or false end
 
 -- The sections this player sees, and the one shown when he picked none (or one he no longer
--- sees): the desk (with its Reports, Cases and a case's page), else the Judgments, else the Tabards.
+-- sees): the desk (with its Reports, Cases and a case's page), else the hidden list (1.4.0: an
+-- issuer without the desk), else the Judgments, else the Tabards.
 local function Sections()
 	local desk = Watch.DeskShown()
 	local list = { desk = desk, reports = desk, cases = desk, case = desk,
 		judgments = Watch.JudgmentsShown(), justice = ns.JusticeTasks and ns.JusticeTasks.Visible(), chat = ChatShown(), tabards = Watch.TabardsShown(), member = Watch.MemberShown() }
 	list.profile = Watch.CanRead()
 	list.tags = TagsShown()
-	list.first = desk and "desk" or list.judgments and "judgments" or list.justice and "justice" or list.chat and "chat" or list.tabards and "tabards"
-		or list.member and "member" or list.tags and "tags" or "desk"
+	list.netoff = NetoffShown()
+	list.first = desk and "desk" or list.netoff and "netoff" or list.judgments and "judgments" or list.justice and "justice" or list.chat and "chat"
+		or list.tabards and "tabards" or list.member and "member" or list.tags and "tags" or "desk"
 	return list
 end
 
--- The section shown: "desk", "reports", "cases", "case", "judgments" or "tabards".
+-- The section shown: "desk", "reports", "cases", "case", "judgments", "tabards" or another of Sections'.
 local function Section()
 	local list = Sections()
 	local mode = Watch.mode or "desk"
@@ -2534,7 +2547,7 @@ function Watch.ViewKey()
 	local section = Section()
 	if section == "tabards" then return "heraldry" end
 	if section == "chat" then return Watch.DeskShown() and "watch" or "judgments" end
-	return (section == "judgments" or section == "member" or section == "justice" or section == "tags") and "judgments" or "watch"
+	return (section == "judgments" or section == "member" or section == "justice" or section == "tags" or section == "netoff") and "judgments" or "watch"
 end
 
 -- The page shown, for the window's place and its "?" (UI.PageId: "watch/cases").
@@ -2547,7 +2560,7 @@ end
 
 function Watch.Show(mode, key)
 	Watch.mode = (mode == "reports" or mode == "cases" or mode == "case" or mode == "tabards" or mode == "judgments"
-		or mode == "chat" or mode == "member" or mode == "justice" or mode == "profile" or mode == "tags") and mode or nil
+		or mode == "chat" or mode == "member" or mode == "justice" or mode == "profile" or mode == "tags" or mode == "netoff") and mode or nil
 	Watch.caseKey = Watch.mode == "case" and key or nil
 	Watch.profileKey = Watch.mode == "profile" and key or nil
 	ns.Fire("WATCH_CHANGED")
@@ -2740,6 +2753,8 @@ local function Nav()
 		items[#items + 1] = { key = "reports", text = L.WATCH_NAV_REPORTS:format(#Watch.Reports() + #Watch.CouncilReports()) }
 		items[#items + 1] = { key = "cases", text = L.WATCH_NAV_CASES:format(#open + #councilOpen) }
 	end
+	-- 1.4.0: the hidden list, for one who gives words without the desk (the desk shows it).
+	if NetoffShown() then items[#items + 1] = { key = "netoff", text = L.NETOFF_TITLE } end
 	-- 1.2: the Judgments and the Tabards, for whoever sees them.
 	local J = Judgment()
 	if Watch.JudgmentsShown() then items[#items + 1] = { key = "judgments", text = L.WATCH_NAV_JUDGMENTS:format(J.Count()) } end
@@ -3360,6 +3375,13 @@ function Watch.Build()
 		for _, line in ipairs(Judgment().Lines()) do lines[#lines + 1] = line end
 		return lines, L.TAB_WATCH, L.JUDGMENT_DETAIL
 	end
+	-- 1.4.0: the hidden list (Moderation.lua's lines, with its giver's buttons) under the same
+	-- navigation, for one who gives words without the desk.
+	if Section() == "netoff" then
+		local lines = { Nav() }
+		for _, line in ipairs(ns.Moderation.Lines()) do lines[#lines + 1] = line end
+		return lines, L.TAB_WATCH, L.WATCH_NETOFF_DETAIL
+	end
 	if not Watch.DeskShown() then return {}, L.TAB_WATCH, L.WATCH_NO_ACCESS end
 	Watch.Prune()
 	local guild = OwnGuild() or "?"
@@ -3400,6 +3422,8 @@ function Watch.Build()
 			lines[#lines + 1] = watchLine
 		end
 	end
+	-- The hidden list (1.4.0, the author: The Watch's alone, no longer on the Decrees tab): every desk
+	-- viewer reads it, the King and the High Council with their buttons (Moderation.Lines).
 	for _, line in ipairs(ns.Moderation and ns.Moderation.Lines and ns.Moderation.Lines() or {}) do lines[#lines + 1] = line end
 	AddAttemptLines(lines)
 	AddWatchLines(lines)
@@ -3534,11 +3558,12 @@ function Watch.Slash(rest)
 		if not Watch.DeskShown() then
 			-- (A councillor sees his Judgments; a member who sees only the Tabards, those.)
 			if Watch.JudgmentsShown() then verb = "judgments"
+			elseif NetoffShown() then verb = "netoff" -- (1.4.0: a Steward or a Hand, his hidden list)
 			elseif Watch.TabardsShown() then verb = "tabards"
 			elseif Watch.MemberShown() then verb = "member"
 			else return ns.Print(L.WATCH_NO_ACCESS) end
 		end
-		if verb == "reports" or verb == "cases" or verb == "tabards" or verb == "judgments" or verb == "member" then Watch.Show(verb) end
+		if verb == "reports" or verb == "cases" or verb == "tabards" or verb == "judgments" or verb == "member" or verb == "netoff" then Watch.Show(verb) end
 		if ns.UI and ns.UI.SelectTab then ns.UI.SelectTab("watch") end
 		return true
 	elseif verb == "filter" then

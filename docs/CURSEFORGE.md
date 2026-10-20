@@ -729,8 +729,8 @@ what each player chose to share, and the King's week.
 
 ### Net-off (1.1): the moderators hide a character or take a guild off the network
 The King, his Steward, a Hand (the King's list or a Steward's) or a High Councillor of the
-author's signed list can hide one character for the whole army: **Hide a character** on the
-**Decrees** tab (the name or your target, then the reason), or `/oly netoff Name: reason`. Every
+author's signed list can hide one character for the whole army: **Hide a character** in
+**The Watch** (the name or your target, then the reason), or `/oly netoff Name: reason`. Every
 addon then hides that character on every Olympus surface: their [Olympus], [Captains] and
 [Lords] lines (and the lines the Olympus chats kept), their pinned line, their decrees, their layer and hop offers,
 their Vox Populi votes and questions, their requests at court, and (1.1, Konig's review) their
@@ -776,10 +776,12 @@ the census, are not touched: one name stops the spam.
   BattleTag; a follow needs its giver (or another team client holding the BattleTag) online every
   three days and lapses 30 days after it was given; guild net-off, exile and the chat warnings' holds
   are not followed (a hold follows once a moderator decides the case with a timeout).
-- The Decrees tab lists who is hidden, with the reason, who hid them and when (the server's
-  clock), and who passed the word on when it reached you through another issuer's addon (the
-  server's name for that one: nobody writes a word in someone else's name unseen). The same
-  people show a name again with a click there, or `/oly neton Name`.
+- The Watch lists who is hidden (1.4.0: no longer on the Decrees tab), with the reason, who hid
+  them and when (the server's clock), and who passed the word on when it reached you through
+  another issuer's addon (the server's name for that one: nobody writes a word in someone else's
+  name unseen), for the moderators and the guilds' officers. The same people who give words show
+  a name again with a click there, or `/oly neton Name`. When the word applies to your character
+  or guild, a red line on the Decrees tab gives you the reason.
 - Only a word from higher up reaches one who gives words: the King's reaches everyone but
   himself, a Steward's the Hands and High Councillors, and a Hand's or a councillor's no other
   issuer (nor the names they linked as alts). So a rogue Hand or councillor can't hide the
@@ -826,7 +828,7 @@ the census, are not touched: one name stops the spam.
   everything.
 
 The same people can also **take a guild off the Olympus network** (**Take a guild off the
-network** on the Decrees tab: the guild's name or your target's guild, then the reason; or
+network** in The Watch: the guild's name or your target's guild, then the reason; or
 `/oly netoff guild Name: reason`), and put it back on (`/oly neton guild Name`). While it is off,
 honest addons stop sending and showing that guild's census (its size leaves the army's total),
 its zones on the map, its layers and hop, its decrees, its Vox Populi votes, its Olympus chats
@@ -2283,9 +2285,10 @@ Other limits:
   fainter, one that a single sender stands behind (hover it for what the mark says).
 - **Net-off is its issuers' word (1.1).** One Hand or High Councillor can hide anyone who gives
   no words (and neither the King nor his alts) for the whole army, or take any guild but the
-  King's off the network. The Decrees tab shows everyone who did it, why and when, and who
-  passed it on; an issuer as high or higher (the King always) can put it back on, and no word
-  replaces one from higher up. Only the King, or the Steward for a Hand or a councillor, can
+  King's off the network. The Watch shows the moderators and the guilds' officers who did it,
+  why and when, and who passed it on (every addon hears the word on the Olympus channel); an
+  issuer as high or higher (the King always) can put it back on, and no word replaces one from
+  higher up. Only the King, or the Steward for a Hand or a councillor, can
   hide an issuer, and a name that is hidden gives no word: its words fade. Without signatures, one issuer can still write a word in another
   issuer's name: the addon then shows who passed it on, his reason stays off the King's
   stream, the word weighs no more than his own rank, and no addon repeats it.
@@ -2366,8 +2369,8 @@ Other limits:
 | `/oly block <name>` | ignore a player |
 | `/oly filter add\|remove <word>` · `/oly filter` | block terms: hide, on your screen, lines of addon text (Olympus chats, writs, decrees, Vox) with a word; the list (1.1) |
 | `/oly filter shared on\|off` · `/oly filter shared add\|remove <word>` | use the shared block terms or not; the King, his Steward, his Hands and the High Council edit them (1.1) |
-| `/oly netoff Name: reason` · `/oly neton Name` · `/oly netoff` | the King, his Steward, a Hand or a High Councillor: hide a character for the whole army, or show them again (also on the Decrees tab); alone, who is hidden (1.1) |
-| `/oly netoff guild Name: reason` · `/oly neton guild Name` | the same people: take a guild off the Olympus network for the army, or put it back on (also on the Decrees tab) (1.1) |
+| `/oly netoff Name: reason` · `/oly neton Name` · `/oly netoff` | the King, his Steward, a Hand or a High Councillor: hide a character for the whole army, or show them again (also in The Watch); alone, who is hidden (The Watch's readers; anyone else, his own word) (1.1) |
+| `/oly netoff guild Name: reason` · `/oly neton guild Name` | the same people: take a guild off the Olympus network for the army, or put it back on (also in The Watch) (1.1) |
 | `/oly alt add Name` · `/oly alt remove Name` · `/oly alt` | link a character of this account as your alt (log it and say yes there), take a link apart, or see your links: the census and the treasury count you once (1.1) |
 | `/oly map` | zone markers on the world map |
 | `/oly sound` · `/oly sound on\|off` | every alert sound on or off |

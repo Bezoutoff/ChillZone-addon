@@ -424,7 +424,10 @@ test("watch: tab is Treasury > The Watch > Throne and reuses Court and Moderatio
 	local views = assert(io.open(ROOT .. "Olympus/Views.lua", "rb")):read("*a")
 	local ui = assert(io.open(ROOT .. "Olympus/UI.lua", "rb")):read("*a")
 	assert(not king:find("Court and ns.Court.HomeLines", 1, true), "Throne no longer renders the Court queue")
-	assert(views:find("ns.Moderation.Lines", 1, true), "Decrees keeps member-visible net-off and SelfOff disclosure")
+	-- 1.4.0 (the author): the hidden list left the Decrees tab for The Watch; Decrees keeps only the
+	-- viewer's own notice (the behaviour: tests/run.lua, "net-off is The Watch's alone").
+	assert(not views:find("ns.Moderation.Lines", 1, true), "Decrees no longer builds the hidden list")
+	assert(views:find("ns.Moderation.SelfLines", 1, true), "Decrees keeps the viewer's own net-off notice")
 	assert(ui:find('{ "COURT_BTN", function() ns.Court.Toggle()', 1, true), "Hold Court remains a Throne button")
 end)
 

@@ -478,11 +478,12 @@ test("accord: tag follow: a councillor's net-off word on a character follows his
 		local d, text = Popup(w, V, "OLYMPUS_WATCHCHAT_DECISION")
 		assert(d, "told in Olympus's pop-up")
 		eq(text, L.ACCORD_FOLLOW_YOU_NETOFF:format("spam", V.M.When(e)))
-		-- His own line in the Decrees (the list below it shows Sootfang's word, its giver included, to
-		-- every member as before).
+		-- His own line in the Decrees (1.4.0: Moderation.SelfLines, the Decrees tab's one net-off line
+		-- since the list itself moved to The Watch, the author's call; the list there still shows
+		-- Sootfang's word, its giver included, to its readers).
 		local mine
-		for _, l in ipairs(w.As(V, V.M.Lines)) do if tostring(l.text):find(L.ACCORD_FOLLOW_YOU_SHORT, 1, true) then mine = l end end
-		assert(mine, "the Decrees say so: " .. Shown(w.As(V, V.M.Lines)))
+		for _, l in ipairs(w.As(V, V.M.SelfLines)) do if tostring(l.text):find(L.ACCORD_FOLLOW_YOU_SHORT, 1, true) then mine = l end end
+		assert(mine, "the Decrees say so: " .. Shown(w.As(V, V.M.SelfLines)))
 		local decree = Shown({ mine })
 		assert(decree:find(L.ACCORD_FOLLOW_YOU_NETOFF:format("spam", V.M.When(e)), 1, true), "its tooltip: " .. decree)
 		for _, said in ipairs({ text, table.concat(V.prints, "\n"), decree }) do
@@ -530,7 +531,7 @@ test("accord: tag follow: the same name on another realm of the group is still t
 		eq(on, "Sootwing-Other"); eq(via, nil, "not a follow")
 		eq(w.As(V, V.M.YouText, e), L.NETOFF_YOU:format("spam", "Warden", V.M.When(e)))
 		local short
-		for _, l in ipairs(w.As(V, V.M.Lines)) do if tostring(l.text):find(L.NETOFF_YOU_SHORT, 1, true) then short = l end end
+		for _, l in ipairs(w.As(V, V.M.SelfLines)) do if tostring(l.text):find(L.NETOFF_YOU_SHORT, 1, true) then short = l end end
 		assert(short, "the Decrees' own line")
 		assert(Shown({ short }):find("Warden", 1, true), "its tooltip names who gave it")
 	end)
