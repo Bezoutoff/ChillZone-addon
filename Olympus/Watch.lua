@@ -1289,7 +1289,7 @@ if ns.Comm and ns.Comm.Handle then ns.Comm.Handle("MW", function(...) Watch.Hand
 -- the newest few lines that player wrote in the Olympus channel this client already kept (its
 -- history: never a whisper, a private room, nor a line this client never saw). They go by logged
 -- whisper to the authorized officers of his guild online now, never to the one reported (nor to a
--- name his player linked); with none online the report waits a day on the reporter's client and
+-- name his player linked); with none online the report waits 30 days on the reporter's client and
 -- goes, while it is online, to those online then. Both ends recheck the live roster, as the
 -- Watch's own actions do, and the receiver takes each player's newest report on each name only, a
 -- few an hour from one player. The lines are the reporter's client's copy: the receiver can't
@@ -1549,51 +1549,49 @@ end
 ---------------------------------------------------------------------------
 -- 1.2.1 (the owner: a member's report "deveria chegar na watch... que inclui high council nessa
 -- tab"): a report reaches the High Council and the King too, in their Watch (Reports and Cases).
--- Their one reachable client is the King's (the Tabards' lease, TabardsV2.Collector: the exact King
--- client heard in the last 10 minutes), as for the Judgments: the reporter's client whispers the
--- same report to it (op C, its own copy beside the guild's R), and the King's client keeps it in the
--- council's own book (never in a guild's Watch) and passes it on to the councillors whose clients
--- asked it lately; a councillor's client asks every COUNCIL_ASK_EVERY while the King's client is
--- on, for those it received after the last one he got (op Q). With the King's client off the report
--- waits, as one for absent officers does, a day at most on the reporter's client. Each end checks
--- what it can: the reporter is one the King's client knows for his guild without this whisper (the
--- King's own guild by its roster; another, by his own earlier messages heard there: CouncilReporter),
--- each line he names is one the King's client heard itself (HeardLine: never words put in the
--- accused's mouth), a councillor is on the signed list and not sanctioned, the King's client is the
--- lease's, the accused (or a name his player linked) is never sent his own case, every message is
--- a logged whisper, and each end has its own rate limits (each guild its own on the King's client).
--- The King's chat may be on stream: what it prints names no one. The council's reports and cases
+-- Its trusted collectors are the active King's exact client and the pinned addon author while his
+-- signed presence is fresh. The reporter whispers the same report to either or both (op C beside the
+-- guild's R); each keeps its own council book and passes it to readers who ask (op Q/F). Readers
+-- prefer the King and fall back to the author; the two collectors ask each other so their durable
+-- copies converge when both are online. With neither reachable the report waits, as one for absent
+-- officers does, 30 days at most on the reporter's client. Each end checks what it can: the reporter
+-- is one that collector knows for his guild without this whisper (its own guild by roster; another,
+-- by his own earlier messages heard there: CouncilReporter), each line is one the receiving
+-- collector heard itself (HeardLine: never words put in the accused's mouth), a reader has a pinned
+-- council identity and no sanction, and the accused (or a linked name) is never sent his own case.
+-- Every message is a logged whisper, and each end has its own rate limits. A collector's chat may be
+-- on stream: what it prints names no one. The council's reports and cases
 -- stay apart from a guild's in every page (Watch.CouncilReports, Watch.CouncilCases), so an officer
 -- who sits on the council, and the King, never act on one with their guild's Watch.
---   MR~1~C~<seq>~<at>~<guild>~<group>~<faction>~<A|S|E|O>~<Name-Realm>~<lines>~<note>   to the King's client
+--   MR~1~C~<seq>~<at>~<guild>~<group>~<faction>~<A|S|E|O>~<Name-Realm>~<lines>~<note>   to a collector
 --   MR~1~E~...                                       its evidence lines, as after R
---   MR~1~Q~<since>                                   a councillor's client: the council's reports received after <since>
---   MR~1~F~<in>~<a|p<prev>>~<seq>~<at>~<guild>~<A|S|E|O>~<Name-Realm>~<lines>~<reporter>~<note>   the King's
---                                                    client passes one on (an answer to his ask, or a push), then its lines
--- <in>: when the King's client received it, one number a report, each newer than the one before
--- (KeepCouncil: the server's second, or one more than the last). A councillor's cursor moves only by
+--   MR~1~Q~<since>                                   a reader asks for reports received after <since>
+--   MR~1~F~<in>~<a|p<prev>>~<seq>~<at>~<guild>~<A|S|E|O>~<Name-Realm>~<lines>~<reporter>~<note>   a collector
+--                                                    passes one on, then its lines
+-- <in>: when that collector received it, one number a report, each newer than the one before
+-- (KeepCouncil: the server's second, or one more than the last). A reader's per-collector cursor moves only by
 -- what proves him whole up to there: each answer to his own ask (oldest first), or a push whose
--- <prev> (the King's client's receipt before it) he had already reached; so a report the King's
--- client takes late, or a long backlog cut by a push, still reaches him at his next ask.
+-- <prev> he had already reached; so a report taken late, or a long backlog cut by a push, still
+-- reaches him at his next ask.
 ---------------------------------------------------------------------------
-Watch.COUNCIL_ASK_EVERY = 15 * 60  -- a councillor's client asks this often
-Watch.COUNCIL_SPREAD = 5 * 60      -- its first ask once the King's client comes on: within this
-Watch.COUNCIL_HEARD = 20 * 60      -- the King's client passes a new report at once to those who asked this recently
+Watch.COUNCIL_ASK_EVERY = 15 * 60  -- a council reader's client asks this often
+Watch.COUNCIL_SPREAD = 5 * 60      -- its first ask once a collector comes on: within this
+Watch.COUNCIL_HEARD = 20 * 60      -- a collector pushes a new report to readers who asked this recently
 Watch.COUNCIL_ASK_GAP = 30         -- and answers one asker this often at most
 Watch.COUNCIL_SHOWN = 6            -- reports in one answer (the oldest first; a full one is asked again soon)
 Watch.COUNCIL_BACKLOG = 3 * 86400  -- a councillor's first ask goes this far back
-Watch.COUNCIL_RATE_GUILD = 10      -- the King's client takes this many council reports from one guild's members...
+Watch.COUNCIL_RATE_GUILD = 10      -- a collector takes this many council reports from one guild's members...
 Watch.COUNCIL_RATE_ALL = 60        -- ...and from all guilds but its own (whose roster vouches for them)...
 Watch.COUNCIL_RATE_ALL_WINDOW = 600 -- ...in this long
-Watch.COUNCIL_LINE_SLACK = 300     -- a copy's line is one the King's client heard when it heard those words from him within this
+Watch.COUNCIL_LINE_SLACK = 300     -- a copy's line is one the collector heard when it heard those words from him within this
                                    -- of the time the reporter's client gave it (two computers' clocks)
 Watch.COUNCIL_RELAY_WAIT = 15      -- a new report is passed on once its lines had this long to arrive
-Watch.COUNCIL_RELAY_RATE = 200     -- a councillor's client takes this many from the King's client in 10 minutes
-Watch.COUNCIL_QUEUE_KEEP = 20      -- the King's client passes reports on only while its queue keeps this much room for its own
+Watch.COUNCIL_RELAY_RATE = 200     -- a reader takes this many from one collector in 10 minutes
+Watch.COUNCIL_QUEUE_KEEP = 20      -- a collector passes reports only while its queue keeps this much room for its own
 Watch.random = math.random         -- (tests)
 
-local councilHeard = {}   -- the King's client: [councillor key] = { name, t }: asked lately (session only)
-local councilAnswered = {} -- the King's client: [councillor key] = Mono() of its last answer
+local councilHeard = {}   -- this collector: [council reader key] = { name, t }: asked lately (session only)
+local councilAnswered = {} -- this collector: [council reader key] = Mono() of its last answer
 local councilAsk = { lease = nil, at = -math.huge, got = 0 } -- a councillor's client: its asks
 
 -- The King's client on now (its exact name), as the lease says, or nil.
@@ -1608,6 +1606,22 @@ end
 local function KingHere()
 	local K = ns.King
 	return type(K) == "table" and type(K.IsKing) == "function" and K.IsKing() == true
+end
+-- The pinned addon author is a second, read-only council collector. Presence is learned by the
+-- Workshop's signed roll call; the exact pinned identity is still checked again at each end.
+local function AuthorHere()
+	local W = ns.Workshop
+	if type(W) ~= "table" then return false end
+	if type(W.IsAuthor) == "function" and W.IsAuthor() == true then return true end
+	return type(W.IsAuthorName) == "function" and type(ns.me) == "string" and W.IsAuthorName(ns.me) == true
+end
+local function AuthorClient()
+	if AuthorHere() then return ns.me end
+	local W = ns.Workshop
+	if type(W) ~= "table" or type(W.AuthorOnline) ~= "function" or W.AuthorOnline() ~= true
+		or type(W.AuthorName) ~= "function" or type(W.IsAuthorName) ~= "function" then return nil end
+	local name = W.AuthorName()
+	return type(name) == "string" and W.IsAuthorName(name) == true and Character(name) or nil
 end
 local function PowersBarred(name)
 	local WC = ns.WatchChat
@@ -1626,9 +1640,59 @@ end
 -- below: a member, not net-off, under no sanction).
 local function CouncilReader() return Watch.CouncilDeskShown ~= nil and Watch.CouncilDeskShown() == true end
 
+-- A recipient may read council reports without receiving any guild-local Watch power. The King is
+-- included here so that, after being offline, his client can recover reports held by the author.
+local function CouncilRecipient(name)
+	if CouncilObserver(name) then return true end
+	return type(name) == "string" and type(ns.IsKingCharacter) == "function" and ns.IsKingCharacter(name) == true
+		and not PowersBarred(name)
+end
+
+local function CollectorHere()
+	return CouncilReader() and (KingHere() or AuthorHere())
+end
+
+-- A relay is accepted only from the active King's exact character or the pinned addon author.
+local function TrustedCollector(name)
+	if type(name) ~= "string" then return false end
+	if type(ns.IsKingCharacter) == "function" and ns.IsKingCharacter(name) == true and Same(KingClient(), name) then
+		return not PowersBarred(name)
+	end
+	local W = ns.Workshop
+	return type(W) == "table" and type(W.IsAuthorName) == "function" and W.IsAuthorName(name) == true and not PowersBarred(name)
+end
+
+-- Collectors currently reachable by a reporter. Send to both when both are present; either durable
+-- copy is enough to release the reporter's 30-day outbox, and the collectors reconcile by Q/F.
+local function CouncilCollectors()
+	local out, seen = {}, {}
+	local function Add(name)
+		name = Character(name)
+		local key = name and Key(name)
+		if key and CouncilRecipient(name) and not seen[key] then seen[key], out[#out + 1] = true, name end
+	end
+	Add(KingClient())
+	Add(AuthorClient())
+	if KingHere() or AuthorHere() then Add(ns.me) end
+	return out
+end
+
+-- High Council asks the King first, falling back to the author. The two collectors ask each other,
+-- so a report received while either was offline converges once they overlap again.
+local function CouncilAskTarget()
+	local king, author = KingClient(), AuthorClient()
+	if king and not CouncilRecipient(king) then king = nil end
+	if author and not CouncilRecipient(author) then author = nil end
+	if KingHere() then return author and not Same(author, ns.me) and author or nil end
+	if AuthorHere() then return king and not Same(king, ns.me) and king or nil end
+	if king and not Same(king, ns.me) then return king end
+	if author and not Same(author, ns.me) then return author end
+	return nil
+end
+
 -- The council's book on this client (the King's and each councillor's own): its reports, their
--- replay floors; never a guild's Watch store, never in a recovery snapshot. The King's client's
--- last receipt (lastIn: see <in> above); a councillor's cursor on each King's client (cursors).
+-- replay floors; never a guild's Watch store, never in a recovery snapshot. This collector's
+-- last receipt (lastIn: see <in> above); a reader's cursor on each collector (cursors).
 local function CouncilStore(create)
 	if type(ns.rdb) ~= "table" or type(ns.group) ~= "string" or type(ns.faction) ~= "string" then return nil end
 	local s = ns.rdb.watchCouncil
@@ -1682,8 +1746,8 @@ Watch.PruneCouncil = PruneCouncil
 
 -- A council report kept here: each player's newest on each name. Told once in a while, naming no one
 -- (quiet: one passed on long after it was made, as a councillor's first ask brings them).
--- 1.2.1 (the review): one the King's client takes gets its receipt (<in>, newer than every one
--- before it, and <prev>, the one before); one passed on keeps the King's client's own.
+-- One a collector takes gets its receipt (<in>, newer than every one before it, and <prev>, the one
+-- before); one passed on keeps that collector's receipt.
 local function KeepCouncil(r, quiet)
 	local s = CouncilStore(true)
 	if not s then return false, "store" end
@@ -1709,8 +1773,8 @@ local function KeepCouncil(r, quiet)
 	return true, id
 end
 
--- The King's client passes one council report on to a councillor: its head, then each line it has.
--- kind: "a", an answer to his ask; "p" (or none), a push, with the King's client's receipt before it.
+-- A collector passes one council report on to a reader: its head, then each line it has.
+-- kind: "a", an answer to his ask; "p" (or none), a push, with the collector's prior receipt.
 local function RelayWire(r, kind)
 	local mark = kind == "a" and "a" or ("p" .. math.max(0, math.floor(tonumber(r.prevIn) or 0)))
 	local head = ("MR~1~F~%d~%s~%d~%d~%s~%s~%s~%d~%s~"):format(math.max(0, math.floor(tonumber(r.inAt) or 0)), mark,
@@ -1733,14 +1797,13 @@ local function RelayTo(name, r, kind)
 	if Accused(name, r.target) or Same(name, ns.me) then return false, "accused" end
 	local msgs = RelayWire(r, kind)
 	if not msgs then return false, "size" end
-	-- (The King's client's own messages first: the lease, the Judgments. A councillor's next ask
-	-- brings what did not go.)
+	-- A collector's own messages keep room first. A council reader's next ask brings what did not go.
 	if ns.Comm.QueueRoom and ns.Comm.QueueRoom() < #msgs + Watch.COUNCIL_QUEUE_KEEP then return false, "room" end
 	for i, msg in ipairs(msgs) do
 		local guardKey = "council-relay#" .. Key(name) .. "#" .. Key(r.reporter) .. "#" .. Key(r.target) .. "#" .. i
 		ns.Comm.Whisper(name, msg, nil, false, true, nil, { owner = Watch, key = guardKey, permit = function(owner, key, dist, to, payload)
 			if owner ~= Watch or key ~= guardKey or dist ~= "WHISPER" or payload ~= msg or not Same(to, name) then return false, "guard" end
-			if not KingHere() or not CouncilReader() or not CouncilObserver(name) or Accused(name, r.target) then
+			if not CollectorHere() or not CouncilRecipient(name) or Accused(name, r.target) then
 				stats.revoked = stats.revoked + 1
 				return false, "revoked"
 			end
@@ -1750,21 +1813,21 @@ local function RelayTo(name, r, kind)
 	return true
 end
 
--- The King's client: a new council report to the councillors who asked lately, once its lines came.
+-- A collector: a new council report to the council readers who asked lately, once its lines came.
 local function RelayFresh(id)
 	Watch.after(Watch.COUNCIL_RELAY_WAIT, "watch council relay", function()
 		local s = CouncilStore(false)
 		local r = s and s.reports[id]
-		if type(r) ~= "table" or not KingHere() then return end
+		if type(r) ~= "table" or not CollectorHere() then return end
 		local now = Mono()
 		for _, e in pairs(councilHeard) do
-			if now - e.t <= Watch.COUNCIL_HEARD and CouncilObserver(e.name) then RelayTo(e.name, r, "p") end
+			if now - e.t <= Watch.COUNCIL_HEARD and CouncilRecipient(e.name) then RelayTo(e.name, r, "p") end
 		end
 	end)
 end
 
--- The reporter's client: the council's copy of report r, to the King's client (true: on its way, or
--- this is the King's client and keeps it itself).
+-- The reporter's client: the council's copy of report r, to each reachable collector (true: at
+-- least one is on its way, or this client is a collector and kept it itself).
 local function CouncilWire(r)
 	local msgs = ReportWire(r)
 	if not msgs then return nil end
@@ -1774,48 +1837,58 @@ end
 Watch.CouncilWire = CouncilWire
 
 local function SendCouncil(r)
-	local king = KingClient()
-	if not king then return false end
+	local collectors = CouncilCollectors()
+	if #collectors == 0 then return false end
 	-- (Queued already, its first message not gone yet: on its way.)
 	if r.councilTryAt and Mono() - r.councilTryAt < Watch.REPORT_RETRY then return true end
-	if ns.me and Same(king, ns.me) then
-		if not KingHere() then return false end
-		local copy = { reporter = ns.me, target = r.target, cat = r.cat, note = r.note, at = r.at, seq = r.seq, n = #r.lines, lines = {},
-			guild = r.guild, heard = Clock() }
-		for i, line in ipairs(r.lines) do copy.lines[i] = { at = line.at, tier = line.tier, text = line.text } end
-		local ok, id = KeepCouncil(copy)
-		if ok then RelayFresh(id) end
-		r.councilDone = true
-		return true
-	end
 	local msgs = CouncilWire(r)
 	if not msgs then return false end
 	if ns.Comm.QueueRoom and ns.Comm.QueueRoom() < #msgs then return false end
 	r.councilTryAt = Mono()
-	for i, msg in ipairs(msgs) do
-		local guardKey = "report-council#" .. tostring(r.seq) .. "#" .. i
-		local done = i == 1 and function(ok)
-			if not ok then return end
-			r.councilDone = true
-			if r.delivered then Unqueue(r) end
-		end or nil
-		ns.Comm.Whisper(king, msg, nil, false, true, done, { owner = Watch, key = guardKey, permit = function(owner, key, dist, to, payload)
-			if owner ~= Watch or key ~= guardKey or dist ~= "WHISPER" or payload ~= msg or not Same(to, king) then return false, "guard" end
-			if not ns.IsMember() or OwnGuild() ~= r.guild or ns.group ~= r.group or ns.faction ~= r.faction or SelfOff()
-				or not Same(KingClient(), king) then
-				stats.revoked = stats.revoked + 1
-				return false, "revoked"
+	local sent = false
+	for _, collector in ipairs(collectors) do
+		-- The pinned author can be reported too; like any councillor, he must never receive his own
+		-- case (nor one about a character linked to his player).
+		if not Accused(collector, r.target) and ns.me and Same(collector, ns.me) then
+			if CollectorHere() then
+				local copy = { reporter = ns.me, target = r.target, cat = r.cat, note = r.note, at = r.at, seq = r.seq, n = #r.lines, lines = {},
+					guild = r.guild, heard = Clock() }
+				for i, line in ipairs(r.lines) do copy.lines[i] = { at = line.at, tier = line.tier, text = line.text } end
+				local ok, id = KeepCouncil(copy)
+				if ok then RelayFresh(id) end
+				r.councilDone, sent = true, true
 			end
-			return true
-		end })
+		elseif not Accused(collector, r.target) then
+			for i, msg in ipairs(msgs) do
+				local guardKey = "report-council#" .. Key(collector) .. "#" .. tostring(r.seq) .. "#" .. i
+				local done = i == 1 and function(ok)
+					if not ok then return end
+					r.councilDone = true
+					if r.delivered then Unqueue(r) end
+				end or nil
+				local queued = ns.Comm.Whisper(collector, msg, nil, false, true, done, { owner = Watch, key = guardKey,
+					permit = function(owner, key, dist, to, payload)
+						if owner ~= Watch or key ~= guardKey or dist ~= "WHISPER" or payload ~= msg or not Same(to, collector) then return false, "guard" end
+						local current = false
+						for _, name in ipairs(CouncilCollectors()) do if Same(name, collector) then current = true break end end
+						if not ns.IsMember() or OwnGuild() ~= r.guild or ns.group ~= r.group or ns.faction ~= r.faction or SelfOff()
+							or not current or Accused(collector, r.target) then
+							stats.revoked = stats.revoked + 1
+							return false, "revoked"
+						end
+						return true
+					end })
+				if queued ~= false then sent = true end
+			end
+		end
 	end
-	return true
+	return sent
 end
 
 -- Sends a report now to every authorized officer of this guild online but the accused (and, on an
 -- officer's own client, to its own desk). "held": nobody to send it to yet.
--- 1.2.1: and its council copy to the King's client while it is on (SendCouncil, above). Each part
--- goes once; the report leaves the reporter's outbox when both did (or after a day).
+-- And its council copy to any trusted collector currently reachable (SendCouncil, above). Each part
+-- goes once; the report leaves the reporter's outbox when both did (or after 30 days).
 local function Deliver(r, guildPart)
 	if not ns.IsMember() or OwnGuild() ~= r.guild or ns.group ~= r.group or ns.faction ~= r.faction then return false, "guild" end
 	if SelfOff() then return false, "netoff" end
@@ -1827,7 +1900,7 @@ local function Deliver(r, guildPart)
 		for i, line in ipairs(r.lines) do copy.lines[i] = { at = line.at, tier = line.tier, text = line.text } end
 		r.ownTaken = KeepReport(copy) or nil
 	end
-	-- (1.2.1: the council's copy, while the King's client is on: SendCouncil.)
+	-- The council's copy, while at least one trusted collector is reachable.
 	local council = r.councilDone == true or SendCouncil(r)
 	if r.delivered or guildPart == false then
 		if r.delivered and r.councilDone then Unqueue(r) end
@@ -1925,7 +1998,7 @@ function Watch.FlushReports(force)
 	table.sort(waiting, function(x, y) return x.seq < y.seq end)
 	for _, r in ipairs(waiting) do
 		local guild = not r.delivered and (force or now - (tonumber(r.tryAt) or -math.huge) >= Watch.REPORT_RETRY) and FreshRoster() ~= nil
-		-- (1.2.1: its council copy, once the King's client is on: Deliver's SendCouncil.)
+		-- Its council copy, once a trusted collector is reachable: Deliver's SendCouncil.
 		if guild or (not r.councilDone and KingClient() ~= nil) then
 			local ok, how = Deliver(r, guild)
 			if ok and how == "sent" then sent = sent + 1 end
@@ -1969,7 +2042,7 @@ function Watch.CloseCase(name)
 	return true
 end
 
--- 1.2.1 (the review of the council copies): the reporter as the King's client knows him, without his
+-- The reporter as this collector knows him, without his
 -- whisper making him known (Data.ClaimedGuild is a lookup; the claim is what his own earlier messages
 -- said): a member of the King's own guild by its roster, the server's word ("roster"); of another
 -- guild, only when his own messages heard here before (his lines in Olympus's chats, a census report,
@@ -1989,7 +2062,7 @@ local function CouncilReporter(sender, guild)
 	return type(claimed) == "string" and claimed:lower() == guild:lower() and "claim" or nil
 end
 
--- 1.2.1 (the review): a council copy's line is taken on the King's client only as one it heard
+-- A council copy's line is taken on a collector only as one it heard
 -- itself: the accused's own line in the public Olympus channel (as History keeps it: not deleted,
 -- not hidden by net-off), the same words, within COUNCIL_LINE_SLACK of the time the reporter's client
 -- gave it. Its time here, or nil (never words put in his mouth: such a line is left out).
@@ -2058,8 +2131,8 @@ local function TakeReportLine(sender, text)
 	if tier and not TierAllowed(tier) then return false, "tier" end
 	local wait = reportLines[Key(sender)]
 	if not seq or not wait or wait.seq ~= seq or Mono() - wait.t > Watch.LINES_WAIT or not i or i < 1 or i > wait.n then return false, "stale" end
-	-- (1.2.1: a council report's lines, on the King's client or a councillor's, go to the council's book;
-	-- one passed on by the King's client may be as old as the reports it keeps.)
+	-- A council report's lines, on a collector or reader, go to the council's book; one passed on by
+	-- a collector may be as old as the reports it keeps.
 	local s = wait.council and CouncilStore(false) or (not wait.council and Store(false)) or nil
 	local r = s and s.reports[wait.id]
 	if type(r) ~= "table" or r.seq ~= seq or r.lines[i] then return false, "stale" end
@@ -2068,8 +2141,8 @@ local function TakeReportLine(sender, text)
 	if not at or at > now + Watch.DATE_AHEAD or now - at > oldest then return false, "time" end
 	line = CleanLine(line)
 	if line == "" then return false, "shape" end
-	-- (1.2.1, the review: a council copy's line, on the King's client, only as one it heard itself,
-	-- at its own time for it; any other is left out, and the councillors are passed what it kept.)
+	-- A council copy's line, on a collector, is only one it heard itself, at its own time for it; any
+	-- other is left out, and readers are passed what it kept.
 	if wait.council and not wait.relay then
 		local heard = HeardLine(r.target, line, at)
 		if not heard then stats.unconfirmed = (stats.unconfirmed or 0) + 1 return false, "unconfirmed" end
@@ -2104,10 +2177,10 @@ local function TakeClose(sender, text)
 end
 
 ---------------------------------------------------------------------------
--- 1.2.1: the council's reports as the King's client and the councillors' take them (see above).
+-- The council's reports as trusted collectors and readers take them (see above).
 ---------------------------------------------------------------------------
 
--- The King's client: a member's council copy of his report (C), its lines after it (E).
+-- A trusted collector: a member's council copy of his report (C), its lines after it (E).
 local function TakeCouncilHead(sender, text)
 	local seq, at, guild, group, faction, cat, target, n, note =
 		text:match("^MR~1~C~(%d+)~(%d+)~([^~]+)~([^~]+)~([^~]+)~(%u)~([^~]+)~(%d)~(.*)$")
@@ -2147,10 +2220,10 @@ local function TakeCouncilHead(sender, text)
 	return true
 end
 
--- A councillor's client: one the King's client passed on (F), its lines after it (E).
+-- A council reader's client: one a trusted collector passed on (F), its lines after it (E).
 local function TakeRelay(sender, text)
-	if KingHere() or not CouncilObserver(ns.me) then return false, "access" end
-	if not (Same(KingClient(), sender) and ns.IsKingCharacter(sender)) then return false, "sender" end
+	if not CouncilReader() or not CouncilRecipient(ns.me) then return false, "access" end
+	if Same(sender, ns.me) or not TrustedCollector(sender) then return false, "sender" end
 	local inAt, kind, prev, seq, at, guild, cat, target, n, reporter, note =
 		text:match("^MR~1~F~(%d+)~([ap])(%d*)~(%d+)~(%d+)~([^~]+)~(%u)~([^~]+)~(%d)~([^~]+)~(.*)$")
 	inAt, prev, seq, at, n = tonumber(inAt), tonumber(prev), tonumber(seq), tonumber(at), tonumber(n)
@@ -2159,11 +2232,11 @@ local function TakeRelay(sender, text)
 	if not Rate("council-relay:" .. Key(sender), Watch.COUNCIL_RELAY_RATE, 600) then return false, "rate" end
 	local s = CouncilStore(true)
 	if not s then return false, "store" end
-	-- (1.2.1, the review: his cursor on this King's client moves by an answer to his ask, the oldest
+	-- His cursor on this collector moves by an answer to his ask, the oldest
 	-- first, whatever this one is (one he has, or one he refuses), and by a push only from where he
 	-- already is; see <in> above. A full answer is asked again soon: CouncilTick.)
 	local ck, cursor = Key(sender), tonumber(s.cursors[Key(sender)]) or 0
-	if kind == "a" then councilAsk.got = councilAsk.got + 1 end
+	if kind == "a" and Same(councilAsk.lease, sender) then councilAsk.got = councilAsk.got + 1 end
 	if inAt > cursor and (kind == "a" or prev <= cursor) then s.cursors[ck] = inAt end
 	if not CouncilGuild(guild) then return false, "identity" end
 	local name, by = Character(target), Character(reporter)
@@ -2183,13 +2256,13 @@ local function TakeRelay(sender, text)
 	return true
 end
 
--- The King's client: a councillor's ask (Q): the council's reports it received after <since> (their
+-- A collector: a council reader's ask (Q): the council's reports it received after <since> (their
 -- <in>), the oldest first, COUNCIL_SHOWN at most, never one about himself or a name his player linked;
 -- it stops at the first that can't go now, so none is skipped (his next ask starts there).
 local function TakeCouncilAsk(sender, text)
 	local since = tonumber(text:match("^MR~1~Q~(%d+)$"))
 	if not since then return false, "shape" end
-	if not CouncilObserver(sender) then return false, "sender" end
+	if not CouncilRecipient(sender) then return false, "sender" end
 	local key, now = Key(sender), Mono()
 	if not councilHeard[key] and Count(councilHeard) >= 200 then
 		for k, e in pairs(councilHeard) do if now - e.t > Watch.COUNCIL_HEARD then councilHeard[k], councilAnswered[k] = nil, nil end end
@@ -2216,16 +2289,16 @@ local function TakeCouncilAsk(sender, text)
 	return true
 end
 
--- A councillor's client, each minute: its ask, once the King's client comes on (at a moment of its
--- own within COUNCIL_SPREAD, so the councillors' asks do not all reach it at once), then every
--- COUNCIL_ASK_EVERY; sooner after an answer that came full. force: now.
+-- A council reader's client, each minute: its ask once a collector comes on (at a moment of its own
+-- within COUNCIL_SPREAD), then every COUNCIL_ASK_EVERY; sooner after an answer that came full.
+-- Collectors ask one another; other readers prefer the King and fall back to the author. force: now.
 function Watch.CouncilTick(force)
-	if KingHere() or not CouncilObserver(ns.me) or not CouncilReader() then return false end
-	local king = KingClient()
-	if not king then councilAsk.lease = nil return false end
+	if not CouncilRecipient(ns.me) or not CouncilReader() then return false end
+	local collector = CouncilAskTarget()
+	if not collector then councilAsk.lease = nil return false end
 	local now = Mono()
-	if not Same(councilAsk.lease, king) then
-		councilAsk.lease = king
+	if not Same(councilAsk.lease, collector) then
+		councilAsk.lease = collector
 		councilAsk.at = now - Watch.COUNCIL_ASK_EVERY + Watch.random(0, Watch.COUNCIL_SPREAD)
 		councilAsk.got = 0
 	end
@@ -2234,14 +2307,15 @@ function Watch.CouncilTick(force)
 	if not (force or due) then return false end
 	councilAsk.at, councilAsk.got = now, 0
 	PruneCouncil()
-	-- (1.2.1, the review: from his cursor on this King's client, the reports it received since, not
+	-- From this reader's cursor on the collector, the reports it received since, not
 	-- the reporters' dates: one it took late still comes; never further back than COUNCIL_BACKLOG.)
 	local s = CouncilStore(false)
-	local since = math.max(math.floor(Clock() - Watch.COUNCIL_BACKLOG), s and tonumber(s.cursors[Key(king)]) or 0)
+	local since = math.max(math.floor(Clock() - Watch.COUNCIL_BACKLOG), s and tonumber(s.cursors[Key(collector)]) or 0)
 	local msg = "MR~1~Q~" .. math.max(0, since)
-	return ns.Comm.Whisper(king, msg, nil, false, true, nil, { owner = Watch, key = "council-ask", permit = function(owner, key, dist, to, payload)
-		if owner ~= Watch or key ~= "council-ask" or dist ~= "WHISPER" or payload ~= msg or not Same(to, king) then return false, "guard" end
-		if not CouncilObserver(ns.me) or not CouncilReader() or not Same(KingClient(), king) then return false, "revoked" end
+	local guardKey = "council-ask#" .. Key(collector)
+	return ns.Comm.Whisper(collector, msg, nil, false, true, nil, { owner = Watch, key = guardKey, permit = function(owner, key, dist, to, payload)
+		if owner ~= Watch or key ~= guardKey or dist ~= "WHISPER" or payload ~= msg or not Same(to, collector) then return false, "guard" end
+		if not CouncilRecipient(ns.me) or not CouncilReader() or not Same(CouncilAskTarget(), collector) then return false, "revoked" end
 		return true
 	end }) ~= false
 end
@@ -2249,7 +2323,8 @@ end
 function Watch.HandleReport(dist, sender, text)
 	if type(text) ~= "string" then stats.malformed = stats.malformed + 1 return false, "shape" end
 	if #text > Watch.MESSAGE_MAX then stats.oversized = stats.oversized + 1 return false, "size" end
-	-- (1.2.1: a guild's Watch takes R, E and X; the King's client C, E and Q; a councillor's F and E.)
+	-- A guild's Watch takes R, E and X; a trusted collector C and Q; a council reader F; all take E
+	-- only after the corresponding accepted head.
 	local desk, council = Watch.CanRead(), CouncilReader()
 	if dist ~= "WHISPER" or not (desk or council) then stats.refused = stats.refused + 1 return false, "access" end
 	if C_ChatInfo and C_ChatInfo.SendAddonMessageLogged and ns.Comm.DeliveredLogged and not ns.Comm.DeliveredLogged() then
@@ -2261,13 +2336,13 @@ function Watch.HandleReport(dist, sender, text)
 	Watch.Prune()
 	local op = text:match("^MR~1~(%u)~")
 	local ok, why
-	local king = council and KingHere()
+	local collector = council and CollectorHere()
 	if op == "R" and desk then ok, why = TakeReportHead(sender, text)
 	elseif op == "E" then ok, why = TakeReportLine(sender, text)
 	elseif op == "X" and desk then ok, why = TakeClose(sender, text)
-	elseif op == "C" and king then ok, why = TakeCouncilHead(sender, text)
-	elseif op == "Q" and king then ok, why = TakeCouncilAsk(sender, text)
-	elseif op == "F" and council and not king then ok, why = TakeRelay(sender, text)
+	elseif op == "C" and collector then ok, why = TakeCouncilHead(sender, text)
+	elseif op == "Q" and collector then ok, why = TakeCouncilAsk(sender, text)
+	elseif op == "F" and council then ok, why = TakeRelay(sender, text)
 	elseif op == "R" or op == "X" or op == "C" or op == "Q" or op == "F" then ok, why = false, "access"
 	else ok, why = false, "shape" end
 	if ok then stats.reports = (stats.reports or 0) + 1 else stats.refused = stats.refused + 1 end
@@ -2782,7 +2857,7 @@ local function ReportTip(tt, r)
 	tt:AddLine(L.WATCH_REPORT_BY:format(ShownReporter(r.reporter), Stamp(r.at)), 0.7, 0.7, 0.7)
 	-- (1.2.1: a council report's guild, as the reporter's own client said it.)
 	if type(r.guild) == "string" and not OnStream() then tt:AddLine(L.WATCH_REPORT_GUILD:format(r.guild), 0.7, 0.7, 0.7, true) end
-	-- (1.2.1, the review: a council report keeps only the lines the King's client heard itself.)
+	-- A council report keeps only the lines its receiving collector heard itself.
 	tt:AddLine((r.council and L.WATCH_REPORT_LINES_COUNCIL or L.WATCH_REPORT_LINES):format(LinesGot(r), tonumber(r.n) or 0), 0.7, 0.7, 0.7, true)
 end
 
@@ -3663,7 +3738,7 @@ ns.On("LOGIN", function()
 		ns.Every(Watch.PRUNE_EVERY, "watch prune", function() if Watch.CanRead() then Watch.Prune() end end)
 		ns.Every(Watch.SYNC_GAP, "watch recovery", function() Watch.AskSync(false) end)
 		ns.Every(Watch.SYNC_GAP, "watch reports", function() Watch.FlushReports(false) end)
-		-- 1.2.1: a councillor's client asks the King's client for the council's reports.
+		-- A council reader asks a trusted collector for reports; the collectors reconcile too.
 		ns.Every(60, "watch council reports", function() Watch.CouncilTick(false) end)
 	end
 end)

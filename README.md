@@ -1017,21 +1017,22 @@ it is about and may add a short note; he sees the lines that go with it (from th
 channel his addon kept, never a whisper or a private room) before he sends. It goes as logged
 addon whispers to his guild's officers in The Watch who are online (its guild master, its
 Captains, the Watchers he names and a signed moderator), never to the one reported or a name his
-player linked; with none online it waits on his client for a day. Their client shows it in The
+player linked; with none online it waits on his client for 30 days. Their client shows it in The
 Watch's **Reports** and **Cases** and tells them once, with a sound. Since 1.2.1 the same report
 also reaches the King and the High Council in their Watch (**Reports** and **Cases**, where the
-High Council works): it goes as a logged whisper to the King's client while it is on (the lease
-the Tabards use), which keeps it apart from any guild's Watch and passes it on to the councillors
-whose clients asked it in the last 20 minutes; a councillor's client asks every 15 minutes while
-the King's client is on, for every report it received since his last one (one that reached it
-late included). The King's client takes it only from a reporter it already knows in the guild he
-names (the King's guild by its roster; another when his own earlier messages there, his lines in
-the Olympus chats among them, spoke for it: anyone else's reaches his guild's officers only), keeps
-only the lines it heard itself in the Olympus channel, takes a few an hour from one player and so
-many from each guild, never passes a case on to the councillor it is about (or a name his player
-linked), and prints no name in its chat. The council's reports and cases have their own sections in
-The Watch, apart from a guild's, for an officer on the council and the King too. With the King's
-client off, the report waits for it on the reporter's client for a day, as for absent officers. A
+High Council works): it goes as a logged whisper to each trusted collector currently reachable,
+the King's client (the lease the Tabards use) and the pinned addon author's client. A collector
+keeps it apart from every guild's Watch and passes it on to council readers who ask; their clients
+ask every 15 minutes, preferring the King and falling back to the author. The two collectors also
+ask each other, so reports received while either one was offline converge when both are online.
+A collector takes a report only from a reporter it already knows in the guild he names (its own
+guild by its roster; another when the reporter's own earlier messages, his Olympus chat lines among
+them, spoke for it: anyone else's reaches his guild's officers only), keeps only the lines it heard
+itself in the Olympus channel, takes a few an hour from one player and so many from each guild,
+never passes a case on to the councillor it is about (or a name his player linked), and prints no
+name in its chat. The council's reports and cases have their own sections in The Watch, apart from
+a guild's, for an officer on the council and the King too. With neither collector reachable, the
+report waits on the reporter's client for 30 days, as for absent officers. A
 report is never a sanction: an officer decides, and may send the case to the King for the High
 Council's vote; the King and the High Council act on it in Olympus's chats.
 

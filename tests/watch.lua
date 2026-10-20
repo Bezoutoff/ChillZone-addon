@@ -130,6 +130,9 @@ local function WithWatch(fn)
 		c.Workshop = { IsAuthorName = function(name)
 			return w.authorName ~= nil and c.Fold(c.FullName(name)) == c.Fold(c.FullName(w.authorName))
 		end }
+		c.Workshop.IsAuthor = function() return c.Workshop.IsAuthorName(c.me) end
+		c.Workshop.AuthorOnline = function() return w.authorOnline == true and not c.Workshop.IsAuthor() end
+		c.Workshop.AuthorName = function() return w.authorName end
 
 		local initial = { "census", "treasury", "throne", "vox" }
 		c.UI = { TABS = {} }
@@ -2508,6 +2511,10 @@ local function WatchPeer(w, c, name, o)
 	p.prints, p.handlers, p.timers = {}, {}, {}
 	p.IsMember = function() return true end
 	p.King = { IsKing = function() return o.king == true end, Preview = function() return false end }
+	p.Workshop = { IsAuthorName = c.Workshop.IsAuthorName }
+	p.Workshop.IsAuthor = function() return p.Workshop.IsAuthorName(p.me) end
+	p.Workshop.AuthorOnline = function() return w.authorOnline == true and not p.Workshop.IsAuthor() end
+	p.Workshop.AuthorName = function() return w.authorName end
 	-- (1.2.1, the review: the guild each sender's own earlier messages spoke for here, w.claims, as
 	-- Data.ClaimedGuild looks it up; a council copy never makes one: w.claimsMade counts any try.)
 	p.Data = { ServerTime = function() return w.epoch end,
@@ -2681,6 +2688,60 @@ test("watch: council reports: the pinned addon author receives the read-only cou
 		eq(#reports, 1); eq(reports[1].reporter, c.me); eq(reports[1].target, SPAMMER)
 		eq(#As(author, function() return author.Watch.CouncilCases() end), 1)
 		eq(As(author, function() return author.Watch.Store(false) end), nil, "no guild-local Watch store or actions")
+	end)
+end)
+
+test("watch: council reports: the pinned author collects while the King is offline, relays to High Council, and backfills the King", function()
+	WithWatch(function(w, W, c)
+		local king, hc1 = CouncilWorld(w, c)
+		w.authorName, w.authorOnline = "Author-Realm", true
+		local author = WatchPeer(w, c, w.authorName, { guild = "Olympus IV", rank = 3 })
+		w.lease = nil
+
+		local ok, how = W.SendReport(SPAMMER, "A", "collector fallback")
+		eq(ok, true); eq(how, "sent", "the guild officer and author collector are reachable")
+		local toAuthor = 0
+		for _, job in ipairs(w.jobs) do
+			if job.target == w.authorName and job.msg:find("^MR~1~[CE]~") then toAuthor = toAuthor + 1 end
+			eq(job.target == SPAMMER, false, "the accused never receives the report")
+		end
+		eq(toAuthor, 3, "the author receives the council head and its evidence")
+		Route(w, c)
+		eq(#W.Book(false).outbox, 0, "one trusted durable copy releases the reporter's outbox")
+		local ar = As(author, function() return author.Watch.CouncilReports() end)
+		eq(#ar, 1); eq(ar[1].reporter, c.me, "staff retains the real reporter")
+		eq(ar[1].target, SPAMMER); eq(ar[1].lines[2].text, "cheap gold here")
+		eq(As(author, function() return author.Watch.CanRead() end), false, "collector status grants no guild Watch access")
+		eq(As(author, function() return author.Watch.CanManage() end), false, "collector status grants no moderation action")
+
+		-- With no King lease, the High Council falls back to the pinned author.
+		eq(As(hc1, function() return hc1.Watch.CouncilTick(true) end), true)
+		eq(w.bus[#w.bus].target, w.authorName)
+		Route(w, c)
+		local hr = As(hc1, function() return hc1.Watch.CouncilReports() end)
+		eq(#hr, 1); eq(hr[1].reporter, c.me); eq(hr[1].target, SPAMMER)
+
+		-- When the King returns, his collector asks the author and recovers the offline report.
+		w.lease = { name = KING, guild = "Olympus", id = "lease-2" }
+		eq(As(king, function() return king.Watch.CouncilTick(true) end), true)
+		eq(w.bus[#w.bus].target, w.authorName)
+		Route(w, c)
+		local kr = As(king, function() return king.Watch.CouncilReports() end)
+		eq(#kr, 1); eq(kr[1].reporter, c.me); eq(kr[1].target, SPAMMER)
+		for _, message in ipairs(w.elsewhere or {}) do
+			eq(message.target == SPAMMER, false, "no guild or council copy is disclosed to the accused")
+		end
+
+		-- The author is a collector, not an exception to the accused privacy rule.
+		w.epoch = w.epoch + W.REPORT_GAP
+		w.jobs = {}
+		eq(select(1, W.SendReport(w.authorName, "O", "collector is the accused")), true)
+		local kingCopy = false
+		for _, job in ipairs(w.jobs) do
+			eq(job.target == w.authorName, false, "the author never receives a report about himself")
+			if job.target == KING and job.msg:find("^MR~1~C~") then kingCopy = true end
+		end
+		eq(kingCopy, true, "the other trusted collector receives that report")
 	end)
 end)
 
