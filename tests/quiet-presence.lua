@@ -38,6 +38,82 @@ local function Keys(t)
 	return table.concat(out, ",")
 end
 
+test("quiet presence: the built-in switch withdraws location first, stays session-only and never steals another owner's privacy", function()
+	AsCouncillor(function()
+		local K, Ly, C = ns.King, ns.Layers, ns.Consent
+		local saved = { isKing = K.IsKing, sharing = K.SharingLocation, toggle = K.ToggleLocation,
+			setSharing = Ly.SetSharing, share = ns.db.shareLocation, print = ns.Print, fire = ns.Fire }
+		local calls, kingLocation = {}, false
+		local ok, err = pcall(function()
+			ns.Print = function() end
+			local underlyingFire = ns.Fire
+			ns.Fire = function(event, ...)
+				if event == "KING_LOCATION_CHANGED" or event == "LAYER_SHARING_CHANGED" then
+					eq(ns.QuietPresence(), true, "location listeners wake only after presence is private")
+					calls[#calls + 1] = event
+				end
+				return underlyingFire(event, ...)
+			end
+			K.IsKing = function() return false end
+			K.SharingLocation = function() return kingLocation end
+			K.ToggleLocation = function(privateTransition)
+				eq(ns.QuietPresence(), false, "the crown withdrawal is allowed to leave first")
+				eq(privateTransition, true, "the crown suppresses its ordinary final hello")
+				kingLocation = not kingLocation
+				calls[#calls + 1] = "king-location"
+				return true, 77
+			end
+			Ly.SetSharing = function(on, privateTransition)
+				eq(ns.QuietPresence(), false, "the ordinary layer withdrawal leaves first")
+				eq(privateTransition, true, "the layer switch suppresses its ordinary final hello")
+				ns.db.shareLocation = on and true or false
+				calls[#calls + 1] = on and "location-on" or "location-off"
+			end
+
+			ns.db.shareLocation = true
+			eq(ns.SetPrivatePresence(true), true)
+			eq(table.concat(calls, ","), "location-off,LAYER_SHARING_CHANGED")
+			eq(ns.db.shareLocation, false); eq(ns.QuietPresence(), true)
+			eq(ns.QuietPresenceOwnedBy(ns.PLAYER_QUIET_OWNER), true)
+			eq(ns.SetPrivatePresence(false), true)
+			eq(ns.QuietPresence(), false); eq(ns.db.shareLocation, false, "visibility never opts location back in")
+
+			-- The King's own crown uses its distinct location switch, before quiet presence begins.
+			calls, kingLocation = {}, true
+			K.IsKing = function() return true end
+			eq(ns.SetPrivatePresence(true), true)
+			eq(table.concat(calls, ","), "king-location,KING_LOCATION_CHANGED")
+			eq(kingLocation, false); eq(ns.QuietPresence(), true)
+			eq(ns.SetPrivatePresence(false), true)
+
+			-- Another API owner remains in charge; the built-in control neither steals nor ends it.
+			K.IsKing = function() return false end
+			eq(ns.SetQuietPresence(true, OWNER), true)
+			eq(ns.SetPrivatePresence(true), true, "already private is a successful state")
+			eq(ns.QuietPresenceOwnedBy(OWNER), true)
+			eq(select(2, ns.SetPrivatePresence(false)), "owner")
+			eq(ns.QuietPresence(), true)
+			eq(ns.SetQuietPresence(false, OWNER), true)
+
+			-- It is a visible, non-pending Profile choice only for an authorized character.
+			local item
+			for _, x in ipairs(C.Items("profile")) do if x.key == "quietpresence" then item = x end end
+			assert(item, "the My profile privacy switch")
+			eq(C.Answer("quietpresence"), false)
+			for _, x in ipairs(C.Pending("profile")) do assert(x.key ~= "quietpresence", "a session switch never opens first-run consent") end
+			eq(C.Choose("quietpresence", true), true)
+			eq(C.Answer("quietpresence"), true)
+			eq(C.Choose("quietpresence", false), true)
+			eq(C.Answer("quietpresence"), false)
+		end)
+		if ns.QuietPresenceOwnedBy(ns.PLAYER_QUIET_OWNER) then ns.SetPrivatePresence(false) end
+		if ns.QuietPresenceOwnedBy(OWNER) then ns.SetQuietPresence(false, OWNER) end
+		K.IsKing, K.SharingLocation, K.ToggleLocation = saved.isKing, saved.sharing, saved.toggle
+		Ly.SetSharing, ns.db.shareLocation, ns.Print, ns.Fire = saved.setSharing, saved.share, saved.print, saved.fire
+		if not ok then error(err, 0) end
+	end)
+end)
+
 test("quiet presence: only the King, a High Councillor or the author turns it on, for this session; another owner can't touch it", function()
 	local K, M, W = ns.King, ns.Moderation, ns.Workshop
 	local saved = { guild = IsInGuild, steward = K.IsStewardName, author = W.IsAuthorName, hides = M.Hides, hc = ns.IsHighCouncillor }
@@ -311,7 +387,8 @@ test("quiet presence: a line on top of the Census and the Realm says so while it
 		eq(L.QUIET_PRESENCE_LINE, "Quiet presence: Olympus stops announcing you and where you are. Your guild roster, the census your guildmates build from it, /who and chat still show you.")
 		for _, words in ipairs({ "Olympus chat lines you type, what you post yourself and the records your client relays still go out",
 			"a guild leader or officer still shows online there, and your zone may show for up to 12 minutes",
-			"after a /reload, Olympus may say hello before that addon turns it on again" }) do
+			"You, or an addon you authorized, turned it on for this session",
+			"after a /reload, Olympus may say hello before another authorized addon turns it on again" }) do
 			assert(L.QUIET_PRESENCE_TIP:find(words, 1, true), "the tooltip says: " .. words)
 		end
 		local function Has(lines)

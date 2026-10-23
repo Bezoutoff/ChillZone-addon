@@ -159,14 +159,17 @@ function Layers.Reset() mine, pending, asked = nil, nil, false; wipe(seen); wipe
 
 -- The player's answer: on, our layer goes out at once; either way our guild's reporter learns
 -- it from our hello (it names our zone only while we share, Comm.SharesZone).
-function Layers.SetSharing(on)
+-- privateTransition is Core's atomic entrance into quiet presence: withdraw the old layer while
+-- it can still leave, but do not finish with a hello or wake broadcasters until quiet is active.
+function Layers.SetSharing(on, privateTransition)
 	ns.db.shareLocation = on and true or false
 	ns.Print(on and L.LOCATION_ON or L.LOCATION_OFF)
-	ns.Comm.Hello(true)
+	if privateTransition ~= true then ns.Comm.Hello(true) end
 	if on then Announce(true) else Layers.Withdraw() end
 	-- Taking donations (1.1): the zone in it follows the answer at once.
-	if ns.Treasury and ns.Treasury.DonationsMoved then ns.Treasury.DonationsMoved() end
-	ns.Fire("LAYER_SHARING_CHANGED", on and true or false)
+	if privateTransition ~= true and ns.Treasury and ns.Treasury.DonationsMoved then ns.Treasury.DonationsMoved() end
+	if privateTransition ~= true then ns.Fire("LAYER_SHARING_CHANGED", on and true or false) end
+	return true
 end
 
 function Layers.SharingState()

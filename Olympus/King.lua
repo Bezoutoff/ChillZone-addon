@@ -1175,7 +1175,10 @@ end
 -- Quiet presence turned off (Core.lua): his crown at once again, while he shares it.
 ns.On("QUIET_PRESENCE_CHANGED", function(on) if on == false then SendLocation(true) end end)
 
-function King.ToggleLocation()
+-- privateTransition is used only while Core is entering quiet presence. The crown and layer
+-- withdrawals still leave, but the ordinary final hello, donation refresh and public events wait
+-- until quiet presence is active, so hiding never renews an online lease on the way out.
+function King.ToggleLocation(privateTransition)
 	if King.Preview() then return ns.Print(L.THRONE_PREVIEW_NOTE) end
 	if not King.IsKing() then return end
 	ns.db.throneLocation = not King.SharingLocation()
@@ -1198,12 +1201,15 @@ function King.ToggleLocation()
 		end
 		-- His layer goes with it, at once, and his hello stops naming his zone (Layers.Sharing).
 		ns.Layers.Withdraw()
-		ns.Comm.Hello(true)
+		if privateTransition ~= true then ns.Comm.Hello(true) end
 	end
-	ns.Fire("KING_LOCATION_CHANGED", King.SharingLocation() and "show" or "hide", ns.FullName(ns.me), locationId)
+	if privateTransition ~= true then
+		ns.Fire("KING_LOCATION_CHANGED", King.SharingLocation() and "show" or "hide", ns.FullName(ns.me), locationId)
+	end
 	-- Taking donations (1.1): his zone in it follows his crown at once.
-	if ns.Treasury and ns.Treasury.DonationsMoved then ns.Treasury.DonationsMoved() end
+	if privateTransition ~= true and ns.Treasury and ns.Treasury.DonationsMoved then ns.Treasury.DonationsMoved() end
 	Changed()
+	return true, locationId
 end
 
 local function CrownTip(self)

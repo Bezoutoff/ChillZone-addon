@@ -1752,6 +1752,53 @@ function ns.QuietPresence() return quiet ~= nil end
 function ns.QuietPresenceState() return { on = quiet ~= nil, since = quiet and quiet.since or nil } end
 function ns.QuietPresenceOwnedBy(owner) return quiet ~= nil and owner ~= nil and quiet.owner == owner end
 
+-- The switch exposed by Olympus itself. API owners remain isolated: turning this switch off must
+-- never silently undo a privacy mode another authorized addon still owns. Turning it on first
+-- withdraws every location lease while the transport is still allowed to send the withdrawal;
+-- after that quiet presence centrally holds all of the presence words in Comm.QUIET_WORDS. The
+-- location choices stay off when quiet presence ends: becoming visible again is a separate,
+-- deliberate choice.
+ns.PLAYER_QUIET_OWNER = "olympus-player"
+function ns.SetPrivatePresence(on)
+	if on ~= true and on ~= false then return false, "state" end
+	local owner = ns.PLAYER_QUIET_OWNER
+	-- As for the lower-level owner API, the owner that enabled privacy may always release it even
+	-- if a signed appointment changed meanwhile.
+	if on == false and ns.QuietPresenceOwnedBy(owner) then return ns.SetQuietPresence(false, owner) end
+	if on == false and ns.QuietPresence() then return false, "owner" end
+	if not ns.IsMember() then return false, "guild" end
+	if not ns.QuietPresenceAllowed(ns.me) then return false, "authority" end
+	if on then
+		local K = ns.King
+		local hidKing, hidLayer, kingLocationId = false, false, nil
+		if type(K) == "table" and type(K.IsKing) == "function" and K.IsKing() == true
+			and type(K.SharingLocation) == "function" and K.SharingLocation() == true
+			and type(K.ToggleLocation) == "function" then
+			-- The private-transition flag sends only the existing crown/layer withdrawals. It
+			-- suppresses ToggleLocation's normal final hello, donation refresh and events, all of
+			-- which could otherwise renew an online lease in the instant before quiet presence.
+			local _, id = K.ToggleLocation(true)
+			hidKing, kingLocationId = true, id
+		elseif ns.Layers and type(ns.Layers.SetSharing) == "function"
+			and type(ns.db) == "table" and ns.db.shareLocation == true then
+			ns.Layers.SetSharing(false, true)
+			hidLayer = true
+		end
+		-- Already private through another authorized owner is success, but ownership is not stolen.
+		local ok, why = true, nil
+		if not ns.QuietPresence() then ok, why = ns.SetQuietPresence(true, owner) end
+		-- Publish the local state changes only after the transport is quiet. Listeners can redraw
+		-- and clear their jobs, but none can turn the transition into a fresh presence broadcast.
+		if hidKing then ns.Fire("KING_LOCATION_CHANGED", "hide", ns.FullName(ns.me), kingLocationId) end
+		if hidLayer then ns.Fire("LAYER_SHARING_CHANGED", false) end
+		if (hidKing or hidLayer) and ns.Treasury and type(ns.Treasury.DonationsMoved) == "function" then
+			ns.Treasury.DonationsMoved()
+		end
+		return ok, why
+	end
+	return true
+end
+
 -- on: true or false; owner: who asks (an API handle's own key). Returns true, or false and why:
 -- "guild" (outside an Olympus guild), "authority" (not the King, a councillor or the author),
 -- "owner" (another owner turned it on), "state". The owner that turned it on may always turn it off.
@@ -1902,6 +1949,7 @@ StandIn("Versions", { "Check", "AskUpdate", "Tell" })
 StandIn("Answers", { "Open" })
 -- 1.1.5: the guild masters' centurions and correspondents (Nominees.lua).
 StandIn("Nominees", { "Slash", "Prompt" })
+StandIn("RoleBriefings", { "Slash", "Open", "OpenKind", "Letters" }) -- durable appointment and office briefings
 -- The self-test of test builds (SelfTest.lua, /oly selftest: the author alone).
 StandIn("SelfTest", { "Slash" })
 
@@ -2195,6 +2243,7 @@ local function Help()
 	print(L.HELP_LAYERHELP)
 	print(L.HELP_LAYERAUTO)
 	print(L.HELP_LOCATION)
+	if ns.QuietPresenceAllowed(ns.me) then print(L.HELP_PRIVATE_PRESENCE) end
 	print(L.HELP_SIGHTINGS) -- (1.2)
 	print(L.HELP_WANTED) -- (1.2.3)
 	print(L.HELP_ROLLCALL)
@@ -2214,6 +2263,7 @@ local function Help()
 	print(L.HELP_NAMEPLATES)
 	print(L.HELP_CHATMARKS)
 	print(L.HELP_LETTERS)
+	print(L.RB_HELP)
 	print(L.HELP_ISSUE)
 	print(L.HELP_COUNCIL)
 	print(L.HELP_DISCORD)
@@ -2436,6 +2486,19 @@ local function Slash(input)
 			else
 				ns.Print(ns.Layers.Sharing() and L.LOCATION_ON or L.LOCATION_OFF)
 			end
+		elseif cmd == "presence" or cmd == "presenca" or cmd == "quiet" then
+			-- The King's and High Council's stream privacy: location is withdrawn first, then every
+			-- automatic online/presence word is held for this session. Native own-guild presence is
+			-- Blizzard's and deliberately remains visible to that guild.
+			local on = rest:lower()
+			if on == "on" or on == "off" then
+				local ok, why = ns.SetPrivatePresence(on == "on")
+				if ok then ns.Print(ns.QuietPresence() and L.PRIVATE_PRESENCE_ON or L.PRIVATE_PRESENCE_OFF)
+				elseif why == "owner" then ns.Print(L.PRIVATE_PRESENCE_OTHER_OWNER)
+				else ns.Print(L.PRIVATE_PRESENCE_ONLY) end
+			else
+				ns.Print(ns.QuietPresence() and L.PRIVATE_PRESENCE_ON or L.PRIVATE_PRESENCE_OFF)
+			end
 		elseif cmd == "sightings" or cmd == "avistamentos" then
 			-- 1.2 (Wanted.lua): this client's Most Wanted sightings, on until a No; alone, says which.
 			ns.Wanted.SightingsSlash(rest)
@@ -2471,6 +2534,8 @@ local function Slash(input)
 		elseif cmd == "letters" or cmd == "letter" or cmd == "cartas" then
 			-- 1.1.5: the version letters (Letters.lua): every one, or one version's.
 			ns.Letters.Slash(rest)
+		elseif cmd == "duties" or cmd == "briefing" or cmd == "deveres" then
+			ns.RoleBriefings.Slash(rest)
 		elseif cmd == "chat" then
 			-- 1.1: the Olympus chats on this client (Channels.ChatOn); alone, says which.
 			local on = rest:lower()

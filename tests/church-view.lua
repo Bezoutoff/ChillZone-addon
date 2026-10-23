@@ -52,6 +52,20 @@ local function Build(w, cl, page)
 	return w:As(cl, cl.View.Build)
 end
 
+test("Church Mine: an appointed Missionary can reopen the practical recruiting briefing", function()
+	local w, c = Cast()
+	local opened
+	c.m1.c.RoleBriefings = { OpenKind = function(kind) opened = kind return true end }
+	local lines = Build(w, c.m1, "mine")
+	local link = Find(lines, L.RB_CHURCH_CHECKLIST_LINK)
+	assert(link and link.onClick, Texts(lines))
+	w:As(c.m1, link.onClick)
+	eq(opened, "missionary")
+	-- An ordinary member has no appointment checklist manufactured for them.
+	c.member.c.RoleBriefings = c.m1.c.RoleBriefings
+	eq(Find(Build(w, c.member, "mine"), L.RB_CHURCH_CHECKLIST_LINK), nil)
+end)
+
 test("1.2.4 Church ranking rules: the highlighted in-window page preserves the exact list and time window on Back", function()
 	local w = World.New()
 	local c = w:Client(World.AUTHOR, { view = true })

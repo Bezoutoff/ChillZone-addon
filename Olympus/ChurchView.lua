@@ -416,6 +416,13 @@ end
 function View.MineLines()
 	local lines = { Nav("mine"), Filters() }
 	lines[#lines + 1] = { header = true, text = L.CHURCH_MY_PLACE, right = PlaceText(ns.me) }
+	local myRole = Church.Role(ns.me)
+	if (myRole == "A" or myRole == "M") and ns.RoleBriefings and not ns.RoleBriefings.missing then
+		local kind = myRole == "A" and "apostle" or "missionary"
+		lines[#lines + 1] = { indent = 1, text = Gold("> " .. L.RB_CHURCH_CHECKLIST_LINK),
+			onClick = function() ns.RoleBriefings.OpenKind(kind) end,
+			tooltip = Tip(L.RB_CHECKLIST, L.RB_CHURCH_CHECKLIST_TIP) }
+	end
 	DetailLinesFor(ns.me, lines, true)
 	local loc = Count.Local()
 	lines[#lines + 1] = { indent = 1, text = L.CHURCH_INVITES_LINE:format(loc.invWeek, loc.invAll), tooltip = Tip(L.CHURCH_INVITES_TITLE, L.CHURCH_INVITES_TIP) }

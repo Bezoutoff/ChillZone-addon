@@ -696,6 +696,20 @@ Consent.Register({
 	get = function() return ns.db.shareLocation end,
 	set = function(on) ns.Layers.SetSharing(on) end,
 })
+-- This is a session switch, not a first-run permission: false is its complete default and it is
+-- never included in Authorize all. It lives beside location in both Privacy and My profile.
+Consent.Register({
+	key = "quietpresence", section = "profile", label = "CONSENT_PRIVATE_PRESENCE", text = "CONSENT_PRIVATE_PRESENCE_TEXT",
+	shown = function() return ns.QuietPresenceAllowed(ns.me) end,
+	get = function() return ns.QuietPresence() end,
+	pending = function() return false end,
+	set = function(on)
+		local ok, why = ns.SetPrivatePresence(on)
+		if ok then ns.Print(ns.QuietPresence() and L.PRIVATE_PRESENCE_ON or L.PRIVATE_PRESENCE_OFF)
+		elseif why == "owner" then ns.Print(L.PRIVATE_PRESENCE_OTHER_OWNER)
+		else ns.Print(L.PRIVATE_PRESENCE_ONLY) end
+	end,
+})
 Consent.Register({
 	key = "layerhelp", label = "CONSENT_LAYERHELP", text = "CONSENT_LAYERHELP_TEXT",
 	shown = function() return not IsKing() end,

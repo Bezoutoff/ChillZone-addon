@@ -725,6 +725,28 @@ test("1.2.4 My profile, Letters: the King's, newest first, unread in gold, a cli
 	W3.NoErrors(w)
 end)
 
+test("My profile, Letters: durable duty briefings share the list and reopen in the main window", function()
+	local w, cast = W3.New()
+	local A, opened = cast.A, nil
+	W3.PageUI(w, A)
+	local previous = rawget(A.ns, "RoleBriefings")
+	A.ns.RoleBriefings = {
+		Letters = function() return { { id = "duty:missionary", kind = "missionary", t = w.clock - 30, read = false } } end,
+		Title = function() return "Missionary recruiting briefing" end,
+		Open = function(id) opened = id return true end,
+	}
+	local m = A.ns.ArenaProfile.Mine(true)
+	m.letters = { { key = "donor-top-1", t = w.clock - 7200, read = true } }
+	eq(PE(w, A).Open("letters"), true)
+	local lines = Page(w, A)
+	eq(lines[1].nav[4].text, A.ns.L.MYPROFILE_NAV_LETTERS:format(2))
+	eq(Plain(lines[2].text), "Missionary recruiting briefing", "the newest unread duty letter is first")
+	w:As(A, lines[2].onClick)
+	eq(opened, "duty:missionary", "it reopens through the durable briefing page")
+	A.ns.RoleBriefings = previous
+	W3.NoErrors(w)
+end)
+
 -- /oly profile with no name (or his own) is a click on My profile, as the person card's and the
 -- Realm's ways in: on Look, where an older open of the page was left on another section.
 test("1.2.4 /oly profile with no name (or his own) is My profile, on Look; another's name, his page", function()
