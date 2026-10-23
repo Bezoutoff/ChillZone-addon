@@ -2437,9 +2437,12 @@ Treasury.OnPrivate("TR", { from = function(s) return TreasurerPin(s) == 1 end, t
 -- 1.2.6: durable Guild treasury ranking, without relaying a bank.  The bank's tabs, items,
 -- donors and book remain on TS/TB's private rails.  A TY carries one already-visible numeric
 -- ranking row between members of Bank.DirectoryViewer's audience.  One viewer is not enough to
--- create a row on another client: two different authorized live holders must repeat the exact
--- row.  Once accepted it is saved and may be repeated by that holder, so the original guild
--- officer need not be online with every later viewer.  A newer accepted snapshot replaces an
+-- create a row on another client: two different authorized live holders must corroborate the same
+-- source snapshot and ranking total. Locally derived annotations (average census level,
+-- correspondent and item-loading counters) may differ without stranding that snapshot forever;
+-- the canonical accepted wire is chosen deterministically. Once accepted it is saved and may be
+-- repeated by that holder, so the original guild officer need not be online with every later
+-- viewer. A newer accepted snapshot replaces an
 -- older one; old rows remain visibly dated, as the direct ranking's rows do.
 --   TY~1~<guild>~<original by>~<time>~<money>~<units>~<stacks>~<value>~<pending>~<unpriced>
 --       ~<total>~<average level>~<correspondent|->~<home 0|1>
@@ -2509,6 +2512,16 @@ local function ReadRankRelay(text)
 	return row, wire
 end
 
+-- Fields which identify the same bank observation and its ranking score. Average level and
+-- correspondent come from other replicated books, while pending/unpriced are this client's item
+-- cache state; requiring those annotations to be byte-identical was why otherwise identical bank
+-- snapshots remained one-witness candidates on every client. Value stays in the key: two holders
+-- must still agree on every copper which can change the ranking.
+local function RankRelaySourceKey(row)
+	return table.concat({ ns.Fold(row.guild), ns.Fold(row.by), row.t, row.money, row.units, row.stacks,
+		row.value, row.total, row.home and 1 or 0 }, "|")
+end
+
 local function DirectRankRows()
 	if type(Treasury.Ranking) ~= "function" then return {} end
 	local rank = Treasury.Ranking(nil, true)
@@ -2572,9 +2585,9 @@ function Treasury.HandleRankRelay(dist, sender, text)
 	if not row then return false, "shape" end
 	if row.t > ns.Now() + 30 then return false, "time" end
 	local B = ns.Bank
-	local source = row.home and Treasury.KeeperByName(row.by)
+	local authorizedSource = row.home and Treasury.KeeperByName(row.by)
 		or type(B.LordOrCaptain) == "function" and B.LordOrCaptain(row.by, row.guild)
-	if not source then return false, "source" end
+	if not authorizedSource then return false, "source" end
 	local s = RankRelayRoot(true)
 	if not s then return false, "store" end -- (no realm group or faction yet: nothing to keep it under)
 	local key = ns.Fold(row.guild)
@@ -2583,9 +2596,21 @@ function Treasury.HandleRankRelay(dist, sender, text)
 	if type(e) ~= "table" then e = { seen = {}, heard = ns.Now() }; s.rows[key][wire] = e end
 	e.seen[ns.Fold(ns.FullName(sender))] = ns.Now()
 	e.heard = ns.Now()
+	local sourceKey, witnesses, candidates = RankRelaySourceKey(row), {}, {}
+	for candidateWire, candidate in pairs(s.rows[key]) do
+		local candidateRow = type(candidate) == "table" and ReadRankRelay(candidateWire) or nil
+		if candidateRow and RankRelaySourceKey(candidateRow) == sourceKey then
+			candidates[#candidates + 1] = candidate
+			for witness in pairs(type(candidate.seen) == "table" and candidate.seen or {}) do witnesses[witness] = true end
+		end
+	end
 	local n = 0
-	for _ in pairs(e.seen) do n = n + 1 end
-	if n >= Treasury.RANK_RELAY_WITNESSES then e.accepted = true end
+	for _ in pairs(witnesses) do n = n + 1 end
+	if n >= Treasury.RANK_RELAY_WITNESSES then
+		-- Marking every annotation variant accepted makes the same lexical wire win on every client
+		-- which has the union, and lets that canonical row travel after the source went offline.
+		for _, candidate in ipairs(candidates) do candidate.accepted = true end
+	end
 	PruneRankRelays()
 	if e.accepted then ns.Fire("TREASURY_CHANGED") end
 	return true, e.accepted == true and "accepted" or "witness"

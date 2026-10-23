@@ -70,6 +70,40 @@ test("treasury ranking relay: two distinct authorized holders make a dated numer
 	end)
 end)
 
+test("treasury ranking relay: equivalent source snapshots converge despite local census and item-cache annotations", function()
+	local w = World.New({ compliance = "shipped" })
+	local late = Client(w, "Quillon Scribe")
+	local first = "Brannoc Weald-Emberfall"
+	local second = "Idris Vane-Emberfall"
+	w:As(late, function()
+		late.rankAllowed[late.ns.Fold(first)] = true
+		late.rankAllowed[late.ns.Fold(second)] = true
+		local a = { guild = "Olympus Ash", by = "Aster Officer-Emberfall", t = w.clock - 20,
+			money = 120000, units = 41, stacks = 12, value = 33000, pending = 2, unpriced = 1,
+			total = 153000, level = 57, correspondent = "Cora Ledger-Emberfall", home = false }
+		local b = {}
+		for k, v in pairs(a) do b[k] = v end
+		b.pending, b.unpriced, b.level, b.correspondent = 0, 3, 56, nil
+		local changed = {}
+		for k, v in pairs(b) do changed[k] = v end
+		changed.value, changed.total = changed.value + 1, changed.total + 1
+		local wa, wb = assert(late.ns.Treasury.RankRelayWire(a)), assert(late.ns.Treasury.RankRelayWire(b))
+		local wc = assert(late.ns.Treasury.RankRelayWire(changed))
+		assert(wa ~= wb, "the clients' local annotations really differ")
+
+		eq(select(2, late.ns.Treasury.HandleRankRelay("WHISPER", first, wa)), "witness")
+		eq(select(2, late.ns.Treasury.HandleRankRelay("WHISPER", first, wb)), "witness")
+		eq(#late.ns.Treasury.RelayedRanking(), 0, "one identity cannot manufacture consensus with variants")
+		eq(select(2, late.ns.Treasury.HandleRankRelay("WHISPER", second, wc)), "witness")
+		eq(#late.ns.Treasury.RelayedRanking(), 0, "holders that disagree on ranking copper are not consensus")
+		eq(select(2, late.ns.Treasury.HandleRankRelay("WHISPER", second, wb)), "accepted")
+		local rows = late.ns.Treasury.RelayedRanking()
+		eq(#rows, 1); eq(rows[1].guild, a.guild); eq(rows[1].total, a.total)
+		eq(late.rdb.treasuryRankRelay.rows[late.ns.Fold(a.guild)][wa].accepted, true)
+		eq(late.rdb.treasuryRankRelay.rows[late.ns.Fold(a.guild)][wb].accepted, true)
+	end)
+end)
+
 test("treasury ranking relay: malformed totals and a sender without source authority fail closed", function()
 	local w = World.New({ compliance = "shipped" })
 	local late = Client(w, "Quillon Scribe")
