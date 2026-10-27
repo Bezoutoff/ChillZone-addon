@@ -2206,12 +2206,11 @@ the game is removed at login, with one line saying so.
   (the **i** left of the X) keeps every letter: **Version letters** on its page lists them,
   newest first, and a click opens one; `/oly letters` (or `/oly letters 1.1.4`) does too. Nothing
   is sent: which letters you saw is kept on your computer, for your account.
-- **Duty letters**: a character who really holds an Olympus office receives a local, durable
-  briefing for that appointment. Guild Masters, the Crown and High Council, The Watch's actual
-  staff, the Treasury, the Church and guild nominees each see only the duties and permissions
-  their current role grants. Missionaries and Apostles also get a practical recruiting checklist.
-  Read letters remain under **My profile > Letters** and on the Realm's **Duty letters** page;
-  `/oly duties` reopens them. A preview never creates a letter or grants authority.
+- **Duty letters** (1.4.0, not sent yet): the King's letter for each office a character holds, the
+  first time it holds it; a guild master's has a live checklist of whom to name, reopened from his
+  Guild tab. The author turns them on at the launch; until then only he and the King preview them
+  (the Workshop, the Realm). Read ones stay under **My profile > Letters**, and `/oly duties`
+  reopens them. Nothing is sent.
 - **What this client saw** (1.1, the Decrees tab and `/oly log`): a log of the acts your addon
   took while you were online (decrees, the gates opening and closing, pardons, the King's
   visibility switches for the treasury and the untabarded list, and the shared block terms'
@@ -3114,7 +3113,7 @@ Other limits:
 | `/oly privacy` | the first-open page again: what the addon shares, and your Yes or No to each (1.1) |
 | `/oly profile [Name]` | a player's profile in the Olympus window, yours (**My profile**) with no name |
 | `/oly letters [version]` | the version letters (1.1.5): every one, newest first, a click opens one; with a version, that letter |
-| `/oly duties` | reopen this character's durable appointment, office and recruiting briefings |
+| `/oly duties` | the King's letters for your offices (1.4.0, once they are out): every one, a click opens one |
 | `/oly presence on\|off` | King, signed High Council or the addon's author: Private presence on or off; on stays on across logins until you turn it off, withdraws your shared location and has your guild count you offline in its census; off never turns location sharing back on |
 | `/oly chat on\|off` | the Olympus chats on this client; off, nothing is sent or shown (1.1: off until you say yes) |
 | `/oly talk [olympus\|captains\|lords]` | open or close the Olympus window on its Chat tab, on that channel; also `/ol`, `/olc` or `/oll` with nothing after it, or Shift-click the minimap button (1.1.1) |

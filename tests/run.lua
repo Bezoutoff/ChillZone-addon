@@ -63889,7 +63889,7 @@ for _, name in ipairs(focused) do
 		or name == "site-aggregate" and { ROOT = ROOT }
 		or (name == "census" or name == "authority") and { FreshComm = FreshComm }
 		or name == "quiet-presence" and { FreshComm = FreshComm, WithHop = WithHop, Fire = CoreFire } -- (1.2.5.1)
-		or name == "role-briefings" and { ROOT = ROOT }
+		or name == "role-briefings" and { ROOT = ROOT, WithUI = WithUI, LoadUI = LoadUI, WithGamepadUI = WithGamepadUI }
 		or name == "selftest" and { WithUI = WithUI, LoadUI = LoadUI, WithGamepadUI = WithGamepadUI, FreshComm = FreshComm } -- (/oly selftest)
 		or name:match("^church") and { WithGamepadUI = WithGamepadUI, WithUI = WithUI }
 		or (name == "court-calls" and { WithThrone = WithThrone, AsKing = AsKing, AsSoldier = AsSoldier,

@@ -29,7 +29,8 @@ local function Client()
 	local dialogs = {}
 	for k, v in pairs(StaticPopupDialogs) do dialogs[k] = v end
 	for _, file in ipairs({ "Locales/WeeklyBriefText", "Locales/GuildCharterText", "Locales/OfficerMusterText", "Locales/ArenaFightsText",
-		"RankingRules", "Loot", "War", "GuildCharter", "Views", "WeeklyBrief", "Carry", "OfficerMuster", "Honors", "HonorsNet" }) do
+		"RankingRules", "Loot", "War", "GuildCharter", "Views", "WeeklyBrief", "Carry", "OfficerMuster", "Honors", "HonorsNet",
+		"Locales/RoleBriefingsText", "RoleBriefings" }) do
 		assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua"))("Olympus", c)
 	end
 	for k in pairs(StaticPopupDialogs) do if not dialogs[k] then StaticPopupDialogs[k] = nil end end
@@ -163,7 +164,8 @@ test("Realm pages: every page of the Realm tab has a Back as its first row and i
 				eq(frame.parchment ~= nil and frame.parchment:IsShown(), false, key .. ": the parchment goes with its page")
 			end
 			-- The pages of the modules loaded (a page added to them later is checked the same way).
-			for _, key in ipairs({ "ranking-rules", "loot", "war", "guildcharter", "weeklybrief", "personalbrief", "carry", "honorletters" }) do
+			-- (1.4.0: the duty letters' page, its link the author's preview while the letters are not out.)
+			for _, key in ipairs({ "ranking-rules", "loot", "war", "guildcharter", "weeklybrief", "personalbrief", "carry", "honorletters", "rolebriefings" }) do
 				assert(seen[key], key .. " registered and checked")
 			end
 			-- The two that had none, word for word, in English and pt-BR.

@@ -632,6 +632,11 @@ account, `/oly discord forget` drops this character's request and proof.
   (the **i** left of the X) keeps every letter: **Version letters** on its page lists them,
   newest first, and a click opens one; `/oly letters` (or `/oly letters 1.1.4`) does too. Nothing
   is sent: which letters you saw is kept on your computer, for your account.
+- **Duty letters** (1.4.0, not sent yet): the King's letter for each office a character holds, the
+  first time it holds it; a guild master's has a live checklist of whom to name, reopened from his
+  Guild tab. The author turns them on at the launch; until then only he and the King preview them
+  (the Workshop, the Realm). Read ones stay under **My profile > Letters**, and `/oly duties`
+  reopens them. Nothing is sent.
 - **What this client saw** (1.1, the Decrees tab and `/oly log`): a log of the acts your addon
   took while you were online (decrees, the gates opening and closing, pardons, the King's
   visibility switches for the treasury and the untabarded list, and the shared block terms'

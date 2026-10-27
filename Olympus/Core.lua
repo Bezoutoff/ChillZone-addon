@@ -2310,7 +2310,7 @@ local function Help()
 	print(L.HELP_NAMEPLATES)
 	print(L.HELP_CHATMARKS)
 	print(L.HELP_LETTERS)
-	print(L.RB_HELP)
+	if ns.RoleBriefings and ns.RoleBriefings.LIVE == true then print(L.RB_HELP) end
 	print(L.HELP_ISSUE)
 	print(L.HELP_COUNCIL)
 	print(L.HELP_DISCORD)
