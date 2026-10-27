@@ -105,6 +105,7 @@ R.CONTROL_MAX = 256     -- remembered remote day/month requests, per type
 R.ASK_PREFIX_MAX = 350   -- 5,600 bytes, below Arena's 6,600-byte assembly limit
 R.WITNESSES = 2          -- distinct live, first-hand keyed holders required to relay identity
 R.WITNESS_FRESH = 86400  -- an attestation is about what its sender still holds now, not old gossip
+R.KING_AFTER = 60        -- the King's turn: this long after every other holder's latest (R.Slot)
 R.random = math.random
 
 local floor, max, min = math.floor, math.max, math.min
@@ -122,6 +123,40 @@ local function Low(name)
 end
 local function Same(a, b) return Low(a) ~= nil and Low(a) == Low(b) end
 local function Me() return ns.me end
+
+-- 1.4.0, who relays and when (the same on every client, no draw):
+--   R.Score(topic, name): a number in [0, 1) from SHA-256 of the topic and the name: a holder's
+--     place in one election (a round's digests, an answer), another for each topic.
+--   R.Bar(name): "never" for the author's character (the core's Borders.IsDevName: no arena file
+--     names him) and for this client while its quiet presence is on (any word it sent would say it
+--     is online); "last" for the King, whose client is never the first to relay; nil for everyone
+--     else. The author's own signed words (his key, a seal he pastes) are not relays and still go.
+--   R.Slot(topic, name, base, window, widest): when that holder's turn comes: base + its score
+--     times the window; the King's after the widest window any client may use, plus KING_AFTER
+--     (each client works its window out from what it sees of the army: his own may be narrower);
+--     nil for a holder that never relays.
+function R.Score(topic, name)
+	local bytes = ns.Sign.SHA256(tostring(topic) .. "|" .. (Low(name) or ""))
+	local a, b, c, d = bytes:byte(1, 4)
+	return (((a * 256 + b) * 256 + c) * 256 + d) / 4294967296
+end
+function R.Bar(name)
+	name = name or Me()
+	local B = ns.Borders
+	if type(B) == "table" and type(B.IsDevName) == "function" and type(name) == "string" and B.IsDevName(ns.FullName(name)) == true then return "never" end
+	if Same(name, Me()) and type(ns.QuietPresence) == "function" and ns.QuietPresence() == true then return "never" end
+	local Roles = ns.ArenaRoles
+	if type(Roles) == "table" and type(Roles.IsKing) == "function" and Roles.IsKing(name) == true then return "last" end
+	return nil
+end
+function R.Slot(topic, name, base, window, widest)
+	local bar = R.Bar(name)
+	if bar == "never" then return nil end
+	if bar == "last" then return base + max(window, widest or window) + R.KING_AFTER end
+	return base + R.Score(topic, name) * window
+end
+-- This client relays nothing now (R.Bar).
+local function Barred() return R.Bar(Me()) == "never" end
 
 -- The month of server time t (Honors.MonthOf's numbering: year * 12 + month - 1, UTC).
 local function DaysFromCivil(y, m, d)
@@ -436,8 +471,12 @@ end
 local function KeyText(name, gk, pk64, t) return ("OLYK1|%s|%s|%s|%s"):format(ns.FullName(name), gk, pk64, t) end
 local keySentAt
 -- This player's ranking key on the channel (RK, signed with it): once a session after login when
--- records name him, again KEY_EVERY while online, never from a player no record names.
+-- records name him, again KEY_EVERY while online, never from a player no record names. Never while
+-- this client's quiet presence is on (1.4.0): it says the character is online; the next tick after
+-- it is off declares it.
+local function Quiet() return type(ns.QuietPresence) == "function" and ns.QuietPresence() == true end
 function R.SendKey()
+	if Quiet() then return false end
 	local D = ns.Debts
 	if type(D) ~= "table" or type(D.MyKey) ~= "function" or type(D.Sign) ~= "function" then return false end
 	local ok, gk, pk = pcall(D.MyKey)
@@ -741,6 +780,8 @@ R.Drawn = Drawn
 -- What waits on the low lane: { kind, k (what makes it the same), body, day }, the newest days first.
 -- A body may be a function that makes it when its turn comes (a validation's signature: one a
 -- message, never a whole day's signed at once on one frame); one that makes nothing is skipped.
+-- A relay (every item but the author's own pasted seal: own) is looked at again when its turn
+-- comes: nothing leaves a client barred since (R.Bar: its quiet presence turned on meanwhile).
 local outq, outSet = {}, {}
 local function Producer()
 	while true do
@@ -748,7 +789,9 @@ local function Producer()
 		if not item then return nil end
 		outSet[item.k] = nil
 		local body = item.body
-		if type(body) == "function" then
+		if not item.own and Barred() then
+			body = nil
+		elseif type(body) == "function" then
 			local ok, made = pcall(body)
 			body = ok and made or nil
 		end
@@ -758,11 +801,11 @@ local function Producer()
 		end
 	end
 end
-local function Out(kind, k, body, day)
+local function Out(kind, k, body, day, own)
 	if outSet[k] then return false end
 	if #outq >= R.OUT_MAX then return Count("out-full") end
 	outSet[k] = true
-	local item = { kind = kind, k = k, body = body, day = day or math.huge }
+	local item = { kind = kind, k = k, body = body, day = day or math.huge, own = own and true or nil }
 	local at = #outq + 1
 	for i, o in ipairs(outq) do
 		if (o.day or 0) < item.day then at = i break end
@@ -779,7 +822,7 @@ function R.OutSize() return #outq end
 -- validation's turn on the low lane comes, one a message: an answer of a day's records never
 -- signs them all, and the key with each, on one frame.)
 function R.SendWitness(letter, body, day, keyed)
-	if not R.TYPES[letter] or type(body) ~= "string" then return false end
+	if not R.TYPES[letter] or type(body) ~= "string" or Barred() then return false end
 	local okRecord, rec = pcall(R.TYPES[letter].Read, body)
 	local heldDay = okRecord and type(rec) == "table" and Index(letter).ids[rec.id]
 	local held = heldDay and Store(letter) and Store(letter).days[heldDay]
@@ -857,6 +900,7 @@ function R.DigestBody(letter)
 	return letter .. "~" .. table.concat(parts, ",") .. "~" .. table.concat(mparts, ","), nextPage, nextMonthPage
 end
 function R.SendDigest(letter)
+	if Barred() then return false end
 	local body, nextPage, nextMonthPage = R.DigestBody(letter)
 	if not body then return false end
 	lastDigest[letter] = Now()
@@ -984,11 +1028,11 @@ local function OnDigest(dist, sender, mode, body)
 	end
 	-- It lacks what this client holds: our own digest, drawn, a few seconds later (another
 	-- digest of that type heard meanwhile tells it as well).
-	if push and s and now - (lastDigest[letter] or -math.huge) >= R.PUSH_GAP and not answering["digest" .. letter] and Drawn() then
+	if push and s and now - (lastDigest[letter] or -math.huge) >= R.PUSH_GAP and not answering["digest" .. letter] and not Barred() and Drawn() then
 		answering["digest" .. letter] = true
 		A().After(2 + R.random() * 8, "records push " .. letter, function()
 			answering["digest" .. letter] = nil
-			if (heardDigest[letter] or 0) > now then return end
+			if (heardDigest[letter] or 0) > now or Barred() then return end
 			R.SendDigest(letter)
 		end)
 	end
@@ -1009,6 +1053,8 @@ local function OnAsk(dist, sender, mode, body)
 		if bucket then if #bucket > 2 then return Count("shape") end rest = prefixes else bucket = "" end
 		if not d or #rest % R.PREFIX ~= 0 or #rest > R.ASK_PREFIX_MAX * R.PREFIX or rest:find("[^0-9a-z]") then return Count("shape") end
 		Per(heardAsk, letter)[d] = now
+		-- A barred client (R.Bar: the author's, or one whose quiet presence is on) answers no ask.
+		if Barred() then return end
 		local list = s and s.days[d]
 		if not list or not next(list) then return end
 		local has = {}
@@ -1028,6 +1074,7 @@ local function OnAsk(dist, sender, mode, body)
 		answering[key] = true
 		A().After(R.ANSWER_MIN + R.random() * R.ANSWER_SPREAD, "records answer " .. key, function()
 			answering[key] = nil
+			if Barred() then return end
 			table.sort(missing, function(a, b) return a[1] < b[1] end)
 			local held = s.days[d] or {}
 			local anotherAnswered = (Per(heardRecordAt, letter)[d] or -math.huge) > now
@@ -1052,6 +1099,7 @@ local function OnAsk(dist, sender, mode, body)
 		-- (R.AskWitness): a holder of exactly that record signs its own, never sends the body.
 		local d = N36(what, 0, 400000)
 		if not d or #rest % R.PREFIX ~= 0 or #rest > R.ASK_PREFIX_MAX * R.PREFIX or rest:find("[^0-9a-z]") then return Count("shape") end
+		if Barred() then return end
 		local list = s and s.days[d]
 		if not list or not next(list) then return end
 		local wanted, bodies = {}, {}
@@ -1065,6 +1113,7 @@ local function OnAsk(dist, sender, mode, body)
 		answering[key] = true
 		A().After(R.ANSWER_MIN + R.random() * R.ANSWER_SPREAD, "records witness " .. key, function()
 			answering[key] = nil
+			if Barred() then return end
 			Per(witnessedAt, letter)[d] = Now()
 			table.sort(bodies, function(a, b) return a[1] < b[1] end)
 			R.SendKey()
@@ -1073,13 +1122,14 @@ local function OnAsk(dist, sender, mode, body)
 	elseif kind == "s" then
 		local m = tonumber(N36(what, 0, 100000))
 		local seal = m and s and s.seals[m]
-		if not Adopted(seal) or (rest ~= "-" and seal.h:sub(1, 8) == rest:lower()) then return end
+		-- (The author's client answers no seal ask either: his paste sent it, R.TakeSeal.)
+		if Barred() or not Adopted(seal) or (rest ~= "-" and seal.h:sub(1, 8) == rest:lower()) then return end
 		local key = "s" .. letter .. m
 		if answering[key] or now - (Per(answeredAt, letter)["s" .. m] or -math.huge) < R.ANSWER_GAP or not Drawn() then return end
 		answering[key] = true
 		A().After(R.ANSWER_MIN + R.random() * R.ANSWER_SPREAD, "records answer " .. key, function()
 			answering[key] = nil
-			if (Per(answeredAt, letter)["s" .. m] or -math.huge) > now then return end
+			if Barred() or (Per(answeredAt, letter)["s" .. m] or -math.huge) > now then return end
 			SendSeal(letter, m)
 		end)
 	end
@@ -1254,7 +1304,9 @@ function R.TakeSeal(text, sender, how)
 		if HashOf(mine) == h then rows = mine end
 	end
 	if rows then Adopt(letter, m, rows) else AskSeal(letter, m) end
-	if how == "paste" and Adopted(s.seals[m]) then SendSeal(letter, m) end
+	-- (The author's paste is where a seal starts, his own signed word: it goes even from his client,
+	-- which relays nothing else, R.Bar. Only the answers to seal asks are relays.)
+	if how == "paste" and Adopted(s.seals[m]) then SendSeal(letter, m, true) end
 	return true
 end
 -- A seal's totals held: the type's months take them (the month's list for good), and the month's
@@ -1281,13 +1333,13 @@ function R.Sealed(letter, m)
 	if not Adopted(seal) then return nil end
 	return DecodeRows(letter, seal.r), seal
 end
--- The seal and its totals on the low lane (an answer, the author's paste).
-SendSeal = function(letter, m)
+-- The seal and its totals on the low lane (an answer, the author's paste: own).
+SendSeal = function(letter, m, own)
 	local s = Store(letter)
 	local seal = s and s.seals[m]
 	if not Adopted(seal) then return false end
 	Per(answeredAt, letter)["s" .. m] = Now()
-	Out("RS", "s" .. letter .. m, seal.s, math.huge)
+	Out("RS", "s" .. letter .. m, seal.s, math.huge, own)
 	local chunks, cur, size = {}, {}, 0
 	for part in (seal.r .. ";"):gmatch("([^;]*);") do
 		if part ~= "" then
@@ -1301,7 +1353,7 @@ SendSeal = function(letter, m)
 	end
 	chunks[#chunks + 1] = table.concat(cur, ";")
 	for i, c in ipairs(chunks) do
-		Out("RT", "t" .. letter .. m .. "." .. i, table.concat({ letter, B36(m), seal.h:sub(1, 8), B36(i), B36(#chunks), c }, "~"), math.huge)
+		Out("RT", "t" .. letter .. m .. "." .. i, table.concat({ letter, B36(m), seal.h:sub(1, 8), B36(i), B36(#chunks), c }, "~"), math.huge, own)
 	end
 	return true
 end
@@ -1393,9 +1445,10 @@ end
 -- month's draft, the sealed months' old records, the records waiting their turn.
 function R.Tick()
 	for letter in pairs(R.TYPES) do
-		if Drawn() then R.SendDigest(letter) end
+		if not Barred() and Drawn() then R.SendDigest(letter) end
 	end
-	if keySentAt and Now() - keySentAt >= R.KEY_EVERY and Named(Low(Me())) then R.SendKey() end
+	-- (A key held back while the quiet presence was on goes at the first tick after it.)
+	if not keyDue and (not keySentAt or Now() - keySentAt >= R.KEY_EVERY) and Named(Low(Me())) then R.SendKey() end
 	R.Drafts()
 	for letter in pairs(R.TYPES) do R.Compact(letter) end
 	PumpWait()

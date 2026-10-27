@@ -497,6 +497,102 @@ test("global records review: an answer declares the holder's key once and signs 
 	Errors(w)
 end)
 
+-- 1.4.0, the relay bars (Records.Bar): the author's character never relays a record and a client
+-- whose quiet presence is on sends nothing that says it is online; the King's client relays last.
+-- This world's borders are told who the author is, on each client after each login (the core's
+-- Borders.IsDevName, which Records asks: no arena file names him).
+local function TellBorders(w, c)
+	for _, client in ipairs(c and { c } or w.clients) do
+		rawset(client.ns, "Borders", { IsDevName = function(name) return client.ns.Workshop.IsAuthorName(name) == true end })
+	end
+end
+-- (A record's body goes in parts, EP: the pieces of an arena message over 255 bytes. Nothing but
+-- records goes in parts in these scenes.)
+local function SentKinds(w, c)
+	local out = {}
+	for _, kind in ipairs({ "RK", "RD", "RA", "RR", "RV", "RS", "RT", "EP" }) do out[kind] = #w:Sent({ from = c, type = kind }) end
+	return out
+end
+local function Draws(w)
+	for _, client in ipairs(w.clients) do client.ns.Records.random = function() return 0 end end
+end
+
+test("records: the author's character holds records but never relays one (no digest, record or validation); his own key still goes", function()
+	local w, _, b, c = Setup()
+	local author = w:Player(N.author)
+	TellBorders(w)
+	local body = Pair(w, author, b, "Kau1")
+	Keys(w, author, b)
+	Take(w, c, body)
+	Take(w, author, body)
+	eq(Do(w, author, "Count", "b"), 1, "he holds it")
+	-- A new session of his: his record names him, so his key goes after the login (KeyLater).
+	w:Logout(author) w:Login(author) TellBorders(w, author)
+	local before = SentKinds(w, author)
+	w:Logout(b)
+	local late = w:Player(N.bettor1)
+	Draws(w) -- every holder drawn, where a draw is still made
+	w:Run(c.ns.Records.DIGEST_EVERY + 300)
+	local after = SentKinds(w, author)
+	for _, kind in ipairs({ "RD", "RR", "EP", "RV", "RS", "RT" }) do eq(after[kind] - before[kind], 0, kind .. " from the author's client") end
+	assert(after.RK - before.RK >= 1, "his own key, declared after his login")
+	assert(#w:Sent({ from = c, type = "RD" }) >= 1, "another holder's digest went")
+	assert(#w:Sent({ from = late, type = "RA" }) >= 1, "the late client asked")
+	assert(#w:Sent({ from = c, type = "EP" }) >= 1 and #w:Sent({ from = c, type = "RV" }) >= 1, "another holder answered it")
+	Errors(w)
+end)
+
+test("records: a King holder whose quiet presence is on sends no records word: no key, digest, record or validation", function()
+	local w, _, b, c = Setup()
+	local king = w:Player(N.king, { guild = H.World.KING_GUILD, rank = 0 })
+	local body = Pair(w, king, b, "Kking1")
+	Keys(w, king, b)
+	Take(w, c, body)
+	Take(w, king, body)
+	eq(Do(w, king, "Count", "b"), 1, "he holds it")
+	-- A new session; his quiet presence turned on before his key would go (KeyLater).
+	w:Logout(king) w:Login(king)
+	eq(w:As(king, king.ns.SetQuietPresence, true, "records-test"), true, "the King may turn it on")
+	local before = SentKinds(w, king)
+	w:Logout(b)
+	local late = w:Player(N.bettor1)
+	Draws(w)
+	w:Run(c.ns.Records.DIGEST_EVERY + 300)
+	local after = SentKinds(w, king)
+	for _, kind in ipairs({ "RK", "RD", "RR", "EP", "RV", "RS", "RT" }) do eq(after[kind] - before[kind], 0, kind .. " from the quiet King's client") end
+	assert(#w:Sent({ from = late, type = "RA" }) >= 1, "the late client asked")
+	assert(#w:Sent({ from = c, type = "EP" }) >= 1 and #w:Sent({ from = c, type = "RV" }) >= 1, "another holder answered it")
+	-- Turned off: his key goes at the next tick.
+	eq(w:As(king, king.ns.SetQuietPresence, false, "records-test"), true)
+	w:Run(c.ns.Records.DIGEST_EVERY + 1)
+	assert(SentKinds(w, king).RK - before.RK >= 1, "his key, once it is off")
+	Errors(w)
+end)
+
+-- The author's paste is where a seal starts: his own signed word, not a relay. It still leaves his
+-- client (RS and its totals, RT), while a seal ask (a relay) is answered by the other holders.
+test("records: the author's pasted seal still leaves his client, though he answers no seal ask", function()
+	local w, _, _, c = Setup()
+	local author = w:Player(N.author)
+	TellBorders(w)
+	local month = Do(w, author, "MonthOf", w.clock) - 1
+	-- (This world has no signer of the author's RSA key; the seal's own check is the real round trip,
+	-- tests/records-seal-roundtrip.lua. Here his client takes the pasted text as signed.)
+	rawset(author.ns, "Sign", setmetatable({ Plausible = function() return true end, Verify = function() return true end }, { __index = author.ns.Sign }))
+	local hash = w:As(author, author.ns.Records.HashOf, "")
+	local seal = ("RS1~%d~%s~Alliance~b~%d~0~%s~%s"):format(w.clock, H.World.GROUP, month, hash, ("ab"):rep(64))
+	eq(Do(w, author, "Paste", seal), true)
+	w:Run(30)
+	eq(#w:Sent({ from = author, type = "RS" }), 1, "his seal went")
+	assert(#w:Sent({ from = author, type = "RT" }) >= 1, "its totals went")
+	-- An ask for that month's seal, once his own word is ANSWER_GAP old: no answer from him.
+	w:Run(c.ns.Records.ANSWER_GAP + 1)
+	assert(w:As(c, c.ns.Arena.Send, "RA", "L", "b~s~" .. c.ns.Arena.B36(month) .. "~-", { dist = "CHANNEL" }))
+	w:Run(30)
+	eq(#w:Sent({ from = author, type = "RS" }), 1, "no seal relayed by his client")
+	Errors(w)
+end)
+
 test("1.2.4 records: the duel adapter preserves GUID identity checks and adds a verified relayed result to ordinary rankings", function()
 	local w, a, b, c = Setup()
 	for _, client in ipairs(w.clients) do
