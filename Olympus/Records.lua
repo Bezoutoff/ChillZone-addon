@@ -33,12 +33,19 @@ local L = ns.L
 -- the receiver. One relay can therefore never invent a player's identity, while two independent
 -- holders let the durable network outlive the two original players' sessions.
 --
--- Anti-entropy. About RELAYS clients of the army (as the signed authority's answers draw:
--- King.AddonsOnline), every DIGEST_EVERY, send for each type a digest of what they hold: each
--- day's count and the sum of its ids' short hashes, the newest days plus rotating older days,
--- and rotating sealed months' totals hashes. A client whose day differs asks for it (RA, with the PREFIX-character
+-- Anti-entropy. Every DIGEST_EVERY (a round, on the server's clock: the same on every client) each
+-- holder has a slot for each type it holds (R.Slot: no draw; the King's after everyone's, none for
+-- the author's character or a client whose quiet presence is on, R.Bar), spread over the army's
+-- size (DigestWindow). At its slot it sends a digest of what it holds: each day's count and the
+-- sum of its ids' short hashes, the newest days plus rotating older days, and rotating sealed
+-- months' totals hashes; unless ELECT other holders' digests heard this round already told every
+-- day and month it would, the same (Covered: a holder of what nobody else told always tells it).
+-- That is looked at again when the digest leaves the records' low lane. About ELECT + N·L/W
+-- digests a type a round, for N holders, a delay L and a window W. A client whose day differs
+-- asks for it (RA, with the PREFIX-character
 -- prefixes of the ids it holds of that day), ASK_DAYS days a digest at most, the newest first; a
--- client that holds what the digest lacks sends its own digest (PUSH_GAP apart at most). Any
+-- client that holds what the digest lacks sends its own digest at its slot a few seconds later
+-- (PUSH_GAP apart at most; not when ELECT digests heard meanwhile told all it would). Any
 -- holder drawn answers with what the asker lacks, ANSWER_MIN to ANSWER_MIN + ANSWER_SPREAD later,
 -- unless another answer of that day went out within ANSWER_GAP. Every answer goes on the arena's
 -- low lane (a message a second at most, while Comm's queue has room), the newest days first, on
@@ -66,8 +73,12 @@ ns.Records = Records
 local R = Records
 
 R.TYPES = {}             -- [letter] = the type's spec (Register)
-R.DIGEST_EVERY = 600     -- a drawn holder's digest, this often
-R.RELAYS = 3             -- ...about this many holders each time, whatever the army's size
+R.DIGEST_EVERY = 600     -- a round: each holder's digest of each type once at most, at its slot
+R.DIGEST_WINDOW_MIN, R.DIGEST_WINDOW_MAX = 120, 480 -- a round's slots spread over the army's size, within these
+R.ELECT = 2              -- other holders' digests that told all ours would: ours stays home
+R.HEARD_MAX = 2000       -- digest facts (day.n.sum, month.hash8) remembered per type, for that
+R.PUSH_MIN, R.PUSH_WINDOW = 2, 30 -- our digest to one that lacks something: this long after it, by slot
+R.RELAYS = 3             -- an ask's answerer drawn among about this many holders
 R.DIGEST_DAYS = 70       -- record-days per digest, bounded on the wire
 R.DIGEST_RECENT = 3      -- newest days always; older unsealed days rotate through the remaining slots
 R.DIGEST_MONTHS = 24     -- ...and the newest sealed months
@@ -530,9 +541,12 @@ local witnesses = {} -- [letter][record hash][live sender] = true
 ---------------------------------------------------------------------------
 
 local ticker
+local ScheduleRounds -- (below)
+-- The records clock, and this holder's slots in the next rounds (from its first round on).
 local function EnsureTicker()
 	if ticker or not Root(false) then return end
 	ticker = ns.Every(R.DIGEST_EVERY, "records", function() R.Tick() end)
+	ScheduleRounds()
 end
 
 -- Records one relayer brought in today: [sender lower] = n (memory, one server day).
@@ -776,6 +790,9 @@ local function Users()
 end
 local function Drawn() return R.random() <= min(1, R.RELAYS / Users()) end
 R.Drawn = Drawn
+-- A round's slots spread over this many seconds: the army's size as this client sees it, within
+-- DIGEST_WINDOW_MIN and _MAX (each client's own: the King's turn comes after the widest).
+function R.DigestWindow() return max(R.DIGEST_WINDOW_MIN, min(R.DIGEST_WINDOW_MAX, Users())) end
 
 -- What waits on the low lane: { kind, k (what makes it the same), body, day }, the newest days first.
 -- A body may be a function that makes it when its turn comes (a validation's signature: one a
@@ -788,16 +805,16 @@ local function Producer()
 		local item = table.remove(outq, 1)
 		if not item then return nil end
 		outSet[item.k] = nil
-		local body = item.body
+		local body, extra = item.body, nil
 		if not item.own and Barred() then
 			body = nil
 		elseif type(body) == "function" then
-			local ok, made = pcall(body)
-			body = ok and made or nil
+			local ok, made, more = pcall(body)
+			body, extra = ok and made or nil, ok and type(more) == "table" and more or nil
 		end
 		if type(body) == "string" then
 			stats.sent = stats.sent + 1
-			return { item.kind, "L", body, { dist = "CHANNEL" } }
+			return { item.kind, "L", body, { dist = "CHANNEL", done = extra and extra.done } }
 		end
 	end
 end
@@ -842,7 +859,9 @@ function R.SendWitness(letter, body, day, keyed)
 	end, day)
 end
 
-local lastDigest, heardDigest = {}, {}
+local lastDigest = {}
+local heard, digestSerial, roundHeard, roundDue = {}, {}, {}, {} -- (the rounds, below)
+local lag = { n = 0, sum = 0, max = 0 } -- seconds from a digest's slot to its leaving the records' queue
 local askedAt, heardAsk, answeredAt, heardRecordAt, answering, askCursor, witnessedAt = {}, {}, {}, {}, {}, {}, {}
 local function Per(t, letter)
 	local x = t[letter]
@@ -899,19 +918,155 @@ function R.DigestBody(letter)
 	if not parts[1] and not mparts[1] then return nil end
 	return letter .. "~" .. table.concat(parts, ",") .. "~" .. table.concat(mparts, ","), nextPage, nextMonthPage
 end
+-- A digest of ours went out (what it told; the push's gap).
+local function Told(letter)
+	lastDigest[letter] = Now()
+	stats.digests = stats.digests + 1
+end
 function R.SendDigest(letter)
 	if Barred() then return false end
 	local body, nextPage, nextMonthPage = R.DigestBody(letter)
 	if not body then return false end
-	lastDigest[letter] = Now()
-	stats.digests = stats.digests + 1
 	local sent = A().Send("RD", "L", body, { dist = "CHANNEL", key = "records digest " .. letter, low = true }) == true
 	-- A full transport queue must not silently skip a historical page.
 	if sent then
+		Told(letter, body)
 		local x = Index(letter)
 		x.digestPage, x.digestMonthPage = nextPage, nextMonthPage
 	end
 	return sent
+end
+
+-- 1.4.0, the rounds (no draw). A digest's facts: "d<day>.<n>.<sum>" and "m<month>.<hash8>" (a
+-- list), and its days and months (sets).
+local function DigestFacts(days, months)
+	local facts, dset, mset = {}, {}, {}
+	for item in (tostring(days or "") .. ","):gmatch("([^,]*),") do
+		local d, n, h = item:match("^([0-9a-z]+)%.([0-9a-z]+)%.([0-9a-z]+)$")
+		d, n, h = N36(d, 0, 400000), N36(n, 0, 1000000), N36(h, 0, 4294967295)
+		if d and n and h and not dset[d] then
+			dset[d] = true
+			facts[#facts + 1] = ("d%d.%d.%d"):format(d, n, h)
+		end
+	end
+	for item in (tostring(months or "") .. ","):gmatch("([^,]*),") do
+		local m, h8 = item:match("^([0-9a-z]+)%.(%x+)$")
+		m = N36(m, 0, 100000)
+		if m and h8 and #h8 == 8 and not mset[m] then
+			mset[m] = true
+			facts[#facts + 1] = ("m%d.%s"):format(m, h8:lower())
+		end
+	end
+	return facts, dset, mset
+end
+R.DigestFacts = DigestFacts
+-- Another holder's digest heard: for each of its facts the ELECT newest distinct senders that told
+-- it (when, and the digests heard so far: an order finer than the clock's second). Bounded by
+-- HEARD_MAX facts a type; a fact over that is not remembered (which silences nothing).
+local function Heard(letter, by, facts, now, serial)
+	local h = heard[letter]
+	if not h then h = { n = 0, items = {}, pruned = -math.huge } heard[letter] = h end
+	for _, fact in ipairs(facts) do
+		local list = h.items[fact]
+		if not list then
+			if h.n >= R.HEARD_MAX and now - h.pruned >= 60 then
+				h.pruned = now
+				for k, l in pairs(h.items) do
+					if now - l[1].at > 2 * R.DIGEST_EVERY then h.items[k], h.n = nil, h.n - 1 end
+				end
+			end
+			if h.n >= R.HEARD_MAX then stats.heardFull = (stats.heardFull or 0) + 1 return end
+			list = {}
+			h.items[fact], h.n = list, h.n + 1
+		end
+		for i = #list, 1, -1 do if list[i].by == by then table.remove(list, i) end end
+		table.insert(list, 1, { by = by, at = now, serial = serial })
+		while #list > R.ELECT do list[#list] = nil end
+	end
+end
+-- Whether this client's digest of a type would tell nothing new: each day and month it would name
+-- told, the same, by ELECT other holders heard since `since` (server time) or after digest `serial`.
+-- A digest that lacks anything this client holds, or says another count, silences nothing: a
+-- holder of the only copy of a record always tells it.
+local function Covered(letter, since, serial)
+	local body = R.DigestBody(letter)
+	if not body then return true end
+	local _, days, months = A().Fields(body, 3)
+	local facts = DigestFacts(days, months)
+	local h = heard[letter]
+	if not (h and facts[1]) then return false end
+	for _, fact in ipairs(facts) do
+		local n = 0
+		for _, e in ipairs(h.items[fact] or {}) do
+			if (serial and e.serial > serial) or (not serial and e.at >= since) then n = n + 1 end
+		end
+		if n < R.ELECT then return false end
+	end
+	return true
+end
+R.Covered = Covered
+-- Distinct holders whose digest of a type (with any fact) this client heard this round.
+function R.RoundHeard(letter)
+	local x = roundHeard[letter]
+	return x and x.r == floor(Now() / R.DIGEST_EVERY) and x.n or 0
+end
+function R.Lag() return lag end
+
+-- Our digest through the records' own low lane (as the answers go): `covered` is asked again when
+-- its turn comes (Comm's queue may hold it a while, and other holders' digests arrive meanwhile).
+-- Its page advances once it left.
+local function QueueDigest(letter, covered, slotAt)
+	return Out("RD", "D|" .. letter, function()
+		if covered and covered() then stats.covered = (stats.covered or 0) + 1 return nil end
+		local body, nextPage, nextMonthPage = R.DigestBody(letter)
+		if not body then return nil end
+		Told(letter, body)
+		if slotAt then
+			local l = max(0, Now() - slotAt)
+			lag.n, lag.sum, lag.max = lag.n + 1, lag.sum + l, max(lag.max, l)
+		end
+		return body, { done = function(sent)
+			if not sent then return end
+			local x = Index(letter)
+			x.digestPage, x.digestMonthPage = nextPage, nextMonthPage
+		end }
+	end, math.huge)
+end
+-- A round's digest of a type, at this holder's slot (round r: from r * DIGEST_EVERY): not when
+-- ours went this round already (a push).
+local function RoundDigest(letter, round, slotAt)
+	local since = round * R.DIGEST_EVERY
+	local function covered() return Barred() or (lastDigest[letter] or -math.huge) >= since or Covered(letter, since) end
+	if covered() then stats.covered = (stats.covered or 0) + 1 return end
+	QueueDigest(letter, covered, slotAt)
+end
+-- This holder's slots in this round and the next two (the clock's ticks come a period apart, the
+-- first one a random part of a period later), for each type it holds anything of.
+ScheduleRounds = function()
+	local now = Now()
+	local r = floor(now / R.DIGEST_EVERY)
+	for letter in pairs(R.TYPES) do
+		local s = Store(letter)
+		local due = roundDue[letter]
+		if not due then due = {} roundDue[letter] = due end
+		for round in pairs(due) do if round < r then due[round] = nil end end
+		if s and (next(Index(letter).dig) or next(s.seals)) then
+			for round = r, r + 2 do
+				if not due[round] then
+					local at = R.Slot("RD|" .. letter .. "|" .. round, Me(), round * R.DIGEST_EVERY, R.DigestWindow(), R.DIGEST_WINDOW_MAX)
+					if at and at >= now then
+						due[round] = true
+						ns.After(at - now, "records round " .. letter, function()
+							local d = roundDue[letter]
+							if not (d and d[round]) then return end
+							d[round] = nil
+							RoundDigest(letter, round, at)
+						end)
+					end
+				end
+			end
+		end
+	end
 end
 
 -- An ask for one day's records: the prefixes of the ids this client holds of it.
@@ -976,7 +1131,17 @@ local function OnDigest(dist, sender, mode, body)
 	local letter, days, months = A().Fields(body, 3)
 	if not (letter and R.TYPES[letter]) then return Count("type") end
 	local now = Now()
-	heardDigest[letter] = now
+	-- What it told, for this round's and the pushes' "already told" (Covered): a digest with no
+	-- fact counts for nothing.
+	local facts, by = DigestFacts(days, months), Low(sender)
+	if facts[1] and by then
+		digestSerial[letter] = (digestSerial[letter] or 0) + 1
+		Heard(letter, by, facts, now, digestSerial[letter])
+		local r = floor(now / R.DIGEST_EVERY)
+		local rh = roundHeard[letter]
+		if not rh or rh.r ~= r then rh = { r = r, n = 0, by = {} } roundHeard[letter] = rh end
+		if not rh.by[by] and rh.n < R.CONTROL_MAX then rh.by[by], rh.n = true, rh.n + 1 end
+	end
 	local s = Store(letter)
 	local x = Index(letter)
 	local listed, nListed, newest, need, counts, push = {}, 0, -math.huge, {}, {}, false
@@ -1026,15 +1191,21 @@ local function OnDigest(dist, sender, mode, body)
 	for m, seal in pairs(s and s.seals or {}) do
 		if Adopted(seal) and not mlisted[m] and (m > newestMonth or nMonths < R.DIGEST_MONTHS) then push = true break end
 	end
-	-- It lacks what this client holds: our own digest, drawn, a few seconds later (another
-	-- digest of that type heard meanwhile tells it as well).
-	if push and s and now - (lastDigest[letter] or -math.huge) >= R.PUSH_GAP and not answering["digest" .. letter] and not Barred() and Drawn() then
-		answering["digest" .. letter] = true
-		A().After(2 + R.random() * 8, "records push " .. letter, function()
-			answering["digest" .. letter] = nil
-			if (heardDigest[letter] or 0) > now or Barred() then return end
-			R.SendDigest(letter)
-		end)
+	-- It lacks what this client holds: our own digest, at our slot a few seconds later (R.Slot:
+	-- the King's after everyone's), unless ELECT other holders' digests heard meanwhile told all
+	-- ours would (Covered; one that lacks the same as this one silences nothing).
+	if push and s and now - (lastDigest[letter] or -math.huge) >= R.PUSH_GAP and not answering["digest" .. letter] then
+		local at = R.Slot("RP|" .. letter .. "|" .. floor(now / R.DIGEST_EVERY), Me(), R.PUSH_MIN, R.PUSH_WINDOW, R.PUSH_WINDOW)
+		if at then
+			answering["digest" .. letter] = true
+			local serial = digestSerial[letter] or 0
+			local function covered() return Barred() or Covered(letter, nil, serial) end
+			A().After(at, "records push " .. letter, function()
+				answering["digest" .. letter] = nil
+				if covered() then stats.covered = (stats.covered or 0) + 1 return end
+				QueueDigest(letter, covered, Now())
+			end)
+		end
 	end
 end
 ns.Comm.Handle("RD", ns.Arena.Handle("RD", OnDigest))
@@ -1441,12 +1612,10 @@ end
 -- The clock, the login, the slash
 ---------------------------------------------------------------------------
 
--- Every DIGEST_EVERY while this client holds anything: its digests (drawn), its key again, a
--- month's draft, the sealed months' old records, the records waiting their turn.
+-- Every DIGEST_EVERY while this client holds anything: its slots in the next rounds (its digests),
+-- its key again, a month's draft, the sealed months' old records, the records waiting their turn.
 function R.Tick()
-	for letter in pairs(R.TYPES) do
-		if not Barred() and Drawn() then R.SendDigest(letter) end
-	end
+	ScheduleRounds()
 	-- (A key held back while the quiet presence was on goes at the first tick after it.)
 	if not keyDue and (not keySentAt or Now() - keySentAt >= R.KEY_EVERY) and Named(Low(Me())) then R.SendKey() end
 	R.Drafts()
@@ -1571,7 +1740,9 @@ StaticPopupDialogs["OLYMPUS_RECORDS_SEAL"] = {
 function R.Reset()
 	idx, checking, checkingBy, inflight, waitq = {}, {}, {}, 0, {}
 	outq, outSet = {}, {}
-	lastDigest, heardDigest, askedAt, heardAsk, answeredAt, heardRecordAt, answering, askCursor, witnessedAt = {}, {}, {}, {}, {}, {}, {}, {}, {}
+	lastDigest, askedAt, heardAsk, answeredAt, heardRecordAt, answering, askCursor, witnessedAt = {}, {}, {}, {}, {}, {}, {}, {}
+	heard, digestSerial, roundHeard, roundDue = {}, {}, {}, {}
+	lag = { n = 0, sum = 0, max = 0 }
 	askedSeal, heardSealAsk, asm = {}, {}, {}
 	from, attempts, fromDay = {}, {}, -1
 	keySentAt, keyDue = nil, false

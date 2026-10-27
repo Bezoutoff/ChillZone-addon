@@ -67,6 +67,15 @@ local function Take(w, c, body) Do(w, c, "Take", "b", body, N.bettor1, "relay") 
 local function Errors(w)
 	for _, c in ipairs(w.clients) do for _, err in ipairs(c.errors) do error(c.name .. ": " .. err) end end
 end
+-- The world runs in steps (5 s) until fn() holds or `seconds` passed: when it first held, or nil.
+local function RunUntil(w, seconds, fn, step)
+	local stop = w.clock + seconds
+	while w.clock < stop do
+		w:Run(math.min(step or 5, stop - w.clock))
+		if fn() then return w.clock end
+	end
+	return nil
+end
 
 test("shared records diagnostics include every registered ranking type", function()
 	local w, _, _, c = Setup()
@@ -157,14 +166,16 @@ test("1.2.4 records rotation review: equal inventories on different full pages n
 				mine.seals[latest - i], peer.seals[latest - i] = { r = "", h = string.rep("a", 64) }, { r = "", h = string.rep("a", 64) }
 			end
 		end
-		c.ns.Records.random = function() return 0 end
 		b.ns.Arena.Send = function() return true end
 		assert(Do(w, b, "SendDigest", "b")) -- advance to a noncontiguous historical page
 		local page = Do(w, b, "DigestBody", "b")
 		local pushes = 0
 		c.ns.Arena.Send = function(tag) if tag == "RD" then pushes = pushes + 1 end; return true end
 		w:As(c, c.comm.handlers.RD, "CHANNEL", b.name, "RD~L1~" .. page)
-		w:Run(12)
+		-- (Changed on purpose, 1.4.0: a push is no longer drawn (the random stub that forced the
+		-- draw is gone) and waits for its slot, PUSH_MIN + score * PUSH_WINDOW, not 2 to 10 s: the
+		-- run covers the whole window, so a false push would be seen.)
+		w:Run(R.PUSH_MIN + R.PUSH_WINDOW + 1)
 		eq(pushes, 0, kind .. " omitted by rotation do not prove a missing record")
 		Errors(w)
 	end
@@ -191,12 +202,13 @@ test("1.2.4 records rotation review: genuinely newer days and sealed months stil
 				if i > 0 then peer.seals[latest - i] = { r = "", h = string.rep("a", 64) } end
 			end
 		end
-		c.ns.Records.random = function() return 0 end
 		local pushes = 0
 		c.ns.Arena.Send = function(tag) if tag == "RD" then pushes = pushes + 1 end; return true end
 		local page = Do(w, b, "DigestBody", "b")
 		w:As(c, c.comm.handlers.RD, "CHANNEL", b.name, "RD~L1~" .. page)
-		w:Run(12)
+		-- (Changed on purpose, 1.4.0: the push is no longer drawn and waits for its slot, PUSH_MIN +
+		-- score * PUSH_WINDOW: the run covers that window instead of the draw's 2 to 10 s.)
+		w:Run(R.PUSH_MIN + R.PUSH_WINDOW + 1)
 		eq(pushes, 1, "newest " .. kind .. " is not a rotated omission")
 		Errors(w)
 	end
@@ -364,16 +376,20 @@ test("global records: two validating holders recover Bones ranking for a late cl
 	w:Logout(a)
 	w:Logout(b)
 	local late = w:Player(N.bettor1)
-	c.ns.Records.random = function() return 0 end
-	second.ns.Records.random = function() return 0 end
-	late.ns.Records.random = function() return 0 end
 	-- (Changed on purpose, the weight rule: a client that holds nothing sends nothing at its login,
 	-- so the late client makes no discovery call of its own. A holder's periodic digest (Tick,
 	-- DIGEST_EVERY) is the path, as the author asked: "a rede precisa armazenar aquele estado e
 	-- republicar para as pessoas quando a fonte original não tiver online". The holders' digest,
 	-- the late client's ask, the body and two independently signed validations, within one round.)
-	w:Run(c.ns.Records.DIGEST_EVERY + 120)
-	eq(#w:Sent({ from = late, type = "RD" }), 0, "the late, empty client asked nobody at its login")
+	-- (Changed on purpose, 1.4.0: no draw stubs any more, as no digest is drawn: each holder has
+	-- its slot in every round, R.Slot. The bound is a round and its window, plus the answers.)
+	local R = c.ns.Records
+	local heldAt = RunUntil(w, R.DIGEST_EVERY + w:As(c, R.DigestWindow) + 120, function() return Do(w, late, "Count", "b") == 1 end)
+	-- (Changed on purpose, 1.4.0: once it holds the record the late client is a holder like any
+	-- other and takes its turn in the next round. What the weight rule forbids is a digest from the
+	-- empty client, before it held anything.)
+	local digests = w:Sent({ from = late, type = "RD" })
+	assert(not digests[1] or (heldAt and digests[1].t >= heldAt - 5), "the late, empty client asked nobody at its login")
 
 	local count = Do(w, late, "Count", "b")
 	local refused = {}
@@ -591,6 +607,109 @@ test("records: the author's pasted seal still leaves his client, though he answe
 	w:Run(30)
 	eq(#w:Sent({ from = author, type = "RS" }), 1, "no seal relayed by his client")
 	Errors(w)
+end)
+
+-- 1.4.0, the rounds (Records.Slot, no draw). The digests went by a draw: each holder sent its own
+-- with a chance of RELAYS / the army's addons (King.AddonsOnline). In an army of 300 with two
+-- holders online that was 3 in 300 each, a round with no digest was the rule, and a late client
+-- whose players were offline waited hours for the rankings. Each holder now has a slot every round.
+local function Army(client, size)
+	client.ns.King.AddonsOnline = function() return size end
+	client.ns.Records.random = function() return 0.5 end -- (a draw, where one is still made: lost at 3 in 300)
+end
+local function AskedDay(w, from, day)
+	local tag = "~b~d~" .. day .. "~"
+	for _, s in ipairs(w:Sent({ from = from, type = "RA" })) do if s.msg:find(tag, 1, true) then return true end end
+	return false
+end
+test("records: in an army of 300, two holders tell a late client what they hold within one round, with no draw", function()
+	local w, a, b, c = Setup()
+	local second = w:Player(N.bettor2)
+	Army(c, 300) Army(second, 300)
+	local body = Pair(w, a, b, "Kround1")
+	local day = c.ns.Arena.B36(math.floor(w.clock / 86400))
+	Keys(w, a, b)
+	Take(w, c, body)
+	Take(w, second, body)
+	w:Logout(a) w:Logout(b)
+	local late = w:Player(N.bettor1)
+	Army(late, 300)
+	local R = c.ns.Records
+	local window = w:As(c, R.DigestWindow)
+	eq(window, 300, "the round's window follows the army's size")
+	local askedAt = RunUntil(w, R.DIGEST_EVERY + window + 10, function() return AskedDay(w, late, day) end)
+	assert(#w:Sent({ from = c, type = "RD" }) + #w:Sent({ from = second, type = "RD" }) >= 1, "a holder's digest went this round")
+	assert(askedAt, "the late client asked for the record's day within one round")
+	Errors(w)
+end)
+
+-- (A review of the rounds: a digest heard silences ours only when it told the same of every day
+-- and month ours would. Holders whose digests lack a record never silence the one holder of it,
+-- even when their slots come first, round after round.)
+local STALE = { "Aldo", "Brin", "Cass", "Dara", "Edda", "Fenn", "Gale", "Hask", "Ivo", "Jory", "Kell" }
+test("records: the one holder of a record nobody else told always tells it, though stale holders' slots come first", function()
+	local w, a, b = Setup()
+	local holders = {}
+	for i, first in ipairs(STALE) do holders[i] = w:Player(first .. " Tarrow") end
+	local common, extra = Pair(w, a, b, "Kstale1"), Pair(w, a, b, "Kstale2")
+	Keys(w, a, b)
+	local R = holders[1].ns.Records
+	-- The next round, and the holder whose slot in it comes last: the one that holds both records.
+	local round = math.floor(w.clock / R.DIGEST_EVERY) + 1
+	local function Score(c) return w:As(c, R.Score, "RD|b|" .. round, c.name) end
+	table.sort(holders, function(x, y) return Score(x) < Score(y) end)
+	local unique = holders[#holders]
+	for _, h in ipairs(holders) do Take(w, h, common) end
+	Take(w, unique, extra)
+	eq(Do(w, unique, "Count", "b"), 2)
+	-- (Its push is shut here, so that only its round's slot can tell it: a digest of its own a
+	-- moment ago that nobody heard, and a push gap longer than the test. The push has its own test.)
+	local send = unique.ns.Arena.Send
+	unique.ns.Arena.Send = function() return true end
+	assert(Do(w, unique, "SendDigest", "b"))
+	unique.ns.Arena.Send = send
+	unique.ns.Records.PUSH_GAP = 1e9
+	w:Logout(a) w:Logout(b)
+	local from, to = round * R.DIGEST_EVERY, (round + 1) * R.DIGEST_EVERY
+	w:Run(to - w.clock)
+	local function InRound(c, before)
+		local n = 0
+		for _, s in ipairs(w:Sent({ from = c, type = "RD" })) do if s.t >= from and s.t < (before or to) then n = n + 1 end end
+		return n
+	end
+	eq(InRound(unique), 1, "the holder of the only copy told it, once")
+	-- (Until it told it, the stale holders' round digests alone: about ELECT, the rest silenced. What
+	-- its digest then sets off, asks and pushes, is the catch-up's.)
+	local told = w:Sent({ from = unique, type = "RD" })
+	local stale = 0
+	for i = 1, #holders - 1 do stale = stale + InRound(holders[i], told[#told].t) end
+	assert(stale >= R.ELECT and stale <= R.ELECT + 1, "the stale holders' digests, about ELECT a round: " .. stale)
+	Errors(w)
+end)
+
+test("records: digests heard after a push was due that lack the same record never cancel it; two that tell it all do", function()
+	for _, case in ipairs({ { stale = true, pushes = 1 }, { stale = false, pushes = 0 } }) do
+		local w, a, b, c = Setup()
+		local others = {}
+		for i = 1, 3 do others[i] = w:Player(STALE[i] .. " Tarrow") end
+		local common, extra = Pair(w, a, b, "Kpush1"), Pair(w, a, b, "Kpush2")
+		Keys(w, a, b)
+		Take(w, c, common) Take(w, c, extra)
+		for i, o in ipairs(others) do
+			Take(w, o, common)
+			if not case.stale and i > 1 then Take(w, o, extra) end
+		end
+		local R = c.ns.Records
+		local pushes = 0
+		c.ns.Arena.Send = function(tag) if tag == "RD" then pushes = pushes + 1 end; return true end
+		-- The first digest lacks a record c holds: c's push is due. Two more digests come after it.
+		w:As(c, c.comm.handlers.RD, "CHANNEL", others[1].name, "RD~L1~" .. Do(w, others[1], "DigestBody", "b"))
+		w:Run(1)
+		for i = 2, 3 do w:As(c, c.comm.handlers.RD, "CHANNEL", others[i].name, "RD~L1~" .. Do(w, others[i], "DigestBody", "b")) end
+		w:Run(R.PUSH_MIN + R.PUSH_WINDOW + 1)
+		eq(pushes, case.pushes, case.stale and "stale digests silence nothing" or "two digests that told it all")
+		Errors(w)
+	end
 end)
 
 test("1.2.4 records: the duel adapter preserves GUID identity checks and adds a verified relayed result to ordinary rankings", function()
