@@ -40286,6 +40286,20 @@ end)
 					local printed = #w.printed
 					M.PrintList()
 					eq(w.printed[printed + 1], L.NETOFF_LIST_STAFF); eq(#w.printed, printed + 1, "the pointer alone")
+					-- (1.4.0, the author's default: an Olympus chat moderator without a Watch desk does not
+					-- read the list either: his chat page in The Watch, never the list's.)
+					uns.WatchChat = setmetatable({ missing = false, PageShown = function() return true end,
+						PageLines = function() return { { text = "chat moderation" } } end }, { __index = ns.WatchChat })
+					eq(W.TabVisible(), true, "The Watch's tab, for its chat page"); eq(W.NetoffShown(), false)
+					W.Show(nil)
+					eq(W.PageId(), "chat")
+					local chatPage = Page(W.Build())
+					assert(chatPage:find("chat moderation", 1, true), chatPage)
+					NoList(chatPage, "a chat moderator")
+					printed = #w.printed
+					M.PrintList()
+					eq(w.printed[printed + 1], L.NETOFF_LIST_STAFF); eq(#w.printed, printed + 1, "the pointer alone")
+					uns.WatchChat = nil
 					-- The section itself (The Watch's): its rows read-only for one who gives no word.
 					local lines = M.Lines()
 					local page = Page(lines)
