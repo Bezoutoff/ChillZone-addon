@@ -2465,7 +2465,10 @@ local function RankRelayWire(row)
 	local pending = RankRelayNumber(row.pending, 99999999)
 	local unpriced = RankRelayNumber(row.unpriced, 99999999)
 	local total = RankRelayNumber(row.total, Treasury.MAX_COPPER * 2)
-	local level = RankRelayNumber(row.level or 0, 255)
+	-- (1.4.0: the census keeps the average level to the tenth, Data.AvgTenths, and the direct row
+	-- carries it so; the wire's is whole, floored, or no guild with a fractional average went.)
+	local level = tonumber(row.level or 0)
+	level = RankRelayNumber(level and math.floor(level), 255)
 	local home = row.home == true or ns.IsKingGuild(guild or "")
 	if not guild or not ns.IsFederation(guild) or not by or by:find("[~%^|%c]") or corr:find("[~%^|%c]")
 		or not t or t == 0 or not money or not units or not stacks or not value or not pending or not unpriced or not total
