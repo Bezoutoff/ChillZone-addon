@@ -696,8 +696,9 @@ Consent.Register({
 	get = function() return ns.db.shareLocation end,
 	set = function(on) ns.Layers.SetSharing(on) end,
 })
--- This is a session switch, not a first-run permission: false is its complete default and it is
--- never included in Authorize all. It lives beside location in both Privacy and My profile.
+-- This is a switch the player turns, not a first-run permission: false is its complete default and
+-- it is never included in Authorize all. Once on it stays on across logins until he turns it off
+-- (1.4.0, ns.SetPrivatePresence in Core.lua). It lives beside location in Privacy and My profile.
 Consent.Register({
 	key = "quietpresence", section = "profile", label = "CONSENT_PRIVATE_PRESENCE", text = "CONSENT_PRIVATE_PRESENCE_TEXT",
 	shown = function() return ns.QuietPresenceAllowed(ns.me) end,

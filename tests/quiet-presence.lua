@@ -100,7 +100,7 @@ test("quiet presence: the built-in switch withdraws location first and never ste
 			for _, x in ipairs(C.Items("profile")) do if x.key == "quietpresence" then item = x end end
 			assert(item, "the My profile privacy switch")
 			eq(C.Answer("quietpresence"), false)
-			for _, x in ipairs(C.Pending("profile")) do assert(x.key ~= "quietpresence", "a session switch never opens first-run consent") end
+			for _, x in ipairs(C.Pending("profile")) do assert(x.key ~= "quietpresence", "the Private presence switch never opens first-run consent") end
 			eq(C.Choose("quietpresence", true), true)
 			eq(C.Answer("quietpresence"), true)
 			eq(C.Choose("quietpresence", false), true)
