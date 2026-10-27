@@ -638,13 +638,14 @@ local LOCKDOWN = 11
 local RETRYABLE = { [3] = true, [8] = true, [9] = true, [LOCKDOWN] = true }
 local RETRY_WAIT = { 2, 4, 8, 15, 30 } -- seconds the pump waits after 1, 2, 3, 4, 5+ refusals in a row
 local RETRY_MAX = 5
-local function Locked() return ns.ChatLocked ~= nil and ns.ChatLocked() == true end
+-- (Named apart from the channel guard's Locked further down, a different thing.)
+local function InLockdown() return ns.ChatLocked ~= nil and ns.ChatLocked() == true end
 
 -- Player text goes through the logged API, Blizzard's function for plain text payloads
 -- (receivers get CHAT_MSG_ADDON_LOGGED). Clients without it use the usual one.
 local function SendNow(dist, msg, logged, whisperTo)
 	-- (1.4.0: during a chat lockdown the game refuses it anyway: no call, no failure logged.)
-	if Locked() then
+	if InLockdown() then
 		stats.locked = (stats.locked or 0) + 1
 		return false, LOCKDOWN
 	end
@@ -871,7 +872,7 @@ local function Pump()
 	-- 1.4.0: nothing leaves during a chat lockdown (the jobs wait in their places), nor before the
 	-- wait after the game's last "not now" is over (RETRY_WAIT). Once the hold is over, what waited
 	-- HOLD_MAX or more and has not begun is dropped (DropStale).
-	if Locked() or now < waitUntil then
+	if InLockdown() or now < waitUntil then
 		heldSince = heldSince or now
 		return
 	end
