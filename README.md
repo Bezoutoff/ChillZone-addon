@@ -934,8 +934,8 @@ The rest of their guild, and the census, are not touched: one name stops the spa
   when it reached you through another issuer's addon (the server's name for that one: nobody
   writes a word in someone else's name unseen). Its desk shows the list to the King, the High
   Council and each guild's Lord and Captains (and the guild's Watchers); a Steward or a Hand
-  without the desk gets that section as a page of its own there. `/oly netoff` alone prints it
-  for the same people. The same people who give words show a name again with a click there, or
+  without the desk gets that section as a page of its own there. `/oly netoff` alone opens it
+  in a copy window for the same people (1.4.0). The same people who give words show a name again with a click there, or
   `/oly neton Name`. The Decrees tab keeps only your own notice: when the word applies to your
   character or guild, a red line there keeps the reason reachable even though a hidden officer
   cannot enter The Watch (nobody else's name shows there).
@@ -3150,7 +3150,7 @@ Other limits:
 | `/oly watch timeout <name> 5m\|30m\|1h\|24h\|7d\|hold\|lift [: reason]` · `/oly watch purge <name> [: reason]` | a moderator: a timeout in Olympus's chats, its lift, or delete his recent lines (also from a line in the Chat tab) (1.1.6) |
 | `/oly watch watchers add\|remove <name>` · `/oly watch justice <name>\|none` | the guild master: name or remove a Watcher (10 at most), or the guild's Justice correspondent (1.1.6) |
 | `/oly watch mods add\|remove <name>` | the author, the King or a High Councillor: name or remove one of his Olympus moderators (10 at most) (1.1.6) |
-| `/oly netoff Name: reason` · `/oly neton Name` · `/oly netoff` | the King, his Steward, a Hand or a High Councillor: hide a character for the whole army, or show them again (also in The Watch); alone, who is hidden (The Watch's readers; anyone else, his own word) (1.1) |
+| `/oly netoff Name: reason` · `/oly neton Name` · `/oly netoff` | the King, his Steward, a Hand or a High Councillor: hide a character for the whole army, or show them again (also in The Watch); alone, who is hidden, in a copy window (The Watch's readers; anyone else, his own word) (1.1) |
 | `/oly netoff guild Name: reason` · `/oly neton guild Name` | the same people: take a guild off the Olympus network for the army, or put it back on (also in The Watch) (1.1) |
 | `/oly alt add Name` · `/oly alt remove Name` · `/oly alt` | link a character of this account as your alt (log it and say yes there), take a link apart, or see your links: the census and the treasury count you once (1.1) |
 | `/oly map` | zone markers on the world map |

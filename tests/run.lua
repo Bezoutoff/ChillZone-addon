@@ -40316,8 +40316,18 @@ end)
 						and page:find(L.NETOFF_ADD_GUILD, 1, true), page)
 					NoList(Decrees(), "a councillor")
 					printed = #w.printed
-					M.PrintList()
-					eq(w.printed[printed + 1], L.NETOFF_LIST:format(2), "an issuer still prints the list")
+					-- (1.4.0: the list itself opens in Olympus's copy window, its count alone in chat.)
+					local savedUI, copied = ns.UI, nil
+					ns.UI = setmetatable({ ShowCopy = function(title, text) copied = { title = title, text = text } end }, { __index = savedUI })
+					local listed, listErr = pcall(M.PrintList)
+					ns.UI = savedUI
+					assert(listed, listErr)
+					eq(w.printed[printed + 1], L.NETOFF_LIST:format(2), "an issuer still prints the list's count")
+					eq(#w.printed, printed + 1, "one line in chat")
+					assert(copied and copied.title == L.NETOFF_TITLE, "the list in the copy window")
+					for _, word in ipairs({ L.NETOFF_LIST:format(2), "Spammer Guy", "Other Spammer", "flooding /ol", L.HELP_NETOFF }) do
+						assert(copied.text:find(word, 1, true), word .. "\n" .. copied.text)
+					end
 					-- A Hand (an issuer without the desk): The Watch's tab, and a page of its own with the
 					-- list and his buttons, under the navigation, without the desk's Warn, Watch and Ban.
 					K.HandleCommand("CHANNEL", KING, "T1~H~1~Olympus~Hand Guy-Realm")

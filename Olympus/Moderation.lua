@@ -888,7 +888,8 @@ end
 Moderation.SeesList = SeesList
 
 -- /oly netoff alone: the list, for its readers; anyone else his own word, if one hides him, and
--- where the list is.
+-- where the list is. (1.4.0: the list opens in Olympus's copy window, its count alone in chat: a
+-- list a moderator may need to copy, and chat lines can't be; chat as before without the window.)
 function Moderation.PrintList()
 	if not SeesList() then
 		local mine = Moderation.SelfOff()
@@ -896,11 +897,18 @@ function Moderation.PrintList()
 		return ns.Print(L.NETOFF_LIST_STAFF)
 	end
 	local list = Moderation.List()
-	ns.Print(L.NETOFF_LIST:format(#list))
+	local head = L.NETOFF_LIST:format(#list)
+	local rows = {}
 	for _, e in ipairs(list) do
-		print(("  %s  -  %s  (%s, %s)"):format(Label(e), ReasonShown(e), ByText(e, IssuerLabel), When(e)))
+		rows[#rows + 1] = ("  %s  -  %s  (%s, %s)"):format(Label(e), ReasonShown(e), ByText(e, IssuerLabel), When(e))
 	end
-	if Moderation.CanIssue() then print(L.HELP_NETOFF) end
+	if Moderation.CanIssue() then rows[#rows + 1] = L.HELP_NETOFF end
+	ns.Print(head)
+	local UI = ns.UI
+	if #list > 0 and type(UI) == "table" and type(UI.ShowCopy) == "function" then
+		return UI.ShowCopy(L.NETOFF_TITLE, head .. "\n" .. table.concat(rows, "\n"))
+	end
+	for _, row in ipairs(rows) do print(row) end
 end
 
 -- The Decrees tab's one net-off line (1.4.0, the author: the list left Decrees for The Watch): the
