@@ -51,6 +51,23 @@ L.CENSUS_STATS_DETAIL_TITLE = "How the people estimate is calculated"
 L.CENSUS_STATS_DETAIL = "People = counted characters - confirmed linked alts known here. Updating alone does not link alts. Missing confirmations count separately, so the estimate can be high."
 L.CENSUS_STATS_KEPT = "Kept on this client since %s."
 
+-- (The author, 2026-10-20) A moderation team client's people estimate (CensusStats.PeopleEstimate):
+-- "~" and the number, what it means, its detail, and the staff's own line and rows. A member's client
+-- keeps the plain count in the words above (ARMY_PEOPLE, CENSUS_STATS_PEOPLE_TIP, CENSUS_STATS_DETAIL).
+L.ARMY_PEOPLE_APPROX = "~%s people"
+L.CENSUS_STATS_APPROX = "~%s"
+L.PEOPLE_ESTIMATE_TIP = "An estimate (~) from the BattleTags the moderation team validated: the validated accounts, plus the characters not yet validated at the validated accounts' characters per account. Members see the characters minus the confirmed linked alts instead. The more players use the Olympus addon and the Olympus Companion, the more precise this number gets."
+L.CENSUS_STATS_DETAIL_TAGS = "People (~) = validated accounts + the characters not yet validated at the validated accounts' characters per account, to three significant figures, never above characters - confirmed linked alts. Only a moderation team client with enough validated BattleTags shows it."
+L.PEOPLE_STAFF_TAGS = "Staff: %s accounts validated, %s characters per account; %s characters not yet validated."
+L.PEOPLE_STAFF_NONE = "Staff: %s accounts validated, %s characters not yet validated; the estimate needs %s validated accounts, so the plain count shows."
+L.CENSUS_STATS_VALIDATED = "Validated accounts"
+L.CENSUS_STATS_UNVALIDATED = "Characters not yet validated"
+L.CENSUS_STATS_RATE = "Characters per account"
+L.CENSUS_STATS_RATE_TAGS = "(%s accounts)"
+-- (The review of 2026-10-20) The linked alts' row while the people are an estimate: the plain
+-- count's words would say otherwise.
+L.CENSUS_STATS_ALTS_TIP = "Characters their players linked as alts (/oly alts, confirmed on each character): each player counts once, whatever guilds they are in."
+
 if GetLocale and GetLocale() == "ptBR" then
 	L.ARMY_PEOPLE = "aprox. %s pessoas"
 	L.HEADER_TIP_OPEN = "Clique: o censo em números, as pessoas e os últimos 30 dias."
@@ -99,4 +116,16 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.CENSUS_STATS_DETAIL_TITLE = "Como a estimativa de pessoas é calculada"
 	L.CENSUS_STATS_DETAIL = "Pessoas = personagens contados - alts ligados e confirmados aqui. Atualizar não liga alts. Confirmações ausentes contam separadas, então a estimativa pode ficar alta."
 	L.CENSUS_STATS_KEPT = "Guardado neste cliente desde %s."
+
+	L.ARMY_PEOPLE_APPROX = "~%s pessoas"
+	L.CENSUS_STATS_APPROX = "~%s"
+	L.PEOPLE_ESTIMATE_TIP = "Uma estimativa (~) pelas BattleTags que a equipe de moderação validou: as contas validadas, mais os personagens ainda não validados à razão de personagens por conta das contas validadas. Os membros veem os personagens menos os alts ligados e confirmados. Quanto mais jogadores usarem o addon Olympus e o Olympus Companion, mais preciso fica este número."
+	L.CENSUS_STATS_DETAIL_TAGS = "Pessoas (~) = contas validadas + os personagens ainda não validados à razão de personagens por conta das contas validadas, com três algarismos significativos, nunca acima de personagens - alts ligados e confirmados. Só o cliente da equipe de moderação com BattleTags validadas suficientes mostra isso."
+	L.PEOPLE_STAFF_TAGS = "Staff: %s contas validadas, %s personagens por conta; %s personagens ainda não validados."
+	L.PEOPLE_STAFF_NONE = "Staff: %s contas validadas, %s personagens ainda não validados; a estimativa precisa de %s contas validadas, então a contagem simples aparece."
+	L.CENSUS_STATS_VALIDATED = "Contas validadas"
+	L.CENSUS_STATS_UNVALIDATED = "Personagens ainda não validados"
+	L.CENSUS_STATS_RATE = "Personagens por conta"
+	L.CENSUS_STATS_RATE_TAGS = "(%s contas)"
+	L.CENSUS_STATS_ALTS_TIP = "Personagens que os jogadores ligaram como alts (/oly alts, confirmado em cada personagem): cada jogador conta uma vez, em qualquer guilda."
 end

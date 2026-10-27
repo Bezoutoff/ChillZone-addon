@@ -490,6 +490,440 @@ test("census page: a client updated without a restart (no CensusStats.lua yet) k
 	end)
 end)
 
+---------------------------------------------------------------------------
+-- (The author, 2026-10-20) The people, estimated: CensusStats.PeopleEstimate, and where it shows. A
+-- member's client keeps the plain count in the words above ("about 1,196 people"); a moderation
+-- team client (the King's is one) with SAMPLE_MIN validated accounts shows the BattleTag estimate,
+-- marked "~", and the staff's figures off the King's stream.
+---------------------------------------------------------------------------
+
+-- A census of `characters` characters and `people` people, over a guild counted and one that is
+-- out of every total.
+local function Census(characters, people)
+	return { characters = characters, total = people, online = 0,
+		guilds = { { name = "Olympus", counted = true }, { name = "Olympus Gone", counted = false } } }
+end
+
+-- World with the samples this client holds, as the modules count them: o.team ({ characters,
+-- accounts }: a moderation team client's validated sample, Accord.Sample), o.alts ({ characters,
+-- people }: the players who linked alts, Alts.Sample; false: an Alts without Sample). The guilds
+-- each sample was asked about: w.asked.
+local function Sampled(o)
+	local w = World()
+	w.asked = {}
+	w.ns.Accord = { TeamShown = function() return o.team ~= nil end, Stream = function() return false end,
+		Sample = function(counted) w.asked.team = counted return o.team.characters, o.team.accounts end }
+	local alts = o.alts or { characters = 0, people = 0 }
+	w.ns.Alts = o.alts == false and {} or { Sample = function(counted) w.asked.alts = counted return alts.characters, alts.people end }
+	return w
+end
+
+test("census people estimate: on a moderation team client, the validated sample: its accounts, then the characters not yet validated at its characters per account, to three significant figures; only the guilds counted asked", function()
+	local w = Sampled({ team = { characters = 960, accounts = 800 }, alts = { characters = 250, people = 100 } })
+	local e = w.CS.PeopleEstimate(Census(10000, 9850))
+	eq(e.approx, true); eq(e.sample.kind, "battletag")
+	eq(e.sample.size, 800); eq(e.sample.characters, 960); eq(e.rate, 1.2)
+	-- 800 + 9,040 / 1.2 = 8,333.3: 8,330.
+	eq(e.estimate, 8330); eq(e.shown, 8330); eq(e.people, 9850, "the plain count kept beside it")
+	eq(e.staff, true); eq(e.validated, 800); eq(e.validatedCharacters, 960); eq(e.unvalidated, 9040)
+	eq(w.asked.team.olympus, true); eq(w.asked.team["olympus gone"], nil, "a guild out of the total is not in the sample")
+	eq(w.CS.PeopleText(Census(10000, 9850)), L.ARMY_PEOPLE_APPROX:format("8,330"))
+	eq(w.CS.StaffLine(e), L.PEOPLE_STAFF_TAGS:format("800", "1.20", "9,040"))
+	local notes = w.CS.PeopleNotes(Census(10000, 9850))
+	eq(notes[1], L.PEOPLE_ESTIMATE_TIP, "what ~ means"); eq(notes[2], L.PEOPLE_STAFF_TAGS:format("800", "1.20", "9,040")); eq(#notes, 2)
+	eq(w.CS.DetailText(e), L.CENSUS_STATS_DETAIL_TAGS)
+end)
+
+test("census people estimate: a member's client, or a team client under SAMPLE_MIN validated accounts, keeps the plain count in the members' words, never an alt-link rate; the staff told why; an empty census: nothing", function()
+	local w = Sampled({ alts = { characters = 250, people = 100 } })
+	local e = w.CS.PeopleEstimate(Census(10000, 9850))
+	eq(e.approx, false); eq(e.shown, 9850, "the count, not 10,000 / 2.5"); eq(e.estimate, nil)
+	eq(e.rate, nil, "no rate"); eq(e.sample, nil, "no sample")
+	eq(e.staff, nil, "no staff figures off the team"); eq(e.validated, nil); eq(e.unvalidated, nil)
+	eq(w.asked.alts, nil, "the alt links are not even asked on a member's client")
+	eq(w.CS.StaffLine(e), nil)
+	eq(w.CS.PeopleText(Census(10000, 9850)), L.ARMY_PEOPLE:format("9,850"), "the members' words, as before")
+	eq(#w.CS.PeopleNotes(Census(10000, 9850)), 0, "nothing to say about a ~ that is not there")
+	eq(w.CS.DetailText(e), L.CENSUS_STATS_DETAIL, "the members' formula")
+	-- No Alts.Sample (a client updated without a restart): the same.
+	e = Sampled({ alts = false }).CS.PeopleEstimate(Census(10000, 9850))
+	eq(e.approx, false); eq(e.shown, 9850)
+	-- A team client whose validated sample is too small: the count as members see it; its staff
+	-- figures stay, and say the estimate needs more validated accounts.
+	w = Sampled({ team = { characters = 6, accounts = 5 }, alts = { characters = 250, people = 100 } })
+	e = w.CS.PeopleEstimate(Census(10000, 9850))
+	eq(e.approx, false); eq(e.shown, 9850); eq(e.rate, nil); eq(e.sample, nil)
+	eq(e.staff, true); eq(e.validated, 5); eq(e.unvalidated, 9994)
+	eq(w.CS.PeopleText(Census(10000, 9850)), L.ARMY_PEOPLE:format("9,850"))
+	eq(w.CS.StaffLine(e), L.PEOPLE_STAFF_NONE:format("5", "9,994", tostring(w.CS.SAMPLE_MIN)))
+	eq(w.CS.PeopleNotes(Census(10000, 9850))[1], L.PEOPLE_STAFF_NONE:format("5", "9,994", tostring(w.CS.SAMPLE_MIN)))
+	-- An empty census, even on a team client with a big sample.
+	e = Sampled({ team = { characters = 960, accounts = 800 } }).CS.PeopleEstimate(Census(0, 0))
+	eq(e.approx, false); eq(e.shown, 0)
+end)
+
+-- The review's census, and the regression the members-plain decision fixed: from the alt-link rate a
+-- member saw ~480 where a team client saw ~960 for the same census.
+test("census people estimate: the same census, a member's plain count and never the alt-link rate's half; a team client with SAMPLE_MIN validated accounts takes the BattleTag rate, one fewer the plain count", function()
+	-- 1,200 characters, 1,196 people as counted, 100 players linked 250 characters.
+	local member = Sampled({ alts = { characters = 250, people = 100 } })
+	local e = member.CS.PeopleEstimate(Census(1200, 1196))
+	eq(e.shown, 1196); eq(e.approx, false); eq(member.CS.PeopleText(Census(1200, 1196)), L.ARMY_PEOPLE:format("1,196"))
+	assert(e.shown ~= 480, "the alt-link rate's 1,200 / 2.5")
+	-- A team client with 24 validated accounts of 30 characters: 24 + 1,170 / 1.25 = 960, the alt
+	-- links beside it changing nothing.
+	local team = Sampled({ team = { characters = 30, accounts = 24 }, alts = { characters = 250, people = 100 } })
+	e = team.CS.PeopleEstimate(Census(1200, 1196))
+	eq(e.shown, 960); eq(e.approx, true); eq(e.rate, 1.25); eq(e.sample.kind, "battletag"); eq(e.sample.size, 24)
+	eq(team.CS.PeopleText(Census(1200, 1196)), L.ARMY_PEOPLE_APPROX:format("960"))
+	-- One validated account fewer than SAMPLE_MIN: the count as members see it.
+	team = Sampled({ team = { characters = 30, accounts = team.CS.SAMPLE_MIN - 1 }, alts = { characters = 250, people = 100 } })
+	e = team.CS.PeopleEstimate(Census(1200, 1196))
+	eq(e.shown, 1196); eq(e.approx, false); eq(e.rate, nil)
+	team = Sampled({ team = { characters = 30, accounts = team.CS.SAMPLE_MIN } })
+	eq(team.CS.PeopleEstimate(Census(1200, 1196)).approx, true, "SAMPLE_MIN itself is enough")
+end)
+
+test("census people estimate: three significant figures; never more than the plain count (nor the characters), never fewer than the players the samples tell apart", function()
+	local CS = World().CS
+	for _, c in ipairs({ { 8333.3, 8330 }, { 80544, 80500 }, { 123456, 123000 }, { 999.6, 1000 }, { 99950, 100000 }, { 47.4, 47 }, { 0, 0 } }) do
+		eq((CS.Round3(c[1])), c[2], tostring(c[1]))
+	end
+	-- Every validated account one character: the rate 1 would make every character a player; the plain count is the most.
+	local w = Sampled({ team = { characters = 100, accounts = 100 } })
+	eq(w.CS.PeopleEstimate(Census(10000, 9850)).estimate, 9850)
+	-- Rounded above it (9,849 to 9,850): down to the step under it.
+	eq(w.CS.PeopleEstimate(Census(10000, 9849)).estimate, 9840)
+	-- A census whose people say more than its characters: the characters are the most.
+	eq(w.CS.PeopleEstimate(Census(1000, 1200)).estimate, 1000)
+	-- The team's rate (10 characters per account) gives 20 + 800 / 10 = 100, but 300 players linked
+	-- alts here: at least 300.
+	w = Sampled({ team = { characters = 200, accounts = 20 }, alts = { characters = 600, people = 300 } })
+	local e = w.CS.PeopleEstimate(Census(1000, 1000))
+	eq(e.sample.kind, "battletag"); eq(e.estimate, 300)
+	eq(w.asked.alts.olympus, true); eq(w.asked.alts["olympus gone"], nil, "the floor asks the guilds counted alone")
+	-- A sample bigger than the census (rows of guilds since grown smaller) never counts past it.
+	w = Sampled({ team = { characters = 5000, accounts = 4000 } })
+	e = w.CS.PeopleEstimate(Census(1000, 1000))
+	eq(e.validatedCharacters, 1000); eq(e.unvalidated, 0); assert(e.estimate <= 1000 and e.estimate >= e.validated, e.estimate)
+end)
+
+test("census people estimate: Alts.Sample counts the players whose confirmed links have a character in the guilds counted, and those characters; a link one side claims counts nothing", function()
+	local A = ns.Alts -- (the real Alts.lua: the harness loads it before these files)
+	local saved = { claims = ns.rdb.altClaims, alts = ns.db.alts }
+	local ok, err = pcall(function()
+		ns.db.alts, ns.rdb.altClaims = nil, nil
+		A.Reset()
+		local function AL(sender, role, guild, names) A.Handle("CHANNEL", sender, ("AL~1~%s~%s~%s"):format(role, guild, names)) end
+		AL("Main One-Realm", "M", "Olympus", "Alt One,Alt Two")
+		AL("Alt One-Realm", "A", "Olympus", "Main One")
+		AL("Alt Two-Realm", "A", "Olympus Far", "Main One")
+		AL("Main Two-Realm", "M", "Olympus Far", "Alt Three")
+		AL("Alt Three-Realm", "A", "Olympus", "Main Two")
+		AL("Main Three-Realm", "M", "Olympus", "Alt Four") -- (Alt Four never says so)
+		local c, p = A.Sample({ olympus = true })
+		eq(c, 3, "Main One, Alt One and Alt Three"); eq(p, 2)
+		c, p = A.Sample({ olympus = true, ["olympus far"] = true })
+		eq(c, 5); eq(p, 2)
+		c, p = A.Sample({})
+		eq(c, 0); eq(p, 0)
+	end)
+	ns.db.alts, ns.rdb.altClaims = saved.alts, saved.claims
+	A.Reset()
+	if not ok then error(err, 0) end
+end)
+
+-- fn with the harness's real census over these reports (WithCensus, o.dups linked alts), the
+-- players who linked alts as o.alts says ({ characters, people }, Alts.Sample), and the real
+-- Accord.lua's BattleTag store holding o.rows, this client on the moderation team while o.team
+-- (Accord.TeamShown) and on the King's stream while o.stream (Accord.Stream), as they are when asked.
+local function WithSamples(guilds, o, fn)
+	local A = ns.Accord
+	local saved = { tags = ns.rdb.battletags, team = A.TeamShown, stream = A.Stream, sample = ns.Alts.Sample }
+	ns.rdb.battletags = o.rows and { v = 1, rows = o.rows } or nil
+	A.TeamShown = function() return o.team == true end
+	A.Stream = function() return o.stream == true end
+	local ok, err = pcall(WithCensus, guilds, o.dups or 0, function()
+		ns.Alts.Sample = function()
+			local a = o.alts or { characters = 0, people = 0 }
+			return a.characters, a.people
+		end
+		fn()
+	end)
+	ns.rdb.battletags, A.TeamShown, A.Stream, ns.Alts.Sample = saved.tags, saved.team, saved.stream, saved.sample
+	if not ok then error(err, 0) end
+end
+-- BattleTag rows as a team client keeps them: `accounts` players in `guild`, the first `seconds`
+-- of them with a second character, and two rows of a guild out of the census.
+local function TagRows(accounts, seconds, guild)
+	local rows = {}
+	for i = 1, accounts do
+		local tag = ("Hidden%d#%d"):format(i, 1000 + i)
+		rows[("hidden%d-realm"):format(i)] = { name = ("Hidden%d-Realm"):format(i), tag = tag, guild = guild or "Olympus", last = os.time() }
+		if i <= seconds then rows[("second%d-realm"):format(i)] = { name = ("Second%d-Realm"):format(i), tag = tag, guild = guild or "Olympus", last = os.time() } end
+	end
+	rows["far1-realm"] = { name = "Far1-Realm", tag = "Faraway#4242", guild = "Olympus Far", last = os.time() }
+	rows["far2-realm"] = { name = "Far2-Realm", tag = "Faraway#4243", guild = "Olympus Far", last = os.time() }
+	return rows
+end
+-- Every word a list of lines shows: text, right side and tooltip.
+local function Said(lines)
+	local out = {}
+	local tt = { AddLine = function(_, s) out[#out + 1] = tostring(s) end, AddDoubleLine = function(_, a, b) out[#out + 1] = tostring(a) .. "=" .. tostring(b) end }
+	for _, line in ipairs(lines) do
+		out[#out + 1] = tostring(line.text or "") .. " | " .. tostring(line.right or "")
+		if type(line.tooltip) == "function" then line.tooltip(tt) end
+	end
+	return table.concat(out, "\n")
+end
+local function Tip(line)
+	local out = {}
+	line.tooltip({ AddLine = function(_, s) out[#out + 1] = s end })
+	return out
+end
+local function NoTagOrName(text, where)
+	for _, bit in ipairs({ "#", "Hidden", "Second1", "Faraway", "Far1" }) do
+		assert(not text:find(bit, 1, true), (where or "") .. ": " .. bit .. " in\n" .. text)
+	end
+end
+local ESTIMATE_GUILDS = function()
+	return { ["Olympus"] = Report(900, { online = 200, avgLevel = 40 }), ["Olympus II"] = Report(300, { online = 50 }) }
+end
+
+test("census page: a member's people as before; a team client's ~ estimate, its tooltip and detail saying how it is made, the staff's validated accounts, characters not yet validated and rate under it, never on the King's stream; no BattleTag or name anywhere", function()
+	-- 1,200 characters, 4 linked alts: 1,196 people as counted.
+	local o = { dups = 4, alts = { characters = 250, people = 100 } }
+	WithSamples(ESTIMATE_GUILDS(), o, function()
+		local w = World({ realData = true, clock = os.time() })
+		-- An ordinary member: the plain count, the members' words, nothing of the staff's.
+		local lines, _, detail = w.CS.Build()
+		local row = Find(lines, L.CENSUS_STATS_PEOPLE)
+		eq(Bare(row.right), "1,196")
+		eq(Tip(row)[2], L.CENSUS_STATS_PEOPLE_TIP); eq(#Tip(row), 2)
+		eq(Tip(Find(lines, L.CENSUS_STATS_ALTS))[2], L.CENSUS_STATS_PEOPLE_TIP)
+		eq(detail, L.CENSUS_STATS_DETAIL)
+		local all = Said(lines)
+		assert(not all:find(L.PEOPLE_ESTIMATE_TIP, 1, true), "no ~ to explain:\n" .. all)
+		eq(Find(lines, L.CENSUS_STATS_VALIDATED), nil); eq(Find(lines, L.CENSUS_STATS_UNVALIDATED), nil); eq(Find(lines, L.CENSUS_STATS_RATE), nil)
+		assert(not all:find("Staff", 1, true), "nothing the staff alone see:\n" .. all)
+		-- A moderation team client: 24 validated accounts of 30 characters in the guilds counted (the
+		-- two rows of a guild out of the census aside): 24 + 1,170 / 1.25 = 960.
+		ns.rdb.battletags = { v = 1, rows = TagRows(24, 6) }
+		o.team = true
+		lines, _, detail = w.CS.Build()
+		row = Find(lines, L.CENSUS_STATS_PEOPLE)
+		eq(Bare(row.right), L.CENSUS_STATS_APPROX:format("960"))
+		eq(detail, L.CENSUS_STATS_DETAIL_TAGS, "the page's detail says how the ~ is made")
+		local staff = L.PEOPLE_STAFF_TAGS:format("24", "1.25", "1,170")
+		-- (The review of 2026-10-20: beside the ~, what it means takes the place of the plain count's
+		-- words, and the linked alts' row has words of its own.)
+		local tip = Tip(row)
+		eq(tip[2], L.PEOPLE_ESTIMATE_TIP); eq(tip[3], staff); eq(#tip, 3)
+		eq(Tip(Find(lines, L.CENSUS_STATS_ALTS))[2], L.CENSUS_STATS_ALTS_TIP)
+		assert(not Said(lines):find(L.CENSUS_STATS_PEOPLE_TIP, 1, true), "the plain count's words, beside an estimate")
+		local validated, at = Find(lines, L.CENSUS_STATS_VALIDATED)
+		eq(Bare(validated.right), "24"); eq(validated.indent, 1)
+		eq(Bare(lines[at + 1].text), L.CENSUS_STATS_UNVALIDATED); eq(Bare(lines[at + 1].right), "1,170")
+		eq(Bare(lines[at + 2].text), L.CENSUS_STATS_RATE); eq(Bare(lines[at + 2].right), "1.25 " .. L.CENSUS_STATS_RATE_TAGS:format("24"))
+		eq(Tip(validated)[2], staff)
+		NoTagOrName(Said(lines), "the team's page")
+		-- The King's stream: the estimate, nothing of the staff's.
+		o.stream = true
+		lines = w.CS.Build()
+		eq(Bare(Find(lines, L.CENSUS_STATS_PEOPLE).right), L.CENSUS_STATS_APPROX:format("960"))
+		eq(Find(lines, L.CENSUS_STATS_VALIDATED), nil); eq(#Tip(Find(lines, L.CENSUS_STATS_PEOPLE)), 2)
+		o.stream = false
+		-- Too few validated accounts: the count as members see it, in their words; the staff told why.
+		ns.rdb.battletags = { v = 1, rows = TagRows(3, 0) }
+		lines, _, detail = w.CS.Build()
+		row = Find(lines, L.CENSUS_STATS_PEOPLE)
+		eq(Bare(row.right), "1,196"); eq(detail, L.CENSUS_STATS_DETAIL)
+		eq(Bare(Find(lines, L.CENSUS_STATS_RATE).right), "-")
+		tip = Tip(row)
+		eq(tip[2], L.CENSUS_STATS_PEOPLE_TIP); eq(tip[3], L.PEOPLE_STAFF_NONE:format("3", "1,197", tostring(w.CS.SAMPLE_MIN))); eq(#tip, 3)
+		eq(Tip(Find(lines, L.CENSUS_STATS_ALTS))[2], L.CENSUS_STATS_PEOPLE_TIP)
+	end)
+end)
+
+-- Every word the page's graphs show on hover: each slot's tooltip and the series' own.
+local function GraphSaid(lines)
+	local out = {}
+	local tt = { AddLine = function(_, s) out[#out + 1] = tostring(s) end, AddDoubleLine = function(_, a, b) out[#out + 1] = tostring(a) .. "=" .. tostring(b) end }
+	for _, line in ipairs(lines) do
+		local g = line.graph
+		if g then
+			for i = 1, g.n do if g.tips[i] then g.tips[i](tt) end end
+			if g.tip then g.tip(tt) end
+		end
+	end
+	return table.concat(out, "\n")
+end
+
+-- (The review of 2026-10-20: the header and the people's row said "~" while each graph's day and
+-- hour still said the plain count.)
+test("census page: the graphs' days and hours give the people as the header does: a team client's at the estimate's people per character, never above the sample's count; a member's each sample's own count", function()
+	local o = { dups = 4, alts = { characters = 250, people = 100 } }
+	WithSamples(ESTIMATE_GUILDS(), o, function()
+		local d = os.date("*t")
+		local now = os.time({ year = d.year, month = d.month, day = d.day, hour = 12 })
+		local w = World({ realData = true, clock = now - 30 * 60 })
+		eq(w.CS.Sample(), true, "a sample: 1,200 characters, 1,196 people")
+		w.clock = now
+		local function Tips(lines, title, slot)
+			local _, g = Find(lines, title)
+			local out = {}
+			lines[g + 1].graph.tips[slot]({ AddLine = function(_, s) out[#out + 1] = s end, AddDoubleLine = function(_, a, b) out[#out + 1] = a .. "=" .. b end })
+			return table.concat(out, "\n")
+		end
+		-- An ordinary member: the sample's 1,196, today and in the last hour, as his header.
+		local lines = w.CS.Build()
+		assert(Tips(lines, L.CENSUS_STATS_ARMY_GRAPH, 30):find(L.CENSUS_STATS_PEOPLE .. "=1,196", 1, true))
+		assert(Tips(lines, L.CENSUS_STATS_ONLINE_GRAPH, 24):find(L.CENSUS_STATS_PEOPLE .. "=1,196", 1, true))
+		local all = GraphSaid(lines)
+		assert(not all:find("480", 1, true), "the alt-link rate's:\n" .. all)
+		assert(all:find(L.CENSUS_STATS_DETAIL, 1, true), "the members' detail under each graph:\n" .. all)
+		-- A moderation team client: 960, the same in the graphs; no tag or name there either.
+		ns.rdb.battletags = { v = 1, rows = TagRows(24, 6) }
+		o.team = true
+		lines = w.CS.Build()
+		assert(Tips(lines, L.CENSUS_STATS_ARMY_GRAPH, 30):find(L.CENSUS_STATS_PEOPLE .. "=" .. L.CENSUS_STATS_APPROX:format("960"), 1, true))
+		assert(Tips(lines, L.CENSUS_STATS_ONLINE_GRAPH, 24):find(L.CENSUS_STATS_PEOPLE .. "=" .. L.CENSUS_STATS_APPROX:format("960"), 1, true))
+		all = Said(lines) .. "\n" .. GraphSaid(lines)
+		assert(not all:find("1,196", 1, true), all)
+		assert(not all:find(L.CENSUS_STATS_DETAIL, 1, true) and all:find(L.CENSUS_STATS_DETAIL_TAGS, 1, true), "the estimate's detail:\n" .. all)
+		NoTagOrName(GraphSaid(lines), "the team's graphs")
+	end)
+	-- The arithmetic: with the BattleTag rate, the estimate's people per character, three significant
+	-- figures, never above the sample's own count (rounded above it: the step under it); no estimate
+	-- (or one without a rate): the plain count.
+	local CS = World().CS
+	local e = { approx = true, shown = 960, characters = 1200, rate = 1.25 }
+	eq(CS.PeopleAt(1196, 1200, e), L.CENSUS_STATS_APPROX:format("960"))
+	eq(CS.PeopleAt(1000, 1100, e), L.CENSUS_STATS_APPROX:format("880"))
+	eq(CS.PeopleAt(9849, 10000, { approx = true, shown = 9850, characters = 10000, rate = 1 }), L.CENSUS_STATS_APPROX:format("9,840"))
+	eq(CS.PeopleAt(50, 1000, { approx = true, shown = 900, characters = 1000, rate = 1.1 }), L.CENSUS_STATS_APPROX:format("50"), "never above its own count")
+	eq(CS.PeopleAt(1196, 1200, { approx = true, shown = 1196, characters = 1200 }), "1,196", "no rate: the plain count")
+	eq(CS.PeopleAt(990, 1000, { approx = false, shown = 990, characters = 1000 }), "990")
+	eq(CS.PeopleAt(990, 1000, nil), "990")
+end)
+
+-- The window opened on the Census over ESTIMATE_GUILDS with these samples (WithSamples).
+local function OpenSampled(o, fn)
+	WithUI(function()
+		WithSamples(ESTIMATE_GUILDS(), o, function()
+			local w = World({ realData = true, clock = os.time() })
+			local saved = ns.CensusStats
+			ns.CensusStats = w.CS
+			local ok, err = pcall(function()
+				local UI = LoadUI()
+				UI.Toggle()
+				fn(OlympusFrame, UI, w)
+			end)
+			ns.CensusStats = saved
+			if not ok then error(err, 0) end
+		end)
+	end)
+end
+
+test("census header: a member's people as before; a team client's ~ estimate, the hover saying what it means and that the more players use the Olympus addon and the Olympus Companion the more precise, the staff's line never on the King's stream; the same on the minimap and in the copy for Discord", function()
+	local o = { dups = 4, alts = { characters = 250, people = 100 } }
+	OpenSampled(o, function(main, UI)
+		local function Hover()
+			main.headerHover:Fire("OnEnter")
+			local lines = {}
+			for _, l in ipairs(GameTooltip.lines) do lines[#lines + 1] = tostring(l) end
+			main.headerHover:Fire("OnLeave")
+			return lines
+		end
+		local function Has(lines, text) for _, l in ipairs(lines) do if l == text then return true end end return false end
+		local function Minimap2()
+			Minimap = CreateFrame("Frame", "Minimap", UIParent)
+			Minimap:SetSize(140, 140)
+			UI.UpdateMinimapButton()
+			OlympusMinimapButton:Fire("OnEnter")
+			local line = GameTooltip.lines[2]
+			Minimap = nil
+			return line
+		end
+		-- An ordinary member: the plain count in the members' words, never an alt-link rate's 480.
+		eq(main.people:GetText(), L.ARMY_PEOPLE:format("1,196"))
+		local tip = Hover()
+		assert(Has(tip, L.HEADER_TIP_ALTS:format("1,200", "4")), "the linked alts, as before")
+		eq(Has(tip, L.PEOPLE_ESTIMATE_TIP), false, "no ~ to explain")
+		for _, l in ipairs(tip) do assert(not l:find("Staff", 1, true), "no staff line: " .. l) end
+		eq(Minimap2(), L.ARMY_TOTAL:format("1,200") .. "  " .. UI.PEOPLE_CODE .. L.ARMY_PEOPLE:format("1,196") .. "|r")
+		local copy = ns.Data.DiscordText()
+		assert(copy:find(" · " .. L.ARMY_PEOPLE:format("1,196"), 1, true), copy)
+		-- A moderation team client: the validated sample, and the staff's line.
+		ns.rdb.battletags = { v = 1, rows = TagRows(24, 6) }
+		o.team = true
+		UI.Refresh()
+		eq(main.people:GetText(), L.ARMY_PEOPLE_APPROX:format("960"))
+		tip = Hover()
+		assert(Has(tip, L.PEOPLE_ESTIMATE_TIP))
+		assert(Has(tip, L.PEOPLE_STAFF_TAGS:format("24", "1.25", "1,170")), table.concat(tip, "\n"))
+		eq(Minimap2(), L.ARMY_TOTAL:format("1,200") .. "  " .. UI.PEOPLE_CODE .. L.ARMY_PEOPLE_APPROX:format("960") .. "|r")
+		assert(ns.Data.DiscordText():find(" · " .. L.ARMY_PEOPLE_APPROX:format("960"), 1, true))
+		local everything = table.concat(tip, "\n") .. "\n" .. main.people:GetText() .. "\n" .. Minimap2() .. "\n" .. ns.Data.DiscordText()
+		NoTagOrName(everything, "the header")
+		-- The King's stream: the estimate shows, the staff's line does not.
+		o.stream = true
+		UI.Refresh()
+		eq(main.people:GetText(), L.ARMY_PEOPLE_APPROX:format("960"))
+		tip = Hover()
+		assert(Has(tip, L.PEOPLE_ESTIMATE_TIP))
+		for _, l in ipairs(tip) do assert(not l:find("Staff", 1, true), "on the stream: " .. l) end
+		-- Back to an ordinary member: the members' words again.
+		o.stream, o.team = false, false
+		UI.Refresh()
+		eq(main.people:GetText(), L.ARMY_PEOPLE:format("1,196"))
+		eq(Has(Hover(), L.PEOPLE_ESTIMATE_TIP), false)
+	end)
+end)
+
+test("census people estimate: its words in English and Portuguese: the sign, how a team client's estimate is made and that the more players use the Olympus addon and the Olympus Companion, the more precise it gets; the staff's lines; the members' words unchanged", function()
+	local function Words(locale)
+		local savedLocale = GetLocale
+		GetLocale = function() return locale end
+		local w = { L = setmetatable({}, { __index = function(_, k) return k end }) }
+		local ok, err = pcall(function() assert(loadfile(ROOT .. "Olympus/Locales/CensusStatsText.lua"))("Olympus", w) end)
+		GetLocale = savedLocale
+		if not ok then error(err, 0) end
+		return w.L
+	end
+	local en, pt = Words("enUS"), Words("ptBR")
+	eq(en.ARMY_PEOPLE_APPROX:format("80,500"), "~80,500 people"); eq(pt.ARMY_PEOPLE_APPROX:format("80.500"), "~80.500 pessoas")
+	eq(en.CENSUS_STATS_APPROX:format("480"), "~480")
+	eq(en.ARMY_PEOPLE:format("80,500"), "about 80,500 people", "the members' words, as before")
+	assert(en.PEOPLE_ESTIMATE_TIP:find("estimate", 1, true) and en.PEOPLE_ESTIMATE_TIP:find("BattleTags", 1, true), en.PEOPLE_ESTIMATE_TIP)
+	assert(en.PEOPLE_ESTIMATE_TIP:find("The more players use the Olympus addon and the Olympus Companion, the more precise this number gets.", 1, true))
+	assert(pt.PEOPLE_ESTIMATE_TIP:find("estimativa", 1, true) and pt.PEOPLE_ESTIMATE_TIP:find("BattleTags", 1, true), pt.PEOPLE_ESTIMATE_TIP)
+	assert(pt.PEOPLE_ESTIMATE_TIP:find("Quanto mais jogadores usarem o addon Olympus e o Olympus Companion, mais preciso fica este número.", 1, true))
+	-- A member's number has no rate behind it, and the tip says so.
+	assert(en.PEOPLE_ESTIMATE_TIP:find("Members see the characters minus the confirmed linked alts", 1, true), en.PEOPLE_ESTIMATE_TIP)
+	assert(pt.PEOPLE_ESTIMATE_TIP:find("Os membros veem os personagens menos os alts ligados e confirmados", 1, true), pt.PEOPLE_ESTIMATE_TIP)
+	assert(en.CENSUS_STATS_DETAIL_TAGS:find("People (~) = validated accounts", 1, true), en.CENSUS_STATS_DETAIL_TAGS)
+	assert(pt.CENSUS_STATS_DETAIL_TAGS:find("Pessoas (~) = contas validadas", 1, true), pt.CENSUS_STATS_DETAIL_TAGS)
+	eq(en.PEOPLE_STAFF_ALTS, "PEOPLE_STAFF_ALTS", "no staff line of an alt-link rate"); eq(pt.PEOPLE_STAFF_ALTS, "PEOPLE_STAFF_ALTS")
+	eq(pt.PEOPLE_STAFF_TAGS:format("800", "1,20", "9.040"), "Staff: 800 contas validadas, 1,20 personagens por conta; 9.040 personagens ainda não validados.")
+	eq(en.PEOPLE_STAFF_TAGS:format("800", "1.20", "9,040"), "Staff: 800 accounts validated, 1.20 characters per account; 9,040 characters not yet validated.")
+	-- The linked alts' row beside an estimate: what a link does, not how the plain count goes.
+	assert(en.CENSUS_STATS_ALTS_TIP:find("/oly alts", 1, true) and pt.CENSUS_STATS_ALTS_TIP:find("/oly alts", 1, true))
+	assert(en.CENSUS_STATS_ALTS_TIP ~= pt.CENSUS_STATS_ALTS_TIP)
+	-- Not a word of "not counted": the words say what is shown, never what is missing.
+	for _, key in ipairs({ "ARMY_PEOPLE_APPROX", "CENSUS_STATS_APPROX", "PEOPLE_ESTIMATE_TIP" }) do
+		assert(not en[key]:lower():find("not counted", 1, true) and not pt[key]:lower():find("não contad", 1, true), key)
+	end
+	-- The rate in each language's own decimal mark.
+	local w = World()
+	eq(w.CS.Rate(1.25), "1.25"); eq(w.CS.Rate(2), "2.00"); eq(w.CS.Rate(1.006), "1.01")
+	local savedMark = L.DECIMAL_MARK
+	L.DECIMAL_MARK = ","
+	local ok, err = pcall(function() eq(w.CS.Rate(1.25), "1,25") end)
+	L.DECIMAL_MARK = savedMark
+	if not ok then error(err, 0) end
+end)
+
 test("census page: every line in English and Portuguese, the Portuguese its own", function()
 	local pt = {}
 	local savedLocale = GetLocale
@@ -503,7 +937,9 @@ test("census page: every line in English and Portuguese, the Portuguese its own"
 	local en = {}
 	en.L = setmetatable({}, { __index = function(_, k) return k end })
 	assert(loadfile(ROOT .. "Olympus/Locales/CensusStatsText.lua"))("Olympus", en)
-	local same = { CENSUS_STATS_TIME_FORMAT = true, CENSUS_STATS_WHEN = true, CENSUS_STATS_OF_CAP = true }
+	-- (A team client's estimate adds CENSUS_STATS_APPROX, "~" and a number, the same in every
+	-- language, so it joins the keys allowed to read alike.)
+	local same = { CENSUS_STATS_TIME_FORMAT = true, CENSUS_STATS_WHEN = true, CENSUS_STATS_OF_CAP = true, CENSUS_STATS_APPROX = true }
 	local n = 0
 	for key, text in pairs(en.L) do
 		n = n + 1

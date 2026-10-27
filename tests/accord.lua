@@ -615,6 +615,37 @@ test("accord: an ordinary member's client never keeps, sends on or shows a Battl
 	end, { accepted = true })
 end)
 
+-- (The author, 2026-10-20) The census's people, estimated (CensusStats.PeopleEstimate): a team
+-- client's validated sample, as two numbers.
+test("accord: the census's validated sample (Accord.Sample): on a team client the characters of the guilds counted and how many distinct BattleTags among them, two numbers and nothing else; none on an ordinary member's client or in a role preview", function()
+	Scene(function(w, A)
+		C_ChatInfo = { SendAddonMessageLogged = function() end }
+		A.AskTeam()
+		A.HandleTag("WHISPER", MEMBER, BT())
+		A.HandleTag("WHISPER", "Second Alt-Realm", BT())
+		A.HandleTag("WHISPER", "Brisk Lantern-Realm", BT(nil, nil, "Bob#7777"))
+		A.HandleTag("WHISPER", "Far Rider-Realm", BT(nil, "Olympus Far", "Far#4242"))
+		eq(A.Count(), 4)
+		local out = { A.Sample({ ["olympus ii"] = true }) }
+		eq(#out, 2); eq(out[1], 3, "characters"); eq(out[2], 2, "accounts: one BattleTag on two characters")
+		eq(type(out[1]), "number"); eq(type(out[2]), "number")
+		out = { A.Sample({ ["olympus ii"] = true, ["olympus far"] = true }) }
+		eq(out[1], 4); eq(out[2], 3)
+		out = { A.Sample({}) }
+		eq(out[1], 0); eq(out[2], 0)
+		-- The author's role preview: none.
+		ns.ViewAs = { Available = function() return true end, Role = function() return "member" end }
+		out = { A.Sample({ ["olympus ii"] = true }) }
+		eq(out[1], 0); eq(out[2], 0)
+	end, { accepted = true, team = true })
+	-- An ordinary member's client: nothing counted, even with a store left behind.
+	Scene(function(w, A)
+		ns.rdb.battletags = { v = 1, rows = { ["member7-realm"] = { name = MEMBER, tag = TAG, guild = "Olympus II", last = w.now } } }
+		local c, a = A.Sample({ ["olympus ii"] = true })
+		eq(c, 0); eq(a, 0)
+	end, { accepted = true })
+end)
+
 -- (Changed on purpose, 1.2.5.1's review: a BattleTag's digits were shown in full on every team
 -- screen but the King's; they now stay hidden there too until the page's Show, for REVEAL seconds.
 -- On the King's screen no part of a tag shows: a name of four letters or fewer showed whole.)

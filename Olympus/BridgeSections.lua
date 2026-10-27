@@ -489,12 +489,30 @@ OlympusBridge.RegisterSection("stats", 1, function()
 	}
 	local avg = Call("CensusStats", "AverageLevel", s)
 	if type(avg) == "string" then out.avgLevel = avg end
+	-- The people as the header shows them (CensusStats.PeopleEstimate): while they are a moderation
+	-- team client's BattleTag estimate, peopleEstimate is that number, whole, so the Companion shows
+	-- the same "~" figure; anywhere else it is absent and the Companion shows `people`, the plain
+	-- count a member's header shows. The estimate itself goes on the King's stream too; its rate and
+	-- the counted validated figures below are the staff's, as on the page: never on the King's stream
+	-- (CensusStats.StaffShown).
+	local est = Call("CensusStats", "PeopleEstimate", s)
+	local staffShown = type(est) == "table" and Call("CensusStats", "StaffShown", est) == true
+	if type(est) == "table" and est.approx == true and tonumber(est.shown) then out.peopleEstimate = Whole(est.shown) end
 	-- Validated people (the Olympus Accord's BattleTags): only on a moderation team client, the only
 	-- one that holds any (Accord.lua's team store), and as two numbers, never a tag or a name. Every
 	-- other client sends none, and its Companion says "not counted yet".
 	if Call("Accord", "TeamShown") == true then
 		local groups = Call("Accord", "Groups")
 		out.validated = { battleTags = type(groups) == "table" and #groups or 0, characters = Whole(Call("Accord", "Count")) }
+		-- (2026-10-20: of the guilds counted, the validated accounts and characters, the characters
+		-- not yet validated and, while they made the estimate, their characters per account (two
+		-- decimals, the one number here that is not whole): the staff's line of the census page.)
+		if staffShown then
+			out.validated.countedBattleTags = Whole(est.validated)
+			out.validated.countedCharacters = Whole(est.validatedCharacters)
+			out.validated.unvalidated = Whole(est.unvalidated)
+			if est.approx == true and tonumber(est.rate) then out.validated.rate = math.floor(tonumber(est.rate) * 100 + 0.5) / 100 end
+		end
 	end
 	for _, b in ipairs(c.banned.list) do out.banned.list[#out.banned.list + 1] = ("%d~%s"):format(b.members, b.name) end
 	for _, d in ipairs(c.departed.list) do out.departed.list[#out.departed.list + 1] = ("%d~%d~%s"):format(d.members, d.t, d.name) end

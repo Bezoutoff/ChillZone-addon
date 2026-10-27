@@ -56,6 +56,32 @@ and the confirmed alt links. Nothing is sent.
 characters it holds, never a tag or a name. Every other client sends none and its Companion shows
 no line for it (Daniel, 2026-10-20: the public sees only what is counted).
 
+**People, estimated** (the author, 2026-10-20: the people can't be told exactly until every player
+shared his account): `CensusStats.PeopleEstimate` (`Olympus/CensusStats.lua`) gives the people as
+each client can tell them:
+
+- **A member's client** (and a team client with fewer than 20 validated accounts): the plain people
+  count (`Data.Summary().total`: the characters, confirmed linked alts once), in the words the page
+  already uses ("about 80,500 people", "Estimated people", the formula in its tooltip and detail).
+  It is never divided by a rate: the players who linked alts all have more than one character, so
+  their rate runs high and an estimate from it came out about half the true number (the author's
+  "Membros: contagem atual").
+- **A moderation team client (the King's is one) whose validated sample holds 20 accounts or more**
+  (`CensusStats.SAMPLE_MIN`; `Accord.Sample`: the characters of the counted guilds whose BattleTag it
+  holds, and how many BattleTags): the validated accounts plus the characters not validated at that
+  sample's characters per account, to three significant figures, never fewer than the players the
+  samples tell apart (BattleTags, and the players who linked alts, `Alts.Sample`) and never more
+  than the plain people count. The header, the census page, the minimap button and the copy for
+  Discord show it as "~80,500 people" (the game's fonts have no approximately-equal sign); the
+  tooltip and the page's detail say how it is made and that the more players use the Olympus addon
+  and the Olympus Companion, the more precise it gets. The census page's graphs give each day's and
+  hour's people the same way ("~", that sample's characters at the estimate's people per character,
+  never above its own count).
+
+Only the staff (a team client, never on the King's screen) see the validated accounts, the
+characters not yet validated and the rate; every other client shows none of it. A later release may
+bring the team's rate to members through the Companion.
+
 **Not counted yet:** people with the addon (beyond those online now) and Battle.net accounts.
 Counting them needs a census wire change on every reporter (a per-account flag in the hello, report
 fields for guildmates seen with the addon). Not in this release: the export leaves them out and the
@@ -65,7 +91,8 @@ Companion shows no line for them. To be designed with Daniel after 2026-10-21.
 
 The page's figures come from `Data.Summary()` and its series from `CensusStats.DaySeries` /
 `HourSeries` / `AverageLevel` when the build has them (without them the series are empty). Strings
-and whole numbers only, within the Bridge's section limits (1500 values, depth 5):
+and whole numbers only (`validated.rate` aside), within the Bridge's section limits (1500
+values, depth 5):
 
 ```text
 stats = {
@@ -78,9 +105,21 @@ stats = {
   days = { "t~characters~people~online", ... },      -- the page's 30 days, days without a sample out
   hours = { "t~characters~people~online", ... },     -- the page's 24 hours, hours without one out
   guilds = { "members~online~users~avg10~status~name", ... },  -- 256 at most, biggest first
-  validated? = { battleTags, characters },   -- a moderation team client only: numbers, never tags or names
+  peopleEstimate?,                           -- a team client's "~" estimate, as its header shows it
+  validated? = { battleTags, characters, countedBattleTags?, countedCharacters?, unvalidated?, rate? },
+                                             -- a moderation team client only: numbers, never tags or names
 }
 ```
+
+`peopleEstimate` is a whole number, sent only while the header shows a team client's "~" estimate
+(the King's stream included): the Companion shows it with its "~". Without it, the people are
+`people`, the plain count a member's header shows, and the Companion shows that.
+`validated.countedBattleTags` / `countedCharacters` are the validated accounts and characters of the
+guilds counted, `unvalidated` the counted characters not yet validated, and `rate`, while they made
+the estimate, their characters per account (two decimals, the one number of the section that is not
+whole): the staff's line. On the King's stream (`Accord.Stream`) a team client sends none of these
+four, as its page shows none of them there (`CensusStats.StaffShown`). The `days` / `hours` series
+keep the plain people count of each sample.
 
 `status` is one of `own`, `confirmed`, `relayed`, `single`, `disputed`, `outlier`, `stale` or
 `seen` (only `/who` saw it, in no total). Banned and departed guilds are in their own lists. The

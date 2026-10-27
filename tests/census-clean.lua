@@ -196,3 +196,77 @@ test("census stats section: validated people only from a moderation team client,
 	ns.Accord = saved
 	if not ok then error(err, 0) end
 end)
+
+-- (The author, 2026-10-20) The people as the header shows them, handed to the Companion: a team
+-- client's "~" estimate as peopleEstimate, a whole number (the shape the Companion's census page
+-- reads), and its staff figures; a member's client sends no estimate, so the Companion shows
+-- `people`, his header's plain count. Added beside the section's fields, none of them renamed.
+test("census stats section: peopleEstimate only while a team client's estimate shows, a whole number; its staff figures and rate off the King's stream; a member's client sends none; never a tag or a name", function()
+	local ROOT = (debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]census%-clean%.lua$")) or "./"
+	local cns = setmetatable({ rdb = {}, On = function() end, Every = function() end }, { __index = ns })
+	assert(loadfile(ROOT .. "Olympus/CensusStats.lua"))("Olympus", cns)
+	local savedAccord, savedSample = ns.Accord, ns.Alts.Sample
+	local team, stream, alts, tags = false, false, { 250, 100 }, { 60, 50 }
+	ns.Accord = { TeamShown = function() return team end, Stream = function() return stream end,
+		Groups = function() return { { tag = "Secret#1234", rows = { { name = "A-Realm" } } } } end, Count = function() return 1 end,
+		Sample = function() return tags[1], tags[2] end }
+	ns.Alts.Sample = function() return alts[1], alts[2] end
+	local function Holds(t, depth)
+		for k, v in pairs(t) do
+			if type(v) == "string" and (v:find("#", 1, true) or v:find("-Realm", 1, true) or v:find("Secret", 1, true)) then return k end
+			if type(v) == "table" and depth < 5 then local found = Holds(v, depth + 1) if found then return found end end
+		end
+	end
+	local ok, err = pcall(With, { guilds = Army(), banned = { ["Olympus Banned"] = true }, alts = { ["Olympus Home"] = 3 }, page = cns.CensusStats }, function()
+		local s = D.Summary()
+		eq(s.characters, 490); eq(s.total, 487)
+		-- An ordinary member: his header's plain count, so no estimate: the Companion shows `people`.
+		local data = assert(OlympusBridge.GetSection("stats")).data
+		eq(data.peopleEstimate, nil, "a member's client: no estimate")
+		eq(data.people, 487, "the plain count, as before"); eq(data.validated, nil, "no validated figures off the team")
+		-- A moderation team client: 50 validated accounts of 60 characters, 50 + 430 / 1.2 = 408.
+		team = true
+		data = assert(OlympusBridge.GetSection("stats")).data
+		eq(data.peopleEstimate, 408); eq(type(data.peopleEstimate), "number", "a whole number, as the Companion reads it")
+		eq(data.people, 487, "people keeps its meaning")
+		eq(data.validated.battleTags, 1); eq(data.validated.characters, 1, "the store's own figures, as before")
+		eq(data.validated.countedBattleTags, 50); eq(data.validated.countedCharacters, 60); eq(data.validated.unvalidated, 430)
+		eq(data.validated.rate, 1.2, "the validated accounts' characters per account, two decimals")
+		eq(Holds(data, 0), nil, "no tag or name")
+		-- (The review of 2026-10-20) The King's stream: the estimate as his header shows it, but none
+		-- of the staff's figures his page hides there: no rate, no counted validated ones. (The
+		-- store's own two figures are sent as before.)
+		stream = true
+		data = assert(OlympusBridge.GetSection("stats")).data
+		eq(data.peopleEstimate, 408)
+		eq(data.validated.countedBattleTags, nil); eq(data.validated.countedCharacters, nil); eq(data.validated.unvalidated, nil)
+		eq(data.validated.rate, nil)
+		eq(data.validated.battleTags, 1); eq(data.validated.characters, 1)
+		-- A team client whose own sample is too small: the plain count as members see it, so no
+		-- estimate; off the stream its counted figures still go, without a rate.
+		tags = { 6, 5 }
+		data = assert(OlympusBridge.GetSection("stats")).data
+		eq(data.peopleEstimate, nil); eq(data.validated.countedBattleTags, nil, "still on the stream")
+		stream = false
+		data = assert(OlympusBridge.GetSection("stats")).data
+		eq(data.peopleEstimate, nil); eq(data.validated.countedBattleTags, 5); eq(data.validated.unvalidated, 484)
+		eq(data.validated.rate, nil, "no rate made the number")
+	end)
+	ns.Accord, ns.Alts.Sample = savedAccord, savedSample
+	if not ok then error(err, 0) end
+end)
+
+-- The section reads the page's own estimate where the build has it, and none without the page.
+test("census stats section: peopleEstimate is the page's own estimate, and absent without the census page or while it is no estimate", function()
+	local approx = true
+	local page = { PeopleEstimate = function() return { shown = 480, approx = approx, people = 487 } end,
+		StaffShown = function() return false end }
+	With({ guilds = Army(), page = page }, function()
+		eq(assert(OlympusBridge.GetSection("stats")).data.peopleEstimate, 480, "the header's estimate, as the page shows it")
+		approx = false
+		eq(assert(OlympusBridge.GetSection("stats")).data.peopleEstimate, nil, "the plain count: none")
+	end)
+	With({ guilds = Army() }, function()
+		eq(assert(OlympusBridge.GetSection("stats")).data.peopleEstimate, nil, "no estimate without the page")
+	end)
+end)
