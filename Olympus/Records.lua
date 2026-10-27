@@ -85,6 +85,7 @@ R.DIGEST_RECENT = 3      -- newest days always; older unsealed days rotate throu
 R.DIGEST_MONTHS = 24     -- ...and the newest sealed months
 R.ASK_DAYS = 3           -- days asked for from one digest at most
 R.ASK_GAP = 300          -- a day asked for again from here this long after at the soonest
+R.ASK_SPREAD = 20        -- an ask a digest set off waits score × this; heard asks that asked for all ours would merge it
 R.ANSWER_GAP = 60        -- one answer per day this often (anyone's)
 R.ANSWER_MIN, R.ANSWER_SPREAD = 1, 6 -- a holder whose digest named it answers this long after the ask...
 R.ANSWER_WINDOW = 120    -- ...a digest of ours that went this recently (or goes while the ask waits)
@@ -1154,7 +1155,7 @@ end
 -- An ask for one day's records: the prefixes of the ids this client holds of it. (A read: it goes
 -- even while this client's quiet presence is on, as Comm.QUIET_WORDS lets a read go and
 -- Treasury.Ask its first ask; what this client would tell or answer stays home, R.Bar.)
-function R.Ask(letter, d, remoteCount)
+local function HeldPrefixes(letter, d)
 	local s = Store(letter)
 	local held = {}
 	for id, body in pairs(s and s.days[d] or {}) do
@@ -1165,6 +1166,10 @@ function R.Ask(letter, d, remoteCount)
 	for id, p in pairs(s and s.pend or {}) do
 		if type(p) == "table" and tonumber(p.d) == d then held[#held + 1] = R.Fingerprint(letter, p.b) end
 	end
+	return held
+end
+local function AskBody(letter, d, remoteCount)
+	local held = HeldPrefixes(letter, d)
 	table.sort(held)
 	-- Large days are requested in hash buckets. The packet and the receiver's scan stay bounded;
 	-- repeated requests advance the bucket rather than repeatedly sending a truncated prefix list.
@@ -1180,11 +1185,74 @@ function R.Ask(letter, d, remoteCount)
 		for _, prefix in ipairs(held) do if prefix:sub(1, width) == bucket and #selected < R.ASK_PREFIX_MAX then selected[#selected + 1] = prefix end end
 		held = selected
 	end
+	return letter .. "~d~" .. B36(d) .. "~" .. (bucket ~= "" and bucket .. ":" or "") .. table.concat(held)
+end
+function R.Ask(letter, d, remoteCount)
+	local body = AskBody(letter, d, remoteCount)
 	Per(askedAt, letter)[d] = Now()
 	stats.asked = stats.asked + 1
-	local sent = A().Send("RA", "L", letter .. "~d~" .. B36(d) .. "~" .. (bucket ~= "" and bucket .. ":" or "") .. table.concat(held), { dist = "CHANNEL", key = "records ask " .. letter .. d, low = true }) == true
+	local sent = A().Send("RA", "L", body, { dist = "CHANNEL", key = "records ask " .. letter .. d, low = true }) == true
 	R.AskWitness(letter, d)
 	return sent
+end
+
+-- 1.4.0, an ask a digest set off waits its turn: score("RA|letter|day|round") × ASK_SPREAD (every
+-- client that heard the digest lacks the same, and each asked at once: a hundred late clients, a
+-- hundred asks of one day). Its turn come, it leaves through the records' low lane and is looked at
+-- once more when it leaves: it stays home when what the digest told came meanwhile, or when an ask
+-- heard since asked for all ours would (it named no record this client lacks, in no bucket: the
+-- answers go on the channel, to everyone). Its validations-alone ask (R.AskWitness) likewise, when
+-- a heard one named every record this client waits on.
+local askWait = {} -- [letter] = { [day] = { at, n, x (the digest's count and sum), covered, witnessCovered } }
+local function AskTurn(letter, d)
+	local waits = askWait[letter]
+	if not (waits and waits[d]) then return end
+	local k = "A|" .. letter .. d
+	if outSet[k] then return end -- (one waiting already serves this one)
+	local ok = Out("RA", k, function()
+		local e = waits[d]
+		waits[d] = nil
+		if not e then return nil end
+		local g = Index(letter).dig[d]
+		if e.covered or (g and g.n == e.n and g.x == e.x) then
+			stats.askMerged = (stats.askMerged or 0) + 1
+			if not e.witnessCovered then R.AskWitness(letter, d) end
+			return nil
+		end
+		Per(askedAt, letter)[d] = Now()
+		stats.asked = stats.asked + 1
+		return AskBody(letter, d, e.n), { done = function(sent) if sent then R.AskWitness(letter, d) end end }
+	end, d)
+	if not ok then waits[d] = nil end
+end
+local function QueueAsk(letter, d, n, x, now)
+	local waits = askWait[letter]
+	if not waits then waits = {} askWait[letter] = waits end
+	local e = waits[d]
+	if e and now - e.at < R.ASK_GAP then return false end
+	waits[d] = { at = now, n = n, x = x }
+	local delay = R.Score("RA|" .. letter .. "|" .. d .. "|" .. floor(now / R.DIGEST_EVERY), Me()) * R.ASK_SPREAD
+	ns.After(delay, "records ask " .. letter, function() AskTurn(letter, d) end)
+	return true
+end
+-- A heard ask of day d (its bucket, its prefixes) or validations-alone ask (its set of prefixes):
+-- whether it asked for all ours would.
+local function MergeAsk(letter, d, bucket, rest)
+	local e = askWait[letter] and askWait[letter][d]
+	if not e or e.covered or bucket ~= "" then return end
+	local mine = {}
+	for _, p in ipairs(HeldPrefixes(letter, d)) do mine[p] = true end
+	for i = 1, #rest, R.PREFIX do if not mine[rest:sub(i, i + R.PREFIX - 1)] then return end end
+	e.covered = true
+end
+local function MergeWitnessAsk(letter, d, wanted)
+	local e = askWait[letter] and askWait[letter][d]
+	if not e or e.witnessCovered then return end
+	local s = Store(letter)
+	for _, p in pairs(s and s.pend or {}) do
+		if type(p) == "table" and tonumber(p.d) == d and type(p.b) == "string" and not wanted[R.Fingerprint(letter, p.b)] then return end
+	end
+	e.witnessCovered = true
 end
 
 -- (1.2.6) The records of that day waiting here, whose bodies are here already, named again for
@@ -1228,7 +1296,7 @@ local function OnDigest(dist, sender, mode, body)
 	end
 	local s = Store(letter)
 	local x = Index(letter)
-	local listed, nListed, newest, need, counts, push = {}, 0, -math.huge, {}, {}, false
+	local listed, nListed, newest, need, counts, sums, push = {}, 0, -math.huge, {}, {}, {}, false
 	for item in (days .. ","):gmatch("([^,]*),") do
 		local d, n, h = item:match("^([0-9a-z]+)%.([0-9a-z]+)%.([0-9a-z]+)$")
 		d, n, h = N36(d, 0, 400000), N36(n, 0, 1000000), N36(h, 0, 4294967295)
@@ -1239,7 +1307,7 @@ local function OnDigest(dist, sender, mode, body)
 				local g = x.dig[d]
 				local mn, mx = g and g.n or 0, g and g.x or 0
 				if mn ~= n or mx ~= h then
-					if n > 0 then need[#need + 1] = d counts[d] = n end
+					if n > 0 then need[#need + 1] = d counts[d], sums[d] = n, h end
 					if mn > 0 then push = true end
 				end
 			end
@@ -1255,8 +1323,8 @@ local function OnDigest(dist, sender, mode, body)
 	local asks = 0
 	for _, d in ipairs(need) do
 		if asks >= R.ASK_DAYS then break end
-		if now - (Per(askedAt, letter)[d] or -math.huge) >= R.ASK_GAP and now - (Per(heardAsk, letter)[d] or -math.huge) >= R.ANSWER_GAP then
-			R.Ask(letter, d, counts[d])
+		if now - (Per(askedAt, letter)[d] or -math.huge) >= R.ASK_GAP and now - (Per(heardAsk, letter)[d] or -math.huge) >= R.ANSWER_GAP
+			and QueueAsk(letter, d, counts[d], sums[d], now) then
 			asks = asks + 1
 		end
 	end
@@ -1402,6 +1470,8 @@ local function OnAsk(dist, sender, mode, body)
 		if bucket then if #bucket > 2 then return Count("shape") end rest = prefixes else bucket = "" end
 		if not d or #rest % R.PREFIX ~= 0 or #rest > R.ASK_PREFIX_MAX * R.PREFIX or rest:find("[^0-9a-z]") then return Count("shape") end
 		Per(heardAsk, letter)[d] = now
+		-- (an ask of ours waiting for its turn: merged when this one asked for all it would)
+		MergeAsk(letter, d, bucket, rest)
 		-- A barred client (R.Bar: the author's, or one whose quiet presence is on) answers no ask.
 		if Barred() then return end
 		local list = s and s.days[d]
@@ -1460,11 +1530,12 @@ local function OnAsk(dist, sender, mode, body)
 		-- (R.AskWitness): a holder of exactly that record signs its own, never sends the body.
 		local d = N36(what, 0, 400000)
 		if not d or #rest % R.PREFIX ~= 0 or #rest > R.ASK_PREFIX_MAX * R.PREFIX or rest:find("[^0-9a-z]") then return Count("shape") end
+		local wanted, bodies = {}, {}
+		for i = 1, #rest, R.PREFIX do wanted[rest:sub(i, i + R.PREFIX - 1)] = true end
+		MergeWitnessAsk(letter, d, wanted)
 		if Barred() then return end
 		local list = s and s.days[d]
 		if not list or not next(list) then return end
-		local wanted, bodies = {}, {}
-		for i = 1, #rest, R.PREFIX do wanted[rest:sub(i, i + R.PREFIX - 1)] = true end
 		for id, record in pairs(list) do
 			if wanted[R.Fingerprint(letter, record)] then bodies[#bodies + 1] = { id, record } end
 		end
@@ -1939,6 +2010,7 @@ function R.Reset()
 	heard, digestSerial, roundHeard, roundDue = {}, {}, {}, {}
 	lag = { n = 0, sum = 0, max = 0 }
 	mySent, jobsAt, askerJobs, heardBody, rvHeard, witnessSince = {}, {}, {}, {}, {}, {}
+	askWait = {}
 	askedSeal, heardSealAsk, asm = {}, {}, {}
 	from, attempts, fromDay = {}, {}, -1
 	keySentAt, keyDue = nil, false

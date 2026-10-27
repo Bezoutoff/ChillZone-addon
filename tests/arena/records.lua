@@ -1041,6 +1041,107 @@ test("records: three, five or nine holders and four late clients fifteen minutes
 	end
 end)
 
+-- 1.4.0, the asks a digest sets off. Every client that heard a digest lacking what it told asked at
+-- once: a hundred late clients, a hundred asks of one day, and as many answers waiting on each
+-- holder. Each ask now waits its turn (score × ASK_SPREAD) and stays home when an ask heard
+-- meanwhile asked for all it would: the answers go on the channel, to everyone. The bound: one
+-- ask, and those whose turns came within the delay from a turn to the wire (L: here the arena
+-- ticker's period, Arena.TICK) of it.
+local function Asks(w, day)
+	local n, tag = 0, "~b~d~" .. day .. "~"
+	for _, s in ipairs(w:Sent({ type = "RA" })) do if s.msg:find(tag, 1, true) then n = n + 1 end end
+	return n
+end
+-- (Forty clients here, a full client each: the scale runs are tests/arena/records-load.lua's.)
+test("records: forty empty clients that hear one digest ask for its day once, within the transport's delay, and every one of them takes the answer", function()
+	local w, a, b, c = Quiet()
+	local body = Pair(w, a, b, "Kmany1")
+	local day = c.ns.Arena.B36(math.floor(w.clock / 86400))
+	Take(w, c, body)
+	local lates = {}
+	for i = 1, 40 do lates[i] = w:Player(("Late%03d Tarrow"):format(i)) Small(lates[i]) end
+	-- (The players' keys, heard first-hand by every client: the answer's body alone admits it.)
+	Keys(w, a, b)
+	local R = c.ns.Records
+	assert(Do(w, c, "SendDigest", "b"))
+	w:Run(R.ASK_SPREAD + 2)
+	local bound = 1 + math.ceil(#lates * c.ns.Arena.TICK / R.ASK_SPREAD)
+	local asks = Asks(w, day)
+	assert(asks >= 1 and asks <= bound, ("asks of that day: %d, bound %d"):format(asks, bound))
+	for i, late in ipairs(lates) do
+		local merged = Do(w, late, "Stats").askMerged or 0
+		eq(merged + #w:Sent({ from = late, type = "RA" }), 1, "late client " .. i .. ": its ask went, or merged with one heard")
+	end
+	w:Run(R.ANSWER_MIN + R.ANSWER_SPREAD + 60)
+	for i, late in ipairs(lates) do eq(Do(w, late, "Count", "b"), 1, "late client " .. i .. " took the answer to the one ask") end
+	eq(Asks(w, day), asks, "nobody asked again")
+	Errors(w)
+end)
+
+-- (Merged only when the heard ask asked for all ours would: one that named a record this client
+-- lacks (its asker holds it) brings no copy of it, and ours goes.)
+test("records: an ask heard that named a record this client lacks never merges its own", function()
+	local w, a, b, c = Quiet()
+	local r1, r2 = Pair(w, a, b, "Kmerge1"), Pair(w, a, b, "Kmerge2")
+	local day = c.ns.Arena.B36(math.floor(w.clock / 86400))
+	local d = math.floor(w.clock / 86400)
+	local one, two = w:Player(N.bettor1), w:Player(N.bettor2)
+	Small(one) Small(two)
+	Keys(w, a, b)
+	Take(w, c, r1) Take(w, c, r2)
+	local R = c.ns.Records
+	-- The client whose turn comes first holds r1; the other holds nothing.
+	local round = math.floor(w.clock / R.DIGEST_EVERY)
+	local function Turn(x) return w:As(x, R.Score, "RA|b|" .. d .. "|" .. round, x.name) end
+	local first, second = one, two
+	if Turn(two) < Turn(one) then first, second = two, one end
+	Take(w, first, r1)
+	eq(Do(w, first, "Count", "b"), 1) eq(Do(w, second, "Count", "b"), 0)
+	w:Logout(a) w:Logout(b) -- (they hold nothing: their asks, naming nothing, would merge both)
+	assert(Do(w, c, "SendDigest", "b"))
+	w:Run(R.ASK_SPREAD + 2)
+	eq(#w:Sent({ from = first, type = "RA" }), 1, "the first asked, naming r1")
+	eq(#w:Sent({ from = second, type = "RA" }), 1, "the second asked too: the first's ask named r1, which it lacks")
+	w:Run(R.ANSWER_MIN + R.ANSWER_SPREAD + R.ANSWER_GAP + 60)
+	eq(Do(w, second, "Count", "b"), 2, "the second holds both")
+	eq(Do(w, first, "Count", "b"), 2, "the first holds both")
+	Errors(w)
+end)
+
+-- (The pushes: a digest that lacks what many holders hold made every holder that heard it push its
+-- own, when drawn (a draw of 0: all of them). Each now has a slot, PUSH_MIN + score × PUSH_WINDOW,
+-- and stays home once ELECT digests heard since told all its own would.)
+-- (A guard of the bound, not of a fault seen here: the harness delivers at once, and the first push
+-- heard silenced the old draw's other pushes too. In the game the delay from a turn to the wire let
+-- every drawn holder's push go.)
+test("records: twelve holders that hold what a digest lacks push at most a few digests back in a push gap", function()
+	local w, a, b, empty = Setup()
+	w:Logout(empty)
+	local holders = {}
+	for i = 1, 12 do holders[i] = w:Player(("Hold%02d Tarrow"):format(i)) Small(holders[i]) end
+	local lacking = w:Player(N.bettor1)
+	Small(lacking)
+	local common, extra = Pair(w, a, b, "Kpushes1"), Pair(w, a, b, "Kpushes2")
+	Keys(w, a, b)
+	for _, h in ipairs(holders) do Take(w, h, common) Take(w, h, extra) end
+	Take(w, lacking, common)
+	w:Logout(a) w:Logout(b)
+	Draws(w) -- (a draw of 0, where one is still made: every holder drawn)
+	local R = lacking.ns.Records
+	-- Past the holders' own push gap (their digests of a moment ago, none: they took the records
+	-- without telling), the lacking client's digest.
+	local start = w.clock
+	assert(Do(w, lacking, "SendDigest", "b"))
+	w:Run(R.PUSH_GAP - 1)
+	local pushes = 0
+	for _, h in ipairs(holders) do
+		for _, s in ipairs(w:Sent({ from = h, type = "RD" })) do if s.t >= start then pushes = pushes + 1 end end
+	end
+	local bound = R.ELECT + math.ceil(#holders * lacking.ns.Arena.TICK / R.PUSH_WINDOW) + 1
+	assert(pushes >= 1 and pushes <= bound, ("pushes in a push gap: %d, bound %d"):format(pushes, bound))
+	Errors(w)
+end)
+
 test("1.2.4 records: the duel adapter preserves GUID identity checks and adds a verified relayed result to ordinary rankings", function()
 	local w, a, b, c = Setup()
 	for _, client in ipairs(w.clients) do
