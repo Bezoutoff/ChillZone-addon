@@ -38,6 +38,7 @@ local MAX_KEYS = 20      -- distinct keys per diagnostic count (the rest count a
 local HEAL_GAP = 60      -- the same healing call on our channel at most this often (Comm.HealChannel)
 local MAX_HURT = 20      -- banned or muted names kept per channel to let back in (oldest dropped)
 local LOCKED_RETRY = { 60, 120, 300, 600 } -- a channel locked against us is tried again after these, then every 10 min
+local HOLD_MAX = 600     -- 1.4.0: a message held this long without going out (a lockdown) is dropped (DropStale)
 
 local peers = {}
 -- Two priorities, each with single messages and whole transfers. Intrusive lists keep
@@ -46,6 +47,8 @@ local lanes = { {}, {}, {}, {} } -- urgent single/batch, ordinary single/batch
 local keyed, owned = {}, {}
 local queueSize, ordinarySize, sequence = 0, 0, 0
 local active, batchSlot
+local refusedInRow, waitUntil = 0, -math.huge -- 1.4.0: the game's "not now" in a row, and the pump's wait after it (SendNow)
+local heldSince -- 1.4.0: when the pump began holding the queue (a lockdown, RETRY_WAIT), until it sends again
 local SyncGuild
 -- Five fragments, two chat opportunities and one urgent opportunity in eight slots:
 -- 30 pieces finish within 55.2 s; six waiting chat pieces within 28.8 s at 1.2 s/slot.
@@ -188,6 +191,9 @@ function Comm.Stats()
 		electAll = Comm.ElectsAcrossRealms(now), quietAfter = Comm.QuietAfter(now), presence = Comm.PresenceRealms(now),
 		-- 1.2.5.1: quiet presence on, and how many of our words it held (Comm.QuietHolds).
 		quietPresence = Quiet(), quietHeld = stats.quiet or 0,
+		-- 1.4.0: the game's "not now" (a throttle, a lockdown): sends kept for another try, sends
+		-- held back by a lockdown, and whether the queue is held now.
+		retried = stats.retried or 0, lockHeld = stats.locked or 0, held = heldSince ~= nil,
 		reportSt = r and r.st, reportCap = r and r.cap, reportPres = r and r.pres,
 	}
 end
@@ -292,7 +298,7 @@ local function Enqueue(dist, parts, key, target, urgent, logged, done, options)
 		urgent = urgent and true or false, logged = logged == true, done = done,
 		owner = options and options.owner, guard = options and options.guard,
 		guardKey = options and options.guardKey, permit = options and options.permit,
-		guild = GetGuildInfo("player") }
+		guild = GetGuildInfo("player"), at = GetTime() }
 	local dropped = {}
 	local previous = key and keyed[key]
 	-- A transfer already in flight remains whole. A waiting keyed job keeps the legacy
@@ -306,9 +312,14 @@ local function Enqueue(dist, parts, key, target, urgent, logged, done, options)
 		Done(job, false, "full")
 		return false
 	end
+	-- 1.4.0 (the queue's audit): the newest payload takes the waiting one's place in line, its
+	-- sequence: a message re-sent on a timer behind a busy queue was put back at the end each time
+	-- and never reached the front (a 15 s position stopped going out once 13 waited ahead of it).
+	local seat
 	if replace then
 		if job.done == nil then job.done = previous.done end
 		previous.done = nil
+		seat = previous.seq
 		Detach(previous)
 	end
 	while queueSize + #parts > MAX_QUEUE do
@@ -320,12 +331,23 @@ local function Enqueue(dist, parts, key, target, urgent, logged, done, options)
 	end
 	local accepted = queueSize + #parts <= MAX_QUEUE
 	if accepted then
-		sequence = sequence + 1
-		job.seq = sequence
 		local lane = lanes[(job.urgent and 1 or 3) + (#parts > 1 and 1 or 0)]
-		job.lane, job.prev = lane, lane.last
-		if lane.last then lane.last.next = job else lane.first = job end
-		lane.last = job
+		if seat then
+			-- (Each lane stays in sequence order: in after the last job ahead of its seat.)
+			job.seq = seat
+			local ahead = lane.last
+			while ahead and ahead.seq > seat do ahead = ahead.prev end
+			job.lane, job.prev = lane, ahead
+			if ahead then job.next = ahead.next else job.next = lane.first end
+			if job.next then job.next.prev = job else lane.last = job end
+			if ahead then ahead.next = job else lane.first = job end
+		else
+			sequence = sequence + 1
+			job.seq = sequence
+			job.lane, job.prev = lane, lane.last
+			if lane.last then lane.last.next = job else lane.first = job end
+			lane.last = job
+		end
 		queueSize = queueSize + #parts
 		if not job.urgent then ordinarySize = ordinarySize + #parts end
 		if key then keyed[key] = job end
@@ -603,16 +625,41 @@ local function IsSuccess(res)
 	return res == nil or res == true or res == 0
 end
 
+-- 1.4.0 (the queue's audit: a chat lockdown lost every waiting job, one refusal a tick, and one
+-- throttled piece ended a whole transfer). The game's answers that mean "not now":
+-- Enum.SendAddonMessageResult's AddonMessageThrottle (3), ChannelThrottle (8), GeneralError (9)
+-- and AddOnMessageLockdown (11). The job keeps its place and the whole pump waits, longer after
+-- each refusal in a row (RETRY_WAIT); a job refused RETRY_MAX times for a throttle or an error
+-- ends as before. A lockdown never counts against a job: nothing leaves while it lasts
+-- (ns.ChatLocked, C_ChatInfo.InChatMessagingLockdown where the client has it), and a transfer
+-- already begun still ends "late" past its receivers' 60 seconds. Any other answer (an offline
+-- target, 12; an old client's false) ends the job at once, as before.
+local LOCKDOWN = 11
+local RETRYABLE = { [3] = true, [8] = true, [9] = true, [LOCKDOWN] = true }
+local RETRY_WAIT = { 2, 4, 8, 15, 30 } -- seconds the pump waits after 1, 2, 3, 4, 5+ refusals in a row
+local RETRY_MAX = 5
+local function Locked() return ns.ChatLocked ~= nil and ns.ChatLocked() == true end
+
 -- Player text goes through the logged API, Blizzard's function for plain text payloads
 -- (receivers get CHAT_MSG_ADDON_LOGGED). Clients without it use the usual one.
 local function SendNow(dist, msg, logged, whisperTo)
+	-- (1.4.0: during a chat lockdown the game refuses it anyway: no call, no failure logged.)
+	if Locked() then
+		stats.locked = (stats.locked or 0) + 1
+		return false, LOCKDOWN
+	end
 	-- (A whisper goes to the name the server finds: ns.TellName. Group distributions have no target.)
 	local target = dist == "CHANNEL" and channelIndex or (dist == "WHISPER" and ns.TellName(whisperTo) or nil)
 	local send = logged and C_ChatInfo.SendAddonMessageLogged or C_ChatInfo.SendAddonMessage
 	local ok, res = pcall(send, ns.PREFIX, msg, dist, target)
 	if ok and IsSuccess(res) then
 		stats.sent = stats.sent + 1
+		refusedInRow = 0
 		return true
+	end
+	if ok and RETRYABLE[res] then
+		refusedInRow = refusedInRow + 1
+		waitUntil = GetTime() + RETRY_WAIT[math.min(refusedInRow, #RETRY_WAIT)]
 	end
 	stats.fails = stats.fails + 1
 	stats.lastFail = ("%s %s"):format(dist, tostring(res))
@@ -742,6 +789,14 @@ local function SendJob(job, now)
 	end
 	local sent, why = SendNow(job.dist, job.parts[job.i], job.logged, job.target)
 	if not sent then
+		-- (1.4.0: "not now" keeps the job in its place, RETRY_MAX tries for a throttle or an error.)
+		if RETRYABLE[why] then
+			if why ~= LOCKDOWN then job.tries = (job.tries or 0) + 1 end
+			if (job.tries or 0) < RETRY_MAX then
+				stats.retried = (stats.retried or 0) + 1
+				return true
+			end
+		end
 		Finish(job, false, why or "failed")
 		return true -- a game API was called: do not spend another slot this tick
 	end
@@ -773,6 +828,24 @@ local function SendChatPart()
 	if item.done then ns.SafeCall("chat sent", item.done, sent, (not sent) and "failed" or nil) end
 end
 
+-- The jobs not begun that waited HOLD_MAX or more (only after the pump held them: a lockdown).
+-- Their done hears "dropped", as for a full queue's eviction: what must be delivered (the arena's
+-- obligations, ArenaNet's retries) is offered again by its module, the rest is no longer news.
+local function DropStale(now)
+	local stale = {}
+	for _, lane in ipairs(lanes) do
+		local job = lane.first
+		while job do
+			if not job.started and job.at and now - job.at >= HOLD_MAX then stale[#stale + 1] = job end
+			job = job.next
+		end
+	end
+	table.sort(stale, function(a, b) return a.seq < b.seq end)
+	for _, job in ipairs(stale) do Detach(job) end
+	for _, job in ipairs(stale) do Done(job, false, "dropped") end
+	return #stale
+end
+
 local function Pump()
 	SyncGuild()
 	if queueSize == 0 and not chatQueue[1] then return end
@@ -794,6 +867,17 @@ local function Pump()
 	while chatQueue[1] and now - chatQueue[1].t > CHAT_TTL do
 		local item = table.remove(chatQueue, 1)
 		if item.done then ns.SafeCall("chat drop", item.done, false, "late") end
+	end
+	-- 1.4.0: nothing leaves during a chat lockdown (the jobs wait in their places), nor before the
+	-- wait after the game's last "not now" is over (RETRY_WAIT). Once the hold is over, what waited
+	-- HOLD_MAX or more and has not begun is dropped (DropStale).
+	if Locked() or now < waitUntil then
+		heldSince = heldSince or now
+		return
+	end
+	if heldSince then
+		heldSince = nil
+		DropStale(now)
 	end
 	-- Invalid jobs consume no network slot. Bound the pass even if a callback adds work.
 	for _ = 1, MAX_QUEUE do
