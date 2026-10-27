@@ -2297,7 +2297,8 @@ the game is removed at login, with one line saying so.
 Another addon can read, with your permission, what Olympus already shows you: the Wanted list
 and its bounties, the public rankings (the Slayers, the Church's top three, the games the King
 made public, the donors' top three while he shows the Treasury's ranking), your own frame and
-title, your Olympus guild, rank and role, and the King's presence as his lines and the Realm tab
+title, your Olympus guild, rank and role, whether a player your game shows you now is in an
+Olympus guild, and the King's presence as his lines and the Realm tab
 show it (online, the zone they name, his crown while he shares it, whether you are on his layer,
 and his zone's layers with their "~N with Olympus" counts while you are there). The King's
 presence, the player-sighting searches and the profile presentation below are reserved for addons

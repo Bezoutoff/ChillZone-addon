@@ -12,8 +12,9 @@ copying its shell. This page is the whole contract of version 1 (`OlympusAPI.VER
   search at a time under the map/cadence rules below, or open the bounded host-owned
   profile-presentation session described below.
 - **Only what the player already sees, at no more detail.** The Wanted list and its bounties, the
-  public rankings, the player's own frame and title, his own Olympus guild, rank and role, and the
-  leader's presence as the leader lines, the leader's map crown and the Realm tab's layer list show it.
+  public rankings, the player's own frame and title, his own Olympus guild, rank and role, the
+  leader's presence as the leader lines, the leader's map crown and the Realm tab's layer list show it,
+  and whether a player the game shows him right now (a live unit token) is in an Olympus guild.
 - **One permission per addon.** Your addon calls `OlympusAPI.Register`, the player answers **Yes**
   or **No** for it on Olympus's privacy page, and no data comes back, search starts or presentation
   is enabled before a Yes. The line describes the reads and optional bounded network actions.
@@ -177,6 +178,7 @@ separate from the 16 addons that may register data handles.
 | `"rankings"` | `handle:GetRankings()` |
 | `"rankings.slayers"`, `"rankings.donors"`, `"rankings.church"`, `"rankings.games"` | that kind of ranking (a build without the games has no `"rankings.games"`) |
 | `"profile"` | `handle:GetProfile()` |
+| `"unit.member"` | `handle:IsOlympusMember(unit)` |
 | `"leader"` | `handle:GetLeaderPresence()` and `LEADER_CHANGED` |
 | `"network.sightings"` | request-bound exact-name and hostile-area searches through `StartPlayerSearch`, `StartAreaSearch`, their cancel/get methods, and explicit host-owned area map pins |
 | `"network.sightings.area-scope"` | `handle:StartAreaSearch(mapID, scope)` accepts `"outsiders"` as well as `"hostile"` |
@@ -690,6 +692,45 @@ Outside an Olympus guild, or before the player accepted the Olympus Accord (Olym
 use, 1.2.5.1), it is `{ member = false }`, and `GetWanted` and `GetRankings` return
 `nil, "guild"`.
 
+### `handle:IsOlympusMember(unit)`
+
+Whether the player a live unit token names is in an Olympus guild, as Olympus counts its guilds on
+this client: `true` or `false`, or `nil` and a reason. Available when
+`OlympusAPI.Has("unit.member")`, to any addon with the player's Yes, while the player is in an
+Olympus guild (the same permission and guild checks as `GetWanted`).
+
+```lua
+local yes, why = api:IsOlympusMember("target")
+if yes then
+	-- an Olympus guild's player
+elseif yes == false then
+	-- a player of another guild, or not a player at all
+else
+	-- why: "unknown" when Olympus cannot tell; see below for the others
+end
+```
+
+- `unit` is one of the game's own unit tokens: `"player"`, `"target"`, `"focus"`, `"mouseover"`,
+  `"party1"` to `"party4"`, `"raid1"` to `"raid40"` or `"nameplateN"`, alone or followed by
+  `"target"` once (`"targettarget"`, `"party1target"`). Case does not matter. A name, or any other
+  string, returns `nil, "unit"`: you can ask only about a player the game shows the player now.
+- `true`: the unit is a player of the player's own faction whose guild, as the game gives it now,
+  is an Olympus guild by Olympus's own rule (the same answer Olympus's own pages give).
+- `false`: the unit is not a player (a creature, a pet), or is a player of the player's own faction
+  in a guild that is not an Olympus guild.
+- `nil, "unknown"`: the game shows nothing for that token now, another faction's player (Olympus's
+  lists on this client are its own faction's), or no guild from the game. The game's
+  `GetGuildInfo` gives nothing both for a player in no guild and for one whose guild it has not
+  received yet, so neither is called "not a member": ask again later, for instance on
+  `PLAYER_TARGET_CHANGED` or `GROUP_ROSTER_UPDATE`.
+
+It reads only what the game gives for that unit now (`UnitExists`, `UnitIsPlayer`,
+`UnitFactionGroup`, `GetGuildInfo`) and Olympus's guild rule: never the census, a roster, a sighting,
+a moderation sanction or a stored list of people, and Olympus keeps nothing of the call. It has a
+budget of its own, separate from the other data methods: 80 calls in 10 seconds (a raid of 40,
+twice), then `nil, "busy"`. No event tells of a change: ask when the game tells you that unit
+changed.
+
 ### `handle:GetLeaderPresence()`
 
 The federation leader's presence (the King on Olympus's pages), built field by field from what this
@@ -767,7 +808,8 @@ Every data method returns `nil` and a reason when it gives nothing:
 |---|---|
 | `"pending"`, `"refused"` | no Yes from the player |
 | `"guild"` | the player is in no Olympus guild, or has not accepted the Olympus Accord |
-| `"busy"` | more than 20 data calls from your addon in 10 seconds: wait, or use the callbacks |
+| `"busy"` | more than 20 data calls from your addon in 10 seconds (or more than 80 `IsOlympusMember` calls, on their own budget): wait, or use the callbacks |
+| `"unit"` | `IsOlympusMember` was given something that is not one of the unit tokens it takes |
 | `"kind"` | `GetRankings` was given an unknown kind |
 | `"unauthorized"` | a reserved feature's method, from an addon the Olympus team has not authorized (see `OlympusAPI.Has`) |
 | `"unavailable"` | this build does not provide the requested optional capability |
@@ -779,7 +821,7 @@ Every data method returns `nil` and a reason when it gives nothing:
 | `"map"` | an area search was given a secret, unknown, non-zone/non-micro map, or a map that is neither current nor backed by this handle's fresh exact result |
 | `"active"`, `"cooldown"` | this handle already has a live area, or its previous successful area start was less than 60 seconds ago |
 | `"capacity"`, `"queue"` | the bounded sighting-session or send queue cannot accept the request |
-| `"unknown"` | that search id was not started by this handle |
+| `"unknown"` | that search id was not started by this handle, or `IsOlympusMember` cannot tell for that unit (see there) |
 | `"unsupported"`, `"empty"`, `"ended"`, `"failed"` | an explicit area map view is unsupported, has no current rows, has ended, or its guarded draw failed |
 | `"none"` | no bounded profile-presentation session is live |
 | `"style"`, `"state"`, `"caption"` | an unknown host style, non-boolean enable state, or caption that is not the exact pre-approved text |
@@ -790,7 +832,9 @@ Every data method returns `nil` and a reason when it gives nothing:
 
 The census of the guilds, other players' private data, the Wanted page's victims or stored
 sightings, a movement history, the GUID of an Olympus member merely because they are a member, the
-staff's views, or any secret: no key, no sealed channel name, no signature, no private list. The
+staff's views, or any secret: no key, no sealed channel name, no signature, no private list.
+`IsOlympusMember` answers only for a live unit token, from that unit's guild as the game gives it
+and Olympus's guild rule, never from a name, a roster, the census or a moderation sanction. The
 optional request-bound capability returns only a current or at-most-15-minute recent native
 last-seen result: a native observed or matching group-unit point where WoW exposes one, otherwise
 the consenting observer's encounter point, to the verified requester, then expires it. A hostile-

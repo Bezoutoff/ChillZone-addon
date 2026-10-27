@@ -2969,7 +2969,9 @@ end)
 -- fired here as the Accord fires it) tells every data event's listeners once the burst settles.
 test("accord: the API before the Olympus Accord is accepted reads as outside an Olympus guild; once it is, WANTED, RANKINGS and PROFILE listeners are told", function()
 	local w, cast, viewer, API = Setup()
-	eq(API.CONSENT_VERSION, 9, "the contract unchanged")
+	-- (1.4.0: 10, raised for IsOlympusMember, which a Yes now gives too; the Accord itself still
+	-- changes nothing of the contract, so this stays the version the API's own reads set.)
+	eq(API.CONSENT_VERSION, 10, "the contract the Accord leaves as it is")
 	local O, C = viewer.OlympusAPI, viewer.Consent
 	Install(viewer, "MapPins", "Map Pins")
 	local api = w:As(viewer, O.Register, "MapPins")
@@ -2994,5 +2996,171 @@ test("accord: the API before the Olympus Accord is accepted reads as outside an 
 	table.sort(told)
 	eq(table.concat(told, ","), "PROFILE_CHANGED,RANKINGS_CHANGED,WANTED_CHANGED", "each told once")
 	eq(Do(w, viewer, api, "GetProfile").member, true)
+	W3.NoErrors(w)
+end)
+
+-- 1.4.0: IsOlympusMember(unit), the safe eligibility check promised to an addon author (an addon
+-- that buffs or marks Olympus players). The units below are the game's, as this test's client
+-- reports them: the world's own functions stay underneath for "player" (who the viewer is).
+local SecretValue = assert(loadfile(H.ROOT .. "tests/arena/lib/secret.lua"))()
+local function MemberUnits(w, viewer)
+	local secret = SecretValue.New()
+	local units = {
+		target = { player = true, faction = "Alliance", guild = World.GUILD },
+		focus = { player = true, faction = "Alliance", guild = "Silver Hand" },
+		mouseover = { player = false, faction = "Alliance" },                  -- a creature
+		party1 = { player = true, faction = "Alliance" },                      -- no guild from the game
+		party2 = { player = true, faction = "Alliance", guild = "Olympus Fakes" },
+		raid3 = { player = true, faction = "Horde", guild = "Olympus Horde" },
+		raid4 = { player = true, faction = "Alliance", guild = secret },       -- a value the game keeps secret
+		nameplate12 = { player = true, faction = "Alliance", guild = World.KING_GUILD },
+		targettarget = { player = true, faction = "Alliance", guild = World.GUILD },
+		-- A name the game's UnitExists would also take (a group member's): never asked.
+		["someone-realm"] = { player = true, faction = "Alliance", guild = World.GUILD },
+	}
+	local g = viewer.globals
+	local base = { UnitExists = g.UnitExists, UnitIsPlayer = g.UnitIsPlayer, UnitFactionGroup = g.UnitFactionGroup,
+		GetGuildInfo = g.GetGuildInfo }
+	local asked = {}
+	local function Of(unit)
+		if type(unit) == "string" and unit ~= "player" then
+			asked[#asked + 1] = unit
+			return units[unit:lower()]
+		end
+	end
+	g.UnitExists = function(unit) if unit == "player" then return base.UnitExists(unit) end return Of(unit) ~= nil end
+	g.UnitIsPlayer = function(unit) if unit == "player" then return base.UnitIsPlayer(unit) end local u = Of(unit) return u and u.player or false end
+	g.UnitFactionGroup = function(unit) if unit == "player" then return base.UnitFactionGroup(unit) end local u = Of(unit) return u and u.faction end
+	g.GetGuildInfo = function(unit)
+		if unit == nil or unit == "player" then return base.GetGuildInfo(unit) end
+		local u = Of(unit)
+		return u and u.guild
+	end
+	g.issecretvalue = SecretValue.Is
+	return units, asked, secret
+end
+
+test("1.4.0 the API IsOlympusMember: a live unit token's guild by Olympus's own rule; true, false, or nil and why; never a name", function()
+	local w, cast, viewer, API = Setup()
+	local O, C = viewer.OlympusAPI, viewer.Consent
+	local units, asked, secret = MemberUnits(w, viewer)
+	-- Any addon may have it (not a reserved feature): this one is not on the authorized list.
+	Install(viewer, "BuffTool", "Buff Tool")
+	local api = w:As(viewer, O.Register, "BuffTool")
+	eq(w:As(viewer, O.Has, "unit.member"), true)
+	-- Before the Yes: nothing, and a bad argument is refused first, for free.
+	local yes, why = Do(w, viewer, api, "IsOlympusMember", "target")
+	eq(yes, nil); eq(why, "pending")
+	eq(select(2, Do(w, viewer, api, "IsOlympusMember", "Someone-Realm")), "unit")
+	w:As(viewer, C.Choose, "api:bufftool", true)
+	-- An Olympus guild's player (the world's guild; the King's guild too, by Olympus's list).
+	eq(Do(w, viewer, api, "IsOlympusMember", "target"), true)
+	eq(Do(w, viewer, api, "IsOlympusMember", "TARGET"), true, "the game's tokens take any case")
+	eq(Do(w, viewer, api, "IsOlympusMember", "targettarget"), true, "a token followed by target once")
+	eq(Do(w, viewer, api, "IsOlympusMember", "nameplate12"), true)
+	eq(Do(w, viewer, api, "IsOlympusMember", "player"), true, "the player himself, a member")
+	-- Not one: another guild; a creature.
+	eq(Do(w, viewer, api, "IsOlympusMember", "focus"), false)
+	eq(Do(w, viewer, api, "IsOlympusMember", "mouseover"), false)
+	-- Olympus's rule, not the name alone: a guild the High Council removed is not Olympus's, though
+	-- its name says Olympus; and the answer is the one Olympus's own pages work from.
+	eq(Do(w, viewer, api, "IsOlympusMember", "party2"), true, "by name, until removed")
+	rawset(viewer.ns, "REMOVED_BUILTIN", { Alliance = { "Olympus Fakes" } })
+	eq(Do(w, viewer, api, "IsOlympusMember", "party2"), false, "removed: no longer an Olympus guild")
+	for _, unit in ipairs({ "target", "focus", "party2", "nameplate12" }) do
+		eq(Do(w, viewer, api, "IsOlympusMember", unit), w:As(viewer, viewer.ns.IsFederation, units[unit].guild), unit .. ": ns.IsFederation's answer")
+	end
+	-- What this client cannot tell: nil and "unknown", never a guess.
+	for _, unit in ipairs({ "party1", "raid3", "raid4", "nameplate7", "party3target" }) do
+		yes, why = Do(w, viewer, api, "IsOlympusMember", unit)
+		eq(yes, nil, unit); eq(why, "unknown", unit)
+	end
+	-- Only the game's unit tokens: a name, an out-of-range or malformed token, anything else.
+	local before = #asked
+	for _, bad in ipairs({ "Someone-Realm", "someone-realm", "Zeus", "party0", "party5", "raid0", "raid01", "raid41",
+		"nameplate0", "nameplate" .. (API.NAMEPLATE_MAX + 1), "player2", "targettargettarget", "pet", "npc", "", 42, true, {}, secret }) do
+		local label = type(bad) == "string" and bad or type(bad) -- (a secret is never joined or printed)
+		yes, why = Do(w, viewer, api, "IsOlympusMember", bad)
+		eq(yes, nil, label); eq(why, "unit", label)
+	end
+	eq(#asked, before, "the game is never asked about a name or a refused token")
+	-- No sanction is ever told: a player the moderators took off the network reads as his guild does.
+	local moderation = rawget(viewer.ns, "Moderation")
+	rawset(viewer.ns, "Moderation", setmetatable({ Hides = function() return { kind = "netoff" } end }, { __index = moderation }))
+	eq(Do(w, viewer, api, "IsOlympusMember", "target"), true, "a net-off is not told")
+	rawset(viewer.ns, "Moderation", moderation)
+	-- Outside an Olympus guild: "guild", as every read.
+	viewer.guild = nil
+	yes, why = Do(w, viewer, api, "IsOlympusMember", "target")
+	eq(yes, nil); eq(why, "guild")
+	viewer.guild = World.GUILD
+	-- After No: nothing.
+	w:As(viewer, C.Choose, "api:bufftool", false)
+	eq(select(2, Do(w, viewer, api, "IsOlympusMember", "target")), "refused")
+	W3.NoErrors(w)
+end)
+
+test("1.4.0 the API IsOlympusMember: a budget of its own (a raid of 40, twice, every 10 s), apart from the other reads; said once in the log", function()
+	local w, cast, viewer, API = Setup()
+	local O, C = viewer.OlympusAPI, viewer.Consent
+	MemberUnits(w, viewer)
+	Install(viewer, "BuffTool", "Buff Tool")
+	local api = w:As(viewer, O.Register, "BuffTool")
+	w:As(viewer, C.Choose, "api:bufftool", true)
+	eq(API.UNIT_RATE_MAX, 80); eq(API.UNIT_RATE_MAX >= 2 * 40, true, "a full raid checked twice in a window")
+	for i = 1, API.UNIT_RATE_MAX do eq(Do(w, viewer, api, "IsOlympusMember", "target"), true, "check " .. i) end
+	local yes, why = Do(w, viewer, api, "IsOlympusMember", "target")
+	eq(yes, nil); eq(why, "busy", "past its own budget")
+	-- The other reads keep theirs: a raid check starves none of them.
+	assert(type(Do(w, viewer, api, "GetProfile")) == "table", "GetProfile still reads")
+	for _ = 1, API.RATE_MAX do Do(w, viewer, api, "GetProfile") end
+	eq(select(2, Do(w, viewer, api, "GetProfile")), "busy")
+	w:Run(API.RATE_WINDOW)
+	-- ...nor do they starve it.
+	for _ = 1, API.RATE_MAX + 5 do Do(w, viewer, api, "GetProfile") end
+	eq(Do(w, viewer, api, "IsOlympusMember", "target"), true, "the reads' budget spent, the check still answers")
+	for _ = 1, 2 * API.UNIT_RATE_MAX do Do(w, viewer, api, "IsOlympusMember", "target") end
+	w:Run(API.RATE_WINDOW)
+	for _ = 1, 2 * API.UNIT_RATE_MAX do Do(w, viewer, api, "IsOlympusMember", "target") end
+	local lines = 0
+	for _, l in ipairs(viewer.log) do if l:find("api: BuffTool asked more than 80 membership checks", 1, true) then lines = lines + 1 end end
+	eq(lines, 1, "once a session, however many windows")
+	-- A refused token costs nothing: it never reaches the budget.
+	w:Run(API.RATE_WINDOW)
+	for _ = 1, 3 * API.UNIT_RATE_MAX do Do(w, viewer, api, "IsOlympusMember", "Someone-Realm") end
+	eq(Do(w, viewer, api, "IsOlympusMember", "target"), true)
+	W3.NoErrors(w)
+end)
+
+test("1.4.0 the API IsOlympusMember: a Yes given for 1.3's contract is asked again; the privacy line, docs/API.md and the store pages say what it reads", function()
+	local w, cast, viewer, API = Setup()
+	local O = viewer.OlympusAPI
+	eq(API.CONSENT_VERSION, 10)
+	-- An account that said Yes before 1.4.0 (version 9): pending again, so nothing until asked.
+	viewer.db.apiAddons = viewer.db.apiAddons or {}
+	viewer.db.apiAddons.bufftool = { on = true, v = 9, at = 0 }
+	MemberUnits(w, viewer)
+	Install(viewer, "BuffTool", "Buff Tool")
+	local api = w:As(viewer, O.Register, "BuffTool")
+	eq(Do(w, viewer, api, "Status"), "pending")
+	eq(select(2, Do(w, viewer, api, "IsOlympusMember", "target")), "pending")
+	-- The line it is asked with says it, in both languages, for every addon (basic and authorized).
+	local src = Read(H.ADDON_DIR .. "Locales/APIText.lua")
+	local tail = src:match("\nif GetLocale and GetLocale%(%) == \"ptBR\" then(\n.*)$")
+	for _, k in ipairs({ "API_CONSENT_TEXT_BASIC", "API_CONSENT_TEXT" }) do
+		local en = assert(src:match("\nL%." .. k .. ' = "(.-)"\n'), k) -- (the English line comes first)
+		local pt = assert(tail:match("\n\tL%." .. k .. ' = "(.-)"\n'), k .. " (pt-BR)")
+		assert(en:find("whether a player the game shows you right now (your target, group, mouseover or a nameplate) is in an Olympus guild", 1, true), k)
+		assert(pt:find("se um jogador que o jogo mostra a você agora (seu alvo, seu grupo, o mouseover ou uma placa de nome) está em uma guilda do Olympus", 1, true), k .. " (pt-BR)")
+	end
+	local doc = Read(H.ROOT .. "docs/API.md")
+	for _, word in ipairs({ '| `"unit.member"` | `handle:IsOlympusMember(unit)` |', "### `handle:IsOlympusMember(unit)`",
+		'`nil, "unit"`', '`nil, "unknown"`', "80 calls in 10 seconds", "another faction's player",
+		"never the census, a roster, a sighting,\na moderation sanction" }) do
+		assert(doc:find(word, 1, true), "docs/API.md: " .. word)
+	end
+	for _, path in ipairs({ "README.md", "docs/CURSEFORGE.md", "docs/CURSEFORGE-STORE.md" }) do
+		assert(Read(H.ROOT .. path):find("whether a player your game shows you now is in an\nOlympus guild", 1, true), path)
+	end
 	W3.NoErrors(w)
 end)
