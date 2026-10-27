@@ -1885,9 +1885,10 @@ local function SendCouncil(r)
 	if type(r.councilTries) ~= "table" then r.councilTries = {} end
 	local sent = false
 	for _, collector in ipairs(collectors) do
-		-- (1.4.0: one that gives receipts and gave none for COUNCIL_TRIES copies, one that does not
-		-- know this reporter say, is left alone: the report waits for another.)
-		local tries = tonumber(r.councilTries[Key(collector)]) or 0
+		-- (1.4.0: one that gives receipts and gave none for COUNCIL_TRIES copies that left this client,
+		-- one that does not know this reporter say, is left alone: the report waits for another.)
+		local ck = Key(collector)
+		local tries = tonumber(r.councilTries[ck]) or 0
 		-- The pinned author can be reported too; like any councillor, he must never receive his own
 		-- case (nor one about a character linked to his player).
 		if not Accused(collector, r.target) and ns.me and Same(collector, ns.me) then
@@ -1900,13 +1901,17 @@ local function SendCouncil(r)
 				r.councilDone, sent = true, true
 			end
 		elseif not Accused(collector, r.target) and tries < Watch.COUNCIL_TRIES then
-			r.councilTries[Key(collector)] = tries + 1
+			r.councilTries[ck] = tries -- (sent to it: its receipt counts, TakeCouncilAck)
 			for i, msg in ipairs(msgs) do
 				local guardKey = "report-council#" .. Key(collector) .. "#" .. tostring(r.seq) .. "#" .. i
 				-- (1.4.0: gone from this client is not kept there: the collector's receipt says so,
 				-- TakeCouncilAck; only a King's client that gives none is taken at the send.)
 				local done = i == 1 and function(ok)
-					if not ok or CollectorAcks(collector) then return end
+					if not ok then return end
+					if CollectorAcks(collector) then
+						r.councilTries[ck] = (tonumber(r.councilTries[ck]) or 0) + 1
+						return
+					end
 					r.councilDone = true
 					if r.delivered then Unqueue(r) end
 				end or nil
@@ -2225,7 +2230,6 @@ end
 -- The council's reports as trusted collectors and readers take them (see above).
 ---------------------------------------------------------------------------
 
--- A trusted collector: a member's council copy of his report (C), its lines after it (E).
 -- 1.4.0: a collector's receipt to the reporter (K): it keeps his copy of that report. A few an hour
 -- to one reporter; none while quiet presence is on (Core.lua: it would say this client is online).
 local function AckCouncil(sender, seq, name)
@@ -2241,6 +2245,7 @@ local function AckCouncil(sender, seq, name)
 	end }) ~= false
 end
 
+-- A trusted collector: a member's council copy of his report (C), its lines after it (E).
 local function TakeCouncilHead(sender, text)
 	local seq, at, guild, group, faction, cat, target, n, note =
 		text:match("^MR~1~C~(%d+)~(%d+)~([^~]+)~([^~]+)~([^~]+)~(%u)~([^~]+)~(%d)~(.*)$")

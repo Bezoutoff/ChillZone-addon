@@ -2969,6 +2969,35 @@ test("watch: council reports (1.4.0): the reporter lets the council copy go on a
 	end)
 end)
 
+test("watch: council reports (1.4.0): a copy that never left this client is no try: the King's client still gets it after the queue refused it more often than COUNCIL_TRIES", function()
+	WithWatch(function(w, W, c)
+		local king = CouncilWorld(w, c)
+		w.lease = nil
+		local ok, how = W.SendReport(SPAMMER, "S", "")
+		eq(ok, true); eq(how, "sent", "the officers had it")
+		Route(w, c)
+		eq(#W.Book(false).outbox, 1, "it waits for the King's client")
+		-- The King's client on, but this client's queue refuses every whisper for a while.
+		w.lease = { name = KING, guild = "Olympus", id = "lease-2" }
+		w.rejectWhisper = true
+		for _ = 1, W.COUNCIL_TRIES + 1 do
+			w.epoch = w.epoch + W.REPORT_RETRY
+			W.FlushReports(true)
+		end
+		eq(#w.jobs, 0); eq(#W.Book(false).outbox, 1)
+		-- The queue takes them again: the copy goes, and the King's client keeps it.
+		w.rejectWhisper = nil
+		w.epoch = w.epoch + W.REPORT_RETRY
+		eq(W.FlushReports(true), 1)
+		local toKing = 0
+		for _, job in ipairs(w.jobs) do if job.target == KING and job.msg:find("^MR~1~C~") then toKing = toKing + 1 end end
+		eq(toKing, 1, "still sent")
+		Route(w, c)
+		eq(#W.Book(false).outbox, 0)
+		eq(#As(king, function() return king.Watch.CouncilReports() end), 1)
+	end)
+end)
+
 test("watch: council reports (1.2.1): the King's client is off, the report waits for it; on, only its council copy goes, never the officers' twice", function()
 	WithWatch(function(w, W, c)
 		local king = CouncilWorld(w, c)
