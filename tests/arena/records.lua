@@ -21,6 +21,29 @@ local function Pair(w, a, b, id, winner, t)
 	end
 	return out[1] .. "^" .. out[2]
 end
+-- The game names every client of the world by its GUID (GetPlayerInfoByGUID), from now on.
+local function EnableGuidLookup(w)
+	for _, client in ipairs(w.clients) do
+		client.globals.GetPlayerInfoByGUID = function(guid)
+			for _, named in ipairs(w.clients) do
+				if named.guid == guid then return "Warrior", "WARRIOR", "Human", "Human", 2, named.short, named.realm end
+			end
+		end
+	end
+end
+-- A direct duel's two signed halves (A won 1:0 by knockout, 20 s), dated now, as a Records body.
+local function DuelPair(w, a, b, id)
+	local halves = {}
+	for side, client in ipairs({ a, b }) do
+		halves[side] = w:As(client, function()
+			local A, D = client.ns.Arena, client.ns.Debts
+			local core = table.concat({ id, side == 1 and "A" or "B", A.GK(a.guid), a.name, A.GK(b.guid), b.name, "1", "A", "A", "K", "AK" .. A.B36(20), A.B36(w.clock), "-", "60", "60" }, "~")
+			local _, pk = D.MyKey()
+			return core .. "~" .. D.B64(pk) .. "~" .. D.B64(D.Sign("OLYH1|" .. core))
+		end)
+	end
+	return halves[1] .. "^" .. halves[2]
+end
 local function Keys(w, a, b)
 	for _, c in ipairs({ a, b }) do assert(Do(w, c, "SendKey")) end
 	w:Run(3)
@@ -482,3 +505,99 @@ test("1.2.4 records: the duel adapter preserves GUID identity checks and adds a 
 	w:Logout(c) w:Login(c) w:Run(15) eq(Do(w, c, "Count", "d"), 1)
 	Errors(w)
 end)
+
+-- 1.4.0: a duel taken through Records is kept at its own time (keptAt = its time: the 1.2.3 rule,
+-- LG.Counted), and its wait for the game's word on its fighters' GUIDs (GK_WAIT) was counted from
+-- keptAt too. A duel relayed to a client more than GK_WAIT after it was fought was never looked at
+-- again: it stayed history alone ("d"), out of every ranking, though the game knew both fighters a
+-- moment later. The wait now counts from when this client took it (waitAt); keptAt is unchanged.
+local function DuelEntry(w, c)
+	local entries = w:As(c, c.ns.ArenaLedger.Entries)
+	eq(#entries, 1)
+	return entries[1]
+end
+local function DuelRows(w, c)
+	return #w:As(c, c.ns.ArenaLedger.RankingView, "all", "A").rows
+end
+test("records: a duel relayed 20 minutes after it was fought is rated once the game knows its fighters, its place in the limits unchanged", function()
+	local w, a, b, c = Setup()
+	local body = DuelPair(w, a, b, "Frwait1")
+	local fought = w.clock
+	Keys(w, a, b)
+	w:Run(1200 - 3)
+	Do(w, c, "Take", "d", body, N.bettor1, "relay") w:Run(3)
+	eq(Do(w, c, "Count", "d"), 1)
+	local e = DuelEntry(w, c)
+	eq(e.fl, "d", "the game does not know its fighters yet: history alone")
+	eq(e.wait, "r")
+	eq(e.keptAt, fought, "the 1.2.3 rule: a relayed duel is kept at its own time")
+	eq(DuelRows(w, c), 0)
+	w:Run(300)
+	EnableGuidLookup(w)
+	w:Run(c.ns.ArenaLedger.GK_RECHECK + 5)
+	e = DuelEntry(w, c)
+	eq(e.fl, "dr", "rated once the game names both fighters")
+	eq(e.wait, nil)
+	eq(e.keptAt, fought, "its place in the day's and the pair's limits is still its own time")
+	eq(DuelRows(w, c), 2, "both fighters in the ranking view")
+	Errors(w)
+end)
+
+test("records: a duel relayed within GK_WAIT of its fight is still rated once the game knows its fighters", function()
+	local w, a, b, c = Setup()
+	local body = DuelPair(w, a, b, "Frwait2")
+	Keys(w, a, b)
+	w:Run(300)
+	Do(w, c, "Take", "d", body, N.bettor1, "relay") w:Run(3)
+	eq(DuelEntry(w, c).fl, "d")
+	w:Run(300)
+	EnableGuidLookup(w)
+	w:Run(c.ns.ArenaLedger.GK_RECHECK + 5)
+	eq(DuelEntry(w, c).fl, "dr")
+	eq(DuelRows(w, c), 2)
+	Errors(w)
+end)
+
+-- (1.4.0) A duel still waiting when its window ends gets a new one in each later session, once a
+-- session, GK_SESSIONS windows at most: the game may know its fighters then.
+test("records: a duel still waiting for its fighters' GUIDs is looked at again in a later session, in GK_SESSIONS windows at most", function()
+	local w, a, b, c = Setup()
+	local LG = c.ns.ArenaLedger
+	Keys(w, a, b)
+	Do(w, c, "Take", "d", DuelPair(w, a, b, "Frwait3"), N.bettor1, "relay") w:Run(3)
+	eq(DuelEntry(w, c).waits, 1, "its first window")
+	w:Run(LG.GK_WAIT + 60)
+	w:Logout(c) w:Login(c) w:Run(3)
+	eq(DuelEntry(w, c).waits, 2, "a new window in the next session")
+	-- (Once a session: the companion loading later in that session renews nothing more.)
+	w:Run(LG.GK_WAIT + 60)
+	w:As(c, c.ns.Fire, "ARENA_UI_LOADED") w:Run(3)
+	eq(DuelEntry(w, c).waits, 2, "one window a session")
+	w:Logout(c) w:Login(c) w:Run(3)
+	EnableGuidLookup(w)
+	w:Run(LG.GK_RECHECK + 5)
+	local e = DuelEntry(w, c)
+	eq(e.fl, "dr", "rated in a later session once the game knows its fighters")
+	eq(e.waits, 3)
+	Errors(w)
+
+	-- Past GK_SESSIONS windows it waits no more: history alone, until its halves are heard again.
+	w, a, b, c = Setup()
+	LG = c.ns.ArenaLedger
+	Keys(w, a, b)
+	Do(w, c, "Take", "d", DuelPair(w, a, b, "Frwait4"), N.bettor1, "relay") w:Run(3)
+	for i = 2, LG.GK_SESSIONS do
+		w:Run(LG.GK_WAIT + 60)
+		w:Logout(c) w:Login(c) w:Run(3)
+		eq(DuelEntry(w, c).waits, i)
+	end
+	w:Run(LG.GK_WAIT + 60)
+	w:Logout(c) w:Login(c) w:Run(3)
+	EnableGuidLookup(w)
+	w:Run(LG.GK_RECHECK + 5)
+	e = DuelEntry(w, c)
+	eq(e.waits, LG.GK_SESSIONS, "no window past the last")
+	eq(e.fl, "d"); eq(e.wait, "r")
+	Errors(w)
+end)
+
