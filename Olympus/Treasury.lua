@@ -2088,6 +2088,7 @@ Treasury.PRIVATE_ROOM = 3          -- start a transfer while the queue holds thi
 Treasury.PRIVATE_WAIT = 120        -- abandon this attempt after this many turns; the share tick retries
 Treasury.PRIVATE_GAP = 180         -- a changed message to the same player this long after the last one at the soonest
 Treasury.PRIVATE_QUEUE = 100       -- whole messages waiting to be whispered, at most
+Treasury.PRIVATE_RANK_ROOM = 20    -- 1.4.0: places a ranking row (its kind's `ranking`) never takes
 Treasury.READERS_FOR = 30 * 86400  -- a client heard asking (TA) is remembered as reading whispers this long
 Treasury.PRIVATE_REPEAT = 1800     -- the same one whispered again to the same player this long after at most
                                    -- (a piece lost on the way, a wipe of his: he gets it whole again)
@@ -2303,13 +2304,26 @@ end
 -- the kind unless said): a changed one takes the place of the one still waiting, and is held
 -- while the last one went to him less than PRIVATE_GAP ago (or is going now). The same one goes
 -- again PRIVATE_REPEAT later at the soonest (its kind's repeatAfter, 1.2: a sister guild's bank's).
+-- 1.4.0: a kind marked `ranking` (the Guild treasuries' rows: one a guild, up to 128 at an ask)
+-- waits only while PRIVATE_RANK_ROOM places are left and never makes room; another message that
+-- needs room drops the oldest ranking row first (its next ask brings it again), and only with none
+-- left the oldest message waiting. A sister guild's bank snapshot is never lost to a catch-up.
 function Treasury.Private(to, kind, msg, key, pieces)
 	if type(to) ~= "string" or to == "" or type(msg) ~= "string" or msg == "" then return false end
 	to = ns.FullName(to)
 	if SameChar(to, ns.me) then return false end
 	local def = privateKinds[kind]
-	if not def or not def.send or def.send(to, msg) ~= true then return false end
 	key = key or kind
+	if def and def.ranking and #outbox >= Treasury.PRIVATE_QUEUE - Treasury.PRIVATE_RANK_ROOM then
+		-- (Before its send check, which reads every row held: a catch-up asks it once a guild.
+		-- One still waiting for him is changed in place: that takes no new place.)
+		local waiting = false
+		for _, o in ipairs(outbox) do
+			if o.to == to and o.key == key then waiting = true break end
+		end
+		if not waiting then return false end
+	end
+	if not def or not def.send or def.send(to, msg) ~= true then return false end
 	local last = sentTo[to] and sentTo[to][key]
 	if last and last.msg == msg and ns.Now() - last.at < (def.repeatAfter or Treasury.PRIVATE_REPEAT) then return false end
 	if sending and sending.to == to and sending.key == key and sending.msg == msg then return false end
@@ -2325,7 +2339,13 @@ function Treasury.Private(to, kind, msg, key, pieces)
 		held = true
 		return false
 	end
-	if #outbox >= Treasury.PRIVATE_QUEUE then table.remove(outbox, 1) end
+	if #outbox >= Treasury.PRIVATE_QUEUE then
+		local drop = 1
+		for i, o in ipairs(outbox) do
+			if privateKinds[o.kind] and privateKinds[o.kind].ranking then drop = i break end
+		end
+		table.remove(outbox, drop)
+	end
 	outbox[#outbox + 1] = { to = to, kind = kind, key = key, msg = msg, pieces = pieces, me = ns.me, guild = GetGuildInfo("player") }
 	PumpPrivate()
 	return true
@@ -2609,7 +2629,7 @@ function Treasury.SendRankRelays(to)
 	return n
 end
 
-Treasury.OnPrivate("TY", { from = RankRelayAudience, to = RankRelayMe,
+Treasury.OnPrivate("TY", { from = RankRelayAudience, to = RankRelayMe, ranking = true,
 	send = function(to, msg)
 		if not RankRelayMe() or not RankRelayAudience(to) then return false end
 		local row, wire = ReadRankRelay(msg)
