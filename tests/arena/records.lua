@@ -861,6 +861,186 @@ test("records: a holder past its answer budget answers no ask, and one asker's a
 	end
 end)
 
+-- 1.4.0, the validations of one ask. A holder's validation waits on the records' low lane behind
+-- its answer's bodies (a message a second, while Comm's queue has room); meanwhile the other
+-- holders' validations of that record arrive. It went anyway: every holder that had queued one
+-- sent it. Now it is looked at again when its turn comes, and stays home once WITNESSES other
+-- holders' validations of that record were heard since the ask; validations heard before the ask
+-- silence nothing (the asker may not have taken them).
+local function Witnessing(w)
+	local a, b, c = w.clients[1], w.clients[2], w.clients[3]
+	local h1, h2 = w:Player(STALE[1] .. " Tarrow"), w:Player(STALE[2] .. " Tarrow")
+	local body = Pair(w, a, b, "Kwit" .. #w.clients)
+	local day = math.floor(w.clock / 86400)
+	Keys(w, a, b)
+	for _, h in ipairs({ c, h1, h2 }) do Take(w, h, body) end
+	-- (Each holder's key, heard by the others: a validation counts only from a sender whose key
+	-- this client holds, OnWitness.)
+	for _, h in ipairs({ c, h1, h2 }) do assert(Do(w, h, "SendKey")) end
+	w:Run(3)
+	w:Logout(a) w:Logout(b)
+	return c, h1, h2, body, day, w:As(c, c.ns.Records.RecordHash, "b", body)
+end
+-- c's low lane held (Comm's queue full, as Arena.ROOM reads it) while fn runs.
+local function Held(c, fn)
+	local size = c.ns.Comm.QueueSize
+	c.ns.Comm.QueueSize = function() return 99 end
+	local ok, err = pcall(fn)
+	c.ns.Comm.QueueSize = size
+	if not ok then error(err, 0) end
+end
+test("records: a holder whose validation waits on its low lane stays home once two others' validations of that record were heard since the ask", function()
+	local w = Quiet()
+	local c, h1, h2, body, day, hash = Witnessing(w)
+	local late = w:Player(N.bettor1)
+	Small(late)
+	local R = c.ns.Records
+	-- c's digest named that day: c answers the ask first (ANSWER_MIN + score * ANSWER_SPREAD).
+	assert(Do(w, c, "SendDigest", "b"))
+	w:Run(1)
+	local before = #w:Sent({ from = c, type = "RV" })
+	local asked
+	Held(c, function()
+		asked = w.clock
+		RawAsk(w, late, day)
+		w:Run(R.ANSWER_MIN + R.ANSWER_SPREAD + 1)
+		eq(#w:Sent({ from = c, type = "RV" }), before, "c's answer is waiting on its low lane")
+		assert(Do(w, c, "OutSize") >= 1, "c's validation is queued")
+		-- Meanwhile two other holders' validations of that record arrive.
+		for _, h in ipairs({ h1, h2 }) do assert(Do(w, h, "SendWitness", "b", body, day, true)) end
+		w:Run(5)
+		eq(Do(w, c, "WitnessesSince", "b", hash, asked), 2, "c heard two validations since the ask")
+	end)
+	w:Run(30)
+	eq(Do(w, c, "OutSize"), 0, "c's low lane went")
+	eq(#w:Sent({ from = c, type = "RV" }), before, "c's own validation stayed home")
+	assert(#w:Sent({ from = c, type = "EP" }) >= 1, "its body went (no copy of it was heard)")
+	Errors(w)
+end)
+
+-- (A validation still waiting when a newer ask of that record comes answers the newer one: the
+-- validations heard since the first ask silence nothing the newer ask needs.)
+test("records: a validation still waiting on the low lane when a newer ask comes answers the newer ask", function()
+	local w = Quiet()
+	local c, h1, h2, body, day = Witnessing(w)
+	local late = w:Player(N.bettor1)
+	Small(late)
+	local R = c.ns.Records
+	assert(Do(w, c, "SendDigest", "b"))
+	w:Run(1)
+	local before = #w:Sent({ from = c, type = "RV" })
+	Held(c, function()
+		RawAsk(w, late, day)
+		w:Run(R.ANSWER_MIN + R.ANSWER_SPREAD + 1)
+		for _, h in ipairs({ h1, h2 }) do assert(Do(w, h, "SendWitness", "b", body, day, true)) end
+		-- A newer ask once c's answer gap is over, its validation still waiting: c answers it too.
+		w:Run(R.ANSWER_GAP + 1)
+		RawAsk(w, late, day)
+		w:Run(R.ANSWER_MIN + R.ANSWER_SPREAD + 1)
+		eq(#w:Sent({ from = c, type = "RV" }), before, "still waiting")
+	end)
+	w:Run(30)
+	eq(#w:Sent({ from = c, type = "RV" }), before + 1, "it went, for the newer ask")
+	Errors(w)
+end)
+
+test("records: validations heard before an ask never silence a holder's answer to it", function()
+	local w = Quiet()
+	local c, h1, h2, body, day, hash = Witnessing(w)
+	local late = w:Player(N.bettor1)
+	Small(late)
+	local R = c.ns.Records
+	for _, h in ipairs({ h1, h2 }) do assert(Do(w, h, "SendWitness", "b", body, day, true)) end
+	w:Run(5)
+	eq(Do(w, c, "WitnessesSince", "b", hash, 0), 2, "c heard two validations, before the ask")
+	assert(Do(w, c, "SendDigest", "b"))
+	w:Run(1)
+	local before = #w:Sent({ from = c, type = "RV" })
+	Held(c, function()
+		RawAsk(w, late, day)
+		w:Run(R.ANSWER_MIN + R.ANSWER_SPREAD + 1)
+	end)
+	w:Run(30)
+	eq(#w:Sent({ from = c, type = "RV" }), before + 1, "c validated it for this ask")
+	Errors(w)
+end)
+
+-- (A review: the validations a holder heard are not the ones the asker took. The asker refuses one
+-- whose sender's key it does not hold yet, "witness-key": that sender's key declaration may come
+-- after it. The holders that heard two stay silent for that ask; the asker's next ask, later, is
+-- answered with fresh validations, and the record counts.)
+test("records: validations the asker refused (their senders' keys came after them) leave its next ask answered with fresh ones", function()
+	local w = Quiet()
+	local c, h1, h2, body, day = Witnessing(w)
+	local late = w:Player(N.bettor1)
+	Small(late)
+	local R = late.ns.Records
+	-- The late client holds the body, waiting for its players' keys (they are offline).
+	Do(w, late, "Take", "b", body, c.name, "relay") w:Run(3)
+	eq(Do(w, late, "Pending", "b"), 1)
+	-- Its first ask: every holder's key declaration is lost on its way to it.
+	local rk = late.comm.handlers.RK
+	late.comm.handlers.RK = function() end
+	local first = #w:Sent({ type = "RV" })
+	assert(Do(w, late, "AskWitness", "b", day))
+	w:Run(R.FALLBACK_MIN + R.FALLBACK_SPREAD_MIN + 5)
+	late.comm.handlers.RK = rk
+	eq(#w:Sent({ type = "RV" }) - first, R.WITNESSES, "two holders validated it; the third heard them and stayed home")
+	eq(Do(w, late, "Pending", "b"), 1, "the asker took neither: their senders' keys were not with it")
+	eq((Do(w, late, "Stats").refused["witness-key"] or 0), R.WITNESSES)
+	-- Its next ask, once the holders' answer gap is over: fresh validations, and the record counts.
+	w:Run(R.ANSWER_GAP)
+	local second = #w:Sent({ type = "RV" })
+	assert(Do(w, late, "AskWitness", "b", day))
+	w:Run(R.FALLBACK_MIN + R.FALLBACK_SPREAD_MIN + 5)
+	assert(#w:Sent({ type = "RV" }) - second >= R.WITNESSES, "fresh validations for the new ask")
+	eq(Do(w, late, "Count", "b"), 1, "taken")
+	eq(Do(w, late, "Pending", "b"), 0)
+	Errors(w)
+end)
+
+-- (A review's guard, on the late clients' side: with three, five or nine holders and four late
+-- clients logging in fifteen minutes apart (each a holder too once it took the records), every
+-- late client takes every record, none left waiting, and no ask draws more than three validations
+-- of one record, though the bodies queued before them make each holder's validations wait.)
+test("records: three, five or nine holders and four late clients fifteen minutes apart: every late client takes all, with three validations of a record an ask at most", function()
+	for _, holders in ipairs({ 3, 5, 9 }) do
+		local w, a, b, empty = Setup()
+		w:Logout(empty)
+		local list = {}
+		for i = 1, holders do list[i] = w:Player(STALE[i] .. " Tarrow") end
+		Keys(w, a, b)
+		local bodies = {}
+		for i = 1, 4 do bodies[i] = Pair(w, a, b, "Kguard" .. holders .. "x" .. i) end
+		for _, h in ipairs(list) do for _, body in ipairs(bodies) do Take(w, h, body) end end
+		w:Logout(a) w:Logout(b)
+		local R = list[1].ns.Records
+		local lates = {}
+		for i, name in ipairs({ N.bettor1, N.bettor2, STALE[10] .. " Tarrow", STALE[11] .. " Tarrow" }) do
+			lates[i] = w:Player(name)
+			w:Run(900)
+		end
+		for i, late in ipairs(lates) do
+			eq(Do(w, late, "Count", "b"), #bodies, holders .. " holders: late client " .. i .. " took every record")
+			eq(Do(w, late, "Pending", "b"), 0, holders .. " holders: late client " .. i .. " has none waiting")
+		end
+		-- Each validation answers the newest ask of its record's day before it.
+		local asks = {}
+		for _, s in ipairs(w:Sent({ type = "RA" })) do asks[#asks + 1] = s end
+		local per = {}
+		for _, s in ipairs(w:Sent({ type = "RV" })) do
+			local hash = s.msg:match("^RV~L1~b~(%x+)~")
+			local ask
+			for i, q in ipairs(asks) do if q.t <= s.t then ask = i end end
+			assert(ask, "a validation answers an ask")
+			local k = ask .. ":" .. hash
+			per[k] = (per[k] or 0) + 1
+			assert(per[k] <= 3, ("%d holders: %d validations of one record for one ask"):format(holders, per[k]))
+		end
+		Errors(w)
+	end
+end)
+
 test("1.2.4 records: the duel adapter preserves GUID identity checks and adds a verified relayed result to ordinary rankings", function()
 	local w, a, b, c = Setup()
 	for _, client in ipairs(w.clients) do

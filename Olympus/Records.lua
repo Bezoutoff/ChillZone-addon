@@ -843,7 +843,12 @@ function R.OutSize() return #outq end
 -- (keyed: the caller declared the key once for its whole answer. The signature is made when the
 -- validation's turn on the low lane comes, one a message: an answer of a day's records never
 -- signs them all, and the key with each, on one frame.)
-function R.SendWitness(letter, body, day, keyed, hash)
+-- (1.4.0, since: the ask's time. When its turn comes it stays home if WITNESSES other holders'
+-- validations of that record were heard since that ask: what was heard before an ask never
+-- silences an answer to it (a validation the asker refused, its sender's key not yet with it,
+-- must not keep the next ask from fresh ones). One already waiting takes the newest ask's time.)
+local witnessSince = {} -- [the RV's Out key] = the newest ask's time it answers
+function R.SendWitness(letter, body, day, keyed, hash, since)
 	if not R.TYPES[letter] or type(body) ~= "string" or Barred() then return false end
 	local okRecord, rec = pcall(R.TYPES[letter].Read, body)
 	local heldDay = okRecord and type(rec) == "table" and Index(letter).ids[rec.id]
@@ -857,12 +862,24 @@ function R.SendWitness(letter, body, day, keyed, hash)
 	hash = hash or RecordHash(letter, body)
 	-- Repeated asks may come from clients that were absent for the last declaration.
 	if not keyed then R.SendKey() end
-	return Out("RV", "v" .. letter .. hash .. (Low(Me()) or "?"), function()
+	local k = "v" .. letter .. hash .. (Low(Me()) or "?")
+	since = tonumber(since)
+	local queued = outSet[k] == true
+	if since then witnessSince[k] = max(witnessSince[k] or since, since) end
+	local ok = Out("RV", k, function()
+		local after = witnessSince[k]
+		witnessSince[k] = nil
+		if after and R.WitnessesSince(letter, hash, after) >= R.WITNESSES then
+			stats.witnessCovered = (stats.witnessCovered or 0) + 1
+			return nil
+		end
 		local t = B36(Now())
 		local signed, sig = pcall(D.Sign, WitnessText(Me(), letter, hash, t, pk64))
 		if not signed or type(sig) ~= "string" or #sig ~= 64 then return nil end
 		return table.concat({ letter, hash, t, pk64, B64(sig) }, "~")
 	end, day)
+	if not ok and not queued then witnessSince[k] = nil end
+	return ok
 end
 
 local lastDigest = {}
@@ -1287,8 +1304,9 @@ local SendSeal -- (below)
 -- whose quiet presence is on never (R.Slot). When its turn comes a holder sends only what nobody
 -- sent since the ask: a record's body that no RR brought, a validation while fewer than WITNESSES
 -- other holders' were heard (a primary that logged out, or a digest whose sender never answers,
--- leaves it to the next turn); nothing at all past its budget (Spend). Each body is looked at again
--- when it leaves the low lane.
+-- leaves it to the next turn); nothing at all past its budget (Spend). Each body and validation is
+-- looked at again when it leaves the low lane (a validation: against those heard since the ask,
+-- R.SendWitness).
 local function Primary(letter, field, what)
 	local m = mySent[letter]
 	return m ~= nil and Now() - m.at <= R.ANSWER_WINDOW and m[field][what] == true
@@ -1433,7 +1451,7 @@ local function OnAsk(dist, sender, mode, body)
 				if j.witness then
 					-- (The key declared once for the whole answer, not once a record.)
 					if not keyed then R.SendKey() keyed = true end
-					R.SendWitness(letter, j.record, d, true, j.hash)
+					R.SendWitness(letter, j.record, d, true, j.hash, now)
 				end
 			end
 		end)
@@ -1463,7 +1481,7 @@ local function OnAsk(dist, sender, mode, body)
 			if not jobs[1] or not Spend(asker) then return end
 			Per(witnessedAt, letter)[d] = Now()
 			R.SendKey()
-			for _, j in ipairs(jobs) do R.SendWitness(letter, j[1], d, true, j[2]) end
+			for _, j in ipairs(jobs) do R.SendWitness(letter, j[1], d, true, j[2], now) end
 		end)
 	elseif kind == "s" then
 		local m = tonumber(N36(what, 0, 100000))
@@ -1920,7 +1938,7 @@ function R.Reset()
 	lastDigest, askedAt, heardAsk, answeredAt, heardRecordAt, answering, askCursor, witnessedAt = {}, {}, {}, {}, {}, {}, {}, {}
 	heard, digestSerial, roundHeard, roundDue = {}, {}, {}, {}
 	lag = { n = 0, sum = 0, max = 0 }
-	mySent, jobsAt, askerJobs, heardBody, rvHeard = {}, {}, {}, {}, {}
+	mySent, jobsAt, askerJobs, heardBody, rvHeard, witnessSince = {}, {}, {}, {}, {}, {}
 	askedSeal, heardSealAsk, asm = {}, {}, {}
 	from, attempts, fromDay = {}, {}, -1
 	keySentAt, keyDue = nil, false
