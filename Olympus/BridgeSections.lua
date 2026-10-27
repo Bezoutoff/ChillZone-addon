@@ -98,6 +98,29 @@ end
 function Kit.Same(a, b)
 	return type(a) == "string" and type(b) == "string" and a ~= "" and ns.Fold(ns.FullName(a)) == ns.Fold(ns.FullName(b))
 end
+-- Realm(): this character's census realm group (ns.GroupOf of his realm, "A+B" for linked realms)
+--   and whether his realm is a PvP realm (ns.RealmPvP: true or false where ns.REALM_KIND names it,
+--   nil for an unknown realm, as every realm is until the launch realms are named); each nil when
+--   it can't be told. Names nobody.
+function Kit.Realm()
+	local realm = ns.realm
+	if type(realm) ~= "string" or realm == "" then
+		local ok, current = pcall(type(ns.CurrentRealm) == "function" and ns.CurrentRealm or function() return nil end)
+		if ok then realm = current end
+	end
+	if type(realm) ~= "string" or realm == "" then return nil, nil end
+	local group
+	if type(ns.GroupOf) == "function" then
+		local ok, value = pcall(ns.GroupOf, realm)
+		if ok and type(value) == "string" and value ~= "" then group = value end
+	end
+	local pvp
+	if type(ns.RealmPvP) == "function" then
+		local ok, value = pcall(ns.RealmPvP, realm)
+		if ok and type(value) == "boolean" then pvp = value end
+	end
+	return group, pvp
+end
 local Open, Try, Text, Row, Same = Kit.Open, Kit.Try, Kit.Text, Kit.Row, Kit.Same
 
 ---------------------------------------------------------------------------
@@ -322,9 +345,12 @@ OlympusBridge.RegisterSection("guilds", 1, function()
 	return { people = Whole(s.total), characters = Whole(s.characters or s.total), alts = Whole(s.alts), guilds = rows }
 end)
 
--- The Wanted tab's list (the API's rows: place, name, bounty, kills, cycle), its first 100. The
--- GUID stays: each target's own page shows it (L.WANTED_GUID), and it is who he is on the list.
--- Nothing before the Accord (1.2.6).
+-- The Wanted tab's list (the API's rows: place, name, bounty, kills, cycle), its first 100, and
+-- where it comes from: this character's realm group and whether his realm is a PvP realm
+-- (Kit.Realm, as the membership section's), so the Companion can show a PvP realm group's list to
+-- the PvE realms' players with a line saying it comes from PvP (the author's ask, 2026-10-20). No
+-- GUID (the Companion's agreed shape: it needs none, a target is his name on the list). Nothing
+-- before the Accord (1.2.6).
 local WANTED_ROWS = 100
 OlympusBridge.RegisterSection("wanted", 1, function()
 	if not Open() then return nil end
@@ -336,11 +362,12 @@ OlympusBridge.RegisterSection("wanted", 1, function()
 	for i, r in ipairs(rows) do
 		if #targets >= WANTED_ROWS then break end
 		if type(r) == "table" and type(r.name) == "string" then
-			targets[#targets + 1] = { place = Whole(r.place) > 0 and Whole(r.place) or i, name = r.name, guid = r.guid,
+			targets[#targets + 1] = { place = Whole(r.place) > 0 and Whole(r.place) or i, name = r.name,
 				bounty = Whole(r.bounty), kills = Whole(r.kills), cycle = Whole(r.cycle) }
 		end
 	end
-	return { targets = targets }
+	local realmGroup, pvp = Kit.Realm()
+	return { targets = targets, realmGroup = realmGroup, pvp = pvp }
 end)
 
 -- The roles this character holds, as the Companion's tabs read them: officer (his guild rank may
@@ -379,22 +406,22 @@ local function SelfRoles(me)
 	return out
 end
 
-local function RealmGroup()
-	local realm = ns.realm
-	if type(realm) ~= "string" or realm == "" then
-		local ok, current = pcall(type(ns.CurrentRealm) == "function" and ns.CurrentRealm or function() return nil end)
-		if ok then realm = current end
-	end
-	if type(realm) ~= "string" or realm == "" or type(ns.GroupOf) ~= "function" then return nil end
-	local ok, group = pcall(ns.GroupOf, realm)
-	return ok and type(group) == "string" and group ~= "" and group or nil
+-- This character's faction as the game names it, "Alliance" or "Horde", nil otherwise.
+local function SelfFaction()
+	local f = ns.faction
+	return (f == "Alliance" or f == "Horde") and f or nil
 end
 
 -- Membership names nobody and is therefore safe to export before the Companion disclosure is
 -- accepted. `olympus` comes only from this character's native guild membership plus Olympus's
 -- fixed/signed guild rule; a census row is never authority. `accord` controls every named export.
+-- realmGroup and pvp are Kit.Realm's (pvp absent for a realm ns.REALM_KIND does not name), and
+-- faction the game's, which the Companion pairs with self's character and guild once both are
+-- given (a faction and a realm group name nobody).
 OlympusBridge.RegisterSection("membership", 1, function()
-	return { olympus = Yes(ns.IsMember), accord = ns.CompanionAccordAccepted(), realmGroup = RealmGroup() }
+	local realmGroup, pvp = Kit.Realm()
+	return { olympus = Yes(ns.IsMember), accord = ns.CompanionAccordAccepted(), realmGroup = realmGroup, pvp = pvp,
+		faction = SelfFaction() }
 end)
 
 -- The character on this computer, after explicit consent. The name and guild are direct game

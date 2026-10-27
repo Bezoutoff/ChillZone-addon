@@ -116,7 +116,7 @@ Besides the census checkpoint, Olympus offers versioned read-only sections throu
 Olympus copies each into fresh plain tables within `OlympusBridge.SECTION_LIMITS` (or the larger
 limits a section asked for, never past `OlympusBridge.SECTION_MAX`). At logout this sidecar saves
 only the sections it knows, at version 1, under `OlympusCompanionDB.sections`: `guilds`,
-`rankings`, `stats`, `wanted`, `self`, `realm`, `roster`, `church`, `games`, `profile`, `crafting`,
+`rankings`, `stats`, `wanted`, `self`, `membership`, `realm`, `roster`, `church`, `games`, `profile`, `crafting`,
 `crafters`, `treasury`, `decrees`, `agenda`, `notices`, `watch` and `chatRooms` (a name Olympus
 does not register is simply absent). `stats` is the census statistics page's figures
 (`docs/CENSUS-STATS.md`). A failing or unknown section is skipped and never blocks the census.
@@ -158,6 +158,16 @@ staff-only display/linking data and never membership or witness authority. Befor
 withdrawal, outside an Olympus guild or while the game cannot authenticate the tag, it is the
 anonymous revocation `{ olympus = false, roles = {}, tabs = {} }`, so the relay can remove a stale
 identity. It carries never another player's BattleTag (not the ones a moderation team client keeps).
+The `membership` section is `{ olympus = true, accord = false, realmGroup = "A+B", pvp = true,
+faction = "Alliance" }`: whether this character is in an Olympus guild, whether the Olympus Companion
+Accord is accepted, his census realm group, whether his realm is a PvP realm and his faction. It names
+nobody, so it is given before either Accord and outside Olympus too. `pvp` is present only for a
+realm `ns.REALM_KIND` (`Olympus/Core.lua`) names; Olympus names none until the launch realms are
+known, so the relay falls back to its own list of PvP realm groups. The `wanted` section is
+`{ targets = { { place, name, bounty, kills, cycle }, ... }, realmGroup = "A+B", pvp = true }`: the
+Wanted tab's first 100 targets, never a GUID, and the same `realmGroup` and `pvp` as `membership`, so
+the Companion can show a PvP realm group's list to the PvE realms' players saying where it comes
+from.
 Never chat text or
 chat-strike lines, another player's private data, treasury items (numbers only, and
 only while the King publishes the balance), or anything private to an audience the player is not
