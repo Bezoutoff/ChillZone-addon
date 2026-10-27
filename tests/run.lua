@@ -11837,7 +11837,9 @@ do
 			-- He logs off and WoW hands the channel to us: what he did is undone, once.
 			w.Notice(USER, "OWNER_CHANGED", "Tester")
 			w.Wait(2)
-			eq(Sorted(calls), "moderate OlympusNet; password OlympusNet,; unban OlympusNet,Asmongold Asmongler; unban OlympusNet,Kingchar; unban OlympusNet,Pyralis Ashandar; unmute OlympusNet,Mutey")
+			-- (1.4.0: the Treasurer and the pinned King are no longer unbanned unseen; the author
+			-- decided only names seen banned are let back in, so Kingchar alone is unbanned here.)
+			eq(Sorted(calls), "moderate OlympusNet; password OlympusNet,; unban OlympusNet,Kingchar; unmute OlympusNet,Mutey")
 			-- Troll (still a moderator) does it again at once: undone again, not before a minute.
 			wipe(calls)
 			w.Notice(USER, "PASSWORD_CHANGED", "Troll")
@@ -11876,9 +11878,14 @@ do
 		end)
 	end)
 
-	test("channel owner: the Treasurer and the King (our roster in his guild, or a pinned character) are always let back in", function()
+	-- 1.4.0 (the HealChannel spam a player reported, 0.9.8 to 1.3.3): each handover of the channel
+	-- unbanned the Treasurer, the pinned King and the King's guild master whether or not anyone had
+	-- banned them, and the server answered every offline one with "No player named ... is currently
+	-- playing" in the player's chat. The author decided: only names this client saw banned.
+	-- (Replaces 0.9.1's "always let back in" test, whose expectation was that spam.)
+	test("channel owner: handed the channel, the Treasurer and the King are let back in only when we saw them banned", function()
 		WithMocks(function(calls)
-			-- In the King's guild: his character from our own roster.
+			-- In the King's guild, with his character in our own roster: nothing to undo, no call.
 			GetGuildInfo = function() return "Olympus", "Knight", 3 end
 			ns.Roster.byName = { ["Knight1-Realm"] = 3, ["Asmon-Realm"] = 0 }
 			local w = OwnerComm()
@@ -11886,25 +11893,77 @@ do
 			w.Notice(NOTICE, "YOU_JOINED")
 			w.Notice(USER, "OWNER_CHANGED", "Tester")
 			w.Wait(2)
-			eq(Sorted(calls), "unban OlympusNet,Asmon; unban OlympusNet,Asmongold Asmongler; unban OlympusNet,Pyralis Ashandar", "watched since joining: no password call")
-			-- Another guild: the character pinned in Core.lua when there is one, else the Treasurer alone.
-			GetGuildInfo = function() return MY_GUILD, "Hero", 3 end
+			eq(Sorted(calls), "", "no unban of a name never seen banned")
+			-- The seat handed back and forth, notices re-arming the heal: still nothing.
+			for _ = 1, 5 do
+				w.Notice(USER, "UNSET_MODERATOR", "Tester")
+				w.Notice(USER, "OWNER_CHANGED", "Bob")
+				w.Notice(USER, "OWNER_CHANGED", "Tester")
+				w.Notice(USER, "SET_MODERATOR", "Tester")
+				w.Wait(61)
+			end
+			eq(#calls, 0, "role handoffs alone never unban: " .. Sorted(calls))
+			-- Seen banned while we were on the channel: the Treasurer and the King are let back in, once.
+			w.Notice(USER, "PLAYER_BANNED", "Pyralis Ashandar", "Troll")
+			w.Notice(USER, "PLAYER_BANNED", "Asmongold Asmongler", "Troll")
+			w.Wait(2)
+			eq(Sorted(calls), "unban OlympusNet,Asmongold Asmongler; unban OlympusNet,Pyralis Ashandar")
 			wipe(calls)
+			w.Notice(USER, "OWNER_CHANGED", "Bob")
+			w.Notice(USER, "OWNER_CHANGED", "Tester")
+			w.Wait(120)
+			eq(#calls, 0, "unbanned once, not again at the next handover: " .. Sorted(calls))
+			-- Another guild with a pinned King: the same, as a moderator.
+			GetGuildInfo = function() return MY_GUILD, "Hero", 3 end
 			local p = OwnerComm()
 			p.cns.KING_CHARACTER = "Kingchar"
 			p.C.JoinChannel()
 			p.Notice(NOTICE, "YOU_JOINED")
 			p.Notice(USER, "SET_MODERATOR", "Tester")
 			p.Wait(2)
-			eq(Sorted(calls), "unban OlympusNet,Kingchar; unban OlympusNet,Pyralis Ashandar")
-			wipe(calls)
-			local n = OwnerComm()
-			n.C.JoinChannel()
-			n.Notice(NOTICE, "YOU_JOINED")
-			n.Notice(USER, "OWNER_CHANGED", "Tester")
-			n.Wait(2)
-			eq(Sorted(calls), "unban OlympusNet,Asmongold Asmongler; unban OlympusNet,Pyralis Ashandar", "the pinned King is always known")
+			eq(#calls, 0, Sorted(calls))
+			p.Notice(USER, "PLAYER_BANNED", "Kingchar", "Troll")
+			p.Wait(2)
+			eq(Sorted(calls), "unban OlympusNet,Kingchar")
 		end)
+	end)
+
+	test("channel owner: a name seen banned waits while he is known offline, and is let back in once he is not", function()
+		local T, R = ns.Treasury, ns.Roster
+		local savedNotFound, savedFresh = ERR_CHAT_PLAYER_NOT_FOUND_S, R.Fresh
+		local ok, err = pcall(WithMocks, function(calls)
+			ERR_CHAT_PLAYER_NOT_FOUND_S = "No player named '%s' is currently playing."
+			T.ResetPrivate()
+			-- The server already said Kingchar is not playing (a whisper's reply this session);
+			-- the roster's fresh scan has Guildie, of our own guild, offline.
+			T.NotFound(ERR_CHAT_PLAYER_NOT_FOUND_S:format("Kingchar"))
+			assert(T.Unavailable("Kingchar"))
+			local guildieOnline = false
+			R.Fresh = function() return { members = { { full = "Guildie-Realm", online = guildieOnline }, { full = "Other-Realm", online = true } } } end
+			local w = OwnerComm()
+			w.C.JoinChannel()
+			w.Notice(NOTICE, "YOU_JOINED")
+			w.Notice(USER, "PLAYER_BANNED", "Kingchar", "Troll")
+			w.Notice(USER, "PLAYER_BANNED", "Guildie", "Troll")
+			w.Notice(USER, "PLAYER_BANNED", "Other", "Troll")
+			w.Notice(USER, "OWNER_CHANGED", "Tester")
+			w.Wait(2)
+			eq(Sorted(calls), "unban OlympusNet,Other", "the known-offline names are not unbanned")
+			eq(w.C.GuardStats().banned, 2, "they wait")
+			w.Wait(1000)
+			eq(Sorted(calls), "unban OlympusNet,Other", "still offline at each recheck: still no call")
+			-- Heard again (Treasury.Available) and back online in the roster: let back in at the next recheck.
+			T.Available("Kingchar")
+			guildieOnline = true
+			w.Wait(300)
+			eq(Sorted(calls), "unban OlympusNet,Guildie; unban OlympusNet,Kingchar; unban OlympusNet,Other")
+			eq(w.C.GuardStats().banned, 0)
+			w.Wait(1000)
+			eq(#calls, 3, "nothing waits any more: " .. Sorted(calls))
+		end)
+		ERR_CHAT_PLAYER_NOT_FOUND_S, R.Fresh = savedNotFound, savedFresh
+		T.ResetPrivate()
+		if not ok then error(err, 0) end
 	end)
 
 	test("channel owner: handed the public channel without having watched it since joining, its password is cleared", function()
@@ -11982,9 +12041,12 @@ do
 			o.C.JoinChannel()
 			for _, fn in ipairs(o.events.ADDON_ACTION_BLOCKED) do fn("OtherAddon", "SetChannelPassword()") end
 			o.Notice(NOTICE, "YOU_JOINED")
+			-- (1.4.0: a ban seen first, since names never seen banned are no longer unbanned; the
+			-- assertion still proves this client's healing goes on after another addon's refusal.)
+			o.Notice(USER, "PLAYER_BANNED", "Kingchar", "Troll")
 			o.Notice(USER, "OWNER_CHANGED", "Tester")
 			o.Wait(2)
-			eq(Sorted(calls), "password; unban OlympusNet,Asmongold Asmongler; unban OlympusNet,Pyralis Ashandar")
+			eq(Sorted(calls), "password; unban OlympusNet,Kingchar")
 		end)
 	end)
 

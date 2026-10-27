@@ -933,28 +933,33 @@ end
 
 local function Mine(g) return g.mine.owner or g.mine.moderator end
 
--- Players the channel must never lose, the way the server finds them: the Treasurer, and the
--- King's character when our client knows it (our own roster in his guild, or a character
--- pinned in Core.lua).
-local function Protected()
-	local out, seen = {}, {}
-	local function Add(name)
-		name = ServerName(name)
-		if name and not seen[name:lower()] then
-			seen[name:lower()] = true
-			out[#out + 1] = name
-		end
-	end
-	Add(ns.TREASURER)
-	local pinned = ns.KING_CHARACTER
-	if type(pinned) == "table" then pinned = pinned[ns.faction or "Alliance"] end
-	Add(pinned)
-	if ns.IsKingGuild and ns.IsKingGuild(GetGuildInfo("player")) and ns.Roster and type(ns.Roster.byName) == "table" then
-		for name, rank in pairs(ns.Roster.byName) do
-			if rank == 0 then Add(name) break end
+-- 1.4.0 (the HealChannel spam a player reported): a name we saw banned is let back in only while
+-- nothing says that player is offline. The server answers an unban of an offline name with "No
+-- player named ... is currently playing" in the player's chat, so these names wait instead: one
+-- the server already named so this session (Treasury.Unavailable, which any whisper's reply
+-- fills), or a member of our own guild that a fresh roster scan shows offline. The roster's own
+-- freshness gate (Roster.Fresh) keeps an old guild's rows out of it.
+local OFFLINE_RECHECK = 300 -- names left waiting are looked at again this often while the channel is ours
+local function OfflineMembers()
+	local R = ns.Roster
+	local fresh = R and type(R.Fresh) == "function" and R.Fresh(OFFLINE_RECHECK)
+	if not fresh or type(fresh.members) ~= "table" then return nil end
+	local out
+	for _, row in ipairs(fresh.members) do
+		if type(row) == "table" and row.online == false and type(row.full) == "string" then
+			local name = ServerName(row.full)
+			if name then
+				out = out or {}
+				out[name:lower()] = true
+			end
 		end
 	end
 	return out
+end
+local function KnownOffline(name, offline)
+	local T = ns.Treasury
+	if type(T) == "table" and type(T.Unavailable) == "function" and T.Unavailable(name) == true then return true end
+	return offline ~= nil and offline[name:lower()] == true
 end
 
 -- One healing call, protected, the same one at most every HEAL_GAP: "done", "failed",
@@ -978,10 +983,24 @@ local function HealSoon(delay)
 	end)
 end
 
+-- Names seen banned but known offline (KnownOffline) are looked at again later, on a timer of
+-- their own: a heal due sooner (a notice's) is never held behind it.
+local recheckPending = false
+local function RecheckSoon()
+	if recheckPending then return end
+	recheckPending = true
+	ns.After(OFFLINE_RECHECK, "channel heal recheck", function()
+		recheckPending = false
+		Comm.HealChannel()
+	end)
+end
+
 -- Only while the channel is ours (owner or moderator), only to undo harm, never against
 -- anyone: the password it should have (none on the public channel, the key on the sealed
--- one), no moderation, and whoever was banned or muted while we were on it let back in, the
--- Treasurer and the King always. Only for the channel we are meant to be on: what we saw on
+-- one), no moderation, and whoever we saw banned or muted while we were on it let back in.
+-- 1.4.0: only the names we saw banned (the Treasurer and the King too: never one we did not see
+-- banned, which only made the server name every offline one in the chat), and none while it is
+-- known offline (KnownOffline). Only for the channel we are meant to be on: what we saw on
 -- another one (the public channel once we have a key) changes nothing.
 -- What someone does with the channel from our own client is not undone here: the next owner's
 -- client does it.
@@ -1007,15 +1026,18 @@ function Comm.HealChannel()
 	-- saw it turned on. (Today's clients have no ChannelModerate: nobody can turn it on either.)
 	if g.moderationOn and Do("moderation off", ChannelModerate, name) ~= "later" then g.moderationOn = nil end
 	local unban = {}
-	for who in pairs(g.banned) do unban[who] = true end
-	if g.protect then
-		for _, who in ipairs(Protected()) do unban[who] = true end
+	for who in pairs(g.banned) do unban[#unban + 1] = who end
+	table.sort(unban)
+	local offline = unban[1] and OfflineMembers() or nil
+	local away = false
+	for _, who in ipairs(unban) do
+		if KnownOffline(who, offline) then
+			away = true -- kept in g.banned: let back in once nothing says he is offline
+		elseif Do("unban " .. who, ChannelUnban, name, who) ~= "later" then
+			g.banned[who] = nil
+		end
 	end
-	local waiting = false
-	for who in pairs(unban) do
-		if Do("unban " .. who, ChannelUnban, name, who) == "later" then waiting = true else g.banned[who] = nil end
-	end
-	if not waiting then g.protect = nil end
+	if away then RecheckSoon() end
 	-- (No ChannelUnmute in today's clients either: kept for one that has it.)
 	for who in pairs(g.muted) do
 		if Do("unmute " .. who, ChannelUnmute, name, who) ~= "later" then g.muted[who] = nil end
@@ -1098,7 +1120,6 @@ function Comm.OnChannelNotice(notice, player, _, channelName, player2, _, _, _, 
 		elseif not g.mine.owner then
 			g.mine.owner = true
 			g.unwatched = not g.watched or nil
-			g.protect = true
 			RoleGiven(g)
 		end
 	elseif notice == "SET_MODERATOR" or notice == "UNSET_MODERATOR" then
@@ -1108,7 +1129,6 @@ function Comm.OnChannelNotice(notice, player, _, channelName, player2, _, _, _, 
 			g.mine.moderator = nil
 		elseif not g.mine.moderator then
 			g.mine.moderator = true
-			g.protect = true
 			RoleGiven(g)
 		end
 	elseif notice == "PASSWORD_CHANGED" then
