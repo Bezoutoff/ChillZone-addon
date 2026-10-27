@@ -4,8 +4,8 @@ local test, eq = H.test, H.eq
 local FW = assert(loadfile(H.ROOT .. "tests/arena/lib/farkle-world.lua"))(H)
 local N = H.World.NAMES
 local function Do(w, c, f, ...) return w:As(c, c.ns.Records[f], ...) end
-local function Setup()
-	local w = FW.New({ compliance = "shipped" })
+local function Setup(clock)
+	local w = FW.New({ compliance = "shipped", clock = clock })
 	return w, w:Player(N.fighterA), w:Player(N.fighterB), w:Player(N.bettor3)
 end
 local function Pair(w, a, b, id, winner, t)
@@ -17,6 +17,21 @@ local function Pair(w, a, b, id, winner, t)
 			local core = ("%s~%s~%s~-~2~-~e~%s~%s~%s~t~%s~0a1b2c3d~%s~%s~%d"):format(id, a.name, b.name, winner or "1", B(2000), B(300), B(40), B(time), B(time - 300), seat)
 			local D = c.ns.Debts local _, pk = D.MyKey()
 			return core .. "~" .. D.B64(pk) .. "~" .. D.B64(D.Sign("OLYB1|" .. core))
+		end)
+	end
+	return out[1] .. "^" .. out[2]
+end
+-- A crafting delivery's two signed halves (the requester's, the crafter's), of today's server day,
+-- as a Records body.
+local function CraftPair(w, requester, crafter, id, itemID, quantity, tier)
+	local out, day = {}, math.floor(w.clock / 86400)
+	for i, client in ipairs({ requester, crafter }) do
+		out[i] = w:As(client, function()
+			local role = i == 1 and "r" or "c"
+			local core = table.concat({ id, requester.name, crafter.name, itemID or 123, quantity or 5, tier or 2, day, role }, "~")
+			local D = client.ns.Debts
+			local _, pk = D.MyKey()
+			return core .. "~" .. D.B64(pk) .. "~" .. D.B64(D.Sign("OLYC1|" .. core))
 		end)
 	end
 	return out[1] .. "^" .. out[2]
@@ -601,3 +616,24 @@ test("records: a duel still waiting for its fighters' GUIDs is looked at again i
 	Errors(w)
 end)
 
+-- 1.4.0: a crafting delivery's record was dated at noon UTC of its day (day * 86400 + 43200), and
+-- Records refuses a record dated more than AHEAD (two minutes) past the clock ("time"). Every
+-- delivery made before 11:58 UTC (before 08:58 in Brasilia) was refused by every client, its own
+-- signers' too, and never reached the crafting ranking. It is dated at the start of its day now:
+-- its day, id, content and month are the same, so clients of either version agree on it.
+test("records: a crafting delivery made before noon UTC is taken and counts in the crafting ranking", function()
+	local early = math.floor(H.World.CLOCK / 86400) * 86400 + 3 * 3600 -- 03:00 UTC
+	local w, requester, crafter, holder = Setup(early)
+	local body = CraftPair(w, requester, crafter, "craftearly1", 123, 5, 2)
+	Keys(w, requester, crafter)
+	local ok, why = Do(w, holder, "Take", "c", body, N.bettor1, "relay")
+	w:Run(3)
+	eq(Do(w, holder, "Count", "c"), 1, "taken: " .. tostring(ok) .. " " .. tostring(why))
+	eq((Do(w, holder, "Stats").refused.time or 0), 0, "never refused as dated ahead of the clock")
+	local rec = w:As(holder, holder.ns.CraftRanking.ReadRecord, body)
+	eq(rec.t, math.floor(early / 86400) * 86400, "dated at the start of its day")
+	eq(math.floor(rec.t / 86400), math.floor(early / 86400), "its day unchanged")
+	local rows = w:As(holder, holder.ns.CraftRanking.Current)
+	eq(#rows, 1); eq(rows[1].name, crafter.name); eq(rows[1].deliveries, 1)
+	Errors(w)
+end)
