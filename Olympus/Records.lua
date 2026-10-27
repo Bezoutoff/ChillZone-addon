@@ -45,11 +45,13 @@ local L = ns.L
 -- asks for it (RA, with the PREFIX-character
 -- prefixes of the ids it holds of that day), ASK_DAYS days a digest at most, the newest first; a
 -- client that holds what the digest lacks sends its own digest at its slot a few seconds later
--- (PUSH_GAP apart at most; not when ELECT digests heard meanwhile told all it would). Any
--- holder drawn answers with what the asker lacks, ANSWER_MIN to ANSWER_MIN + ANSWER_SPREAD later,
--- unless another answer of that day went out within ANSWER_GAP. Every answer goes on the arena's
--- low lane (a message a second at most, while Comm's queue has room), the newest days first, on
--- the channel: whoever lacks the same takes it too.
+-- (PUSH_GAP apart at most; not when ELECT digests heard meanwhile told all it would). The holders
+-- whose digest named that day made it ask, and answer first, ANSWER_MIN to ANSWER_MIN +
+-- ANSWER_SPREAD later; any other holder only as a fallback, FALLBACK_MIN and more later, when the
+-- body or WITNESSES validations still had not come (OnAsk); none within ANSWER_GAP of its own last
+-- answer of that day, none past its budget (BUDGET jobs a BUDGET_EVERY, ASKER_JOBS of them for one
+-- asker). Every answer goes on the arena's low lane (a message a second at most, while Comm's
+-- queue has room), the newest days first, on the channel: whoever lacks the same takes it too.
 --
 -- The seal (the author's, signed as the council lists are, scripts/council-sign.py seal): SEAL_AFTER
 -- after a month ends each client works its totals out (a draft); `/oly arena records` shows them
@@ -78,14 +80,19 @@ R.DIGEST_WINDOW_MIN, R.DIGEST_WINDOW_MAX = 120, 480 -- a round's slots spread ov
 R.ELECT = 2              -- other holders' digests that told all ours would: ours stays home
 R.HEARD_MAX = 2000       -- digest facts (day.n.sum, month.hash8) remembered per type, for that
 R.PUSH_MIN, R.PUSH_WINDOW = 2, 30 -- our digest to one that lacks something: this long after it, by slot
-R.RELAYS = 3             -- an ask's answerer drawn among about this many holders
 R.DIGEST_DAYS = 70       -- record-days per digest, bounded on the wire
 R.DIGEST_RECENT = 3      -- newest days always; older unsealed days rotate through the remaining slots
 R.DIGEST_MONTHS = 24     -- ...and the newest sealed months
 R.ASK_DAYS = 3           -- days asked for from one digest at most
 R.ASK_GAP = 300          -- a day asked for again from here this long after at the soonest
 R.ANSWER_GAP = 60        -- one answer per day this often (anyone's)
-R.ANSWER_MIN, R.ANSWER_SPREAD = 1, 6
+R.ANSWER_MIN, R.ANSWER_SPREAD = 1, 6 -- a holder whose digest named it answers this long after the ask...
+R.ANSWER_WINDOW = 120    -- ...a digest of ours that went this recently (or goes while the ask waits)
+R.FALLBACK_MIN = 30      -- any other holder of it: this long after the ask at the soonest, if nothing came
+R.FALLBACK_SPREAD_MIN, R.FALLBACK_SPREAD_MAX = 30, 240 -- ...spread over half the army, within these
+R.BUDGET, R.BUDGET_EVERY = 30, 600 -- jobs (a digest, a push, an answer) this client sends at most, this long
+R.ASKER_JOBS = 10        -- ...of them for one asker's asks
+R.RV_HEARD_MAX = 2000    -- records whose validations heard are remembered per type (who, when)
 R.PUSH_GAP = 120         -- our own digest sent back to one that lacks something, this often at most
 R.OUT_MAX = 400          -- messages waiting on the low lane at most
 R.FROM_DAY_MAX = 500     -- new records (kept or waiting for a key) one relayer brings in a server day
@@ -788,8 +795,6 @@ local function Users()
 	end
 	return users
 end
-local function Drawn() return R.random() <= min(1, R.RELAYS / Users()) end
-R.Drawn = Drawn
 -- A round's slots spread over this many seconds: the army's size as this client sees it, within
 -- DIGEST_WINDOW_MIN and _MAX (each client's own: the King's turn comes after the widest).
 function R.DigestWindow() return max(R.DIGEST_WINDOW_MIN, min(R.DIGEST_WINDOW_MAX, Users())) end
@@ -838,7 +843,7 @@ function R.OutSize() return #outq end
 -- (keyed: the caller declared the key once for its whole answer. The signature is made when the
 -- validation's turn on the low lane comes, one a message: an answer of a day's records never
 -- signs them all, and the key with each, on one frame.)
-function R.SendWitness(letter, body, day, keyed)
+function R.SendWitness(letter, body, day, keyed, hash)
 	if not R.TYPES[letter] or type(body) ~= "string" or Barred() then return false end
 	local okRecord, rec = pcall(R.TYPES[letter].Read, body)
 	local heldDay = okRecord and type(rec) == "table" and Index(letter).ids[rec.id]
@@ -848,7 +853,8 @@ function R.SendWitness(letter, body, day, keyed)
 	if type(D) ~= "table" or type(D.MyKey) ~= "function" or type(D.Sign) ~= "function" then return false end
 	local ok, gk, pk = pcall(D.MyKey)
 	if not ok or not gk or type(pk) ~= "string" or #pk ~= 32 then return false end
-	local pk64, hash = B64(pk), RecordHash(letter, body)
+	local pk64 = B64(pk)
+	hash = hash or RecordHash(letter, body)
 	-- Repeated asks may come from clients that were absent for the last declaration.
 	if not keyed then R.SendKey() end
 	return Out("RV", "v" .. letter .. hash .. (Low(Me()) or "?"), function()
@@ -861,7 +867,10 @@ end
 
 local lastDigest = {}
 local heard, digestSerial, roundHeard, roundDue = {}, {}, {}, {} -- (the rounds, below)
-local lag = { n = 0, sum = 0, max = 0 } -- seconds from a digest's slot to its leaving the records' queue
+local mySent = {}        -- [letter] = { at, days = { [day] = true }, months = { [month] = true } }: our last digest
+local jobsAt, askerJobs = {}, {} -- the budget: when our jobs went (all of them; [asker] = an asker's)
+local heardBody = {}     -- [letter] = { [Hash36 of a record's body] = when an RR of it was heard }
+local lag = { n = 0, sum = 0, max = 0 } -- seconds from a digest's slot to the wire (Comm sent it)
 local askedAt, heardAsk, answeredAt, heardRecordAt, answering, askCursor, witnessedAt = {}, {}, {}, {}, {}, {}, {}
 local function Per(t, letter)
 	local x = t[letter]
@@ -918,25 +927,6 @@ function R.DigestBody(letter)
 	if not parts[1] and not mparts[1] then return nil end
 	return letter .. "~" .. table.concat(parts, ",") .. "~" .. table.concat(mparts, ","), nextPage, nextMonthPage
 end
--- A digest of ours went out (what it told; the push's gap).
-local function Told(letter)
-	lastDigest[letter] = Now()
-	stats.digests = stats.digests + 1
-end
-function R.SendDigest(letter)
-	if Barred() then return false end
-	local body, nextPage, nextMonthPage = R.DigestBody(letter)
-	if not body then return false end
-	local sent = A().Send("RD", "L", body, { dist = "CHANNEL", key = "records digest " .. letter, low = true }) == true
-	-- A full transport queue must not silently skip a historical page.
-	if sent then
-		Told(letter, body)
-		local x = Index(letter)
-		x.digestPage, x.digestMonthPage = nextPage, nextMonthPage
-	end
-	return sent
-end
-
 -- 1.4.0, the rounds (no draw). A digest's facts: "d<day>.<n>.<sum>" and "m<month>.<hash8>" (a
 -- list), and its days and months (sets).
 local function DigestFacts(days, months)
@@ -960,6 +950,81 @@ local function DigestFacts(days, months)
 	return facts, dset, mset
 end
 R.DigestFacts = DigestFacts
+
+-- The answer budget: one more job (a digest, a push, or an answer to `asker`'s ask) within BUDGET
+-- a BUDGET_EVERY, and ASKER_JOBS of them for one asker (one client cannot spend every holder's
+-- budget). Spent only for a job that goes (Spend); CanSpend only looks.
+local function Recent(list, now)
+	while list[1] and now - list[1] >= R.BUDGET_EVERY do table.remove(list, 1) end
+	return #list
+end
+local function CanSpend(asker)
+	local now = Now()
+	if Recent(jobsAt, now) >= R.BUDGET then return false, "budget" end
+	local list = asker and askerJobs[asker]
+	if list and Recent(list, now) >= R.ASKER_JOBS then return false, "asker" end
+	return true
+end
+local function Spend(asker)
+	local ok, why = CanSpend(asker)
+	if not ok then
+		stats[why] = (stats[why] or 0) + 1
+		return false
+	end
+	local now = Now()
+	jobsAt[#jobsAt + 1] = now
+	if asker then
+		local list = askerJobs[asker]
+		if not list then
+			local n, oldest, at = 0, nil, math.huge
+			for k, l in pairs(askerJobs) do
+				n = n + 1
+				local last = l[#l] or -math.huge
+				if last < at then oldest, at = k, last end
+			end
+			if n >= R.CONTROL_MAX and oldest then askerJobs[oldest] = nil end
+			list = {}
+			askerJobs[asker] = list
+		end
+		list[#list + 1] = now
+	end
+	return true
+end
+-- (CanSpend, counted in the stats when there is no room: an ask past it is not even waited on.)
+local function Room(asker)
+	local ok, why = CanSpend(asker)
+	if not ok then stats[why] = (stats[why] or 0) + 1 end
+	return ok
+end
+function R.Budget() return R.BUDGET - Recent(jobsAt, Now()) end
+
+-- A digest of ours went out: what it told (the asks it makes us answer first), the push's gap.
+-- An answer of ours waiting as a fallback for a day or month it named comes forward: the ask was
+-- made before our digest went, and it is ours to answer first now.
+local Promote -- (below)
+local function Told(letter, body)
+	local now = Now()
+	lastDigest[letter] = now
+	stats.digests = stats.digests + 1
+	local _, days, months = A().Fields(body, 3)
+	local _, dset, mset = DigestFacts(days, months)
+	mySent[letter] = { at = now, days = dset, months = mset }
+	Promote(letter)
+end
+function R.SendDigest(letter)
+	if Barred() then return false end
+	local body, nextPage, nextMonthPage = R.DigestBody(letter)
+	if not body then return false end
+	local sent = A().Send("RD", "L", body, { dist = "CHANNEL", key = "records digest " .. letter, low = true }) == true
+	-- A full transport queue must not silently skip a historical page.
+	if sent then
+		Told(letter, body)
+		local x = Index(letter)
+		x.digestPage, x.digestMonthPage = nextPage, nextMonthPage
+	end
+	return sent
+end
+
 -- Another holder's digest heard: for each of its facts the ELECT newest distinct senders that told
 -- it (when, and the digests heard so far: an order finer than the clock's second). Bounded by
 -- HEARD_MAX facts a type; a fact over that is not remembered (which silences nothing).
@@ -1019,14 +1084,14 @@ local function QueueDigest(letter, covered, slotAt)
 	return Out("RD", "D|" .. letter, function()
 		if covered and covered() then stats.covered = (stats.covered or 0) + 1 return nil end
 		local body, nextPage, nextMonthPage = R.DigestBody(letter)
-		if not body then return nil end
+		if not body or not Spend() then return nil end
 		Told(letter, body)
-		if slotAt then
-			local l = max(0, Now() - slotAt)
-			lag.n, lag.sum, lag.max = lag.n + 1, lag.sum + l, max(lag.max, l)
-		end
 		return body, { done = function(sent)
 			if not sent then return end
+			if slotAt then
+				local l = max(0, Now() - slotAt)
+				lag.n, lag.sum, lag.max = lag.n + 1, lag.sum + l, max(lag.max, l)
+			end
 			local x = Index(letter)
 			x.digestPage, x.digestMonthPage = nextPage, nextMonthPage
 		end }
@@ -1069,7 +1134,9 @@ ScheduleRounds = function()
 	end
 end
 
--- An ask for one day's records: the prefixes of the ids this client holds of it.
+-- An ask for one day's records: the prefixes of the ids this client holds of it. (A read: it goes
+-- even while this client's quiet presence is on, as Comm.QUIET_WORDS lets a read go and
+-- Treasury.Ask its first ask; what this client would tell or answer stays home, R.Bar.)
 function R.Ask(letter, d, remoteCount)
 	local s = Store(letter)
 	local held = {}
@@ -1106,7 +1173,7 @@ end
 -- (1.2.6) The records of that day waiting here, whose bodies are here already, named again for
 -- the live holders' validations alone (RV, never the bodies again). The ask above lists them as
 -- held, so no holder answers them there; and the two validations that admit them are heard in
--- this session only: one holder drawn for the first answer, a validation heard before its
+-- this session only: one holder alone for the first answer, a validation heard before its
 -- holder's key, or a reload left them short, and they waited for good. Asked with each ask of
 -- their day until they are kept. (Clients before 1.2.6 do not know "w" and take it for nothing.)
 function R.AskWitness(letter, d)
@@ -1211,6 +1278,98 @@ end
 ns.Comm.Handle("RD", ns.Arena.Handle("RD", OnDigest))
 
 local SendSeal -- (below)
+
+-- 1.4.0, who answers an ask (no draw). First, the holders whose digest named that day (or sealed
+-- month) within ANSWER_WINDOW, the asks' reason: ANSWER_MIN + score × ANSWER_SPREAD after it (and
+-- a holder whose digest goes while the ask waits comes forward, Promote). Then any other holder of
+-- it (for validations alone, of that exact record): FALLBACK_MIN + score × half the army (within
+-- FALLBACK_SPREAD_MIN and _MAX), the King after the widest, the author's character and a client
+-- whose quiet presence is on never (R.Slot). When its turn comes a holder sends only what nobody
+-- sent since the ask: a record's body that no RR brought, a validation while fewer than WITNESSES
+-- other holders' were heard (a primary that logged out, or a digest whose sender never answers,
+-- leaves it to the next turn); nothing at all past its budget (Spend). Each body is looked at again
+-- when it leaves the low lane.
+local function Primary(letter, field, what)
+	local m = mySent[letter]
+	return m ~= nil and Now() - m.at <= R.ANSWER_WINDOW and m[field][what] == true
+end
+local function AnswerTopic(letter, kind, what, now) return ("RQ|%s|%s|%s|%d"):format(letter, kind, tostring(what), floor(now / R.DIGEST_EVERY)) end
+-- (The King's turn comes after the widest fallback and after the widest round: a holder whose
+-- digest goes late in its round comes forward then, Promote.)
+local function AnswerDelay(topic, primary)
+	if primary and R.Bar(Me()) == nil then return R.Slot(topic, Me(), R.ANSWER_MIN, R.ANSWER_SPREAD) end
+	local spread = max(R.FALLBACK_SPREAD_MIN, min(R.FALLBACK_SPREAD_MAX, Users() / 2))
+	return R.Slot(topic, Me(), R.FALLBACK_MIN, spread, max(R.FALLBACK_SPREAD_MAX, R.DIGEST_WINDOW_MAX - R.FALLBACK_MIN))
+end
+-- An answer job waits under answering[key] = { letter, field, what, topic, name, at, fire }: on the
+-- game's own timer (a fallback's wait is minutes long; the arena's ticker need not run meanwhile).
+-- Its fire does nothing once the job is no longer the one waiting (answered, brought forward and
+-- fired, or a newer one).
+local function Wait(key, letter, field, what, now, kind, name, fire)
+	local topic = AnswerTopic(letter, kind, what, now)
+	local delay = AnswerDelay(topic, Primary(letter, field, what))
+	if not delay then return false end
+	local job = { letter = letter, field = field, what = what, topic = topic, name = name, at = Now() + delay }
+	job.fire = function()
+		if answering[key] ~= job then return end
+		answering[key] = nil
+		if not Barred() then fire() end
+	end
+	answering[key] = job
+	ns.After(delay, name, job.fire)
+	return true
+end
+Promote = function(letter)
+	if R.Bar(Me()) ~= nil then return end
+	local now = Now()
+	for _, job in pairs(answering) do
+		if type(job) == "table" and job.letter == letter and Primary(letter, job.field, job.what) and job.at > now + R.ANSWER_MIN + R.ANSWER_SPREAD then
+			local delay = R.Slot(job.topic, Me(), R.ANSWER_MIN, R.ANSWER_SPREAD)
+			if delay then
+				job.at = now + delay
+				ns.After(delay, job.name, job.fire)
+			end
+		end
+	end
+end
+
+-- Validations heard, by record and sender (the answers' "already confirmed since the ask"; not what
+-- admits a record: that is `witnesses`, above). The newest few senders of a record, RV_HEARD_MAX
+-- records a type.
+local rvHeard = {} -- [letter] = { n, pruned, items = { [hash] = { at, by = { [sender] = at } } } }
+local RV_SENDERS = 8
+local function HeardWitness(letter, hash, by, now)
+	local r = rvHeard[letter]
+	if not r then r = { n = 0, pruned = -math.huge, items = {} } rvHeard[letter] = r end
+	local e = r.items[hash]
+	if not e then
+		if r.n >= R.RV_HEARD_MAX and now - r.pruned >= 60 then
+			r.pruned = now
+			for k, v in pairs(r.items) do if now - v.at > R.DIGEST_EVERY then r.items[k], r.n = nil, r.n - 1 end end
+		end
+		if r.n >= R.RV_HEARD_MAX then stats.rvFull = (stats.rvFull or 0) + 1 return end
+		e = { at = now, by = {}, n = 0 }
+		r.items[hash], r.n = e, r.n + 1
+	end
+	if not e.by[by] then
+		if e.n >= RV_SENDERS then
+			local oldest, at
+			for k, t in pairs(e.by) do if not at or t < at then oldest, at = k, t end end
+			e.by[oldest], e.n = nil, e.n - 1
+		end
+		e.n = e.n + 1
+	end
+	e.by[by], e.at = now, now
+end
+-- Distinct holders whose validation of that record (its RecordHash) was heard here since `since`.
+function R.WitnessesSince(letter, hash, since)
+	local r = rvHeard[letter]
+	local e = r and r.items[hash]
+	local n = 0
+	for _, at in pairs(e and e.by or {}) do if at >= since then n = n + 1 end end
+	return n
+end
+
 local function OnAsk(dist, sender, mode, body)
 	if mode ~= "L" or dist ~= "CHANNEL" then return Count("lane") end
 	if type(body) ~= "string" or #body > 9000 then return Count("shape") end
@@ -1218,6 +1377,7 @@ local function OnAsk(dist, sender, mode, body)
 	if not (letter and R.TYPES[letter]) or not rest then return Count("type") end
 	local now = Now()
 	local s = Store(letter)
+	local asker = Low(sender) or "?"
 	if kind == "d" then
 		local d = N36(what, 0, 400000)
 		local bucket, prefixes = rest:match("^([0-9a-z]+):(.*)$")
@@ -1241,27 +1401,39 @@ local function OnAsk(dist, sender, mode, body)
 		end
 		if not missing[1] then return end
 		local key = "d" .. letter .. d
-		if answering[key] or now - (Per(answeredAt, letter)[d] or -math.huge) < R.ANSWER_GAP or not Drawn() then return end
-		answering[key] = true
-		A().After(R.ANSWER_MIN + R.random() * R.ANSWER_SPREAD, "records answer " .. key, function()
-			answering[key] = nil
-			if Barred() then return end
+		if answering[key] or now - (Per(answeredAt, letter)[d] or -math.huge) < R.ANSWER_GAP or not Room(asker) then return end
+		Wait(key, letter, "days", d, now, "d", "records answer " .. key, function()
 			table.sort(missing, function(a, b) return a[1] < b[1] end)
 			local held = s.days[d] or {}
-			local anotherAnswered = (Per(heardRecordAt, letter)[d] or -math.huge) > now
-			if not anotherAnswered then
-				Per(answeredAt, letter)[d] = Now()
-				stats.answered = stats.answered + 1
-			end
-			local keyed = false
+			local jobs = {}
 			for _, item in ipairs(missing) do
 				if held[item[1]] then
-					if not anotherAnswered then Out("RR", letter .. item[1] .. A().Hash36(item[2], 8), letter .. "~" .. item[2], d) end
+					local record = item[2]
+					local mark, hash = A().Hash36(record, 8), RecordHash(letter, record)
+					local body = (Per(heardBody, letter)[mark] or -math.huge) < now
 					-- A second holder still sends independent validation when another already
 					-- supplied the body. That is the quorum that transfers identity safely.
+					local witness = R.WitnessesSince(letter, hash, now) < R.WITNESSES
+					if body or witness then jobs[#jobs + 1] = { id = item[1], record = record, mark = mark, hash = hash, body = body, witness = witness } end
+				end
+			end
+			if not jobs[1] or not Spend(asker) then return end
+			Per(answeredAt, letter)[d] = Now()
+			stats.answered = stats.answered + 1
+			local keyed = false
+			for _, j in ipairs(jobs) do
+				if j.body then
+					local record, mark = j.record, j.mark
+					Out("RR", letter .. j.id .. mark, function()
+						-- (another holder's copy of it heard since the ask: ours stays home)
+						if (Per(heardBody, letter)[mark] or -math.huge) >= now then return nil end
+						return letter .. "~" .. record
+					end, d)
+				end
+				if j.witness then
 					-- (The key declared once for the whole answer, not once a record.)
 					if not keyed then R.SendKey() keyed = true end
-					R.SendWitness(letter, item[2], d, true)
+					R.SendWitness(letter, j.record, d, true, j.hash)
 				end
 			end
 		end)
@@ -1280,15 +1452,18 @@ local function OnAsk(dist, sender, mode, body)
 		end
 		if not bodies[1] then return end
 		local key = "w" .. letter .. d
-		if answering[key] or now - (Per(witnessedAt, letter)[d] or -math.huge) < R.ANSWER_GAP or not Drawn() then return end
-		answering[key] = true
-		A().After(R.ANSWER_MIN + R.random() * R.ANSWER_SPREAD, "records witness " .. key, function()
-			answering[key] = nil
-			if Barred() then return end
-			Per(witnessedAt, letter)[d] = Now()
+		if answering[key] or now - (Per(witnessedAt, letter)[d] or -math.huge) < R.ANSWER_GAP or not Room(asker) then return end
+		Wait(key, letter, "days", d, now, "w", "records witness " .. key, function()
 			table.sort(bodies, function(a, b) return a[1] < b[1] end)
+			local jobs = {}
+			for _, item in ipairs(bodies) do
+				local hash = RecordHash(letter, item[2])
+				if R.WitnessesSince(letter, hash, now) < R.WITNESSES then jobs[#jobs + 1] = { item[2], hash } end
+			end
+			if not jobs[1] or not Spend(asker) then return end
+			Per(witnessedAt, letter)[d] = Now()
 			R.SendKey()
-			for _, item in ipairs(bodies) do R.SendWitness(letter, item[2], d, true) end
+			for _, j in ipairs(jobs) do R.SendWitness(letter, j[1], d, true, j[2]) end
 		end)
 	elseif kind == "s" then
 		local m = tonumber(N36(what, 0, 100000))
@@ -1296,11 +1471,10 @@ local function OnAsk(dist, sender, mode, body)
 		-- (The author's client answers no seal ask either: his paste sent it, R.TakeSeal.)
 		if Barred() or not Adopted(seal) or (rest ~= "-" and seal.h:sub(1, 8) == rest:lower()) then return end
 		local key = "s" .. letter .. m
-		if answering[key] or now - (Per(answeredAt, letter)["s" .. m] or -math.huge) < R.ANSWER_GAP or not Drawn() then return end
-		answering[key] = true
-		A().After(R.ANSWER_MIN + R.random() * R.ANSWER_SPREAD, "records answer " .. key, function()
-			answering[key] = nil
-			if Barred() or (Per(answeredAt, letter)["s" .. m] or -math.huge) > now then return end
+		if answering[key] or now - (Per(answeredAt, letter)["s" .. m] or -math.huge) < R.ANSWER_GAP or not Room(asker) then return end
+		Wait(key, letter, "months", m, now, "s", "records answer " .. key, function()
+			-- (the seal heard since the ask, or sent by us: answered)
+			if (Per(answeredAt, letter)["s" .. m] or -math.huge) >= now or not Spend(asker) then return end
 			SendSeal(letter, m)
 		end)
 	end
@@ -1316,6 +1490,8 @@ local function OnRecord(dist, sender, mode, body)
 	if Hidden(sender) then return Count("hidden") end
 	local letter, rest = A().Fields(body, 2)
 	if not (letter and R.TYPES[letter]) or not rest then return Count("type") end
+	-- (an answer heard: another holder's copy of that body stays home, OnAsk)
+	Per(heardBody, letter)[A().Hash36(rest, 8)] = Now()
 	local _, _, day = Take(letter, rest, sender, "relay") -- cancellation follows actual verification in Keep
 	if day then R.Accepted(letter, day) end
 end
@@ -1340,6 +1516,7 @@ local function OnWitness(dist, sender, mode, body)
 		local set = byLetter[hash]
 		if not set then set = {} byLetter[hash] = set end
 		set[Low(sender)] = true
+		HeardWitness(letter, hash, Low(sender), Now())
 		local count = 0
 		for _ in pairs(set) do count = count + 1 end
 		if count < R.WITNESSES then return end
@@ -1657,7 +1834,7 @@ end
 -- The weight rule (the design): a client that holds nothing of the records loads nothing, runs no
 -- timer and sends nothing at login. It still takes every RD, RA, RR and RV it hears (their handlers
 -- are registered at load), so a late login receives the rankings from any holder's digest (Tick,
--- DIGEST_EVERY, drawn among the army's holders), even while both original players are offline.
+-- DIGEST_EVERY, at each holder's slot, R.Slot), even while both original players are offline.
 -- The holders' signed, validated relay is that path, never an empty client's own call.
 ns.On("LOGIN", function()
 	local any = Root(false) ~= nil
@@ -1743,6 +1920,7 @@ function R.Reset()
 	lastDigest, askedAt, heardAsk, answeredAt, heardRecordAt, answering, askCursor, witnessedAt = {}, {}, {}, {}, {}, {}, {}, {}
 	heard, digestSerial, roundHeard, roundDue = {}, {}, {}, {}
 	lag = { n = 0, sum = 0, max = 0 }
+	mySent, jobsAt, askerJobs, heardBody, rvHeard = {}, {}, {}, {}, {}
 	askedSeal, heardSealAsk, asm = {}, {}, {}
 	from, attempts, fromDay = {}, {}, -1
 	keySentAt, keyDue = nil, false
