@@ -107,34 +107,34 @@ local function Add(list, kind, signature, data)
 end
 
 -- Current, real roles only.  This intentionally does not consult King.Preview, Nominees.DevView,
--- ViewAs or Watch.CouncilDeskShown.
+-- ViewAs or Watch.CouncilDeskShown. Each signature is the office and its holder (and the guild or
+-- department an office belongs to), never a date of the appointment: one letter per office held.
 local function CurrentRoles()
 	local roles = {}
 	if not ns.IsMember() then return roles end
 	local guild, _, rank = GetGuildInfo("player")
 	local king = Safe(ns.King, "IsKing") == true
-	if king then Add(roles, "king", "king:" .. tostring(guild or ""), { guild = guild }) end
+	if king then Add(roles, "king", "king:" .. Owner() .. ":" .. Lower(guild), { guild = guild }) end
 	if ns.IsHighCouncillor(ns.me) == true then Add(roles, "council", "council:" .. Owner()) end
 	if Safe(ns.King, "IsSteward") == true then Add(roles, "steward", "steward:" .. Owner()) end
 	if Safe(ns.King, "IsHand") == true then Add(roles, "hand", "hand:" .. Owner()) end
 	if rank == 0 and type(guild) == "string" and ns.IsFederation(guild) and not king then
-		Add(roles, "guildmaster", "guildmaster:" .. Lower(guild), { guild = guild })
+		Add(roles, "guildmaster", "guildmaster:" .. Owner() .. ":" .. Lower(guild), { guild = guild })
 	end
-	if Safe(ns.Watch, "CanRead") == true then Add(roles, "watch", "watch:" .. Lower(guild), { guild = guild }) end
-	if Safe(ns.Treasury, "RealKeeper") == true then Add(roles, "treasurer", "treasurer:" .. Lower(guild), { guild = guild }) end
+	if Safe(ns.Watch, "CanRead") == true then Add(roles, "watch", "watch:" .. Owner() .. ":" .. Lower(guild), { guild = guild }) end
+	if Safe(ns.Treasury, "RealKeeper") == true then Add(roles, "treasurer", "treasurer:" .. Owner() .. ":" .. Lower(guild), { guild = guild }) end
 
+	-- (Not Church.Place().since: a signed Apostle's is the signed list's time, moved by every re-sign.)
 	local churchRole = Safe(ns.Church, "Role", ns.me)
-	local place = Safe(ns.Church, "Place", ns.me)
-	local churchStamp = type(place) == "table" and tostring(place.since or place.at or place.ac or place.net or "") or ""
-	if churchRole == "A" then Add(roles, "apostle", "apostle:" .. churchStamp)
-	elseif churchRole == "M" then Add(roles, "missionary", "missionary:" .. churchStamp)
-	elseif churchRole == "C" then Add(roles, "churchcorr", "churchcorr:" .. Lower(guild), { guild = guild }) end
+	if churchRole == "A" then Add(roles, "apostle", "apostle:" .. Owner())
+	elseif churchRole == "M" then Add(roles, "missionary", "missionary:" .. Owner())
+	elseif churchRole == "C" then Add(roles, "churchcorr", "churchcorr:" .. Owner() .. ":" .. Lower(guild), { guild = guild }) end
 
 	local role, dept = Safe(ns.Nominees, "RoleOf", ns.me, guild)
 	if role == "centurion" then
-		Add(roles, "legate", "legate:" .. Lower(guild), { guild = guild })
+		Add(roles, "legate", "legate:" .. Owner() .. ":" .. Lower(guild), { guild = guild })
 	elseif role == "correspondent" and type(dept) == "string" then
-		Add(roles, "correspondent", "correspondent:" .. Lower(guild) .. ":" .. Lower(dept), {
+		Add(roles, "correspondent", "correspondent:" .. Owner() .. ":" .. Lower(guild) .. ":" .. Lower(dept), {
 			guild = guild, dept = dept, duty = Safe(ns.Nominees, "DepartmentHelp", dept),
 		})
 	end
@@ -154,11 +154,10 @@ local function Queue(s, role, quiet)
 	return e
 end
 
--- Queue once per verifiable appointment signature.  A missing role is not enough to erase the
+-- Queue once per office and holder (the signature).  A missing role is not enough to erase the
 -- stamp: at login the live roster and relayed appointment books can be temporarily unknown, and
--- treating that gap as a removal would manufacture the same letter on every login.  Sources with
--- a real appointment epoch (the Church) put it in their signature, so an actual later appointment
--- still receives a new briefing.
+-- treating that gap as a removal would manufacture the same letter on every login.  A holder named
+-- again to an office he held keeps the letter he has: it stays in My profile > Letters to reread.
 function Brief.Scan(quiet)
 	local s, owner = Store(), Owner()
 	if not s or owner == "" then return 0 end

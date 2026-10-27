@@ -1,5 +1,6 @@
--- Durable role letters: only real appointments create them, they rearm after removal, and the
--- Missionary/Legate pages preserve the operational decisions they explain.
+-- Durable role letters: only real appointments create them, one per office and its holder (a
+-- removal, a roster gap or a re-signed list never makes a second), and the Missionary/Legate pages
+-- preserve the operational decisions they explain. Every name is invented.
 local ns, test, eq, extra = ...
 local ROOT = assert(extra and extra.ROOT)
 local ADDON = ROOT .. "Olympus/"
@@ -100,9 +101,12 @@ test("role briefings: Missionaries get a reopenable, practical recruiting checkl
 		eq(RB.Letters()[1].read, true)
 		eq(RB.Open(RB.Letters()[1].id), true, "the read letter remains reopenable")
 		assert(#w.opened >= 4, "each open routes back into the main Realm page")
+		-- (Changed with the fix keying letters on the office and its holder: a new date on the same
+		-- place, which a re-signed list or a keep makes, was taken for a new appointment and made a
+		-- second letter. The author's rule is one letter per office held, reread from My profile.)
 		opts.place = { since = 456, ac = "Another-Apostle" }
-		eq(RB.Scan(true), 1, "a real Church appointment epoch produces a new briefing")
-		eq(#RB.Letters(), 2)
+		eq(RB.Scan(true), 0, "a new date on the same office is not a new letter")
+		eq(#RB.Letters(), 1)
 	end)
 end)
 
@@ -140,3 +144,34 @@ test("role briefings: relevant offices each have a durable title and body", func
 	end
 end)
 
+
+-- The real Church (tests/church-world.lua): a client of that small world with the duty letters
+-- loaded into its own namespace. The other role sources are absent there, so only the Church's own
+-- state can make a letter.
+local World = assert(loadfile(ROOT .. "tests/church-world.lua"))(ns, ROOT)
+local function ChurchLetters(w, cl)
+	local c = cl.c
+	c.RealmPages = {}
+	c.King, c.Watch, c.Treasury, c.Nominees, c.WatchChat = {}, {}, {}, {}, {}
+	c.db.roleBriefings = nil
+	w:As(cl, function() assert(loadfile(ADDON .. "RoleBriefings.lua"))("Olympus", c) end)
+	return c.RoleBriefings
+end
+
+-- Review of the first duty letters: an Apostle's letter was keyed on Church.Place().since, which is
+-- the signed Apostles list's time for a signed Apostle, so every re-sign of that list made a second
+-- letter for the same office. Fails before the fix: the re-signed list makes 1 more letter.
+test("role briefings: an Apostle's letter is keyed on the office and its holder, so a re-signed Apostles list never duplicates it (real Church)", function()
+	local apostle = "Aldric Vane-Realm"
+	local w = World.New({ apostles = { apostle } })
+	local cl = w:Client(apostle, { view = true })
+	local RB = ChurchLetters(w, cl)
+	eq(w:As(cl, cl.Church.Role, apostle), "A")
+	eq(w:As(cl, RB.Scan, true), 1, "the Apostle's letter")
+	-- The same Apostles signed again a day later: the signed place is re-dated, the office is not new.
+	w.clock = w.clock + 86400
+	w:SignedList({ apostle }, true, w.clock)
+	eq(w:As(cl, function() return cl.Church.Place(apostle).since end), w.clock, "the re-sign re-dates the signed place")
+	eq(w:As(cl, RB.Scan, true), 0, "the same Apostle in the same office: no second letter")
+	eq(#w:As(cl, RB.Letters), 1)
+end)
