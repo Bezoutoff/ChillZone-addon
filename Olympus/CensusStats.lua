@@ -530,6 +530,109 @@ function CS.DetailText(e)
 	return type(e) == "table" and e.approx and L.CENSUS_STATS_DETAIL_TAGS or L.CENSUS_STATS_DETAIL
 end
 
+---------------------------------------------------------------------------
+-- How the census works
+---------------------------------------------------------------------------
+-- (The author, 2026-10-20: "na pagina de censo (estatisticas dentro do botao) no addon e companion
+-- quero explicacao de como dados funcionam, quebrados em topicos, dados validados, estimativas,
+-- dados sanitizados, processos de validacao e sanitizacao... depois dos graficos", then the same
+-- words on both pages.) The page's last section, after the graphs and the lists: seven topics, each
+-- a small gold title and its lines. Every number is the code's own constant (Data, CensusClean,
+-- this file), so the words follow it: the reports' 15 minutes (Data.FRESH), a size's day
+-- (Data.TOTAL_KEEP), the week a guild stays listed (Data.KEEP), the votes' half hour
+-- (Data.VOUCH_TTL), the dispute's margins (Data.SIZE_SLACK, SIZE_SHARE, SIZE_DRIFT), the held
+-- size's (CensusClean.JUMP_MIN, JUMP_SHARE, JUMP_DRIFT; its hour, OUTLIER_HOLD, in words), the
+-- validated accounts a team client's estimate needs (SAMPLE_MIN) and the history's bounds (EVERY,
+-- RECENT_KEEP, DAYS). The estimates' topic says what a member's client shows (the plain count) and
+-- what a moderation team client's shows (its "~" estimate), as CS.PeopleEstimate does.
+
+-- A paragraph in rows short enough for the page (its rows are one line each: Views.Render), split
+-- at spaces, about WRAP letters a row, as the Treasury's and the Dues' pages do. The last row takes
+-- `gapAfter`.
+CS.WRAP = 58
+local function Para(lines, text, color, gapAfter)
+	local row = ""
+	for word in tostring(text or ""):gmatch("%S+") do
+		if row ~= "" and #row + 1 + #word > CS.WRAP then
+			lines[#lines + 1] = { text = color(row) }
+			row = word
+		else
+			row = row == "" and word or (row .. " " .. word)
+		end
+	end
+	if row ~= "" then lines[#lines + 1] = { text = color(row), gapAfter = gapAfter } end
+end
+
+local function Minutes(seconds) return math.floor(seconds / 60 + 0.5) end
+local function Hours(seconds) return math.floor(seconds / 3600 + 0.5) end
+local function Days(seconds) return math.floor(seconds / 86400 + 0.5) end
+local function Percent100(share) return math.floor(share * 100 + 0.5) end
+
+-- (The author, 2026-10-20: "que o processo de sanitização fosse bem estruturado, como por um
+-- profissional data analyst, e explicado na página como funciona: info/records mais recentes no
+-- jogo por cima de base sólida com data e hora e regras de como funciona".) A first topic, how the
+-- census is built (each guild's newest record over what was known, each with its time), and the
+-- sanitizing as numbered rules S1 to S5: S1 the door (Codec.DecodeReport, Data's Take and the
+-- relayed rows' GlobalTake; the cap is Codec.GUILD_CAP, its "5 minutes ahead" in words), S2 the
+-- recency (Data.FRESH, TOTAL_KEEP, KEEP), S3 the exclusions (net-off, /who alone), S4 the agreement
+-- (CensusClean.Confidence: FRESH, and the votes' Data.VOUCH_TTL that Data.Dispute counts senders
+-- in) and S5 the impossible jump (CensusClean's JUMP_MIN, JUMP_SHARE, JUMP_DRIFT; OUTLIER_HOLD in
+-- words). The first topic's outvote holds while the row it would replace is FRESH (Data's Take).
+
+-- The seven topics, in order: { title, lines = { text, ... } } each.
+function CS.HowTopics()
+	local D = ns.Data
+	local C = ns.CensusClean
+	if type(C) ~= "table" or C.missing or type(C.JUMP_MIN) ~= "number" then C = nil end
+	local fresh, total, keep = Minutes(D.FRESH), Hours(D.TOTAL_KEEP), Days(D.KEEP)
+	local sanitizing = {
+		L.CENSUS_STATS_HOW_SANITIZING_RULES,
+		L.CENSUS_STATS_HOW_SANITIZING_S1:format(F(ns.Codec.GUILD_CAP)),
+		L.CENSUS_STATS_HOW_SANITIZING_S2:format(fresh, total, keep),
+		L.CENSUS_STATS_HOW_SANITIZING_S3,
+		L.CENSUS_STATS_HOW_SANITIZING_S4:format(fresh, Minutes(D.VOUCH_TTL)),
+	}
+	local sanitized = { L.CENSUS_STATS_HOW_SANITIZED_OUT:format(total) }
+	-- (Without CensusClean, a client updated without a restart, nothing is held and S5's margins are
+	-- not to be had: neither S5 nor the held size's line, which names it.)
+	if C then
+		sanitizing[#sanitizing + 1] = L.CENSUS_STATS_HOW_SANITIZING_S5:format(C.JUMP_MIN, Percent100(C.JUMP_SHARE), C.JUMP_DRIFT)
+		sanitized[#sanitized + 1] = L.CENSUS_STATS_HOW_SANITIZED_HELD
+	end
+	return {
+		{ title = L.CENSUS_STATS_HOW_BUILT, lines = { L.CENSUS_STATS_HOW_BUILT_BASE, L.CENSUS_STATS_HOW_BUILT_NEWER:format(fresh) } },
+		{ title = L.CENSUS_STATS_HOW_SOURCE, lines = { L.CENSUS_STATS_HOW_SOURCE_REPORT, L.CENSUS_STATS_HOW_SOURCE_KEPT } },
+		{ title = L.CENSUS_STATS_HOW_VALIDATED, lines = { L.CENSUS_STATS_HOW_VALIDATED_WHEN:format(fresh) } },
+		{ title = L.CENSUS_STATS_HOW_ESTIMATES, lines = {
+			L.CENSUS_STATS_HOW_ESTIMATES_PLAIN,
+			L.CENSUS_STATS_HOW_ESTIMATES_RATE:format(CS.SAMPLE_MIN),
+			L.CENSUS_STATS_HOW_ESTIMATES_ROUND,
+			L.PEOPLE_ESTIMATE_MORE,
+			L.CENSUS_STATS_HOW_ESTIMATES_ONLINE:format(fresh, total),
+			L.CENSUS_STATS_HOW_ESTIMATES_GRAPHS:format(Minutes(CS.EVERY), Hours(CS.RECENT_KEEP), CS.DAYS),
+		} },
+		{ title = L.CENSUS_STATS_HOW_SANITIZED, lines = sanitized },
+		{ title = L.CENSUS_STATS_HOW_VALIDATION, lines = {
+			L.CENSUS_STATS_HOW_VALIDATION_VOTE,
+			L.CENSUS_STATS_HOW_VALIDATION_DISPUTE:format(D.SIZE_SLACK, Percent100(D.SIZE_SHARE), D.SIZE_DRIFT),
+			L.CENSUS_STATS_HOW_VALIDATION_COUNT,
+		} },
+		{ title = L.CENSUS_STATS_HOW_SANITIZING, lines = sanitizing },
+	}
+end
+
+-- The section's rows, added to `lines`: its header, then each topic's title and its lines.
+function CS.HowLines(lines)
+	local Vw = V()
+	if #lines > 0 then lines[#lines].gapAfter = true end
+	lines[#lines + 1] = { text = L.CENSUS_STATS_HOW, header = true }
+	for _, topic in ipairs(CS.HowTopics()) do
+		lines[#lines + 1] = { text = Vw.Gold(topic.title) }
+		for _, text in ipairs(topic.lines) do Para(lines, text, Vw.Grey, true) end
+	end
+	return lines
+end
+
 -- The page's lines, its detail title and text (Views.Build's census, while the page shows).
 function CS.Build(s, now)
 	s = s or ns.Data.Summary()
@@ -641,6 +744,8 @@ function CS.Build(s, now)
 
 	local since = CS.Since()
 	if since then lines[#lines + 1] = { text = Grey(L.CENSUS_STATS_KEPT:format(date(L.CENSUS_STATS_DAY_FORMAT, since))) } end
+	-- How the census works: after the graphs and the lists, the page's last section.
+	CS.HowLines(lines)
 	return lines, L.CENSUS_STATS_DETAIL_TITLE, detail
 end
 

@@ -30,6 +30,7 @@ local function World(o)
 	}, { __index = ns.Data })
 	local cns = setmetatable({
 		rdb = o.rdb or {},
+		L = o.L, -- (the page's words in another language: nil, the harness's own)
 		Data = data,
 		Now = function() return w.clock end,
 		Comm = { loginAt = o.loginAt or (T0 - 100 * 86400), Send = function() w.sent = w.sent + 1 end, SendChunked = function() w.sent = w.sent + 1 end },
@@ -953,4 +954,248 @@ test("census page: every line in English and Portuguese, the Portuguese its own"
 	eq(pt.L.CENSUS_STATS_TITLE, "O censo em números")
 	assert(pt.L.CENSUS_STATS_PEOPLE:find("estimativa", 1, true))
 	assert(pt.L.CENSUS_STATS_DETAIL:find("personagens contados - alts ligados", 1, true))
+end)
+
+---------------------------------------------------------------------------
+-- (The author, 2026-10-20: "quero explicacao de como dados funcionam, quebrados em topicos ... depois
+-- dos graficos", the same words as the Companion's page.) How the census works: the page's last
+-- section, CensusStats.HowTopics and HowLines. These are the words the Companion copies.
+-- (The author, 2026-10-20, then: "que o processo de sanitização fosse bem estruturado, como por um
+-- profissional data analyst, e explicado na página como funciona: info/records mais recentes no
+-- jogo por cima de base sólida com data e hora e regras de como funciona": a first topic, how the
+-- census is built, and the sanitizing as the numbered rules S1 to S5; tests/census-clean.lua checks
+-- the behaviour behind each.)
+---------------------------------------------------------------------------
+
+local HOW_EN = {
+	{ "How the census is built", {
+		"The census is each guild's latest record on top of what was known before. Every report and relay keeps the time it was observed (the server's clock where the game gives it).",
+		"A newer report replaces the older one, guild by guild, unless the guild's other reporters outvote it while the older one is under 15 minutes old. A keeper's relay keeps the time its record was first observed and never replaces a record observed after it, so passing a record on never makes it newer.",
+	} },
+	{ "Where the numbers come from", {
+		"In each Olympus guild, the addon of one member reads the guild's roster and reports its size on Olympus's channel every few minutes; a second member's addon, when one is on, reports it less often.",
+		"Every player's addon keeps those reports: the census is each guild's latest report. Nothing comes from Blizzard's servers directly.",
+	} },
+	{ "Validated data", {
+		"A guild's size is confirmed when it comes from your own guild's roster or, while its last report is under 15 minutes old, when two or more recent reporters voted on the guild without a dispute (S4) or a trusted keeper (Church keepers, the King, the High Council) relays it.",
+	} },
+	{ "Estimates", {
+		"People are the characters minus the confirmed linked alts known here: an alt nobody linked, or whose two confirmations have not reached this client, counts as one more person, so the number can be high and fall as confirmations arrive.",
+		"On a moderation team's client with at least 20 validated BattleTags, people are an estimate (~): the validated accounts, plus the characters not yet validated at their characters per account.",
+		"That estimate is rounded to three significant figures and never falls below the players the samples count or rises above the plain count.",
+		"The more players use the Olympus addon and the Olympus Companion, the more precise this number gets.",
+		"Online counts only reports from the last 15 minutes. A guild keeps its last size for 24 hours after its last report.",
+		"The graphs are this client's own samples: one every 15 minutes while you play (kept 48 hours) and each day's highest (kept 30 days).",
+	} },
+	{ "Sanitized data", {
+		"The sanitized census leaves out guilds the moderators took off the network (banned) and guilds not heard for 24 hours (departed), and lists both apart.",
+		"A size that jumped further than a guild can change is held at its last good size until it is confirmed or comes within reach (S5).",
+	} },
+	{ "How validation works", {
+		"Each report is its sender's vote on the guild's leader and officers.",
+		"When the reporters split, a report is outvoted, or two sizes are further apart than 5 members or 5% (whichever is larger, plus 20 members a minute between the two reports), the guild is marked disputed.",
+		"Disputed and single-reporter guilds still count, marked as such.",
+	} },
+	{ "How sanitizing works", {
+		"Sanitizing runs as numbered rules: S1 at the door, the others on what this client keeps. Past the door no rule changes what a guild reported: each keeps a value out of a total, holds it at its last good value or marks it, and records why.",
+		"S1 Valid record: A report must parse, name an Olympus guild, carry a size of at most 1,000 (the game's cap), and count no more players by zone, class or level than it has online; an online count above its size is cut to its size. A keeper's relayed row must also have no more online than members and not be dated more than 5 minutes ahead. What fails is refused at the door: it never enters the census.",
+		"S2 Recency: Online counts only reports from the last 15 minutes: an older report is stale and leaves \"now\". A guild keeps its last size for 24 hours after its last report; after that it has departed: it leaves every total and is listed apart. It is forgotten 7 days after its last report.",
+		"S3 Exclusions: Guilds the moderators took off the network (banned) are in no total and their new reports are refused; they are listed apart with their last size, when this client holds one. Guilds only seen with /who (this client holds no report or relay of theirs) are in no total either; they are listed apart with the players /who saw online.",
+		"S4 Agreement: A size from your own guild's roster is confirmed. Any other guild's size, while its last report is under 15 minutes old, is confirmed when a trusted keeper relays it, or when two or more reporters voted on the guild in the last 30 minutes and no dispute is marked (How validation works); single when only one did, and disputed when a dispute is marked; older, it is stale. All count; each guild carries its confidence.",
+		"S5 Impossible jump: A size more than 25 members or 10% away from the guild's last good size (whichever is larger, plus 20 a minute since that size) and not confirmed (single, disputed or stale: S4) is further than a guild can move. It is held at the last good size until it is confirmed, until the minutes since bring it within reach, or until the same size holds for an hour.",
+	} },
+}
+
+local HOW_PT = {
+	{ "Como o censo é montado", {
+		"O censo é o registro mais recente de cada guilda por cima do que já se sabia. Cada relato e cada repasse guarda a hora em que foi observado (o relógio do servidor, quando o jogo o dá).",
+		"Um relato mais novo substitui o anterior, guilda por guilda, a menos que os outros relatores da guilda o vençam na votação enquanto o anterior tem menos de 15 minutos. O repasse de um guardião guarda a hora em que o registro foi observado pela primeira vez e nunca substitui um registro observado depois dele, então repassar um registro nunca o torna mais novo.",
+	} },
+	{ "De onde vêm os números", {
+		"Em cada guilda Olympus, o addon de um membro lê o roster da guilda e informa o tamanho dela no canal do Olympus a cada poucos minutos; o addon de um segundo membro, quando há um online, informa com menos frequência.",
+		"O addon de cada jogador guarda esses relatos: o censo é o último relato de cada guilda. Nada vem diretamente dos servidores da Blizzard.",
+	} },
+	{ "Dados validados", {
+		"O tamanho de uma guilda é confirmado quando vem do roster da sua própria guilda ou, enquanto o último relato dela tem menos de 15 minutos, quando dois ou mais relatores recentes votaram sobre ela sem disputa (S4) ou um guardião confiável (guardiões da Igreja, o Rei, o Alto Conselho) o repassa.",
+	} },
+	{ "Estimativas", {
+		"Pessoas são os personagens menos os alts ligados e confirmados conhecidos aqui: um alt que ninguém vinculou, ou cujas duas confirmações ainda não chegaram a este cliente, conta como mais uma pessoa, então o número pode ficar alto e cair quando as confirmações chegam.",
+		"No cliente da equipe de moderação com pelo menos 20 BattleTags validadas, pessoas é uma estimativa (~): as contas validadas, mais os personagens ainda não validados à razão de personagens por conta delas.",
+		"Essa estimativa é arredondada a três algarismos significativos e nunca fica abaixo dos jogadores que as amostras contam nem acima da contagem simples.",
+		"Quanto mais jogadores usarem o addon Olympus e o Olympus Companion, mais preciso fica este número.",
+		"Online conta só relatos dos últimos 15 minutos. Uma guilda mantém seu último tamanho por 24 horas depois do último relato.",
+		"Os gráficos são amostras deste próprio cliente: uma a cada 15 minutos enquanto você joga (guardadas 48 horas) e o maior valor de cada dia (guardado 30 dias).",
+	} },
+	{ "Dados sanitizados", {
+		"O censo sanitizado deixa de fora as guildas que os moderadores tiraram da rede (banidas) e as guildas sem notícia há 24 horas (que saíram), e lista as duas à parte.",
+		"Um tamanho que saltou além do que uma guilda consegue mudar fica no último tamanho bom até ser confirmado ou ficar ao alcance (S5).",
+	} },
+	{ "Como funciona a validação", {
+		"Cada relato é o voto de quem o enviou sobre o líder e os oficiais da guilda.",
+		"Quando os relatores se dividem, um relato é vencido na votação, ou dois tamanhos ficam mais distantes que 5 membros ou 5% (o que for maior, mais 20 membros por minuto entre os dois relatos), a guilda é marcada como em disputa.",
+		"Guildas em disputa e de um relator só continuam contando, marcadas assim.",
+	} },
+	{ "Como funciona a sanitização", {
+		"A sanitização roda como regras numeradas: a S1 na entrada, as outras sobre o que este cliente guarda. Depois da entrada, nenhuma regra altera o que uma guilda relatou: cada uma deixa um valor fora de um total, segura-o no último valor bom ou o marca, e registra por quê.",
+		"S1 Registro válido: um relato precisa ser legível, nomear uma guilda Olympus, trazer um tamanho de no máximo 1.000 (o limite do jogo) e não contar, por zona, classe ou nível, mais jogadores do que tem online; um online acima do tamanho é cortado para o tamanho. Uma linha repassada por um guardião também não pode ter mais online que membros nem estar datada mais de 5 minutos à frente. O que falha é recusado na entrada: nunca entra no censo.",
+		"S2 Atualidade: Online conta só relatos dos últimos 15 minutos: um relato mais antigo é velho e sai do \"agora\". Uma guilda mantém seu último tamanho por 24 horas depois do último relato; depois disso ela saiu: deixa todos os totais e é listada à parte. Ela é esquecida 7 dias depois do último relato.",
+		"S3 Exclusões: guildas que os moderadores tiraram da rede (banidas) não entram em nenhum total e seus relatos novos são recusados; são listadas à parte com o último tamanho delas, quando este cliente tem um. Guildas vistas só no /who (este cliente não tem nenhum relato nem repasse delas) também não entram em nenhum total; são listadas à parte com os jogadores que o /who viu online.",
+		"S4 Concordância: um tamanho do roster da sua própria guilda é confirmado. O de qualquer outra guilda, enquanto o último relato dela tem menos de 15 minutos, é confirmado quando um guardião confiável o repassa, ou quando dois ou mais relatores votaram sobre a guilda nos últimos 30 minutos e nenhuma disputa é marcada (Como funciona a validação); único quando só um votou, e em disputa quando uma disputa é marcada; mais antigo, é velho. Todas contam; cada guilda leva sua confiança.",
+		"S5 Salto impossível: um tamanho a mais de 25 membros ou 10% do último tamanho bom da guilda (o que for maior, mais 20 por minuto desde esse tamanho) e não confirmado (único, em disputa ou velho: S4) foi mais longe do que uma guilda consegue. Fica segurado no último tamanho bom até ser confirmado, até os minutos passados o trazerem ao alcance, ou até o mesmo tamanho se manter por uma hora.",
+	} },
+}
+
+-- The topics as HowTopics gives them, against `want` word for word.
+local function SameTopics(got, want)
+	eq(#got, #want, "seven topics")
+	for k, topic in ipairs(want) do
+		eq(got[k].title, topic[1], "topic " .. k)
+		eq(#got[k].lines, #topic[2], topic[1] .. ": its lines")
+		for j, text in ipairs(topic[2]) do eq(got[k].lines[j], text, topic[1] .. " " .. j) end
+	end
+end
+local function AllText(topics)
+	local out = {}
+	for _, topic in ipairs(topics) do out[#out + 1] = topic.title; out[#out + 1] = table.concat(topic.lines, " ") end
+	return table.concat(out, " ")
+end
+
+test("census page: how the census works, after the graphs and the lists: its header, then the seven topics in order, each a small gold title and its lines in grey rows that fit the page; none of the Companion's own lines", function()
+	WithCensus({ ["Olympus"] = Report(900, { online = 200, levels = { 10, 20, 30, 40, 50, 30, 20 } }) }, 0, function()
+		local w = World({ realData = true, clock = os.time() })
+		eq(w.CS.Sample(), true, "a sample, so the graphs draw")
+		local lines = w.CS.Build()
+		local _, army = Find(lines, L.CENSUS_STATS_ARMY_GRAPH)
+		local _, online = Find(lines, L.CENSUS_STATS_ONLINE_GRAPH)
+		local _, largest = Find(lines, L.CENSUS_STATS_LARGEST)
+		local _, levels = Find(lines, L.CENSUS_STATS_LEVELS)
+		assert(lines[army + 1].graph and lines[online + 1].graph, "both graphs drawn")
+		local how, at = Find(lines, L.CENSUS_STATS_HOW)
+		assert(how, "the section")
+		eq(how.header, true)
+		for _, i in ipairs({ army + 1, online + 1, largest, levels }) do assert(at > i, "after the graphs and the lists: " .. at .. " > " .. i) end
+		eq(lines[at - 1].gapAfter, true, "a gap before it")
+		-- Under it: a gold title per topic, then its lines, each a paragraph of grey rows.
+		local topics, current = {}, nil
+		for i = at + 1, #lines do
+			local line = lines[i]
+			local text = Bare(line.text)
+			eq(line.header, nil, "small titles: one header, the section's")
+			eq(line.onClick, nil); eq(line.tooltip, nil)
+			if line.text == V.Gold(text) then
+				current = { title = text, rows = {}, paragraphs = 0 }
+				topics[#topics + 1] = current
+			else
+				assert(current, "a topic's title first")
+				eq(line.text, V.Grey(text), "its lines grey")
+				assert(#text <= w.CS.WRAP, "a row that fits the page: " .. text)
+				current.rows[#current.rows + 1] = text
+				if line.gapAfter then current.paragraphs = current.paragraphs + 1 end
+			end
+		end
+		eq(#topics, 7)
+		for k, want in ipairs(HOW_EN) do
+			eq(topics[k].title, want[1], "in order")
+			eq(table.concat(topics[k].rows, " "), table.concat(want[2], " "), want[1] .. ": every word, in its rows")
+			eq(topics[k].paragraphs, #want[2], want[1] .. ": each line its own paragraph")
+			assert(#topics[k].rows > #want[2], want[1] .. ": long lines wrapped")
+		end
+		-- The words, as the Companion copies them.
+		local got = w.CS.HowTopics()
+		SameTopics(got, HOW_EN)
+		eq(got[4].lines[4], L.PEOPLE_ESTIMATE_MORE, "the people's tooltip's own sentence")
+		assert(L.PEOPLE_ESTIMATE_TIP:find(L.PEOPLE_ESTIMATE_MORE, 1, true))
+		-- Nothing that only the Companion does or keeps.
+		local all = AllText(got)
+		for _, s in ipairs({ "[Companion only]", "The Companion reads", "Across the Companions", "longer history", "checkpoints", "/reload",
+			"S6", "S7", "z-score", "Army-level", "base panel" }) do
+			assert(not all:find(s, 1, true), "a line of the Companion's own: " .. s)
+		end
+		local _, named = all:gsub("Companion", "")
+		eq(named, 1, "the Companion named once: the more players use it")
+	end)
+end)
+
+test("census page: how the census works: each number it states is the code's own constant, and the words follow it", function()
+	local D, C = ns.Data, ns.CensusClean
+	-- The numbers HOW_EN states, each the constant behind it.
+	eq(D.FRESH, 15 * 60); eq(D.TOTAL_KEEP, 24 * 3600); eq(D.KEEP, 7 * 86400); eq(D.VOUCH_TTL, 30 * 60)
+	eq(D.SIZE_SLACK, 5); eq(D.SIZE_SHARE, 0.05); eq(D.SIZE_DRIFT, 20)
+	eq(C.JUMP_MIN, 25); eq(C.JUMP_SHARE, 0.10); eq(C.JUMP_DRIFT, 20)
+	eq(C.OUTLIER_HOLD, 60 * 60, "\"the same size holds for an hour\" (in words, so asserted here)")
+	eq(ns.Codec.GUILD_CAP, 1000, "S1's cap")
+	local w = World()
+	eq(w.CS.SAMPLE_MIN, 20); eq(w.CS.EVERY, 15 * 60); eq(w.CS.RECENT_KEEP, 48 * 3600); eq(w.CS.DAYS, 30)
+	eq((w.CS.Round3(123456)), 123000, "three significant figures"); eq((w.CS.Round3(8333.3)), 8330)
+	-- Other constants, other words (this world's Data and CensusClean only).
+	w.ns.Data.FRESH, w.ns.Data.TOTAL_KEEP, w.ns.Data.KEEP, w.ns.Data.VOUCH_TTL = 20 * 60, 36 * 3600, 10 * 86400, 40 * 60
+	w.ns.Data.SIZE_SLACK, w.ns.Data.SIZE_SHARE, w.ns.Data.SIZE_DRIFT = 6, 0.04, 15
+	w.ns.CensusClean = setmetatable({ JUMP_MIN = 30, JUMP_SHARE = 0.12, JUMP_DRIFT = 10 }, { __index = C })
+	w.CS.SAMPLE_MIN, w.CS.EVERY, w.CS.RECENT_KEEP, w.CS.DAYS = 25, 10 * 60, 72 * 3600, 14
+	w.ns.Codec = setmetatable({ GUILD_CAP = 900 }, { __index = ns.Codec })
+	local all = AllText(w.CS.HowTopics())
+	-- (The estimates' topic now names the validated BattleTags a team client's estimate needs, once:
+	-- the members-plain decision left no alt-link sample to name.)
+	for _, s in ipairs({ "under 20 minutes old", "at least 25 validated BattleTags", "from the last 20 minutes",
+		"its last size for 36 hours", "one every 10 minutes", "(kept 72 hours)", "(kept 14 days)", "not heard for 36 hours",
+		"than 6 members or 4% (whichever is larger, plus 15 members a minute",
+		"a size of at most 900 (the game's cap)", "reports from the last 20 minutes: an older report is stale",
+		"for 36 hours after its last report; after that it has departed", "forgotten 10 days after its last report",
+		"while its last report is under 20 minutes old, is confirmed", "voted on the guild in the last 40 minutes",
+		"outvote it while the older one is under 20 minutes old",
+		"more than 30 members or 12% away from the guild's last good size (whichever is larger, plus 10 a minute since that size)" }) do
+		assert(all:find(s, 1, true), "follows the code: " .. s)
+	end
+	eq(D.FRESH, 15 * 60, "the harness's own Data untouched"); eq(ns.Codec.GUILD_CAP, 1000, "and its Codec")
+	-- A client updated without a restart (no CensusClean yet): nothing is held, so S5's line and the
+	-- held size's, which names S5, are left out; the rest as ever.
+	w.ns.CensusClean = { missing = true }
+	local topics = w.CS.HowTopics()
+	eq(#topics, 7); eq(#topics[7].lines, 5); eq(topics[7].lines[5]:sub(1, 3), "S4 ")
+	eq(#topics[5].lines, 1); eq(topics[5].lines[1], L.CENSUS_STATS_HOW_SANITIZED_OUT:format(36))
+	assert(not AllText(topics):find("S5", 1, true), "no rule named that is not shown")
+end)
+
+test("census page: how the census works in Portuguese: the same seven topics, every line its own Portuguese, the same numbers, rows that fit", function()
+	local function Words(locale, base)
+		local savedLocale = GetLocale
+		GetLocale = function() return locale end
+		local w = { L = base or {} }
+		local ok, err = pcall(function() assert(loadfile(ROOT .. "Olympus/Locales/CensusStatsText.lua"))("Olympus", w) end)
+		GetLocale = savedLocale
+		if not ok then error(err, 0) end
+		return w.L
+	end
+	-- Every English word of the section has its Portuguese, with the same numbers in it.
+	local en, ptOnly = Words("enUS"), Words("ptBR")
+	local n = 0
+	for key, text in pairs(en) do
+		if key:find("^CENSUS_STATS_HOW") or key == "PEOPLE_ESTIMATE_MORE" then
+			n = n + 1
+			local pt = rawget(ptOnly, key)
+			assert(type(pt) == "string" and pt ~= text, "Portuguese of its own: " .. key)
+			local function Codes(s) local c = {} for spec in s:gsub("%%%%", ""):gmatch("%%%a") do c[#c + 1] = spec end return table.concat(c) end
+			eq(Codes(pt), Codes(text), key .. ": the same numbers")
+		end
+	end
+	eq(n, 30, "the section's header, seven titles, twenty-two lines (the people's sentence shared)")
+	-- The page's words in Portuguese, as the Companion copies them.
+	local pt = Words("ptBR", setmetatable({}, { __index = ns.L }))
+	local w = World({ L = pt })
+	-- (Its numbers as the game writes them in Portuguese: "1.000", the ptBR thousands mark of Locales.lua.)
+	local savedSep = ns.L.THOUSANDS
+	ns.L.THOUSANDS = "."
+	local okPt, got = pcall(w.CS.HowTopics)
+	ns.L.THOUSANDS = savedSep
+	if not okPt then error(got, 0) end
+	SameTopics(got, HOW_PT)
+	eq(got[4].lines[4], pt.PEOPLE_ESTIMATE_MORE); assert(pt.PEOPLE_ESTIMATE_TIP:find(pt.PEOPLE_ESTIMATE_MORE, 1, true))
+	local all = AllText(got)
+	for _, s in ipairs({ "[Só Companion]", "O Companion lê", "Entre os Companions", "histórico, mais longo", "checkpoints", "/reload",
+		"S6", "S7", "z-score" }) do
+		assert(not all:find(s, 1, true), "a line of the Companion's own: " .. s)
+	end
+	local rows = w.CS.HowLines({})
+	eq(Bare(rows[1].text), "Como o censo funciona"); eq(rows[1].header, true)
+	for _, line in ipairs(rows) do assert(#Bare(line.text) <= w.CS.WRAP, "a row that fits: " .. Bare(line.text)) end
 end)

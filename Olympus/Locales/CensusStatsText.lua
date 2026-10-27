@@ -56,7 +56,8 @@ L.CENSUS_STATS_KEPT = "Kept on this client since %s."
 -- keeps the plain count in the words above (ARMY_PEOPLE, CENSUS_STATS_PEOPLE_TIP, CENSUS_STATS_DETAIL).
 L.ARMY_PEOPLE_APPROX = "~%s people"
 L.CENSUS_STATS_APPROX = "~%s"
-L.PEOPLE_ESTIMATE_TIP = "An estimate (~) from the BattleTags the moderation team validated: the validated accounts, plus the characters not yet validated at the validated accounts' characters per account. Members see the characters minus the confirmed linked alts instead. The more players use the Olympus addon and the Olympus Companion, the more precise this number gets."
+L.PEOPLE_ESTIMATE_MORE = "The more players use the Olympus addon and the Olympus Companion, the more precise this number gets."
+L.PEOPLE_ESTIMATE_TIP = "An estimate (~) from the BattleTags the moderation team validated: the validated accounts, plus the characters not yet validated at the validated accounts' characters per account. Members see the characters minus the confirmed linked alts instead. " .. L.PEOPLE_ESTIMATE_MORE
 L.CENSUS_STATS_DETAIL_TAGS = "People (~) = validated accounts + the characters not yet validated at the validated accounts' characters per account, to three significant figures, never above characters - confirmed linked alts. Only a moderation team client with enough validated BattleTags shows it."
 L.PEOPLE_STAFF_TAGS = "Staff: %s accounts validated, %s characters per account; %s characters not yet validated."
 L.PEOPLE_STAFF_NONE = "Staff: %s accounts validated, %s characters not yet validated; the estimate needs %s validated accounts, so the plain count shows."
@@ -67,6 +68,43 @@ L.CENSUS_STATS_RATE_TAGS = "(%s accounts)"
 -- (The review of 2026-10-20) The linked alts' row while the people are an estimate: the plain
 -- count's words would say otherwise.
 L.CENSUS_STATS_ALTS_TIP = "Characters their players linked as alts (/oly alts, confirmed on each character): each player counts once, whatever guilds they are in."
+
+-- (The author, 2026-10-20: "na pagina de censo ... quero explicacao de como dados funcionam, quebrados
+-- em topicos ... depois dos graficos", the same words as the Companion's page.) The page's last
+-- section, CensusStats.HowTopics: seven topics in order, each its title and its lines. The numbers
+-- come from the code's own constants (%d, %s), so the words follow it. (The author, 2026-10-20: "que o
+-- processo de sanitização fosse bem estruturado, como por um profissional data analyst, e explicado
+-- na página como funciona: info/records mais recentes no jogo por cima de base sólida com data e
+-- hora e regras de como funciona": the first topic, and the sanitizing as the rules S1 to S5.)
+L.CENSUS_STATS_HOW = "How the census works"
+L.CENSUS_STATS_HOW_BUILT = "How the census is built"
+L.CENSUS_STATS_HOW_BUILT_BASE = "The census is each guild's latest record on top of what was known before. Every report and relay keeps the time it was observed (the server's clock where the game gives it)."
+L.CENSUS_STATS_HOW_BUILT_NEWER = "A newer report replaces the older one, guild by guild, unless the guild's other reporters outvote it while the older one is under %d minutes old. A keeper's relay keeps the time its record was first observed and never replaces a record observed after it, so passing a record on never makes it newer."
+L.CENSUS_STATS_HOW_SOURCE = "Where the numbers come from"
+L.CENSUS_STATS_HOW_SOURCE_REPORT = "In each Olympus guild, the addon of one member reads the guild's roster and reports its size on Olympus's channel every few minutes; a second member's addon, when one is on, reports it less often."
+L.CENSUS_STATS_HOW_SOURCE_KEPT = "Every player's addon keeps those reports: the census is each guild's latest report. Nothing comes from Blizzard's servers directly."
+L.CENSUS_STATS_HOW_VALIDATED = "Validated data"
+L.CENSUS_STATS_HOW_VALIDATED_WHEN = "A guild's size is confirmed when it comes from your own guild's roster or, while its last report is under %d minutes old, when two or more recent reporters voted on the guild without a dispute (S4) or a trusted keeper (Church keepers, the King, the High Council) relays it."
+L.CENSUS_STATS_HOW_ESTIMATES = "Estimates"
+L.CENSUS_STATS_HOW_ESTIMATES_RATE = "On a moderation team's client with at least %d validated BattleTags, people are an estimate (~): the validated accounts, plus the characters not yet validated at their characters per account."
+L.CENSUS_STATS_HOW_ESTIMATES_ROUND = "That estimate is rounded to three significant figures and never falls below the players the samples count or rises above the plain count."
+L.CENSUS_STATS_HOW_ESTIMATES_PLAIN = "People are the characters minus the confirmed linked alts known here: an alt nobody linked, or whose two confirmations have not reached this client, counts as one more person, so the number can be high and fall as confirmations arrive."
+L.CENSUS_STATS_HOW_ESTIMATES_ONLINE = "Online counts only reports from the last %d minutes. A guild keeps its last size for %d hours after its last report."
+L.CENSUS_STATS_HOW_ESTIMATES_GRAPHS = "The graphs are this client's own samples: one every %d minutes while you play (kept %d hours) and each day's highest (kept %d days)."
+L.CENSUS_STATS_HOW_SANITIZED = "Sanitized data"
+L.CENSUS_STATS_HOW_SANITIZED_OUT = "The sanitized census leaves out guilds the moderators took off the network (banned) and guilds not heard for %d hours (departed), and lists both apart."
+L.CENSUS_STATS_HOW_SANITIZED_HELD = "A size that jumped further than a guild can change is held at its last good size until it is confirmed or comes within reach (S5)."
+L.CENSUS_STATS_HOW_VALIDATION = "How validation works"
+L.CENSUS_STATS_HOW_VALIDATION_VOTE = "Each report is its sender's vote on the guild's leader and officers."
+L.CENSUS_STATS_HOW_VALIDATION_DISPUTE = "When the reporters split, a report is outvoted, or two sizes are further apart than %d members or %d%% (whichever is larger, plus %d members a minute between the two reports), the guild is marked disputed."
+L.CENSUS_STATS_HOW_VALIDATION_COUNT = "Disputed and single-reporter guilds still count, marked as such."
+L.CENSUS_STATS_HOW_SANITIZING = "How sanitizing works"
+L.CENSUS_STATS_HOW_SANITIZING_RULES = "Sanitizing runs as numbered rules: S1 at the door, the others on what this client keeps. Past the door no rule changes what a guild reported: each keeps a value out of a total, holds it at its last good value or marks it, and records why."
+L.CENSUS_STATS_HOW_SANITIZING_S1 = "S1 Valid record: A report must parse, name an Olympus guild, carry a size of at most %s (the game's cap), and count no more players by zone, class or level than it has online; an online count above its size is cut to its size. A keeper's relayed row must also have no more online than members and not be dated more than 5 minutes ahead. What fails is refused at the door: it never enters the census."
+L.CENSUS_STATS_HOW_SANITIZING_S2 = "S2 Recency: Online counts only reports from the last %d minutes: an older report is stale and leaves \"now\". A guild keeps its last size for %d hours after its last report; after that it has departed: it leaves every total and is listed apart. It is forgotten %d days after its last report."
+L.CENSUS_STATS_HOW_SANITIZING_S3 = "S3 Exclusions: Guilds the moderators took off the network (banned) are in no total and their new reports are refused; they are listed apart with their last size, when this client holds one. Guilds only seen with /who (this client holds no report or relay of theirs) are in no total either; they are listed apart with the players /who saw online."
+L.CENSUS_STATS_HOW_SANITIZING_S4 = "S4 Agreement: A size from your own guild's roster is confirmed. Any other guild's size, while its last report is under %d minutes old, is confirmed when a trusted keeper relays it, or when two or more reporters voted on the guild in the last %d minutes and no dispute is marked (How validation works); single when only one did, and disputed when a dispute is marked; older, it is stale. All count; each guild carries its confidence."
+L.CENSUS_STATS_HOW_SANITIZING_S5 = "S5 Impossible jump: A size more than %d members or %d%% away from the guild's last good size (whichever is larger, plus %d a minute since that size) and not confirmed (single, disputed or stale: S4) is further than a guild can move. It is held at the last good size until it is confirmed, until the minutes since bring it within reach, or until the same size holds for an hour."
 
 if GetLocale and GetLocale() == "ptBR" then
 	L.ARMY_PEOPLE = "aprox. %s pessoas"
@@ -119,7 +157,8 @@ if GetLocale and GetLocale() == "ptBR" then
 
 	L.ARMY_PEOPLE_APPROX = "~%s pessoas"
 	L.CENSUS_STATS_APPROX = "~%s"
-	L.PEOPLE_ESTIMATE_TIP = "Uma estimativa (~) pelas BattleTags que a equipe de moderação validou: as contas validadas, mais os personagens ainda não validados à razão de personagens por conta das contas validadas. Os membros veem os personagens menos os alts ligados e confirmados. Quanto mais jogadores usarem o addon Olympus e o Olympus Companion, mais preciso fica este número."
+	L.PEOPLE_ESTIMATE_MORE = "Quanto mais jogadores usarem o addon Olympus e o Olympus Companion, mais preciso fica este número."
+	L.PEOPLE_ESTIMATE_TIP = "Uma estimativa (~) pelas BattleTags que a equipe de moderação validou: as contas validadas, mais os personagens ainda não validados à razão de personagens por conta das contas validadas. Os membros veem os personagens menos os alts ligados e confirmados. " .. L.PEOPLE_ESTIMATE_MORE
 	L.CENSUS_STATS_DETAIL_TAGS = "Pessoas (~) = contas validadas + os personagens ainda não validados à razão de personagens por conta das contas validadas, com três algarismos significativos, nunca acima de personagens - alts ligados e confirmados. Só o cliente da equipe de moderação com BattleTags validadas suficientes mostra isso."
 	L.PEOPLE_STAFF_TAGS = "Staff: %s contas validadas, %s personagens por conta; %s personagens ainda não validados."
 	L.PEOPLE_STAFF_NONE = "Staff: %s contas validadas, %s personagens ainda não validados; a estimativa precisa de %s contas validadas, então a contagem simples aparece."
@@ -128,4 +167,34 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.CENSUS_STATS_RATE = "Personagens por conta"
 	L.CENSUS_STATS_RATE_TAGS = "(%s contas)"
 	L.CENSUS_STATS_ALTS_TIP = "Personagens que os jogadores ligaram como alts (/oly alts, confirmado em cada personagem): cada jogador conta uma vez, em qualquer guilda."
+
+	L.CENSUS_STATS_HOW = "Como o censo funciona"
+	L.CENSUS_STATS_HOW_BUILT = "Como o censo é montado"
+	L.CENSUS_STATS_HOW_BUILT_BASE = "O censo é o registro mais recente de cada guilda por cima do que já se sabia. Cada relato e cada repasse guarda a hora em que foi observado (o relógio do servidor, quando o jogo o dá)."
+	L.CENSUS_STATS_HOW_BUILT_NEWER = "Um relato mais novo substitui o anterior, guilda por guilda, a menos que os outros relatores da guilda o vençam na votação enquanto o anterior tem menos de %d minutos. O repasse de um guardião guarda a hora em que o registro foi observado pela primeira vez e nunca substitui um registro observado depois dele, então repassar um registro nunca o torna mais novo."
+	L.CENSUS_STATS_HOW_SOURCE = "De onde vêm os números"
+	L.CENSUS_STATS_HOW_SOURCE_REPORT = "Em cada guilda Olympus, o addon de um membro lê o roster da guilda e informa o tamanho dela no canal do Olympus a cada poucos minutos; o addon de um segundo membro, quando há um online, informa com menos frequência."
+	L.CENSUS_STATS_HOW_SOURCE_KEPT = "O addon de cada jogador guarda esses relatos: o censo é o último relato de cada guilda. Nada vem diretamente dos servidores da Blizzard."
+	L.CENSUS_STATS_HOW_VALIDATED = "Dados validados"
+	L.CENSUS_STATS_HOW_VALIDATED_WHEN = "O tamanho de uma guilda é confirmado quando vem do roster da sua própria guilda ou, enquanto o último relato dela tem menos de %d minutos, quando dois ou mais relatores recentes votaram sobre ela sem disputa (S4) ou um guardião confiável (guardiões da Igreja, o Rei, o Alto Conselho) o repassa."
+	L.CENSUS_STATS_HOW_ESTIMATES = "Estimativas"
+	L.CENSUS_STATS_HOW_ESTIMATES_RATE = "No cliente da equipe de moderação com pelo menos %d BattleTags validadas, pessoas é uma estimativa (~): as contas validadas, mais os personagens ainda não validados à razão de personagens por conta delas."
+	L.CENSUS_STATS_HOW_ESTIMATES_ROUND = "Essa estimativa é arredondada a três algarismos significativos e nunca fica abaixo dos jogadores que as amostras contam nem acima da contagem simples."
+	L.CENSUS_STATS_HOW_ESTIMATES_PLAIN = "Pessoas são os personagens menos os alts ligados e confirmados conhecidos aqui: um alt que ninguém vinculou, ou cujas duas confirmações ainda não chegaram a este cliente, conta como mais uma pessoa, então o número pode ficar alto e cair quando as confirmações chegam."
+	L.CENSUS_STATS_HOW_ESTIMATES_ONLINE = "Online conta só relatos dos últimos %d minutos. Uma guilda mantém seu último tamanho por %d horas depois do último relato."
+	L.CENSUS_STATS_HOW_ESTIMATES_GRAPHS = "Os gráficos são amostras deste próprio cliente: uma a cada %d minutos enquanto você joga (guardadas %d horas) e o maior valor de cada dia (guardado %d dias)."
+	L.CENSUS_STATS_HOW_SANITIZED = "Dados sanitizados"
+	L.CENSUS_STATS_HOW_SANITIZED_OUT = "O censo sanitizado deixa de fora as guildas que os moderadores tiraram da rede (banidas) e as guildas sem notícia há %d horas (que saíram), e lista as duas à parte."
+	L.CENSUS_STATS_HOW_SANITIZED_HELD = "Um tamanho que saltou além do que uma guilda consegue mudar fica no último tamanho bom até ser confirmado ou ficar ao alcance (S5)."
+	L.CENSUS_STATS_HOW_VALIDATION = "Como funciona a validação"
+	L.CENSUS_STATS_HOW_VALIDATION_VOTE = "Cada relato é o voto de quem o enviou sobre o líder e os oficiais da guilda."
+	L.CENSUS_STATS_HOW_VALIDATION_DISPUTE = "Quando os relatores se dividem, um relato é vencido na votação, ou dois tamanhos ficam mais distantes que %d membros ou %d%% (o que for maior, mais %d membros por minuto entre os dois relatos), a guilda é marcada como em disputa."
+	L.CENSUS_STATS_HOW_VALIDATION_COUNT = "Guildas em disputa e de um relator só continuam contando, marcadas assim."
+	L.CENSUS_STATS_HOW_SANITIZING = "Como funciona a sanitização"
+	L.CENSUS_STATS_HOW_SANITIZING_RULES = "A sanitização roda como regras numeradas: a S1 na entrada, as outras sobre o que este cliente guarda. Depois da entrada, nenhuma regra altera o que uma guilda relatou: cada uma deixa um valor fora de um total, segura-o no último valor bom ou o marca, e registra por quê."
+	L.CENSUS_STATS_HOW_SANITIZING_S1 = "S1 Registro válido: um relato precisa ser legível, nomear uma guilda Olympus, trazer um tamanho de no máximo %s (o limite do jogo) e não contar, por zona, classe ou nível, mais jogadores do que tem online; um online acima do tamanho é cortado para o tamanho. Uma linha repassada por um guardião também não pode ter mais online que membros nem estar datada mais de 5 minutos à frente. O que falha é recusado na entrada: nunca entra no censo."
+	L.CENSUS_STATS_HOW_SANITIZING_S2 = "S2 Atualidade: Online conta só relatos dos últimos %d minutos: um relato mais antigo é velho e sai do \"agora\". Uma guilda mantém seu último tamanho por %d horas depois do último relato; depois disso ela saiu: deixa todos os totais e é listada à parte. Ela é esquecida %d dias depois do último relato."
+	L.CENSUS_STATS_HOW_SANITIZING_S3 = "S3 Exclusões: guildas que os moderadores tiraram da rede (banidas) não entram em nenhum total e seus relatos novos são recusados; são listadas à parte com o último tamanho delas, quando este cliente tem um. Guildas vistas só no /who (este cliente não tem nenhum relato nem repasse delas) também não entram em nenhum total; são listadas à parte com os jogadores que o /who viu online."
+	L.CENSUS_STATS_HOW_SANITIZING_S4 = "S4 Concordância: um tamanho do roster da sua própria guilda é confirmado. O de qualquer outra guilda, enquanto o último relato dela tem menos de %d minutos, é confirmado quando um guardião confiável o repassa, ou quando dois ou mais relatores votaram sobre a guilda nos últimos %d minutos e nenhuma disputa é marcada (Como funciona a validação); único quando só um votou, e em disputa quando uma disputa é marcada; mais antigo, é velho. Todas contam; cada guilda leva sua confiança."
+	L.CENSUS_STATS_HOW_SANITIZING_S5 = "S5 Salto impossível: um tamanho a mais de %d membros ou %d%% do último tamanho bom da guilda (o que for maior, mais %d por minuto desde esse tamanho) e não confirmado (único, em disputa ou velho: S4) foi mais longe do que uma guilda consegue. Fica segurado no último tamanho bom até ser confirmado, até os minutos passados o trazerem ao alcance, ou até o mesmo tamanho se manter por uma hora."
 end

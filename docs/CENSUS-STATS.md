@@ -12,7 +12,13 @@ banned guilds, the Battle.net accounts ("contas azuis"), the people who have the
   the Census tab with characters, people, linked alts, online now, guilds counted and reporting, the
   size-weighted average level, the largest guilds against the 1,000 cap, the levels online, and two
   graphs (characters over 30 days, online over 24 hours) from this client's own history
-  (`ns.rdb.censusHistory`).
+  (`ns.rdb.censusHistory`). Its last section, "How the census works" (the author, 2026-10-20), explains
+  the data in seven topics: how the census is built (each guild's newest record over what was known,
+  each with the time it was observed), where the numbers come from, validated data, estimates,
+  sanitized data, how validation works and how sanitizing works, the last as numbered rules S1 to S5
+  (valid record, recency, exclusions, agreement, impossible jump) (`CensusStats.HowTopics`, its
+  numbers formatted from the constants). The Companion's page uses the same words, plus lines about
+  what only it does.
 - **The sanitized census** is `Olympus/CensusClean.lua` (branch `claude/census-stats-section`):
   computation only, no page. Its figures can become lines on the game's page once
   `batch/census-chat` is in the integration.
