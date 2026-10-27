@@ -8470,8 +8470,11 @@ test("Workshop: a bug report reaches the author once he answers its first piece"
 		W.HandlePresence("CHANNEL", "Faladoriel-Realm", "V4~0.8.2")
 		W.HandlePresence("CHANNEL", "Faladoriel Skylance-SomeEraRealm", "V4~0.8.2")
 		eq(W.AuthorOnline(), false, "his first name, or his name on another realm group: not him")
+		eq(W.AuthorBuild(), nil, "nobody else's presence names his build")
 		W.HandlePresence("CHANNEL", AUTHOR_FULL, "V4~0.8.2")
 		eq(W.AuthorOnline(), true)
+		-- (1.4.0: the build his presence names, for The Watch's council collector: Watch.lua.)
+		eq(W.AuthorBuild(), "0.8.2")
 		local action = W.BugAction(text)
 		assert(action and action.label:find("Faladoriel Skylance", 1, true), action and action.label)
 		eq(action.fn(), true)
@@ -8515,6 +8518,11 @@ test("Workshop: a bug report reaches the author once he answers its first piece"
 		for _, f in ipairs(timers) do f() end
 		eq(w.printed[#w.printed], ns.L.WORKSHOP_BUG_NO_AUTHOR)
 		eq(#w.whispered, before + 1, "nothing more")
+		-- (1.4.0: a build that can't be read is "?"; the next presence names his build again.)
+		W.HandlePresence("CHANNEL", AUTHOR_FULL, "V4~1.4.0 beta~1.3.3")
+		eq(W.AuthorBuild(), "?")
+		W.HandlePresence("CHANNEL", AUTHOR_FULL, "V4~1.4.0.1~1.3.3")
+		eq(W.AuthorBuild(), "1.4.0.1")
 		w.clock = w.clock + W.PRESENCE_FRESH + 1
 		eq(W.AuthorOnline(), false, "gone quiet: offline")
 	end)

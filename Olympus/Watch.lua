@@ -1568,6 +1568,13 @@ end
 --   MR~1~Q~<since>                                   a reader asks for reports received after <since>
 --   MR~1~F~<in>~<a|p<prev>>~<seq>~<at>~<guild>~<A|S|E|O>~<Name-Realm>~<lines>~<reporter>~<note>   a collector
 --                                                    passes one on, then its lines
+--   MR~1~K~<seq>~<Name-Realm>                        1.4.0: a collector to the reporter: it keeps his copy
+--                                                    of that report (taken now, or had already)
+-- (1.4.0, the review of the collectors: the reporter lets the council copy go on that receipt, not
+-- when its whisper leaves his client; a King's client of an older build gives none, and its copy is
+-- taken at the send, as since 1.2.1. The author's client collects only from COLLECTOR_SINCE: an older
+-- one drops op C, so nothing goes to it. A collector gives what it takes from the other its own
+-- receipt, so a reader whose cursor on it is past that other's receipts still gets it.)
 -- <in>: when that collector received it, one number a report, each newer than the one before
 -- (KeepCouncil: the server's second, or one more than the last). A reader's per-collector cursor moves only by
 -- what proves him whole up to there: each answer to his own ask (oldest first), or a push whose
@@ -1588,6 +1595,9 @@ Watch.COUNCIL_LINE_SLACK = 300     -- a copy's line is one the collector heard w
 Watch.COUNCIL_RELAY_WAIT = 15      -- a new report is passed on once its lines had this long to arrive
 Watch.COUNCIL_RELAY_RATE = 200     -- a reader takes this many from one collector in 10 minutes
 Watch.COUNCIL_QUEUE_KEEP = 20      -- a collector passes reports only while its queue keeps this much room for its own
+Watch.COLLECTOR_SINCE = "1.4.0"    -- the author's client collects from this build, and collectors give receipts (op K)
+Watch.COUNCIL_TRIES = 3            -- a reporter sends one report's council copy to one collector this often without its receipt
+Watch.COUNCIL_ACK_RATE = 10        -- a collector gives one reporter this many receipts in REPORT_RATE_WINDOW at most
 Watch.random = math.random         -- (tests)
 
 local councilHeard = {}   -- this collector: [council reader key] = { name, t }: asked lately (session only)
@@ -1615,11 +1625,26 @@ local function AuthorHere()
 	if type(W.IsAuthor) == "function" and W.IsAuthor() == true then return true end
 	return type(W.IsAuthorName) == "function" and type(ns.me) == "string" and W.IsAuthorName(ns.me) == true
 end
+-- An addon version ("1.4.0", "1.2.5.1") not older than `since`; false for anything unreadable.
+local function NotOlder(v, since)
+	local a = { tostring(v or ""):match("^(%d+)%.(%d+)%.(%d+)%.?(%d*)$") }
+	local b = { tostring(since):match("^(%d+)%.(%d+)%.(%d+)%.?(%d*)$") }
+	if #a == 0 or #b == 0 then return false end
+	for i = 1, 4 do
+		local x, y = tonumber(a[i]) or 0, tonumber(b[i]) or 0
+		if x ~= y then return x > y end
+	end
+	return true
+end
+Watch.NotOlder = NotOlder
 local function AuthorClient()
 	if AuthorHere() then return ns.me end
 	local W = ns.Workshop
 	if type(W) ~= "table" or type(W.AuthorOnline) ~= "function" or W.AuthorOnline() ~= true
 		or type(W.AuthorName) ~= "function" or type(W.IsAuthorName) ~= "function" then return nil end
+	-- (1.4.0, the review: only while his presence names a build that collects; an older one takes
+	-- op C on the King's client alone and drops it, and the reporter would lose that copy.)
+	if type(W.AuthorBuild) ~= "function" or not NotOlder(W.AuthorBuild(), Watch.COLLECTOR_SINCE) then return nil end
 	local name = W.AuthorName()
 	return type(name) == "string" and W.IsAuthorName(name) == true and Character(name) or nil
 end
@@ -1660,6 +1685,18 @@ local function TrustedCollector(name)
 	end
 	local W = ns.Workshop
 	return type(W) == "table" and type(W.IsAuthorName) == "function" and W.IsAuthorName(name) == true and not PowersBarred(name)
+end
+
+-- 1.4.0: this collector's client gives a receipt (op K) for each copy it keeps: the author's (only
+-- one that collects is sent any: AuthorClient), and a King's client whose hello named a build from
+-- COLLECTOR_SINCE (Comm.PeerVersion: his guildmates hear it). Any other King's client takes op C
+-- since 1.2.1 and gives no receipt: its copy is taken at the send, as before.
+local function CollectorAcks(name)
+	local W = ns.Workshop
+	if type(W) == "table" and type(W.IsAuthorName) == "function" and W.IsAuthorName(name) == true then return true end
+	local C = ns.Comm
+	local v = type(C) == "table" and type(C.PeerVersion) == "function" and C.PeerVersion(name) or nil
+	return NotOlder(v, Watch.COLLECTOR_SINCE)
 end
 
 -- Collectors currently reachable by a reporter. Send to both when both are present; either durable
@@ -1845,8 +1882,12 @@ local function SendCouncil(r)
 	if not msgs then return false end
 	if ns.Comm.QueueRoom and ns.Comm.QueueRoom() < #msgs then return false end
 	r.councilTryAt = Mono()
+	if type(r.councilTries) ~= "table" then r.councilTries = {} end
 	local sent = false
 	for _, collector in ipairs(collectors) do
+		-- (1.4.0: one that gives receipts and gave none for COUNCIL_TRIES copies, one that does not
+		-- know this reporter say, is left alone: the report waits for another.)
+		local tries = tonumber(r.councilTries[Key(collector)]) or 0
 		-- The pinned author can be reported too; like any councillor, he must never receive his own
 		-- case (nor one about a character linked to his player).
 		if not Accused(collector, r.target) and ns.me and Same(collector, ns.me) then
@@ -1858,11 +1899,14 @@ local function SendCouncil(r)
 				if ok then RelayFresh(id) end
 				r.councilDone, sent = true, true
 			end
-		elseif not Accused(collector, r.target) then
+		elseif not Accused(collector, r.target) and tries < Watch.COUNCIL_TRIES then
+			r.councilTries[Key(collector)] = tries + 1
 			for i, msg in ipairs(msgs) do
 				local guardKey = "report-council#" .. Key(collector) .. "#" .. tostring(r.seq) .. "#" .. i
+				-- (1.4.0: gone from this client is not kept there: the collector's receipt says so,
+				-- TakeCouncilAck; only a King's client that gives none is taken at the send.)
 				local done = i == 1 and function(ok)
-					if not ok then return end
+					if not ok or CollectorAcks(collector) then return end
 					r.councilDone = true
 					if r.delivered then Unqueue(r) end
 				end or nil
@@ -1998,8 +2042,9 @@ function Watch.FlushReports(force)
 	table.sort(waiting, function(x, y) return x.seq < y.seq end)
 	for _, r in ipairs(waiting) do
 		local guild = not r.delivered and (force or now - (tonumber(r.tryAt) or -math.huge) >= Watch.REPORT_RETRY) and FreshRoster() ~= nil
-		-- Its council copy, once a trusted collector is reachable: Deliver's SendCouncil.
-		if guild or (not r.councilDone and KingClient() ~= nil) then
+		-- Its council copy, once a trusted collector is reachable: Deliver's SendCouncil (1.4.0, the
+		-- review: any of them, the author's too, not the King's client alone).
+		if guild or (not r.councilDone and #CouncilCollectors() > 0) then
 			local ok, how = Deliver(r, guild)
 			if ok and how == "sent" then sent = sent + 1 end
 		end
@@ -2181,6 +2226,21 @@ end
 ---------------------------------------------------------------------------
 
 -- A trusted collector: a member's council copy of his report (C), its lines after it (E).
+-- 1.4.0: a collector's receipt to the reporter (K): it keeps his copy of that report. A few an hour
+-- to one reporter; none while quiet presence is on (Core.lua: it would say this client is online).
+local function AckCouncil(sender, seq, name)
+	if ns.QuietPresence and ns.QuietPresence() then return false end
+	if not Rate("council-ack:" .. Key(sender), Watch.COUNCIL_ACK_RATE, Watch.REPORT_RATE_WINDOW) then return false end
+	local msg = ("MR~1~K~%d~%s"):format(seq, name)
+	if #msg > Watch.MESSAGE_MAX then return false end
+	local guardKey = "council-ack#" .. Key(sender) .. "#" .. Key(name)
+	return ns.Comm.Whisper(sender, msg, nil, false, true, nil, { owner = Watch, key = guardKey, permit = function(owner, key, dist, to, payload)
+		if owner ~= Watch or key ~= guardKey or dist ~= "WHISPER" or payload ~= msg or not Same(to, sender) then return false, "guard" end
+		if not CollectorHere() or (ns.QuietPresence and ns.QuietPresence()) then return false, "revoked" end
+		return true
+	end }) ~= false
+end
+
 local function TakeCouncilHead(sender, text)
 	local seq, at, guild, group, faction, cat, target, n, note =
 		text:match("^MR~1~C~(%d+)~(%d+)~([^~]+)~([^~]+)~([^~]+)~(%u)~([^~]+)~(%d)~(.*)$")
@@ -2203,7 +2263,13 @@ local function TakeCouncilHead(sender, text)
 	if not s then return false, "store" end
 	local seenKey = Key(sender) .. "#" .. Key(name)
 	local seen = s.reportSeen[seenKey]
-	if seen and seq <= (tonumber(seen.seq) or 0) then stats.replay = stats.replay + 1 return false, "replay" end
+	if seen and seq <= (tonumber(seen.seq) or 0) then
+		stats.replay = stats.replay + 1
+		-- (1.4.0: kept already, or a newer one on that name: his client sent it again for want of
+		-- a receipt that did not reach it.)
+		AckCouncil(sender, seq, name)
+		return false, "replay"
+	end
 	-- (1.2.1, the review: a few an hour from one player, each guild its own share, so no guild's
 	-- characters use up another's; and all of them but the King's own guild a share in all.)
 	local limits = { { "council:" .. Key(sender), Watch.REPORT_RATE, Watch.REPORT_RATE_WINDOW },
@@ -2214,10 +2280,33 @@ local function TakeCouncilHead(sender, text)
 	local r = { reporter = sender, target = name, guild = guild, cat = cat, note = CleanLine(note, Watch.REPORT_NOTE_MAX), at = at,
 		seq = seq, n = n, lines = {}, heard = now }
 	local ok, id = KeepCouncil(r)
-	if not ok then return false, id end
+	if not ok then
+		if id == "older" then AckCouncil(sender, seq, name) end -- (a newer one of his on that name is kept)
+		return false, id
+	end
 	reportLines[Key(sender)] = n > 0 and { id = id, seq = seq, n = n, t = Mono(), council = true } or nil
 	RelayFresh(id)
+	AckCouncil(sender, seq, name)
 	return true
+end
+
+-- 1.4.0: the reporter's client: a collector's receipt (K) for a copy it sent that collector. The
+-- report's council part is done (and it leaves the outbox once its guild part is too).
+local function TakeCouncilAck(sender, text)
+	local seq, target = text:match("^MR~1~K~(%d+)~([^~]+)$")
+	seq = tonumber(seq)
+	if not seq then return false, "shape" end
+	if not TrustedCollector(sender) then return false, "sender" end
+	local b = Book(false)
+	for _, r in ipairs(b and b.outbox or {}) do
+		if type(r) == "table" and r.seq == seq and Same(r.target, target) and type(r.councilTries) == "table"
+			and r.councilTries[Key(sender)] ~= nil then
+			r.councilDone = true
+			if r.delivered then Unqueue(r) end
+			return true
+		end
+	end
+	return false, "stale"
 end
 
 -- A council reader's client: one a trusted collector passed on (F), its lines after it (E).
@@ -2248,8 +2337,12 @@ local function TakeRelay(sender, text)
 	local seen = s.reportSeen[seenKey]
 	if seen and seq <= (tonumber(seen.seq) or 0) then return false, "replay" end
 	s.reportSeen[seenKey] = { seq = seq, at = at }
+	-- (1.4.0, the review: a collector gives what the other passes on its own receipt, after every one
+	-- before it, as one it takes from a reporter: its readers' cursors run on its receipts alone, and
+	-- the other's may be below where they stand. It never passes that one back to where it came from.)
+	local collector = CollectorHere()
 	local r = { reporter = by, target = name, guild = guild, cat = cat, note = CleanLine(note, Watch.REPORT_NOTE_MAX), at = at,
-		seq = seq, n = n, lines = {}, heard = now, inAt = inAt }
+		seq = seq, n = n, lines = {}, heard = now, inAt = not collector and inAt or nil, via = collector and ck or nil }
 	local ok, id = KeepCouncil(r, now - at > Watch.COUNCIL_HEARD)
 	if not ok then return false, id end
 	reportLines[Key(sender)] = n > 0 and { id = id, seq = seq, n = n, t = Mono(), council = true, relay = true } or nil
@@ -2274,7 +2367,7 @@ local function TakeCouncilAsk(sender, text)
 	PruneCouncil()
 	local s, list = CouncilStore(false), {}
 	for _, r in pairs(s and s.reports or {}) do
-		if type(r) == "table" and (tonumber(r.inAt) or 0) > since and not Accused(sender, r.target) then list[#list + 1] = r end
+		if type(r) == "table" and (tonumber(r.inAt) or 0) > since and not Accused(sender, r.target) and r.via ~= key then list[#list + 1] = r end
 	end
 	table.sort(list, function(a, b)
 		if a.inAt ~= b.inAt then return a.inAt < b.inAt end
@@ -2326,7 +2419,9 @@ function Watch.HandleReport(dist, sender, text)
 	-- A guild's Watch takes R, E and X; a trusted collector C and Q; a council reader F; all take E
 	-- only after the corresponding accepted head.
 	local desk, council = Watch.CanRead(), CouncilReader()
-	if dist ~= "WHISPER" or not (desk or council) then stats.refused = stats.refused + 1 return false, "access" end
+	-- (1.4.0: a collector's receipt reaches any reporter, no desk of his own needed.)
+	local receipt = text:find("^MR~1~K~") ~= nil
+	if dist ~= "WHISPER" or not (desk or council or receipt) then stats.refused = stats.refused + 1 return false, "access" end
 	if C_ChatInfo and C_ChatInfo.SendAddonMessageLogged and ns.Comm.DeliveredLogged and not ns.Comm.DeliveredLogged() then
 		stats.refused = stats.refused + 1
 		return false, "unlogged"
@@ -2343,6 +2438,7 @@ function Watch.HandleReport(dist, sender, text)
 	elseif op == "C" and collector then ok, why = TakeCouncilHead(sender, text)
 	elseif op == "Q" and collector then ok, why = TakeCouncilAsk(sender, text)
 	elseif op == "F" and council then ok, why = TakeRelay(sender, text)
+	elseif op == "K" then ok, why = TakeCouncilAck(sender, text)
 	elseif op == "R" or op == "X" or op == "C" or op == "Q" or op == "F" then ok, why = false, "access"
 	else ok, why = false, "shape" end
 	if ok then stats.reports = (stats.reports or 0) + 1 else stats.refused = stats.refused + 1 end

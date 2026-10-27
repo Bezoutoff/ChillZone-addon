@@ -1021,10 +1021,16 @@ player linked; with none online it waits on his client for 30 days. Their client
 Watch's **Reports** and **Cases** and tells them once, with a sound. Since 1.2.1 the same report
 also reaches the King and the High Council in their Watch (**Reports** and **Cases**, where the
 High Council works): it goes as a logged whisper to each trusted collector currently reachable,
-the King's client (the lease the Tabards use) and the pinned addon author's client. A collector
+the King's client (the lease the Tabards use) and the pinned addon author's client (1.4.0: only
+while his presence names version 1.4.0 or later, since an older one drops it). A collector
 keeps it apart from every guild's Watch and passes it on to council readers who ask; their clients
 ask every 15 minutes, preferring the King and falling back to the author. The two collectors also
-ask each other, so reports received while either one was offline converge when both are online.
+ask each other, so reports received while either one was offline converge when both are online:
+what one gets from the other takes its place after everything that collector already passed on,
+so a councillor's next ask still brings it, and it never goes back to where it came from.
+Since 1.4.0 a collector answers the reporter's client when it keeps the copy, and the report waits
+until one does (a King's client of an older version gives no answer: its copy counts once sent,
+as before); a collector that never answers is sent the same copy three times at most.
 A collector takes a report only from a reporter it already knows in the guild he names (its own
 guild by its roster; another when the reporter's own earlier messages, his Olympus chat lines among
 them, spoke for it: anyone else's reaches his guild's officers only), keeps only the lines it heard
