@@ -1758,14 +1758,38 @@ function ns.QuietPresenceOwnedBy(owner) return quiet ~= nil and owner ~= nil and
 -- after that quiet presence centrally holds all of the presence words in Comm.QUIET_WORDS. The
 -- location choices stay off when quiet presence ends: becoming visible again is a separate,
 -- deliberate choice.
+-- (1.4.0, the author's default: Private presence stays on across logins until it is turned off.)
+-- The choice is kept per character in the account's saved data (ns.db.privatePresence, by the
+-- character's Name-Realm in lowercase); quiet presence itself is never saved. Each login takes it
+-- up again first of all (this file's LOGIN listener, the first of all: before any hello, census or
+-- other presence word of ours can leave), without waiting for the guild or the signed lists, since
+-- more privacy leaks nothing. A character no longer allowed loses it once that is known
+-- (ns.PrivatePresenceLapse, from PrivatePresence.lua's minute). PrivatePresence.lua also tells the
+-- player's own guild, and only it, so its clients count him offline in the census they send.
 ns.PLAYER_QUIET_OWNER = "olympus-player"
+local function PrivateKey() return type(ns.me) == "string" and ns.me ~= "" and ns.FullName(ns.me):lower() or nil end
+local function SavePrivate(on)
+	local key = PrivateKey()
+	if not key or type(ns.db) ~= "table" then return end
+	if type(ns.db.privatePresence) ~= "table" then ns.db.privatePresence = {} end
+	ns.db.privatePresence[key] = on and true or nil
+end
+function ns.PrivatePresenceSaved()
+	local key, saved = PrivateKey(), type(ns.db) == "table" and ns.db.privatePresence
+	return key ~= nil and type(saved) == "table" and saved[key] == true
+end
 function ns.SetPrivatePresence(on)
 	if on ~= true and on ~= false then return false, "state" end
 	local owner = ns.PLAYER_QUIET_OWNER
+	-- Off is the player's choice whoever holds the quiet presence now: it is never taken up again.
 	-- As for the lower-level owner API, the owner that enabled privacy may always release it even
 	-- if a signed appointment changed meanwhile.
-	if on == false and ns.QuietPresenceOwnedBy(owner) then return ns.SetQuietPresence(false, owner) end
-	if on == false and ns.QuietPresence() then return false, "owner" end
+	if on == false then
+		SavePrivate(false)
+		if ns.QuietPresenceOwnedBy(owner) then return ns.SetQuietPresence(false, owner) end
+		if ns.QuietPresence() then return false, "owner" end
+		return true
+	end
 	if not ns.IsMember() then return false, "guild" end
 	if not ns.QuietPresenceAllowed(ns.me) then return false, "authority" end
 	if on then
@@ -1794,8 +1818,31 @@ function ns.SetPrivatePresence(on)
 		if (hidKing or hidLayer) and ns.Treasury and type(ns.Treasury.DonationsMoved) == "function" then
 			ns.Treasury.DonationsMoved()
 		end
+		if ok then SavePrivate(true) end
 		return ok, why
 	end
+	return true
+end
+
+-- The saved switch taken up again for this session (see above): true when it did.
+function ns.RestorePrivatePresence()
+	if quiet or not ns.PrivatePresenceSaved() then return false end
+	quiet = { since = ns.Now(), owner = ns.PLAYER_QUIET_OWNER, restored = true }
+	ns.Log("private presence restored")
+	ns.Fire("QUIET_PRESENCE_CHANGED", true)
+	return true
+end
+ns.On("LOGIN", function() ns.RestorePrivatePresence() end)
+
+-- The switch of a character no longer allowed (the King, a signed High Councillor, the author):
+-- off and forgotten, with one line saying so. Only once the guild is known: before, a character
+-- of an Olympus guild whose roster has not loaded yet would lose it. True when it lapsed.
+function ns.PrivatePresenceLapse()
+	if not ns.QuietPresenceOwnedBy(ns.PLAYER_QUIET_OWNER) or ns.IsMember() ~= true then return false end
+	if ns.QuietPresenceAllowed(ns.me) then return false end
+	SavePrivate(false)
+	ns.SetQuietPresence(false, ns.PLAYER_QUIET_OWNER)
+	ns.Print(L.PRIVATE_PRESENCE_LAPSED)
 	return true
 end
 
@@ -2488,8 +2535,8 @@ local function Slash(input)
 			end
 		elseif cmd == "presence" or cmd == "presenca" or cmd == "quiet" then
 			-- The King's and High Council's stream privacy: location is withdrawn first, then every
-			-- automatic online/presence word is held for this session. Native own-guild presence is
-			-- Blizzard's and deliberately remains visible to that guild.
+			-- automatic online/presence word is held until it is turned off (across logins). Native
+			-- own-guild presence is Blizzard's and deliberately remains visible to that guild.
 			local on = rest:lower()
 			if on == "on" or on == "off" then
 				local ok, why = ns.SetPrivatePresence(on == "on")

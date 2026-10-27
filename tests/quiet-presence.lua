@@ -38,11 +38,11 @@ local function Keys(t)
 	return table.concat(out, ",")
 end
 
-test("quiet presence: the built-in switch withdraws location first, stays session-only and never steals another owner's privacy", function()
+test("quiet presence: the built-in switch withdraws location first and never steals another owner's privacy", function()
 	AsCouncillor(function()
 		local K, Ly, C = ns.King, ns.Layers, ns.Consent
 		local saved = { isKing = K.IsKing, sharing = K.SharingLocation, toggle = K.ToggleLocation,
-			setSharing = Ly.SetSharing, share = ns.db.shareLocation, print = ns.Print, fire = ns.Fire }
+			setSharing = Ly.SetSharing, share = ns.db.shareLocation, print = ns.Print, fire = ns.Fire, private = ns.db.privatePresence }
 		local calls, kingLocation = {}, false
 		local ok, err = pcall(function()
 			ns.Print = function() end
@@ -110,6 +110,7 @@ test("quiet presence: the built-in switch withdraws location first, stays sessio
 		if ns.QuietPresenceOwnedBy(OWNER) then ns.SetQuietPresence(false, OWNER) end
 		K.IsKing, K.SharingLocation, K.ToggleLocation = saved.isKing, saved.sharing, saved.toggle
 		Ly.SetSharing, ns.db.shareLocation, ns.Print, ns.Fire = saved.setSharing, saved.share, saved.print, saved.fire
+		ns.db.privatePresence = saved.private
 		if not ok then error(err, 0) end
 	end)
 end)
@@ -387,8 +388,12 @@ test("quiet presence: a line on top of the Census and the Realm says so while it
 		eq(L.QUIET_PRESENCE_LINE, "Quiet presence: Olympus stops announcing you and where you are. Your guild roster, the census your guildmates build from it, /who and chat still show you.")
 		for _, words in ipairs({ "Olympus chat lines you type, what you post yourself and the records your client relays still go out",
 			"a guild leader or officer still shows online there, and your zone may show for up to 12 minutes",
-			"You, or an addon you authorized, turned it on for this session",
-			"after a /reload, Olympus may say hello before another authorized addon turns it on again" }) do
+			-- (1.4.0: the built-in Private presence stays on across logins, the author's default; an
+			-- addon's quiet presence still ends at a /reload, and the tooltip says which is which. The
+			-- line the cherry-picked switch had, "turned it on for this session", was untrue for it.)
+			"Private presence stays on across logins until you turn it off",
+			"With Private presence your guild is told, and its members' Olympus clients count you offline in the census they send",
+			"after a /reload, Olympus may say hello before that addon turns it on again" }) do
 			assert(L.QUIET_PRESENCE_TIP:find(words, 1, true), "the tooltip says: " .. words)
 		end
 		local function Has(lines)
@@ -421,4 +426,163 @@ test("quiet presence: a line on top of the Census and the Realm says so while it
 		assert(pt.L.QUIET_PRESENCE_TIP:find("um mestre ou oficial de guilda ainda aparece online lá", 1, true))
 		assert(pt.L.QUIET_PRESENCE_HELD and pt.L.QUIET_PRESENCE_HELD ~= L.QUIET_PRESENCE_HELD, "the held line in pt-BR")
 	end)
+end)
+
+-- 1.4.0, Private presence (the author's default): on until the player turns it off, across logins,
+-- and while it is on his own guild's clients count him offline in the census they send, so another
+-- guild never sees a guild leader's online flag (the report's leaderOnline, Roster.lua). Fails
+-- before: the switch lasted one session (nothing restored it at login) and a guildmate's census
+-- still sent leaderOnline for him.
+local ROOT = (debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]quiet%-presence%.lua$")) or "./"
+if not ns.PrivatePresence then assert(loadfile(ROOT .. "Olympus/PrivatePresence.lua"))("Olympus", ns) end
+local PP = ns.PrivatePresence
+
+test("private presence: on until the player turns it off, taken up again at the next login before anything goes out; off is remembered too", function()
+	AsCouncillor(function()
+		local saved = { private = ns.db.privatePresence, print = ns.Print, member = ns.IsMember }
+		local ok, err = pcall(function()
+			ns.Print = function() end
+			ns.db.privatePresence = nil
+			eq(ns.SetPrivatePresence(true), true)
+			eq(ns.PrivatePresenceSaved(), true, "the choice is kept for this character")
+			-- A logout ends the session's quiet presence (nothing of it is saved)...
+			eq(ns.SetQuietPresence(false, ns.PLAYER_QUIET_OWNER), true)
+			eq(ns.QuietPresence(), false)
+			-- ...and the next login takes it up again, even before the guild is known.
+			ns.IsMember = function() return false end
+			eq(ns.RestorePrivatePresence(), true)
+			eq(ns.QuietPresenceOwnedBy(ns.PLAYER_QUIET_OWNER), true, "private again, as its owner")
+			eq(ns.Comm.QuietHolds("H1~1.4.0~Realm~p"), true, "the login's hello is held")
+			ns.IsMember = saved.member
+			eq(ns.RestorePrivatePresence(), false, "once a login")
+			-- Off is the player's choice too: it is never taken up again.
+			eq(ns.SetPrivatePresence(false), true)
+			eq(ns.PrivatePresenceSaved(), false)
+			eq(ns.QuietPresence(), false)
+			eq(ns.RestorePrivatePresence(), false, "nothing to take up after an off")
+			eq(ns.QuietPresence(), false)
+		end)
+		if ns.QuietPresenceOwnedBy(ns.PLAYER_QUIET_OWNER) then ns.SetQuietPresence(false, ns.PLAYER_QUIET_OWNER) end
+		ns.db.privatePresence, ns.Print, ns.IsMember = saved.private, saved.print, saved.member
+		if not ok then error(err, 0) end
+	end)
+end)
+
+test("private presence: a character no longer allowed loses it once his guild is known, with one line; not before", function()
+	AsCouncillor(function()
+		local saved = { private = ns.db.privatePresence, print = ns.Print, member = ns.IsMember, hc = ns.IsHighCouncillor }
+		local printed = {}
+		local ok, err = pcall(function()
+			ns.Print = function(m) printed[#printed + 1] = m end
+			ns.db.privatePresence = nil
+			eq(ns.SetPrivatePresence(true), true)
+			eq(ns.PrivatePresenceLapse(), false, "still allowed: kept")
+			ns.IsHighCouncillor = function() return false end
+			ns.IsMember = function() return false end
+			eq(ns.PrivatePresenceLapse(), false, "the guild not known yet: kept")
+			eq(ns.QuietPresence(), true)
+			ns.IsMember = saved.member
+			eq(ns.PrivatePresenceLapse(), true, "off the council: it lapses")
+			eq(ns.QuietPresence(), false); eq(ns.PrivatePresenceSaved(), false)
+			eq(printed[#printed], ns.L.PRIVATE_PRESENCE_LAPSED)
+		end)
+		if ns.QuietPresenceOwnedBy(ns.PLAYER_QUIET_OWNER) then ns.SetQuietPresence(false, ns.PLAYER_QUIET_OWNER) end
+		ns.db.privatePresence, ns.Print, ns.IsMember, ns.IsHighCouncillor = saved.private, saved.print, saved.member, saved.hc
+		if not ok then error(err, 0) end
+	end)
+end)
+
+test("private presence: its restore is the first LOGIN listener of the addon, ahead of every hello and presence word", function()
+	-- Olympus.toc's order is the order the game runs the files, and ns.On's listeners run in the
+	-- order they were added: the first `ns.On("LOGIN"` of the addon must be the restore.
+	local first
+	for line in io.lines(ROOT .. "Olympus/Olympus.toc") do
+		local file = line:match("^%s*([^#%s][^\r]-)%s*$")
+		if file and file:match("%.lua$") then
+			local src = assert(io.open(ROOT .. "Olympus/" .. file:gsub("\\", "/"), "rb")):read("*a")
+			local at = src:find('ns.On("LOGIN"', 1, true)
+			if at then first = { file = file, line = src:sub(at, (src:find("\n", at, true) or #src)) } break end
+		end
+	end
+	assert(first, "a LOGIN listener")
+	eq(first.file, "Core.lua")
+	assert(first.line:find("RestorePrivatePresence", 1, true), "the first LOGIN listener: " .. first.line)
+end)
+
+test("private presence: only the player's own guild is told, PP~1 while on and PP~0 once after; an addon's quiet presence says nothing", function()
+	AsCouncillor(function()
+		local saved = { send = ns.Comm.Send, private = ns.db.privatePresence, print = ns.Print }
+		local sent = {}
+		local ok, err = pcall(function()
+			ns.Print = function() end
+			ns.Comm.Send = function(dist, msg) sent[#sent + 1] = dist .. " " .. msg return true end
+			PP.Reset()
+			ns.db.privatePresence = nil
+			eq(ns.SetQuietPresence(true, OWNER), true)
+			eq(PP.Say(true), false, "an addon's quiet presence: no word")
+			eq(ns.SetQuietPresence(false, OWNER), true)
+			eq(#sent, 0)
+			-- The switch turned on says it at once (QUIET_PRESENCE_CHANGED)...
+			eq(ns.SetPrivatePresence(true), true)
+			eq(table.concat(sent, ","), "GUILD PP~1")
+			eq(PP.Say(), false, "not again before SAY_EVERY")
+			-- ...again every SAY_EVERY while it is on...
+			local now = ns.Now
+			ns.Now = function() return now() + PP.SAY_EVERY end
+			eq(PP.Say(), true)
+			ns.Now = now
+			eq(table.concat(sent, ","), "GUILD PP~1,GUILD PP~1")
+			-- ...and its end once.
+			eq(ns.SetPrivatePresence(false), true)
+			eq(sent[#sent], "GUILD PP~0")
+			eq(PP.Say(true), false, "the off said once")
+			for _, line in ipairs(sent) do assert(line:sub(1, 6) == "GUILD ", "never the Olympus channel: " .. line) end
+		end)
+		if ns.QuietPresenceOwnedBy(ns.PLAYER_QUIET_OWNER) then ns.SetQuietPresence(false, ns.PLAYER_QUIET_OWNER) end
+		if ns.QuietPresenceOwnedBy(OWNER) then ns.SetQuietPresence(false, OWNER) end
+		ns.Comm.Send, ns.db.privatePresence, ns.Print = saved.send, saved.private, saved.print
+		PP.Reset()
+		if not ok then error(err, 0) end
+	end)
+end)
+
+test("private presence: a guildmate's census counts its guild leader offline while his Private presence is heard, from the guild alone and only from one allowed", function()
+	local LEAD = "Lead-Realm"
+	local saved = { count = GetNumGuildMembers, info = GetGuildRosterInfo, hc = ns.IsHighCouncillor, heard = ns.rdb.privateHeard }
+	local ok, err = pcall(function()
+		ns.rdb.privateHeard = nil
+		GetNumGuildMembers = function() return 3, 3 end
+		GetGuildRosterInfo = function(i)
+			local name = i == 1 and LEAD or ("Member" .. i .. "-Realm")
+			return name, "rank", i == 1 and 0 or 3, 60, "class", "Stormwind City", "", "", true, 0, "WARRIOR"
+		end
+		local r = ns.Roster.Scan()
+		eq(r.leaderOnline, true, "before: the leader online"); eq(r.online, 3)
+		-- Not one allowed to use it: ignored.
+		ns.IsHighCouncillor = function() return false end
+		PP.Handle("GUILD", LEAD, "PP~1")
+		eq(ns.Roster.Scan().leaderOnline, true, "an ordinary guild leader's word changes nothing")
+		ns.IsHighCouncillor = function(name) return type(name) == "string" and ns.FullName(name) == LEAD end
+		-- The Olympus channel is never its way: ignored.
+		PP.Handle("CHANNEL", LEAD, "PP~1")
+		eq(ns.Roster.Scan().leaderOnline, true, "from the channel: ignored")
+		PP.Handle("GUILD", LEAD, "PP~1")
+		r = ns.Roster.Scan()
+		eq(r.leaderOnline, false, "his Private presence: offline in the census we send")
+		eq(r.online, 2, "and not counted online")
+		local d = ns.Codec.DecodeReport(ns.Codec.EncodeReport(r))
+		eq(d.leaderOnline, false, "the report on the wire says offline")
+		-- It lapses KEEP after it was last heard...
+		local now = ns.Now
+		ns.Now = function() return now() + PP.KEEP + 1 end
+		eq(ns.Roster.Scan().leaderOnline, true, "a word no longer repeated lapses")
+		ns.Now = now
+		eq(ns.Roster.Scan().leaderOnline, false)
+		-- ...and ends at once with his PP~0.
+		PP.Handle("GUILD", LEAD, "PP~0")
+		eq(ns.Roster.Scan().leaderOnline, true, "off: online again")
+	end)
+	GetNumGuildMembers, GetGuildRosterInfo, ns.IsHighCouncillor, ns.rdb.privateHeard = saved.count, saved.info, saved.hc, saved.heard
+	ns.Roster.Scan() -- (the harness's roster again, for the tests after this one)
+	if not ok then error(err, 0) end
 end)

@@ -1731,6 +1731,13 @@ zone may show for up to 12 minutes. Olympus chat lines he types and what he post
 out, reads go on working, and a `/reload` or logout ends it. A line on top of the Census and the
 Realm says so while it is on.
 
+Olympus's own **Private presence** switch (in **My profile** and `/oly privacy`, or
+`/oly presence on|off`) is the same quiet presence for the same three players, with three
+differences: it stays on across logins until he turns it off, it withdraws his shared location
+first, and it tells his own guild, and only that guild, so its members' Olympus clients count him
+offline in the census they send (a guildmate on an older Olympus may still count him online).
+Turning it off never turns location sharing back on.
+
 The same registered handle can ask to contribute a client-owned page to the Olympus window when
 this build reports `ui.surface`. The shared tab rail hosts one such page per session; the other
 addons' data handles still work if that slot is occupied. Olympus keeps the window shell and puts
@@ -2340,6 +2347,7 @@ Other limits:
 | `/oly privacy` | the first-open page again: what the addon shares, and your Yes or No to each (1.1) |
 | `/oly profile [Name]` | a player's profile in the Olympus window, yours (**My profile**) with no name |
 | `/oly letters [version]` | the version letters (1.1.5): every one, newest first, a click opens one; with a version, that letter |
+| `/oly presence on\|off` | King, signed High Council or the addon's author: Private presence on or off; on stays on across logins until you turn it off, withdraws your shared location and has your guild count you offline in its census; off never turns location sharing back on |
 | `/oly chat on\|off` | the Olympus chats on this client; off, nothing is sent or shown (1.1: off until you say yes) |
 | `/oly talk [olympus\|captains\|lords]` | open or close the Olympus window on its Chat tab, on that channel; also `/ol`, `/olc` or `/oll` with nothing after it, or Shift-click the minimap button (1.1.1) |
 | `/oly inspection on\|off` | take part in the King's Royal Inspection when sampled (a 2-minute patrol reported to him), or not (1.1: not until you say yes) |

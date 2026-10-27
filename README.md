@@ -2339,8 +2339,8 @@ never gives another addon the census, other players' private data or Olympus's k
 its own bounded copy. What that addon then does with a copy is up to it, so authorize only addons
 you trust. After the update it loads once the game restarts (not on a `/reload`).
 
-The built-in **Private presence** switch, or an authorized addon, can turn on a quiet presence for the King, a High Councillor or the addon's
-author, for that session alone: Olympus first withdraws shared location, then stops sending, on its own, the words that announce
+An authorized addon can also turn on a quiet presence for the King, a High Councillor or the addon's
+author, for that session alone: Olympus then stops sending, on its own, the words that announce
 that player online or say where he is (no hello, census report, layer, map dot, layer-hop offer,
 court, donations or duty notice, help or crafter answer, Wanted sighting or sighting answer, profile
 presentation, nor the King's crown or the lists his client repeats), and other Olympus clients age
@@ -2348,8 +2348,14 @@ him out as after a logout. His guild roster, `/who` and chat still show him, and
 his guildmates build from the roster: a guild leader or officer still shows online there, and his
 zone may show for up to 12 minutes. Olympus chat lines he types and what he posts himself still go
 out, reads go on working, and a `/reload` or logout ends it. A line on top of the Census and the
-Realm says so while it is on. The built-in switch is in **My profile** and `/oly privacy`, and
-`/oly presence on|off` controls it directly. Turning it off never turns location sharing back on.
+Realm says so while it is on.
+
+Olympus's own **Private presence** switch (in **My profile** and `/oly privacy`, or
+`/oly presence on|off`) is the same quiet presence for the same three players, with three
+differences: it stays on across logins until he turns it off, it withdraws his shared location
+first, and it tells his own guild, and only that guild, so its members' Olympus clients count him
+offline in the census they send (a guildmate on an older Olympus may still count him online).
+Turning it off never turns location sharing back on.
 
 The same registered handle can ask to contribute a client-owned page to the Olympus window when
 this build reports `ui.surface`. The shared tab rail hosts one such page per session; the other
@@ -3109,7 +3115,7 @@ Other limits:
 | `/oly profile [Name]` | a player's profile in the Olympus window, yours (**My profile**) with no name |
 | `/oly letters [version]` | the version letters (1.1.5): every one, newest first, a click opens one; with a version, that letter |
 | `/oly duties` | reopen this character's durable appointment, office and recruiting briefings |
-| `/oly presence on\|off` | King, signed High Council or the addon's author: hide or restore Olympus's cross-guild online presence for this session; enabling also turns location sharing off, and disabling does not turn it back on |
+| `/oly presence on\|off` | King, signed High Council or the addon's author: Private presence on or off; on stays on across logins until you turn it off, withdraws your shared location and has your guild count you offline in its census; off never turns location sharing back on |
 | `/oly chat on\|off` | the Olympus chats on this client; off, nothing is sent or shown (1.1: off until you say yes) |
 | `/oly talk [olympus\|captains\|lords]` | open or close the Olympus window on its Chat tab, on that channel; also `/ol`, `/olc` or `/oll` with nothing after it, or Shift-click the minimap button (1.1.1) |
 | `/oly inspection on\|off` | take part in the King's Royal Inspection when sampled (a 2-minute patrol reported to him), or not (1.1: not until you say yes) |

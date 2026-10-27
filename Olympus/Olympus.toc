@@ -124,6 +124,7 @@ KingArrow.lua
 Accord.lua
 Consent.lua
 Cover.lua
+PrivatePresence.lua
 WeeklyBrief.lua
 Carry.lua
 ChatRooms.lua
