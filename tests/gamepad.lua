@@ -2072,6 +2072,33 @@ for _, initialPad in ipairs({ false, true }) do
 	end)
 end
 
+-- 1.4.0: a Legate's "Invite online member to raid" (WarSquads.lua -> PartyGuard.InviteGuildmate):
+-- the game's party invite inside the player's click on Olympus's own row, in both modes and across
+-- switches (the gate's "roster-actions", a "click" entry); never a /who, never outside a guildmate.
+for _, initialPad in ipairs({ false, true }) do
+	test("gamepad Legate raid invite: " .. (initialPad and "gamepad" or "mouse") .. " login, the click's invite in both modes, nothing else of the game's", function()
+		local C, ns = Session(initialPad)
+		GP.Covers("roster-actions")
+		C.Advance(10)
+		assert(ns.Roster.Fresh(), "the session's roster is in")
+		for _, mode in ipairs({ initialPad, not initialPad, initialPad }) do
+			C.Switch(mode); C.Advance(1)
+			local mark, sent = C.Mark(), #C.sent
+			C.invited = nil
+			local done
+			InClick(C, function() done = ns.PartyGuard.InviteGuildmate("Zeusmaster-Realm") end)
+			eq(done, true, "a guildmate on the roster")
+			eq(C.invited, "Zeusmaster", "the game's own invite, from the click")
+			C.invited = nil
+			InClick(C, function() done = ns.PartyGuard.InviteGuildmate("Stranger-Realm") end)
+			eq(done, false); eq(C.invited, nil, "nobody off the roster")
+			eq(#C.sent, sent, "no addon message"); eq(#C.blocked, 0)
+			Check(C.Since(mark), "the Legate's invite")
+		end
+		NoErrors(C, "the Legate's invite")
+	end)
+end
+
 for _, initialPad in ipairs({ false, true }) do
 	test("gamepad innkeeper guidance: " .. (initialPad and "gamepad" or "mouse") .. " login, switches, native bearing and cleanup", function()
 		-- Isolate this session's jitter from earlier tests without changing global math

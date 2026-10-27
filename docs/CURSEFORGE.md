@@ -184,7 +184,9 @@ versions before 1.1 just get the whisper, as before.
   explanation once per appointment. They can edit their own group's list, not another leader's;
   existing authorized officers retain oversight. Old oversized saved groups stay read-only until
   an authorized, confirmed replacement archives the original membership privately. No guild
-  invitations, removals or native promotions happen automatically.
+  invitations, removals or native promotions happen automatically. An online member of the group
+  has **Invite online member to raid** (1.4.0): one party invite on the Legate's click, only while
+  the guild roster still lists that member.
 - **Level race**: the highest level players of the realm.
 - **Recruiting**: the guilds that still have free slots, so new players go where there is room
   (the five with the most, then every one on a click, 1.1).

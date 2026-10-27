@@ -754,3 +754,50 @@ test("Squads: the Companion's chat record: each squad line kept, the sender's ow
 		eq(#rec, 2, "a line that reached nobody is never recorded")
 	end)
 end)
+
+-- 1.4.0: the row above, with the Party Guard the addon ships (not a stand-in). In 1.3.3 Party Guard
+-- had no InviteGuildmate, so the Legate's "Invite online member to raid" never showed at all.
+test("Legates (1.4.0): with the shipped Party Guard the online soldier's raid invite shows, and its click invites him through the game's own invite, only while the roster still lists him", function()
+	World(function(w, s)
+		local saved = { C_PartyInfo, InviteUnit, InCombatLockdown }
+		local ok, err = pcall(function()
+			local c = w.c
+			local invited, printed = {}, {}
+			C_PartyInfo = { InviteUnit = function(name) invited[#invited + 1] = name end }
+			InviteUnit, InCombatLockdown = nil, function() return false end
+			-- Party Guard's own hooks, kept to this client (its /who listener, its group check, its lines).
+			c.Who = { OnSaw = function() end, Search = function() error("the Legate's invite never runs a /who") end }
+			c.Hop = { GroupState = function() return 0, true end }
+			c.Print = function(text) printed[#printed + 1] = text end
+			c.PartyGuard = nil
+			assert(loadfile(ROOT .. "Olympus/PartyGuard.lua"))("Olympus", c)
+			assert(type(c.PartyGuard.InviteGuildmate) == "function", "the shipped Party Guard has it")
+			local R = c.Roster
+			R.generation, R.snapshotAt = 1, w.now
+			R.members = { { full = "Leader-Realm", online = true }, { full = "Soldier1-Realm", online = true },
+				{ full = "Soldier2-Realm", online = false } }
+			assert(s.Replace("Leader", { "Soldier1", "Soldier2" }))
+			local function Rows()
+				local rows = {}
+				for _, line in ipairs(s.Lines("Leader")) do
+					if line.text == (c.L.SQUAD_INVITE or "Invite online member to raid") then rows[#rows + 1] = line end
+				end
+				return rows
+			end
+			local rows = Rows()
+			eq(#rows, 1, "the online soldier's row (the offline one has none)")
+			eq(#invited, 0, "drawing the page invites nobody")
+			eq(rows[1].onClick(), true)
+			eq(#invited, 1); eq(invited[1], "Soldier1", "the soldier, by the name the game's invite takes")
+			eq(#printed, 0)
+			-- He left the guild between the page's draw and the click: nobody is invited, and a line says so.
+			rows = Rows()
+			w.ranks["Soldier1-Realm"] = nil
+			eq(rows[1].onClick(), false)
+			eq(#invited, 1)
+			eq(printed[#printed], c.L.SQUAD_INVITE_GONE:format("Soldier1"))
+		end)
+		C_PartyInfo, InviteUnit, InCombatLockdown = unpack(saved, 1, 3)
+		if not ok then error(err, 0) end
+	end)
+end)
