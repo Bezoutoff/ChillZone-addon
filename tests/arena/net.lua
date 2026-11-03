@@ -328,6 +328,9 @@ end)
 test("1.2 the arena's foundation: the involvement ticker: idle, no timer; involved, Arena.Every runs; cleared, it stops; Arena.After keeps it for its one call", function()
 	local w = World.New()
 	local a = w:Client("Lida Fenn")
+	-- (1.4.0: the duty letters are out, and gather the login's change events into one scan
+	-- SCAN_WAIT later: a single call, no ticker. Idle is after it.)
+	w:Run(a.ns.RoleBriefings and a.ns.RoleBriefings.SCAN_WAIT and a.ns.RoleBriefings.SCAN_WAIT + 1 or 0)
 	eq(a.Arena.Ticking(), false); eq(#w:Timers(a, true), 0)
 	local n = 0
 	a.Arena.Every(5, "count", function() n = n + 1 end)

@@ -213,6 +213,8 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.RB_GM_OPEN = "Olha só.\n\nVocê comanda uma guilda no Olympus. Isso não é pouca coisa. O Olympus é o exército, mas é na sua guilda que o pessoal vive de verdade.\n\nVocê não dá conta sozinho, e nem deveria. Nomeia o seu pessoal. Cada linha abaixo abre com um clique e se marca sozinha quando estiver feita. Um título por pessoa, e só membros da sua própria guilda."
 	L.RB_GM_MUST = "Nomeie estes"
 	L.RB_GM_WORTH = "Vale fazer também"
+	L.RB_GM_DONE = "[x] %s"
+	L.RB_GM_TODO = "[  ] %s"
 	L.RB_GM_JOB = "Função: %s"
 	L.RB_GM_SHOWS = "Aparece: %s"
 	L.RB_GM_UNLOCKS = "Libera: %s"
