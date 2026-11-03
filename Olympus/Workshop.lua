@@ -82,6 +82,7 @@ local lastAsk = -math.huge
 local answeredRoll    -- the roll call id we answered last
 local sending         -- our bug report waiting for the author's go: { id, pieces, to }
 local authorAt, authorName -- the author's last presence, and his full name
+local authorBuild -- 1.4.0: the build his last presence (V4) named, "?" when unreadable (Watch.lua's council collector)
 local changePending = false
 
 local function Changed()
@@ -136,6 +137,9 @@ function Workshop.AuthorOnline()
 	return ns.Now() - authorAt <= Workshop.PRESENCE_FRESH
 end
 function Workshop.AuthorName() return authorName end
+-- 1.4.0: the build his client runs, as his last presence named it (its second field), or "?" or
+-- nil. The Watch sends council reports to his client only from a build that takes them.
+function Workshop.AuthorBuild() return authorBuild end
 
 ---------------------------------------------------------------------------
 -- Versions
@@ -638,6 +642,7 @@ function Workshop.HandlePresence(dist, sender, text)
 	local was = Workshop.AuthorOnline()
 	local wasBehind = Workshop.Behind()
 	authorAt, authorName = ns.Now(), ns.FullName(sender)
+	authorBuild = Version(text:match("^V4~([^~]*)"))
 	Workshop.HeardVersion(ReleasedField(text))
 	if not was or Workshop.Behind() ~= wasBehind then ns.Fire("DATA_CHANGED") end
 end
@@ -1630,6 +1635,7 @@ function Workshop.State() return roll end
 -- Tests start from a clean state.
 function Workshop.Reset()
 	roll, authorAt, authorName, answeredRoll, sending, full, menuFor = nil, nil, nil, nil, nil, nil, nil
+	authorBuild = nil
 	-- (A new session: the saved variables stay, OlympusDB.bugReports with them; the next read takes them back.)
 	wipe(reports); wipe(pieces); wipe(bugsFrom); wipe(asked); wipe(askedOne)
 	reportsFor = nil

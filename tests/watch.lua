@@ -130,6 +130,11 @@ local function WithWatch(fn)
 		c.Workshop = { IsAuthorName = function(name)
 			return w.authorName ~= nil and c.Fold(c.FullName(name)) == c.Fold(c.FullName(w.authorName))
 		end }
+		c.Workshop.IsAuthor = function() return c.Workshop.IsAuthorName(c.me) end
+		c.Workshop.AuthorOnline = function() return w.authorOnline == true and not c.Workshop.IsAuthor() end
+		c.Workshop.AuthorName = function() return w.authorName end
+		-- (1.4.0: the build his last presence named, Workshop.AuthorBuild: w.authorBuild.)
+		c.Workshop.AuthorBuild = function() return w.authorBuild end
 
 		local initial = { "census", "treasury", "throne", "vox" }
 		c.UI = { TABS = {} }
@@ -152,6 +157,8 @@ local function WithWatch(fn)
 			end,
 			QueueRoom = function() return w.queueRoom end,
 			DeliveredLogged = function() return w.logged end,
+			-- (1.4.0: a guildmate's addon version as his hello named it, Comm.PeerVersion: w.versions.)
+			PeerVersion = function(name) return w.versions and w.versions[c.Fold(c.FullName(name))] or nil end,
 			Whisper = function(target, message, _, _, logged, done, options)
 				if w.rejectWhisper then if done then done(false, "full") end return false end
 				w.jobs[#w.jobs + 1] = { target = target, msg = message, dist = "WHISPER",
@@ -424,7 +431,10 @@ test("watch: tab is Treasury > The Watch > Throne and reuses Court and Moderatio
 	local views = assert(io.open(ROOT .. "Olympus/Views.lua", "rb")):read("*a")
 	local ui = assert(io.open(ROOT .. "Olympus/UI.lua", "rb")):read("*a")
 	assert(not king:find("Court and ns.Court.HomeLines", 1, true), "Throne no longer renders the Court queue")
-	assert(views:find("ns.Moderation.Lines", 1, true), "Decrees keeps member-visible net-off and SelfOff disclosure")
+	-- 1.4.0 (the author): the hidden list left the Decrees tab for The Watch; Decrees keeps only the
+	-- viewer's own notice (the behaviour: tests/run.lua, "net-off is The Watch's alone").
+	assert(not views:find("ns.Moderation.Lines", 1, true), "Decrees no longer builds the hidden list")
+	assert(views:find("ns.Moderation.SelfLines", 1, true), "Decrees keeps the viewer's own net-off notice")
 	assert(ui:find('{ "COURT_BTN", function() ns.Court.Toggle()', 1, true), "Hold Court remains a Throne button")
 end)
 
@@ -2505,6 +2515,11 @@ local function WatchPeer(w, c, name, o)
 	p.prints, p.handlers, p.timers = {}, {}, {}
 	p.IsMember = function() return true end
 	p.King = { IsKing = function() return o.king == true end, Preview = function() return false end }
+	p.Workshop = { IsAuthorName = c.Workshop.IsAuthorName }
+	p.Workshop.IsAuthor = function() return p.Workshop.IsAuthorName(p.me) end
+	p.Workshop.AuthorOnline = function() return w.authorOnline == true and not p.Workshop.IsAuthor() end
+	p.Workshop.AuthorName = function() return w.authorName end
+	p.Workshop.AuthorBuild = function() return w.authorBuild end
 	-- (1.2.1, the review: the guild each sender's own earlier messages spoke for here, w.claims, as
 	-- Data.ClaimedGuild looks it up; a council copy never makes one: w.claimsMade counts any try.)
 	p.Data = { ServerTime = function() return w.epoch end,
@@ -2537,7 +2552,8 @@ end
 
 -- Every MR whisper in flight, the world's client's (w.jobs) and the peers' (w.bus): checked at the
 -- send as the game would (its permit, in its sender's guild), then handed to a peer's Watch (in its
--- own guild); one to anyone else (the reporter's guild officers) is kept in w.elsewhere.
+-- own guild); one to anyone else (the reporter's guild officers) is kept in w.elsewhere, but a
+-- collector's receipt to this client (1.4.0) reaches this client's Watch.
 local function Route(w, c)
 	w.elsewhere = w.elsewhere or {}
 	for _ = 1, 50 do
@@ -2565,6 +2581,9 @@ local function Route(w, c)
 				local to = w.watchPeers[c.Fold(c.FullName(m.target))]
 				if to then
 					As(to, function() to.handlers.MR("WHISPER", m.from, m.msg) end)
+				elseif m.msg:find("^MR~1~K~") and c.Fold(c.FullName(m.target)) == c.Fold(c.me) then
+					-- (1.4.0: a collector's receipt of this client's council copy comes back to it.)
+					w.handlers.MR("WHISPER", m.from, m.msg)
 				else
 					w.elsewhere[#w.elsewhere + 1] = m
 				end
@@ -2681,6 +2700,304 @@ test("watch: council reports: the pinned addon author receives the read-only cou
 	end)
 end)
 
+test("watch: council reports: the pinned author collects while the King is offline, relays to High Council, and backfills the King", function()
+	WithWatch(function(w, W, c)
+		local king, hc1 = CouncilWorld(w, c)
+		-- (1.4.0: his presence names a build that collects; an older one is no collector, below.)
+		w.authorName, w.authorOnline, w.authorBuild = "Author-Realm", true, "1.4.0"
+		local author = WatchPeer(w, c, w.authorName, { guild = "Olympus IV", rank = 3 })
+		w.lease = nil
+
+		local ok, how = W.SendReport(SPAMMER, "A", "collector fallback")
+		eq(ok, true); eq(how, "sent", "the guild officer and author collector are reachable")
+		local toAuthor = 0
+		for _, job in ipairs(w.jobs) do
+			if job.target == w.authorName and job.msg:find("^MR~1~[CE]~") then toAuthor = toAuthor + 1 end
+			eq(job.target == SPAMMER, false, "the accused never receives the report")
+		end
+		eq(toAuthor, 3, "the author receives the council head and its evidence")
+		Route(w, c)
+		eq(#W.Book(false).outbox, 0, "one trusted durable copy releases the reporter's outbox")
+		local ar = As(author, function() return author.Watch.CouncilReports() end)
+		eq(#ar, 1); eq(ar[1].reporter, c.me, "staff retains the real reporter")
+		eq(ar[1].target, SPAMMER); eq(ar[1].lines[2].text, "cheap gold here")
+		eq(As(author, function() return author.Watch.CanRead() end), false, "collector status grants no guild Watch access")
+		eq(As(author, function() return author.Watch.CanManage() end), false, "collector status grants no moderation action")
+
+		-- With no King lease, the High Council falls back to the pinned author.
+		eq(As(hc1, function() return hc1.Watch.CouncilTick(true) end), true)
+		eq(w.bus[#w.bus].target, w.authorName)
+		Route(w, c)
+		local hr = As(hc1, function() return hc1.Watch.CouncilReports() end)
+		eq(#hr, 1); eq(hr[1].reporter, c.me); eq(hr[1].target, SPAMMER)
+
+		-- When the King returns, his collector asks the author and recovers the offline report.
+		w.lease = { name = KING, guild = "Olympus", id = "lease-2" }
+		eq(As(king, function() return king.Watch.CouncilTick(true) end), true)
+		eq(w.bus[#w.bus].target, w.authorName)
+		Route(w, c)
+		local kr = As(king, function() return king.Watch.CouncilReports() end)
+		eq(#kr, 1); eq(kr[1].reporter, c.me); eq(kr[1].target, SPAMMER)
+		for _, message in ipairs(w.elsewhere or {}) do
+			eq(message.target == SPAMMER, false, "no guild or council copy is disclosed to the accused")
+		end
+
+		-- The author is a collector, not an exception to the accused privacy rule.
+		w.epoch = w.epoch + W.REPORT_GAP
+		w.jobs = {}
+		eq(select(1, W.SendReport(w.authorName, "O", "collector is the accused")), true)
+		local kingCopy = false
+		for _, job in ipairs(w.jobs) do
+			eq(job.target == w.authorName, false, "the author never receives a report about himself")
+			if job.target == KING and job.msg:find("^MR~1~C~") then kingCopy = true end
+		end
+		eq(kingCopy, true, "the other trusted collector receives that report")
+	end)
+end)
+
+---------------------------------------------------------------------------
+-- 1.4.0, the review of the trusted collectors (each of these failed on the first build of them):
+-- a report whose officers had it waited for the King's client even with the author online; what the
+-- King's client took from the author kept the author's receipts, below a councillor's cursor on the
+-- King's client, so he never got them; and the reporter let the council copy go once it left his
+-- client, even to an author's client of an older build that drops it.
+---------------------------------------------------------------------------
+
+test("watch: council reports (1.4.0): a report its officers had waits for a collector, and goes to the pinned author once he comes online while the King's client is away", function()
+	WithWatch(function(w, W, c)
+		CouncilWorld(w, c)
+		w.lease = nil
+		w.authorName, w.authorBuild = "Author-Realm", "1.4.0"
+		local author = WatchPeer(w, c, w.authorName, { guild = "Olympus IV", rank = 3 })
+		local ok, how = W.SendReport(SPAMMER, "A", "late collector")
+		eq(ok, true); eq(how, "sent", "the officers had it")
+		Route(w, c)
+		eq(#W.Book(false).outbox, 1, "it waits for a collector")
+		eq(W.FlushReports(true), 0, "nobody to take its council copy yet"); eq(#w.jobs, 0)
+		-- The author comes online (his presence), the King's client still away.
+		w.authorOnline = true
+		eq(W.FlushReports(true), 1, "its council copy goes to him")
+		assert(#w.jobs > 0)
+		for _, job in ipairs(w.jobs) do eq(job.target, w.authorName, "the council's copy alone, never the officers' twice") end
+		Route(w, c)
+		eq(#W.Book(false).outbox, 0, "his receipt lets it go")
+		local ar = As(author, function() return author.Watch.CouncilReports() end)
+		eq(#ar, 1); eq(ar[1].reporter, c.me); eq(ar[1].target, SPAMMER)
+	end)
+end)
+
+test("watch: council reports (1.4.0): what the King's client takes from the author gets its own receipt, so a councillor whose cursor passed a newer report still gets every one, and the author none of his own back", function()
+	WithWatch(function(w, W, c)
+		local king, hc1 = CouncilWorld(w, c)
+		w.authorName, w.authorOnline, w.authorBuild = "Author-Realm", true, "1.4.0"
+		local author = WatchPeer(w, c, w.authorName, { guild = "Olympus IV", rank = 3 })
+		local n = 0
+		local function Take(p)
+			n = n + 1
+			-- (Each from a guild of his own: no guild's share runs out here.)
+			local sender, guild = "Witness " .. n .. "-Realm", "Olympus Kin " .. string.char(64 + n)
+			w.claims[c.Fold(sender)] = guild
+			local msg = assert(W.CouncilWire({ seq = 300 + n, at = w.epoch, guild = guild, group = c.group, faction = c.faction,
+				cat = "S", target = "Target " .. n .. "-Realm", note = "", lines = {} }))[1]
+			assert(As(p, function() return p.Watch.HandleReport("WHISPER", sender, msg) end))
+			Route(w, c)
+		end
+		local function Has(p) return #As(p, function() return p.Watch.CouncilReports() end) end
+		local function Ask(p) As(p, function() return p.Watch.CouncilTick(true) end); Route(w, c) end
+		-- The King's client away: eight members' copies reach the author alone, more than one answer holds.
+		w.lease = nil
+		for _ = 1, 8 do Take(author) end
+		eq(Has(author), 8)
+		-- The King's client back: a fresh report reaches it, and a councillor's ask moves his cursor
+		-- on it past that one.
+		w.epoch = w.epoch + 600
+		w.lease = { name = KING, guild = "Olympus", id = "lease-2" }
+		Take(king)
+		Ask(hc1)
+		eq(Has(hc1), 1, "the fresh one")
+		-- The King's client asks the author for what it missed: two answers.
+		Ask(king)
+		w.epoch = w.epoch + W.COUNCIL_ASK_GAP
+		Ask(king)
+		eq(Has(king), 9, "the King's client has every one")
+		-- The councillor's next asks bring all eight, an answer and the rest: none skipped.
+		w.epoch = w.epoch + W.COUNCIL_ASK_GAP
+		Ask(hc1)
+		eq(Has(hc1), 1 + W.COUNCIL_SHOWN, "a first answer")
+		w.epoch = w.epoch + W.COUNCIL_ASK_GAP
+		Ask(hc1)
+		eq(Has(hc1), 9, "the rest")
+		-- The author's own ask brings the fresh one, never his own eight back.
+		local answers = 0
+		local saved = author.handlers.MR
+		author.handlers.MR = function(dist, sender, msg)
+			if msg:find("^MR~1~F~%d+~a~") then answers = answers + 1 end
+			return saved(dist, sender, msg)
+		end
+		Ask(author)
+		author.handlers.MR = saved
+		eq(answers, 1, "the one he did not have"); eq(Has(author), 9)
+	end)
+end)
+
+test("watch: council reports (1.4.0): an author's client of an older build is no collector: nothing goes to it, and the report waits for the King's client", function()
+	WithWatch(function(w, W, c)
+		local king, hc1 = CouncilWorld(w, c)
+		w.lease = nil
+		w.authorName, w.authorOnline, w.authorBuild = "Author-Realm", true, "1.3.3"
+		local author = WatchPeer(w, c, w.authorName, { guild = "Olympus IV", rank = 3 })
+		-- (A 1.3.3 Watch takes op C on the King's client alone: the author's drops the copy.)
+		author.handlers.MR = function() return false, "access" end
+		local ok, how = W.SendReport(SPAMMER, "A", "older author")
+		eq(ok, true); eq(how, "sent", "the officers had it")
+		for _, job in ipairs(w.jobs) do eq(job.target == w.authorName, false, "nothing to a build that drops it") end
+		Route(w, c)
+		eq(#W.Book(false).outbox, 1, "it waits for a collector that keeps it")
+		eq(W.FlushReports(true), 0); eq(#w.jobs, 0)
+		-- A presence whose build can't be read is no collector either.
+		w.authorBuild = "?"
+		eq(W.FlushReports(true), 0); eq(#w.jobs, 0)
+		w.authorBuild = nil
+		eq(W.FlushReports(true), 0); eq(#w.jobs, 0)
+		-- The High Council never asks such a client either.
+		eq(As(author, function() return author.Watch.CouncilDeskShown() end), true)
+		eq(As(hc1, function() return hc1.Watch.CouncilTick(true) end), false, "no collector to ask")
+		eq(#w.bus, 0)
+		-- (The build is compared number by number, a fourth part too.)
+		eq(W.NotOlder("1.10.0", "1.4.0"), true); eq(W.NotOlder("1.4.0.1", "1.4.0"), true); eq(W.NotOlder("1.4.0", "1.4.0"), true)
+		eq(W.NotOlder("1.3.9.9", "1.4.0"), false); eq(W.NotOlder("1.4", "1.4.0"), false); eq(W.NotOlder(nil, "1.4.0"), false)
+		-- The King's client comes on: it takes the copy.
+		w.lease = { name = KING, guild = "Olympus", id = "lease-2" }
+		eq(W.FlushReports(true), 1)
+		Route(w, c)
+		eq(#W.Book(false).outbox, 0)
+		eq(#As(king, function() return king.Watch.CouncilReports() end), 1)
+	end)
+end)
+
+test("watch: council reports (1.4.0): the reporter lets the council copy go on a collector's receipt, never on its own send; one that never answers is tried COUNCIL_TRIES times; a receipt from anyone else changes nothing", function()
+	WithWatch(function(w, W, c)
+		CouncilWorld(w, c)
+		w.lease = nil
+		w.authorName, w.authorOnline, w.authorBuild = "Author-Realm", true, "1.4.0"
+		local author = WatchPeer(w, c, w.authorName, { guild = "Olympus IV", rank = 3 })
+		local ok, how = W.SendReport(SPAMMER, "A", "receipt")
+		eq(ok, true); eq(how, "sent")
+		-- Every message leaves this client, but none reaches the author (he logged off on the way).
+		for _, job in ipairs(w.jobs) do w.finish(job) end
+		w.jobs = {}
+		eq(#W.Book(false).outbox, 1, "sent is not kept: it waits for his receipt")
+		eq(W.FlushReports(true), 1, "on its way still")
+		eq(#w.jobs, 0, "nothing sent again before REPORT_RETRY")
+		-- Tried again once REPORT_RETRY passed; this time it reaches him and he answers.
+		w.epoch = w.epoch + W.REPORT_RETRY
+		eq(W.FlushReports(true), 1)
+		for _, job in ipairs(w.jobs) do eq(job.target, w.authorName, "the council's copy alone") end
+		Route(w, c)
+		eq(#W.Book(false).outbox, 0, "his receipt lets it go")
+		eq(#As(author, function() return author.Watch.CouncilReports() end), 1)
+
+		-- His receipt lost on the way: the copy goes again, his client has it already (a replay)
+		-- and answers again; nothing is kept twice.
+		w.epoch = w.epoch + W.REPORT_GAP
+		w.jobs = {}
+		w.refreshRoster() -- (its guild's officer online now: its guild part goes)
+		local mine, dropped = w.handlers.MR, 0
+		w.handlers.MR = function(dist, sender, msg)
+			if msg:find("^MR~1~K~") and dropped == 0 then dropped = 1 return false end
+			return mine(dist, sender, msg)
+		end
+		eq(select(1, W.SendReport("Third Guy-Realm", "S", "")), true)
+		Route(w, c)
+		eq(dropped, 1); eq(#W.Book(false).outbox, 1, "no receipt reached it")
+		w.epoch = w.epoch + W.REPORT_RETRY
+		eq(W.FlushReports(true), 1)
+		Route(w, c)
+		w.handlers.MR = mine
+		eq(#W.Book(false).outbox, 0, "his second receipt lets it go")
+		eq(#As(author, function() return author.Watch.CouncilReports() end), 2, "kept once")
+
+		-- A collector that never answers (one that does not know the reporter, say) is tried
+		-- COUNCIL_TRIES times, then left alone; the report waits for another.
+		w.epoch = w.epoch + W.REPORT_GAP
+		w.jobs = {}
+		w.refreshRoster()
+		local saved = author.handlers.MR
+		author.handlers.MR = function() return false, "sender" end
+		ok = W.SendReport("Other Guy-Realm", "A", "")
+		eq(ok, true)
+		local function Tries()
+			local count = 0
+			for _, job in ipairs(w.jobs) do if job.target == w.authorName and job.msg:find("^MR~1~C~") then count = count + 1 end end
+			return count
+		end
+		local tries = Tries()
+		Route(w, c)
+		for _ = 1, W.COUNCIL_TRIES + 2 do
+			w.epoch = w.epoch + W.REPORT_RETRY
+			W.FlushReports(true)
+			tries = tries + Tries()
+			Route(w, c)
+		end
+		eq(tries, W.COUNCIL_TRIES, "tried that often, then left alone")
+		eq(#W.Book(false).outbox, 1, "it still waits for a collector that keeps it")
+		author.handlers.MR = saved
+		-- A receipt from one who is no collector, or for another report, changes nothing.
+		local r = W.Book(false).outbox[1]
+		local receipt = ("MR~1~K~%d~%s"):format(r.seq, r.target)
+		eq(select(2, W.HandleReport("WHISPER", "Nobody-Realm", receipt)), "sender", "no collector's")
+		eq(select(2, W.HandleReport("WHISPER", w.authorName, ("MR~1~K~%d~%s"):format(r.seq + 1, r.target))), "stale")
+		eq(select(2, W.HandleReport("WHISPER", w.authorName, ("MR~1~K~%d~%s"):format(r.seq, SPAMMER))), "stale")
+		eq(#W.Book(false).outbox, 1)
+		-- The King's client was never sent it: its receipt names nothing it was sent.
+		w.lease = { name = KING, guild = "Olympus", id = "lease-2" }
+		w.authorOnline = false
+		eq(select(2, W.HandleReport("WHISPER", KING, receipt)), "stale")
+		eq(#W.Book(false).outbox, 1)
+		-- A King's client known to run a build that answers (his hello): only his receipt lets it go.
+		w.versions = { [c.Fold(KING)] = "1.4.0" }
+		w.epoch = w.epoch + W.REPORT_RETRY
+		eq(W.FlushReports(true), 1)
+		for _, job in ipairs(w.jobs) do w.finish(job) end
+		w.jobs = {}
+		eq(#W.Book(false).outbox, 1, "his send alone is not his receipt")
+		eq(W.HandleReport("WHISPER", KING, receipt), true, "his receipt")
+		eq(#W.Book(false).outbox, 0)
+		-- (A King's client of an older build, or one whose version this client never heard, gives
+		-- no receipt: its copy is taken at the send, as before: "the King's client is off, the
+		-- report waits for it", below.)
+	end)
+end)
+
+test("watch: council reports (1.4.0): a copy that never left this client is no try: the King's client still gets it after the queue refused it more often than COUNCIL_TRIES", function()
+	WithWatch(function(w, W, c)
+		local king = CouncilWorld(w, c)
+		w.lease = nil
+		local ok, how = W.SendReport(SPAMMER, "S", "")
+		eq(ok, true); eq(how, "sent", "the officers had it")
+		Route(w, c)
+		eq(#W.Book(false).outbox, 1, "it waits for the King's client")
+		-- The King's client on, but this client's queue refuses every whisper for a while.
+		w.lease = { name = KING, guild = "Olympus", id = "lease-2" }
+		w.rejectWhisper = true
+		for _ = 1, W.COUNCIL_TRIES + 1 do
+			w.epoch = w.epoch + W.REPORT_RETRY
+			W.FlushReports(true)
+		end
+		eq(#w.jobs, 0); eq(#W.Book(false).outbox, 1)
+		-- The queue takes them again: the copy goes, and the King's client keeps it.
+		w.rejectWhisper = nil
+		w.epoch = w.epoch + W.REPORT_RETRY
+		eq(W.FlushReports(true), 1)
+		local toKing = 0
+		for _, job in ipairs(w.jobs) do if job.target == KING and job.msg:find("^MR~1~C~") then toKing = toKing + 1 end end
+		eq(toKing, 1, "still sent")
+		Route(w, c)
+		eq(#W.Book(false).outbox, 0)
+		eq(#As(king, function() return king.Watch.CouncilReports() end), 1)
+	end)
+end)
+
 test("watch: council reports (1.2.1): the King's client is off, the report waits for it; on, only its council copy goes, never the officers' twice", function()
 	WithWatch(function(w, W, c)
 		local king = CouncilWorld(w, c)
@@ -2770,6 +3087,12 @@ test("watch: council reports (1.2.1): each end checks what it can; spoofed, repl
 		eq(select(1, KingTakes(REPORTER, Copy({ seq = 70, at = w.epoch, target = HC2 }))), true)
 		w.claims[c.Fold("Reporter Two-Realm")] = w.guild
 		eq(select(1, KingTakes("Reporter Two-Realm", Copy({ seq = 71, at = w.epoch, target = "Sage Alt-Realm" }))), true)
+		-- (1.4.0: the King's client gives each reporter its receipt, op K, to him alone; set apart
+		-- here so that what follows is only the answer to the councillor's ask, as before.)
+		eq(#w.bus, 2)
+		eq(w.bus[1].target, REPORTER); eq(w.bus[1].msg, "MR~1~K~70~" .. HC2)
+		eq(w.bus[2].target, "Reporter Two-Realm"); eq(w.bus[2].msg, "MR~1~K~71~Sage Alt-Realm")
+		w.bus = {}
 		eq(select(1, KingTakes(HC2, "MR~1~Q~0")), true)
 		eq(#w.bus > 0, true, "the others' reports go to him")
 		for _, m in ipairs(w.bus) do

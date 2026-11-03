@@ -886,8 +886,8 @@ what each player chose to share, and the King's week.
 
 ### Net-off (1.1): the moderators hide a character or take a guild off the network
 The King, his Steward, a Hand (the King's list or a Steward's) or a High Councillor of the
-author's signed list can hide one character for the whole army: **Hide a character** on the
-**Decrees** tab (the name or your target, then the reason), or `/oly netoff Name: reason`. Every
+author's signed list can hide one character for the whole army: **Hide a character** in
+**The Watch** (the name or your target, then the reason), or `/oly netoff Name: reason`. Every
 addon then hides that character on every Olympus surface: their [Olympus], [Captains] and
 [Lords] lines (and the lines the Olympus chats kept), their pinned line, their decrees, their layer and hop offers,
 their Vox Populi votes and questions, their requests at court, and (1.1, Konig's review) their
@@ -933,13 +933,16 @@ The rest of their guild, and the census, are not touched: one name stops the spa
   BattleTag; a follow needs its giver (or another team client holding the BattleTag) online every
   three days and lapses 30 days after it was given; guild net-off, exile and the chat warnings' holds
   are not followed (a hold follows once a moderator decides the case with a timeout).
-- The Decrees tab lists who is hidden for every member, with the reason, who hid them and when
-  (the server's clock), and who passed the word on when it reached you through another issuer's
-  addon (the server's name for that one: nobody writes a word in someone else's name unseen).
-  When the word applies to your character or guild, a red line there keeps the reason reachable
-  even though a hidden officer cannot enter The Watch. The same people show a name again with a
-  click there, or `/oly neton Name`; authorized officers also see this realm-wide section in The
-  Watch.
+- The Watch lists who is hidden (**Hidden by the moderators**, 1.4.0: no longer on the Decrees
+  tab), with the reason, who hid them and when (the server's clock), and who passed the word on
+  when it reached you through another issuer's addon (the server's name for that one: nobody
+  writes a word in someone else's name unseen). Its desk shows the list to the King, the High
+  Council and each guild's Lord and Captains (and the guild's Watchers); a Steward or a Hand
+  without the desk gets that section as a page of its own there. `/oly netoff` alone opens it
+  in a copy window for the same people (1.4.0). The same people who give words show a name again with a click there, or
+  `/oly neton Name`. The Decrees tab keeps only your own notice: when the word applies to your
+  character or guild, a red line there keeps the reason reachable even though a hidden officer
+  cannot enter The Watch (nobody else's name shows there).
 - Only a word from higher up reaches one who gives words: the King's reaches everyone but
   himself, a Steward's the Hands and High Councillors, and a Hand's or a councillor's no other
   issuer (nor the names they linked as alts). So a rogue Hand or councillor can't hide the
@@ -986,7 +989,7 @@ The rest of their guild, and the census, are not touched: one name stops the spa
   everything.
 
 The same people can also **take a guild off the Olympus network** (**Take a guild off the
-network** on the Decrees tab: the guild's name or your target's guild, then the reason; or
+network** in The Watch: the guild's name or your target's guild, then the reason; or
 `/oly netoff guild Name: reason`), and put it back on (`/oly neton guild Name`). While it is off,
 honest addons stop sending and showing that guild's census (its size leaves the army's total),
 its zones on the map, its layers and hop, its decrees, its Vox Populi votes, its Olympus chats
@@ -1018,28 +1021,36 @@ it is about and may add a short note; he sees the lines that go with it (from th
 channel his addon kept, never a whisper or a private room) before he sends. It goes as logged
 addon whispers to his guild's officers in The Watch who are online (its guild master, its
 Captains, the Watchers he names and a signed moderator), never to the one reported or a name his
-player linked; with none online it waits on his client for a day. Their client shows it in The
+player linked; with none online it waits on his client for 30 days. Their client shows it in The
 Watch's **Reports** and **Cases** and tells them once, with a sound. Since 1.2.1 the same report
 also reaches the King and the High Council in their Watch (**Reports** and **Cases**, where the
-High Council works): it goes as a logged whisper to the King's client while it is on (the lease
-the Tabards use), which keeps it apart from any guild's Watch and passes it on to the councillors
-whose clients asked it in the last 20 minutes; a councillor's client asks every 15 minutes while
-the King's client is on, for every report it received since his last one (one that reached it
-late included). The King's client takes it only from a reporter it already knows in the guild he
-names (the King's guild by its roster; another when his own earlier messages there, his lines in
-the Olympus chats among them, spoke for it: anyone else's reaches his guild's officers only), keeps
-only the lines it heard itself in the Olympus channel, takes a few an hour from one player and so
-many from each guild, never passes a case on to the councillor it is about (or a name his player
-linked), and prints no name in its chat. The council's reports and cases have their own sections in
-The Watch, apart from a guild's, for an officer on the council and the King too. With the King's
-client off, the report waits for it on the reporter's client for a day, as for absent officers. A
+High Council works): it goes as a logged whisper to each trusted collector currently reachable,
+the King's client (the lease the Tabards use) and the pinned addon author's client (1.4.0: only
+while his presence names version 1.4.0 or later, since an older one drops it). A collector
+keeps it apart from every guild's Watch and passes it on to council readers who ask; their clients
+ask every 15 minutes, preferring the King and falling back to the author. The two collectors also
+ask each other, so reports received while either one was offline converge when both are online:
+what one gets from the other takes its place after everything that collector already passed on,
+so a councillor's next ask still brings it, and it never goes back to where it came from.
+Since 1.4.0 a collector answers the reporter's client when it keeps the copy, and the report waits
+until one does (a King's client of an older version gives no answer: its copy counts once sent,
+as before); a collector that never answers is sent the same copy three times at most.
+A collector takes a report only from a reporter it already knows in the guild he names (its own
+guild by its roster; another when the reporter's own earlier messages, his Olympus chat lines among
+them, spoke for it: anyone else's reaches his guild's officers only), keeps only the lines it heard
+itself in the Olympus channel, takes a few an hour from one player and so many from each guild,
+never passes a case on to the councillor it is about (or a name his player linked), and prints no
+name in its chat. The council's reports and cases have their own sections in The Watch, apart from
+a guild's, for an officer on the council and the King too. With neither collector reachable, the
+report waits on the reporter's client for 30 days, as for absent officers. A
 report is never a sanction: an officer decides, and may send the case to the King for the High
 Council's vote; the King and the High Council act on it in Olympus's chats.
 
 The **Watch** tab's desk, Reports and Cases appear only for this guild's Lord and Captains, plus a
 signed moderator while the signed authority is active and that same character is still in the
-live guild roster. A net-off word on the character or guild closes them. It is deliberately
-separate from the realm-wide net-off disclosure above, which remains on Decrees for every member.
+live guild roster. A net-off word on the character or guild closes them. Since 1.4.0 the desk
+also holds the realm-wide net-off list above (no longer on the Decrees tab): the King and the
+High Council with their buttons, the Lord and Captains read-only.
 Since 1.2 The Watch also holds the **Tabards** (below), which have no tab of their own any more.
 Sharing the untabarded list does not make the staff tab appear for ordinary members.
 
@@ -3046,9 +3057,10 @@ Other limits:
   fainter, one that a single sender stands behind (hover it for what the mark says).
 - **Net-off is its issuers' word (1.1).** One Hand or High Councillor can hide anyone who gives
   no words (and neither the King nor his alts) for the whole army, or take any guild but the
-  King's off the network. The Decrees tab shows everyone who did it, why and when, and who
-  passed it on; an issuer as high or higher (the King always) can put it back on, and no word
-  replaces one from higher up. Only the King, or the Steward for a Hand or a councillor, can
+  King's off the network. The Watch shows the moderators and the guilds' officers who did it,
+  why and when, and who passed it on (every addon hears the word on the Olympus channel); an
+  issuer as high or higher (the King always) can put it back on, and no word replaces one from
+  higher up. Only the King, or the Steward for a Hand or a councillor, can
   hide an issuer, and a name that is hidden gives no word: its words fade. Without signatures, one issuer can still write a word in another
   issuer's name: the addon then shows who passed it on, his reason stays off the King's
   stream, the word weighs no more than his own rank, and no addon repeats it.
@@ -3162,8 +3174,8 @@ Other limits:
 | `/oly watch timeout <name> 5m\|30m\|1h\|24h\|7d\|hold\|lift [: reason]` · `/oly watch purge <name> [: reason]` | a moderator: a timeout in Olympus's chats, its lift, or delete his recent lines (also from a line in the Chat tab) (1.1.6) |
 | `/oly watch watchers add\|remove <name>` · `/oly watch justice <name>\|none` | the guild master: name or remove a Watcher (10 at most), or the guild's Justice correspondent (1.1.6) |
 | `/oly watch mods add\|remove <name>` | the author, the King or a High Councillor: name or remove one of his Olympus moderators (10 at most) (1.1.6) |
-| `/oly netoff Name: reason` · `/oly neton Name` · `/oly netoff` | the King, his Steward, a Hand or a High Councillor: hide a character for the whole army, or show them again (also on the Decrees tab); alone, who is hidden (1.1) |
-| `/oly netoff guild Name: reason` · `/oly neton guild Name` | the same people: take a guild off the Olympus network for the army, or put it back on (also on the Decrees tab) (1.1) |
+| `/oly netoff Name: reason` · `/oly neton Name` · `/oly netoff` | the King, his Steward, a Hand or a High Councillor: hide a character for the whole army, or show them again (also in The Watch); alone, who is hidden, in a copy window (The Watch's readers; anyone else, his own word) (1.1) |
+| `/oly netoff guild Name: reason` · `/oly neton guild Name` | the same people: take a guild off the Olympus network for the army, or put it back on (also in The Watch) (1.1) |
 | `/oly alt add Name` · `/oly alt remove Name` · `/oly alt` | link a character of this account as your alt (log it and say yes there), take a link apart, or see your links: the census and the treasury count you once (1.1) |
 | `/oly map` | zone markers on the world map |
 | `/oly sound` · `/oly sound on\|off` | every alert sound on or off |

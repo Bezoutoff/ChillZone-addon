@@ -8470,8 +8470,11 @@ test("Workshop: a bug report reaches the author once he answers its first piece"
 		W.HandlePresence("CHANNEL", "Faladoriel-Realm", "V4~0.8.2")
 		W.HandlePresence("CHANNEL", "Faladoriel Skylance-SomeEraRealm", "V4~0.8.2")
 		eq(W.AuthorOnline(), false, "his first name, or his name on another realm group: not him")
+		eq(W.AuthorBuild(), nil, "nobody else's presence names his build")
 		W.HandlePresence("CHANNEL", AUTHOR_FULL, "V4~0.8.2")
 		eq(W.AuthorOnline(), true)
+		-- (1.4.0: the build his presence names, for The Watch's council collector: Watch.lua.)
+		eq(W.AuthorBuild(), "0.8.2")
 		local action = W.BugAction(text)
 		assert(action and action.label:find("Faladoriel Skylance", 1, true), action and action.label)
 		eq(action.fn(), true)
@@ -8515,6 +8518,11 @@ test("Workshop: a bug report reaches the author once he answers its first piece"
 		for _, f in ipairs(timers) do f() end
 		eq(w.printed[#w.printed], ns.L.WORKSHOP_BUG_NO_AUTHOR)
 		eq(#w.whispered, before + 1, "nothing more")
+		-- (1.4.0: a build that can't be read is "?"; the next presence names his build again.)
+		W.HandlePresence("CHANNEL", AUTHOR_FULL, "V4~1.4.0 beta~1.3.3")
+		eq(W.AuthorBuild(), "?")
+		W.HandlePresence("CHANNEL", AUTHOR_FULL, "V4~1.4.0.1~1.3.3")
+		eq(W.AuthorBuild(), "1.4.0.1")
 		w.clock = w.clock + W.PRESENCE_FRESH + 1
 		eq(W.AuthorOnline(), false, "gone quiet: offline")
 	end)
@@ -40320,53 +40328,167 @@ end)
 		end
 	end)
 
-	test("watch: net-off stays on member-visible Decrees, including SelfOff; the King's stream masks reasons", function()
-		WithNetoff(function(w, K)
-			AsSoldier("Watcher")
-			eq(#M.Lines(), 0, "nobody hidden, no issuer: no section")
-			M.Handle("CHANNEL", HC, O1("c", true, w.clock, "Spammer Guy-Realm", HC, "flooding /ol"))
-			local lines = M.Lines()
-			local page = Page(lines)
-			assert(page:find(ns.L.NETOFF_TITLE, 1, true) and page:find("Spammer Guy", 1, true), page)
-			assert(not page:find(ns.L.NETOFF_ADD, 1, true), "no button for a soldier")
-			eq(lines[2].onClick, nil)
-			-- The Watch reuses this realm-wide section, but Decrees remains its member-visible surface.
-			local decrees = Page((ns.Views.Build("decrees")))
-			assert(decrees:find(ns.L.NETOFF_TITLE, 1, true) and decrees:find("Spammer Guy", 1, true), decrees)
-			-- The tooltip: reason, issuer, date.
-			local tip = { lines = {} }
-			function tip:AddLine(text) self.lines[#self.lines + 1] = tostring(text) end
-			lines[2].tooltip(tip)
-			local text = table.concat(tip.lines, "\n")
-			assert(text:find("flooding /ol", 1, true) and text:find("Test Councillor", 1, true) and text:find(M.When(ns.rdb.netoff.c["spammer guy-realm"]), 1, true), text)
-			-- An issuer: the button, and a click on a name asks to put it back on.
-			AsSoldier("Test Councillor")
-			lines = M.Lines()
-			assert(Page(lines):find(ns.L.NETOFF_ADD, 1, true))
-			lines[2].onClick()
-			eq(w.popups[#w.popups].name, "OLYMPUS_NETOFF_UNDO")
-			StaticPopupDialogs.OLYMPUS_NETOFF_UNDO.OnAccept(nil, w.popups[#w.popups].data)
-			eq(M.Hidden("Spammer Guy-Realm"), nil)
-			-- The King's screen while the council's names are hidden (his stream): another's reason and
-			-- a councillor's name stay hidden; his own words show.
-			AsKing()
-			M.Handle("CHANNEL", HC, O1("c", true, w.clock + 5, "Spammer Guy-Realm", HC, "a councillor's words"))
-			ns.SetCouncilNamesShown(false)
-			tip.lines = {}
-			M.Lines()[2].tooltip(tip)
-			text = table.concat(tip.lines, "\n")
-			assert(not text:find("a councillor's words", 1, true) and not text:find("Test Councillor", 1, true), text)
-			assert(text:find(ns.L.NETOFF_REASON_HIDDEN, 1, true))
-			ns.SetCouncilNamesShown(true)
-			tip.lines = {}
-			M.Lines()[2].tooltip(tip)
-			assert(table.concat(tip.lines, "\n"):find("a councillor's words", 1, true), "shown once he shows the council's names")
-			ns.SetCouncilNamesShown(false)
-			-- The hidden player's actual member-visible tab says so; this is not merely a direct call to
-			-- the reusable line builder (The Watch itself correctly refuses a hidden officer).
-			AsSoldier("Spammer Guy")
-			local ownDecrees = Page((ns.Views.Build("decrees")))
-			assert(ownDecrees:find(ns.L.NETOFF_YOU_SHORT, 1, true), ownDecrees)
+	-- 1.4.0 (the author: "hidden by moderators" leaves the Decrees tab and stays in The Watch alone). This
+	-- test pinned the opposite before (the whole list on every member's Decrees); it now fails on that
+	-- code at its first Decrees check.
+	test("watch: net-off is The Watch's alone (1.4.0): no list on Decrees for anyone, the desk and an issuer's own page show it, the hidden player keeps his own notice; the King's stream masks reasons", function()
+		WithUI(function()
+			WithNetoff(function(w, K)
+				local _, uns = LoadUI()
+				local W, letWatchGo = Harness.LoadWatch(uns)
+				local ok, err = pcall(function()
+					local L = ns.L
+					local function Decrees() return Page((ns.Views.Build("decrees"))) end
+					local function NoList(page, who)
+						for _, word in ipairs({ L.NETOFF_TITLE, "Spammer Guy", "Other Spammer", L.NETOFF_ADD }) do
+							assert(not page:find(word, 1, true), who .. ": " .. word .. " on Decrees\n" .. page)
+						end
+					end
+					AsSoldier("Watcher")
+					eq(#M.Lines(), 0, "nobody hidden, no issuer: no section")
+					M.Handle("CHANNEL", HC, O1("c", true, w.clock - 10, "Other Spammer-Realm", HC, "spam"))
+					M.Handle("CHANNEL", HC, O1("c", true, w.clock, "Spammer Guy-Realm", HC, "flooding /ol"))
+					eq(#M.List(), 2)
+					-- A member: nothing of it on Decrees, no page of it in The Watch, and /oly netoff alone
+					-- tells him where the list is, never a name on it.
+					NoList(Decrees(), "a member")
+					eq(#M.SelfLines(), 0, "nobody hid him: no notice")
+					eq(W.NetoffShown(), false); eq(W.DeskShown(), false)
+					local printed = #w.printed
+					M.PrintList()
+					eq(w.printed[printed + 1], L.NETOFF_LIST_STAFF); eq(#w.printed, printed + 1, "the pointer alone")
+					-- (1.4.0, the author's default: an Olympus chat moderator without a Watch desk does not
+					-- read the list either: his chat page in The Watch, never the list's.)
+					uns.WatchChat = setmetatable({ missing = false, PageShown = function() return true end,
+						PageLines = function() return { { text = "chat moderation" } } end }, { __index = ns.WatchChat })
+					eq(W.TabVisible(), true, "The Watch's tab, for its chat page"); eq(W.NetoffShown(), false)
+					W.Show(nil)
+					eq(W.PageId(), "chat")
+					local chatPage = Page(W.Build())
+					assert(chatPage:find("chat moderation", 1, true), chatPage)
+					NoList(chatPage, "a chat moderator")
+					printed = #w.printed
+					M.PrintList()
+					eq(w.printed[printed + 1], L.NETOFF_LIST_STAFF); eq(#w.printed, printed + 1, "the pointer alone")
+					uns.WatchChat = nil
+					-- The section itself (The Watch's): its rows read-only for one who gives no word.
+					local lines = M.Lines()
+					local page = Page(lines)
+					assert(page:find(L.NETOFF_TITLE, 1, true) and page:find("Spammer Guy", 1, true), page)
+					assert(not page:find(L.NETOFF_ADD, 1, true), "no button for a soldier")
+					eq(lines[2].onClick, nil)
+					-- The tooltip: reason, issuer, date.
+					local tip = { lines = {} }
+					function tip:AddLine(text) self.lines[#self.lines + 1] = tostring(text) end
+					lines[2].tooltip(tip)
+					local text = table.concat(tip.lines, "\n")
+					assert(text:find("flooding /ol", 1, true) and text:find("Test Councillor", 1, true) and text:find(M.When(ns.rdb.netoff.c["spammer guy-realm"]), 1, true), text)
+					-- A guild's Captain (roster rank 1, no word of his own): the list on his desk, read-only.
+					GetGuildInfo = function() return "Olympus II", "Officer", 1 end
+					ns.me = "Officer Guy-Realm"
+					eq(M.CanIssue(), false); eq(W.CanRead(), true, "his guild's desk")
+					eq(W.NetoffShown(), false, "the desk shows it")
+					W.Show(nil)
+					page = Page(W.Build())
+					assert(page:find(L.NETOFF_TITLE, 1, true) and page:find("Spammer Guy", 1, true) and page:find("Other Spammer", 1, true), page)
+					assert(not page:find(L.NETOFF_ADD, 1, true), "read-only for an officer: " .. page)
+					NoList(Decrees(), "an officer")
+					-- A High Councillor: the list and his buttons on the desk; still nothing on Decrees.
+					AsSoldier("Test Councillor")
+					eq(W.DeskShown(), true, "the High Council's desk"); eq(W.NetoffShown(), false)
+					page = Page(W.Build())
+					assert(page:find(L.NETOFF_TITLE, 1, true) and page:find("Spammer Guy", 1, true) and page:find(L.NETOFF_ADD, 1, true)
+						and page:find(L.NETOFF_ADD_GUILD, 1, true), page)
+					NoList(Decrees(), "a councillor")
+					printed = #w.printed
+					-- (1.4.0: the list itself opens in Olympus's copy window, its count alone in chat.)
+					local savedUI, copied = ns.UI, nil
+					ns.UI = setmetatable({ ShowCopy = function(title, text) copied = { title = title, text = text } end }, { __index = savedUI })
+					local listed, listErr = pcall(M.PrintList)
+					ns.UI = savedUI
+					assert(listed, listErr)
+					eq(w.printed[printed + 1], L.NETOFF_LIST:format(2), "an issuer still prints the list's count")
+					eq(#w.printed, printed + 1, "one line in chat")
+					assert(copied and copied.title == L.NETOFF_TITLE, "the list in the copy window")
+					for _, word in ipairs({ L.NETOFF_LIST:format(2), "Spammer Guy", "Other Spammer", "flooding /ol", L.HELP_NETOFF }) do
+						assert(copied.text:find(word, 1, true), word .. "\n" .. copied.text)
+					end
+					-- A Hand (an issuer without the desk): The Watch's tab, and a page of its own with the
+					-- list and his buttons, under the navigation, without the desk's Warn, Watch and Ban.
+					K.HandleCommand("CHANNEL", KING, "T1~H~1~Olympus~Hand Guy-Realm")
+					AsSoldier("Hand Guy")
+					eq(M.CanIssue(), true, "a Hand gives words"); eq(W.DeskShown(), false, "without the desk")
+					eq(W.NetoffShown(), true); eq(W.TabVisible(), true, "The Watch's tab for him")
+					W.Show(nil)
+					eq(W.PageId(), "netoff", "his first page there")
+					W.Show("netoff")
+					local handLines, title, detail = W.Build()
+					assert(handLines[1].nav, "the navigation on top")
+					local navText = {}
+					for _, item in ipairs(handLines[1].nav) do navText[#navText + 1] = tostring(item.text) end
+					assert(table.concat(navText, "|"):find(L.NETOFF_TITLE, 1, true), table.concat(navText, "|"))
+					page = Page(handLines)
+					assert(page:find("Spammer Guy", 1, true) and page:find("Other Spammer", 1, true) and page:find(L.NETOFF_ADD, 1, true)
+						and page:find(L.NETOFF_EXILE_ADD, 1, true), page)
+					eq(title, L.TAB_WATCH); eq(detail, L.WATCH_NETOFF_DETAIL)
+					eq(W.ViewKey(), "judgments", "never the desk's buttons")
+					NoList(Decrees(), "a Hand")
+					-- His click on a name asks to put it back on, from that page.
+					local row
+					for _, l in ipairs(handLines) do if tostring(l.text):find("Spammer Guy", 1, true) then row = l end end
+					assert(row and row.onClick, "a name he can show again")
+					-- An issuer: the button, and a click on a name asks to put it back on.
+					AsSoldier("Test Councillor")
+					lines = M.Lines()
+					assert(Page(lines):find(L.NETOFF_ADD, 1, true))
+					lines[2].onClick()
+					eq(w.popups[#w.popups].name, "OLYMPUS_NETOFF_UNDO")
+					StaticPopupDialogs.OLYMPUS_NETOFF_UNDO.OnAccept(nil, w.popups[#w.popups].data)
+					eq(M.Hidden("Spammer Guy-Realm"), nil)
+					-- The King's screen while the council's names are hidden (his stream): another's reason and
+					-- a councillor's name stay hidden; his own words show.
+					AsKing()
+					M.Handle("CHANNEL", HC, O1("c", true, w.clock + 5, "Spammer Guy-Realm", HC, "a councillor's words"))
+					ns.SetCouncilNamesShown(false)
+					tip.lines = {}
+					M.Lines()[2].tooltip(tip)
+					text = table.concat(tip.lines, "\n")
+					assert(not text:find("a councillor's words", 1, true) and not text:find("Test Councillor", 1, true), text)
+					assert(text:find(L.NETOFF_REASON_HIDDEN, 1, true))
+					ns.SetCouncilNamesShown(true)
+					tip.lines = {}
+					M.Lines()[2].tooltip(tip)
+					assert(table.concat(tip.lines, "\n"):find("a councillor's words", 1, true), "shown once he shows the council's names")
+					ns.SetCouncilNamesShown(false)
+					-- The hidden player: his own red line on his Decrees tab (the reason on hover), nobody
+					-- else's name, no header; The Watch's section never carries his own line any more.
+					AsSoldier("Spammer Guy")
+					local own = Decrees()
+					assert(own:find(L.NETOFF_YOU_SHORT, 1, true), own)
+					assert(not own:find(L.NETOFF_TITLE, 1, true) and not own:find("Other Spammer", 1, true), own)
+					local notice = M.SelfLines()
+					eq(#notice, 1, "one line")
+					tip.lines = {}
+					notice[1].tooltip(tip)
+					eq(table.concat(tip.lines, "\n"), M.YouText(M.SelfOff()), "his reason, on hover")
+					assert(table.concat(tip.lines, "\n"):find("a councillor's words", 1, true))
+					assert(not Page(M.Lines()):find(L.NETOFF_YOU_SHORT, 1, true), "no own line in The Watch's section")
+					-- /oly netoff alone: his own word, then where the list is; nobody else's name.
+					printed = #w.printed
+					M.PrintList()
+					eq(#w.printed, printed + 2)
+					eq(w.printed[printed + 2], L.NETOFF_LIST_STAFF)
+					assert(w.printed[printed + 1]:find(M.YouText(M.SelfOff()), 1, true), w.printed[printed + 1])
+					for i = printed + 1, #w.printed do assert(not w.printed[i]:find("Other Spammer", 1, true), w.printed[i]) end
+					-- Hidden as his guild's Captain: The Watch refuses him, so this line is where he reads why.
+					GetGuildInfo = function() return "Olympus II", "Officer", 1 end
+					eq(W.CanRead(), false, "a hidden officer has no desk")
+					eq(W.NetoffShown(), false)
+					assert(Decrees():find(L.NETOFF_YOU_SHORT, 1, true), "still told on Decrees")
+				end)
+				letWatchGo()
+				if not ok then error(err, 0) end
+			end)
 		end)
 	end)
 
@@ -40423,7 +40545,7 @@ end)
 		local keys = { "HELP_NETOFF", "NETOFF_TITLE", "NETOFF_TIP", "NETOFF_YOU", "NETOFF_YOU_SHORT", "NETOFF_YOU_BACK", "NETOFF_ONLY",
 			"NETOFF_WHO_BAD", "NETOFF_NOT_KING", "NETOFF_NOT_SELF", "NETOFF_REASON_NEEDED", "NETOFF_NOT_OFF", "NETOFF_FULL", "NETOFF_DONE",
 			"NETOFF_UNDONE", "NETOFF_REASON", "NETOFF_BY", "NETOFF_CLICK_UNDO", "NETOFF_ADD", "NETOFF_REASON_HIDDEN", "NETOFF_LIST",
-			"NETOFF_WHO_PROMPT", "NETOFF_WHY_PROMPT", "NETOFF_UNDO_CONFIRM" }
+			"NETOFF_WHO_PROMPT", "NETOFF_WHY_PROMPT", "NETOFF_UNDO_CONFIRM", "NETOFF_LIST_STAFF", "WATCH_NETOFF_DETAIL" }
 		local pt = PtBR()
 		for _, k in ipairs(keys) do
 			assert(rawget(ns.L, k) and rawget(ns.L, k) ~= k, "English: " .. k)
@@ -40574,9 +40696,11 @@ end)
 			ns.Comm.Broadcast({ guild = "Olympus II", total = 300, online = 3, zones = {}, officers = {}, levels = {} })
 			eq(ns.Comm.QueueSize(), q, "no report enqueued")
 			eq(ns.Comm.heldReport, true)
-			-- Its own row is gone from its own census too, and the Decrees tab says why.
+			-- Its own row is gone from its own census too, and the Decrees tab says why (1.4.0: its own
+			-- notice there, Moderation.SelfLines; the list itself is The Watch's).
 			for _, e in ipairs(ns.Data.Summary().guilds) do assert(e.name ~= "Olympus II") end
-			assert(Page(M.Lines()):find(ns.L.NETOFF_YOUR_GUILD_SHORT, 1, true))
+			assert(Page(M.SelfLines()):find(ns.L.NETOFF_YOUR_GUILD_SHORT, 1, true))
+			assert(Page((ns.Views.Build("decrees"))):find(ns.L.NETOFF_YOUR_GUILD_SHORT, 1, true), "on the tab itself")
 			assert(ns.Moderation.StatusLine():find("your guild among them", 1, true))
 			-- Back on: told, and nothing held.
 			GuildBack("Olympus II")
@@ -63692,7 +63816,7 @@ end)()
 	test("1.1.2 explanations: every tab and page has its '?', from the answer bank; where it counts, why its numbers can differ; the window's '?' opens the page shown", function()
 		local pages = { "join", "census/", "realm/tree", "realm/board", "realm/loot", "realm/members:7", "realm/members:30",
 			"realm/members:recruits", "chat/", "decrees/", "watch/tabards", "throne/home", "throne/hands", "vox/", "treasury/summary",
-			"treasury/book", "treasury/keepers", "treasury/dues", "watch/", "watch/judgments", "workshop/" }
+			"treasury/book", "treasury/keepers", "treasury/dues", "watch/", "watch/judgments", "watch/netoff", "workshop/" }
 		for _, t in ipairs(ns.UI and ns.UI.TABS or {}) do pages[#pages + 1] = t.key .. "/" end
 		for _, page in ipairs(pages) do
 			local def = A.PageOf(page)
@@ -63710,6 +63834,14 @@ end)()
 		eq(A.PageOf("watch/tabards"), A.PAGES["watch/tabards"]); eq(A.PAGES.heraldry, nil)
 		-- (1.2: and its Judgments, how a case reaches the King and the council's vote.)
 		eq(A.PageOf("watch/judgments")[1], "feat-judgments")
+		-- (1.4.0: the hidden list's own page, a Steward's or a Hand's without the desk, explains the
+		-- list, never the desk, its block terms or the court queue he does not see.)
+		eq(A.PageOf("watch/netoff"), A.PAGES["watch/netoff"])
+		local netoffHelp = A.ExplainText("watch/netoff")
+		assert(netoffHelp:find(A.Find("feat-net-off").long, 1, true), netoffHelp)
+		for _, id in ipairs({ "feat-watch", "feat-block-terms", "feat-hold-court" }) do
+			assert(not netoffHelp:find(A.Find(id).long, 1, true), "watch/netoff: " .. id)
+		end
 		eq(select(2, A.ExplainText("watch/tabards")), L.TAB_WATCH)
 		for _, page in ipairs({ "census/", "realm/tree", "treasury/summary" }) do
 			assert(A.ExplainText(page):find(L.WHY_DIFFER, 1, true), page .. ": why its counts can differ")
@@ -63748,7 +63880,9 @@ end)()
 		local def = A.PageOf("watch/")
 		assert(def and Has(def, "feat-watch") and Has(def, "feat-block-terms") and Has(def, "feat-net-off")
 			and Has(def, "feat-hold-court"), "the Watch page's four explanations")
-		assert(Has(A.PAGES.decrees, "feat-net-off"), "public net-off disclosure stays explained on Decrees")
+		-- (1.4.0: the list itself moved to The Watch; Decrees keeps a hidden player's own notice, which
+		-- this answer still explains there.)
+		assert(Has(A.PAGES.decrees, "feat-net-off"), "a hidden player's own notice stays explained on Decrees")
 		assert(Has(A.PAGES.throne, "feat-hold-court"), "the Throne keeps the Hold Court button help")
 		local help = A.ExplainText("watch/")
 		assert(help and help:find(A.Find("feat-watch").long, 1, true) and help:find(A.Find("feat-hold-court").long, 1, true), help)
