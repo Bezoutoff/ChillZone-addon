@@ -761,7 +761,7 @@ function Moderation.Report(r, sender)
 end
 
 ---------------------------------------------------------------------------
--- Giving a word (the Decrees tab, /oly netoff, /oly neton)
+-- Giving a word (The Watch's section, /oly netoff, /oly neton)
 ---------------------------------------------------------------------------
 
 -- Takes `input` off (off true, with a reason) or puts it back on: this client's word, kept and
@@ -877,41 +877,77 @@ local function ReasonShown(e)
 end
 Moderation.ReasonShown = ReasonShown
 
+-- Who reads the list (1.4.0, the author: it is The Watch's alone now): one who gives words, or whose
+-- Watch desk shows (its officers and Watchers, the King, the High Council). Presentation only: the
+-- words themselves are on the Olympus channel for every addon.
+local function SeesList()
+	if Moderation.CanIssue() then return true end
+	local W = ns.Watch
+	return type(W) == "table" and not W.missing and type(W.DeskShown) == "function" and W.DeskShown() == true
+end
+Moderation.SeesList = SeesList
+
+-- /oly netoff alone: the list, for its readers; anyone else his own word, if one hides him, and
+-- where the list is. (1.4.0: the list opens in Olympus's copy window, its count alone in chat: a
+-- list a moderator may need to copy, and chat lines can't be; chat as before without the window.)
 function Moderation.PrintList()
-	local list = Moderation.List()
-	ns.Print(L.NETOFF_LIST:format(#list))
-	for _, e in ipairs(list) do
-		print(("  %s  -  %s  (%s, %s)"):format(Label(e), ReasonShown(e), ByText(e, IssuerLabel), When(e)))
+	if not SeesList() then
+		local mine = Moderation.SelfOff()
+		if mine then ns.Print(Red(Moderation.YouText(mine))) end
+		return ns.Print(L.NETOFF_LIST_STAFF)
 	end
-	if Moderation.CanIssue() then print(L.HELP_NETOFF) end
+	local list = Moderation.List()
+	local head = L.NETOFF_LIST:format(#list)
+	local rows = {}
+	for _, e in ipairs(list) do
+		rows[#rows + 1] = ("  %s  -  %s  (%s, %s)"):format(Label(e), ReasonShown(e), ByText(e, IssuerLabel), When(e))
+	end
+	if Moderation.CanIssue() then rows[#rows + 1] = L.HELP_NETOFF end
+	ns.Print(head)
+	local UI = ns.UI
+	if #list > 0 and type(UI) == "table" and type(UI.ShowCopy) == "function" then
+		return UI.ShowCopy(L.NETOFF_TITLE, head .. "\n" .. table.concat(rows, "\n"))
+	end
+	for _, row in ipairs(rows) do print(row) end
 end
 
--- The Decrees tab's section: who is hidden and which guilds are off, why, by whom and when; the
--- issuers' buttons.
+-- The Decrees tab's one net-off line (1.4.0, the author: the list left Decrees for The Watch): the
+-- viewer's own notice alone, when a word hides him or his guild (the reason on hover), else his
+-- guild's timed word, its parchment again on a click. Nobody else's name, no header; nothing at
+-- all for anyone else.
+function Moderation.SelfLines()
+	local mine, _, via = Moderation.SelfOff()
+	if mine then
+		-- (TagFollow.lua: another character's word through our BattleTag says so, never who gave it.)
+		local short = via == "tag" and L.ACCORD_FOLLOW_YOU_SHORT or mine.kind == "g" and L.NETOFF_YOUR_GUILD_SHORT or L.NETOFF_YOU_SHORT
+		return { { text = Red(short), gapAfter = true,
+			tooltip = function(tt) tt:AddLine(Moderation.YouText(mine), 1, 1, 1, true) end } }
+	end
+	local exile = Moderation.ExileOfMine()
+	if exile then
+		-- 1.1.6: our guild's timed word waits: the parchment again, with a click.
+		return { { text = Red(L.NETOFF_EXILE_YOURS_SHORT:format(Hour(exile.when))), gapAfter = true,
+			tooltip = function(tt) tt:AddLine(Moderation.ExileText(exile), 1, 1, 1, true) end,
+			onClick = function() Moderation.ShowExileNotice(exile) end } }
+	end
+	return {}
+end
+
+-- The Watch's section (Watch.lua: its desk, and the page of one who gives words without the desk):
+-- who is hidden and which guilds are off, why, by whom and when; the issuers' buttons. Since 1.4.0
+-- the Decrees tab shows none of it, only the viewer's own notice (SelfLines).
 function Moderation.Lines()
 	local lines = {}
 	local issuer = Moderation.CanIssue()
 	local list = Moderation.List()
-	local mine, _, via = Moderation.SelfOff()
-	local timed, exile = Moderation.TimedList(), Moderation.ExileOfMine()
-	if #list == 0 and #timed == 0 and not issuer and not mine then return lines end
+	local timed = Moderation.TimedList()
+	if #list == 0 and #timed == 0 and not issuer then return lines end
 	lines[#lines + 1] = { header = true, text = L.NETOFF_TITLE, right = #list > 0 and Grey(tostring(#list)) or nil,
 		tooltip = function(tt)
 			tt:AddLine(L.NETOFF_TITLE, 1, 0.82, 0)
 			tt:AddLine(L.NETOFF_TIP, 1, 1, 1, true)
 			tt:AddLine(L.NETOFF_GUILD_TIP, 1, 1, 1, true)
 		end }
-	if mine then
-		-- (TagFollow.lua: another character's word through our BattleTag says so, never who gave it.)
-		local short = via == "tag" and L.ACCORD_FOLLOW_YOU_SHORT or mine.kind == "g" and L.NETOFF_YOUR_GUILD_SHORT or L.NETOFF_YOU_SHORT
-		lines[#lines + 1] = { indent = 1, text = Red(short),
-			tooltip = function(tt) tt:AddLine(Moderation.YouText(mine), 1, 1, 1, true) end }
-	elseif exile then
-		-- 1.1.6: our guild's timed word waits: the parchment again, with a click.
-		lines[#lines + 1] = { indent = 1, text = Red(L.NETOFF_EXILE_YOURS_SHORT:format(Hour(exile.when))),
-			tooltip = function(tt) tt:AddLine(Moderation.ExileText(exile), 1, 1, 1, true) end,
-			onClick = function() Moderation.ShowExileNotice(exile) end }
-	end
 	-- 1.1.6: the guilds whose timed word waits, their time first.
 	for _, p in ipairs(timed) do
 		local may = Moderation.MayCancel(p)

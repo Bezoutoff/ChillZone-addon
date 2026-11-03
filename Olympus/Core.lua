@@ -237,6 +237,23 @@ function ns.GroupOf(realm, db)
 	return Learned(db or ns.db, realm) or SEED[realm] or realm
 end
 
+-- What kind of realm each known realm is, "pvp" or "pve", by its name in "Name-Realm" form (the
+-- Companion shows a PvP realm group's Wanted list to the PvE realms' players with a line saying it
+-- comes from PvP: BridgeSections.lua's membership and wanted). Olympus reads no realm type from the
+-- game, so a realm is known only when it is named here. The launch realms are not known yet (the
+-- author fills them in once they are), so it ships empty: every realm is unknown (ns.RealmPvP nil)
+-- and the Companion's relay falls back to its own list of PvP realm groups.
+ns.REALM_KIND = {}
+
+-- Whether a realm is a PvP realm: true or false for a realm ns.REALM_KIND names, nil for any other.
+function ns.RealmPvP(realm)
+	local kinds = ns.REALM_KIND
+	local kind = type(realm) == "string" and type(kinds) == "table" and kinds[realm] or nil
+	if kind == "pvp" then return true end
+	if kind == "pve" then return false end
+	return nil
+end
+
 function ns.GroupRealms(group)
 	local out = {}
 	for realm in tostring(group or ""):gmatch("[^+]+") do out[#out + 1] = realm end

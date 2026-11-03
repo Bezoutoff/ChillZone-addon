@@ -55,9 +55,10 @@ local L = ns.L
 -- What it does: his own client applies it to himself (his chats, his powers, games, map and
 -- Crafting, as every sanction: WatchChat.Barred) and tells him in Olympus's own pop-up, never who
 -- gave it; a team client hides the followed characters it holds the BattleTag of and marks them in
--- The Watch. Nothing goes out by name on a match alone, and a by-name word shows in every member's
--- Decrees. Only when a followed character's addon shows it does not apply it to itself does a team
--- client that may give that sanction by name give it (DERIVED_REASON): his Olympus chat line
+-- The Watch. Nothing goes out by name on a match alone, and a by-name word reaches every addon
+-- (listed in The Watch since 1.4.0). Only when a followed character's addon shows it does not
+-- apply it to itself does a team client that may give that sanction by name give it
+-- (DERIVED_REASON): his Olympus chat line
 -- (M1, M2, EC: never the game's own guild chat) hidden by the follow, then the follow on the wire
 -- here (sent or heard) within ONLINE_WINDOW after such a line (he was online to receive it; the
 -- giver's client sends it again on his first such line), then still another line EVADE_AFTER
@@ -95,7 +96,7 @@ TF.CODES_PER_SOURCE = 4     -- codes one client follows a sanctioned character's
 TF.DERIVE_HOUR = 6          -- by-name words one client gives that way in an hour at most
 -- (The author's decision: false gives a by-name word only on that evidence; true gives it on the
 -- match alone, each minute, to every character a follow reaches here, which would list a possibly
--- innocent player, one whose BattleTag a modified addon sent, in every member's Decrees.)
+-- innocent player, one whose BattleTag a modified addon sent, for every addon, by name in The Watch.)
 TF.DERIVE_ON_MATCH = false
 TF.NOTICE_WAIT = 30         -- after login, the player is told
 TF.DERIVED_REASON = "same BattleTag as a sanctioned player" -- (English on the wire, as every reason)

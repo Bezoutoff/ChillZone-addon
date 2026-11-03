@@ -1724,8 +1724,11 @@ function Data.DiscordText()
 	local s = Data.Summary()
 	local F, D = ns.FormatNumber, ns.Codec.Discord
 	local out = {}
-	-- (CR-02: the characters, as the window's header has them, then the people.)
-	out[#out + 1] = L.DISCORD_HEADER:format(F(s.characters or s.total), F(s.online), #s.guilds) .. " · " .. L.ARMY_PEOPLE:format(F(s.total))
+	-- (CR-02: the characters, as the window's header has them, then the people as the header gives
+	-- them, CensusStats.PeopleText: 2026-10-20, a team client's "~" estimate.)
+	local CS = ns.CensusStats
+	local people = type(CS) == "table" and not CS.missing and type(CS.PeopleText) == "function" and CS.PeopleText(s) or L.ARMY_PEOPLE:format(F(s.total))
+	out[#out + 1] = L.DISCORD_HEADER:format(F(s.characters or s.total), F(s.online), #s.guilds) .. " · " .. people
 	local where = {}
 	for i = 1, math.min(8, #s.zoneList) do
 		local z = s.zoneList[i]
