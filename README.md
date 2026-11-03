@@ -2417,7 +2417,9 @@ Since 1.1 the King (or his Steward, for him) can also rotate the army's key from
 Lords and Captains online of the guilds he picks whom his own /who saw in them by whisper, and
 their guilds over guild chat, never on the Olympus channel. Since 1.3.4 the addon's author rotates
 and hands it out the same way from his own Throne view (`/oly key rotate`), without becoming King or
-Steward; a preview of another role starts none.
+Steward; a preview of another role starts none. Since 1.4.0 the key travels in a form only 1.4.0
+and newer read, wherever it goes (the whisper, guild chat, a guildmate's ask, `/oly key`): a version
+before 1.4.0 gets no key and stays off the sealed channel until it is updated.
 
 If a guild was accidentally given a different private key and lost the shared census and
 Olympus chat, one of its current officers can use `/oly key off`. The recovery instruction stays
