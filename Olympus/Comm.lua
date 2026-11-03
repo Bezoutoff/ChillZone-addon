@@ -439,6 +439,8 @@ end
 --   TagFollow TF (a sanction that follows a BattleTag: a code of it, the character, the kind; logged,
 --   on the Olympus channel).
 --   1.4.0, PrivatePresence PP (Private presence on or off, to the player's own guild over GUILD only).
+--   Verify GV (guild verification: a verifier's approval or revocation of a guild and its master,
+--   logged; any member's ask; a verifier's client's answer with the words and the guilds' starts).
 local handlers = {}
 -- 1.1 (Moderation.lua): a client the moderators took off (net-off) sends none of what they hide.
 local function Held(msg)

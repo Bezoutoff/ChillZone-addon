@@ -800,6 +800,9 @@ local function GuildRank(name)
 		local _, _, live = GetGuildInfo("player")
 		if rank ~= live then return nil end
 	end
+	-- (Guild verification, Verify.lua: an overdue guild's master grants and keeps nothing here until
+	-- verified; he stands as an officer.)
+	if rank == 0 and ns.MasterHeld and ns.MasterHeld(GetGuildInfo("player")) then return ns.CAPTAIN_RANK end
 	return rank
 end
 function Bank.OwnGuildKeeper(name)

@@ -49,7 +49,9 @@ end
 function Charter.IsMaster()
 	if not ns.IsMember() then return false end
 	local guild, _, rank = GetGuildInfo("player")
-	return rank == 0 and type(guild) == "string" and ns.IsFederation(guild), guild
+	-- (Guild verification, Verify.lua: an overdue guild's master publishes no card until verified;
+	-- the receivers' Authorized refuses one too, Data.AuthorizedRank.)
+	return rank == 0 and type(guild) == "string" and ns.IsFederation(guild) and not (ns.MasterHeld and ns.MasterHeld(guild)), guild
 end
 local function Authorized(by, guild)
 	if not RealmOK(by) or not ns.IsFederation(guild) then return false end

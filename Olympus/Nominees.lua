@@ -215,7 +215,8 @@ local function RealMaster()
 	local guild, _, rank = GetGuildInfo("player")
 	-- (The King's own guild has no centurions or correspondents: the author's call.)
 	if type(guild) == "string" and ns.IsKingGuild and ns.IsKingGuild(guild) then return false end
-	return rank == 0 and type(guild) == "string", guild
+	-- (Guild verification, Verify.lua: an overdue guild's master names nobody until verified.)
+	return rank == 0 and type(guild) == "string" and not (ns.MasterHeld and ns.MasterHeld(guild)), guild
 end
 
 -- The author's "guild master's view" (1.1.5, his ask: his character is no guild master): from the
@@ -262,6 +263,8 @@ function Nominees.MainGuild() return ns.KingGuildName() end
 -- a signed High Councillor.
 local function Proven(sender, guild)
 	if IsMain(guild) then return ns.IsKingCharacter(sender) == true or ns.IsHighCouncillor(sender) == true end
+	-- (Guild verification, Verify.lua: an overdue guild's master is proven of nothing until verified.)
+	if ns.MasterHeld and ns.MasterHeld(guild) then return false end
 	local mine = GetGuildInfo("player")
 	if mine and guild == mine then return ns.Roster.RankOf(sender) == 0 end
 	if mine and guild:lower() == mine:lower() then return false end -- (our guild spelled another way)
@@ -420,6 +423,9 @@ local function ListOf(guild)
 			return { guild = guild, by = by or ns.me, rev = s.rev, at = s.at, entries = entries, set = set, own = true, main = true }
 		end
 	end
+	-- (Guild verification, Verify.lua: an overdue guild's list counts for nothing until its master is
+	-- verified; kept, it counts again then.)
+	if ns.MasterHeld and ns.MasterHeld(guild) then return nil end
 	local master, mine = Nominees.IsMaster()
 	if master and mine == guild then
 		local entries = OwnEntries(Saved(false))

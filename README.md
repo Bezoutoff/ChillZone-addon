@@ -72,6 +72,32 @@ approved list, it counts again, with no new version. Until a player updates, the
 [net-off](#net-off-11-the-moderators-hide-a-character-or-take-a-guild-off-the-network) word takes
 such a guild off the network live.
 
+**Guild verification (launch).** A guild's guild master verifies it once, with a verifier: the King,
+a High Councillor of the signed list or the author. Each Olympus guild has a 48-hour clock from its
+start: the first time a verifier's client saw it, the same on every client (each client keeps the
+earliest start a verifier's client gave, so a reinstall, a rejoin or a new guild master never
+restarts it; until one reaches it, a client counts from its own first sighting). Meanwhile its guild
+master sees **GM verification pending** (once a session, and the line on top of the Census or
+`/oly verify` opens it again) with the steps: whisper a verifier (**Whisper a verifier** writes it
+for him in Olympus's own whisper window, with a short code), or **Ask the High Council**. A verifier
+approves it from The Watch's **Guilds** (every Olympus guild still to verify, with its guild master,
+members, time left and code, overdue ones first; a click approves it or whispers its guild master,
+who may not have the addon yet; **Copy the list** opens it in a window to copy from) or with
+`/oly verify approve <Guild> [Guild master]` or `<code>`; `/oly verify revoke <Guild>` takes one
+back. The verifiers are told once of each pending guild (and of each new guild master to check)
+and reminded 12 hours before its deadline. A verification belongs to the guild **and** its guild
+master: while the census names someone else as guild master, it lapses until the new one is
+verified, on the guild's same clock. Past 48 hours an unverified guild is overdue: every member
+sees, once a session, that it is not sanctioned yet (ask the guild master to verify, or find
+another Olympus guild); it stays on the verifiers' list, marked overdue; and its guild master's own
+powers in Olympus wait for his verification (others take him as an officer: his public card, his
+Legates and correspondents, his guild decrees and his guild bank grant wait too). Nothing is taken
+from the members and nobody is removed. The King's guild needs none. Verified guilds carry a mark
+in the Census (an overdue one, for the verifiers). Being verified grants no role or council
+status. Switches in `Core.lua`: `ns.VERIFY_HOLD` (the guild master's hold, on) and
+`ns.VERIFY_GATE` (whole-guild features through `ns.GuildSanctioned`, off: no feature is gated); the
+exemptions are one predicate, `Verify.Exempt`.
+
 ### Not in Olympus yet?
 First it asks the obvious question: *"<Your Guild>? Disband immediately. What are you
 doing?"* Then it helps you get in. The **Join Olympus** screen uses the game's own `/who` to
@@ -2504,6 +2530,9 @@ alone (the Companion's rows below). Your name is on every message (the game adds
 | Zones in that census: members per zone (numbers only), a leader's or officer's zone | everyone on the Olympus channel | only if the member sending it shares their zone and layer; a leader's or officer's zone only if they share theirs too |
 | The army's guild counts, repeated (1.4.0): each Olympus guild's name, size, online count, average level and when it was seen, as your client holds them | everyone on the Olympus channel | only when a client that holds less asks and no moderator or two other players answered first, at most every 3 minutes; never in quiet presence. Kept: another player's row a day (as one witness), a row two players agree on a week |
 | Other servers' totals (1.4.0): for each realm group you played (or that two players or a moderator told you of), its characters, people, number of guilds and when they were seen; never your current server's, never the beta's on a launch realm | everyone on the Olympus channel | after login and about every half hour, only what is newer than what was said lately. Kept a week in your saved variables (account-wide) |
+| A guild verification (launch): a verifier's approval or revocation of a guild and its guild master (the guild's and his name, the time; your name, as on every message) | everyone on the Olympus channel (logged) | only from the King's, a High Councillor's or the author's client, when they approve or revoke. Kept in your saved variables: an approval until revoked or replaced (400 at most), a revocation 30 days |
+| A verification ask: how many verifications and guild starts your client holds, the newest one's time and a sum of the starts (no names) | everyone on the Olympus channel | after login, then every half hour; never in quiet presence |
+| A verifier's answer: every verification it holds (guild, guild master, time, who approved) and each guild's start (the first time a verifier's client saw it) | everyone on the Olympus channel | only from a verifier's client, when a client that holds less asks, at most every 3 minutes; never in quiet presence. Kept: a guild's start 90 days after it was last seen, your own client's first sighting of each guild 30 days |
 | Your zone, layer, guild rank and guild (layer announcements) | everyone on the Olympus channel | only if you share: officers and one member in eight announce, every 10 minutes and when their layer changes |
 | A layer hop ask: the zone you are in and the layer you want; or a King-layer discovery question: the map and current crown lease, but no claimed destination layer | everyone on the Olympus channel | when you ask to hop or explicitly click the King's unknown-layer line |
 | An answer to an ask for your layer (it tells the asker you are on it), including a direct sighting when an active asker is discovering the King's layer | the asker alone (a whisper; a direct sighting is never broadcast by itself) | only if you share your zone and layer and said yes to layer help (1.1: off until you answer, on the first-open page or with `/oly layerhelp on`; `/oly layerhelp off` stops it); direct sightings require two independent answers, last only for that request and are withdrawn on opt-out while it remains active |
@@ -3111,6 +3140,8 @@ Other limits:
 | `/oly warndays <days>` | when a Lord or Captain counts as away: red in the Realm, and one line when a Lord crosses it |
 | `/oly recruits` | Lords: your recruits, and a Captain as each one's mentor (one whisper to each, from your click) |
 | `/oly nominees [legate <name> \| correspondent <n> <name> \| remove <name>]` | guild masters: up to 25 Legates and one correspondent per department from their own guild. The King or real High Council explicitly appoints up to 25 Legates of the King's guild; being on the council alone appoints nobody. The historical `centurion` command remains an alias |
+| `/oly verify` · `/oly verify status` | your guild's verification: a guild master's steps (whisper a verifier, or ask the High Council), else its state; the King, the High Council and the author: The Watch's Guilds |
+| `/oly verify approve <Guild> [Guild master]` · `/oly verify approve <code>` · `/oly verify revoke <Guild>` · `/oly verify list` | verifiers (the King, the High Council, the author): approve a guild with its guild master (by default the census's), take one back, or copy the list of guilds still to verify |
 | `/oly nocontact on\|off` | do not contact: recruits' Join screens skip you (on), or may ask you (off) |
 | `/oly patrol` | start or stop the tabard patrol |
 | `/oly mark [note]` | mark your target |

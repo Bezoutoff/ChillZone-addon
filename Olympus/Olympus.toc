@@ -49,6 +49,7 @@ Locales\PlayerSightingsText.lua
 Locales\AccordText.lua
 Locales\RecordText.lua
 Locales\CensusStatsText.lua
+Locales\VerifyText.lua
 Locales\SelfTestText.lua
 Locales\deDE.lua
 Locales\esES.lua
@@ -127,6 +128,7 @@ Accord.lua
 Consent.lua
 Cover.lua
 PrivatePresence.lua
+Verify.lua
 WeeklyBrief.lua
 Carry.lua
 ChatRooms.lua
