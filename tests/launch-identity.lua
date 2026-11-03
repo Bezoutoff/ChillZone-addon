@@ -375,10 +375,12 @@ end)
 
 ---------------------------------------------------------------------------
 -- The channel's protected names (Comm.lua): whoever is banned while our client owns it is let back
--- in, the King, the Treasurer and (1.3.4) the author's characters always.
+-- in, the King, the Treasurer and (1.3.4) the author's characters included. (1.4.0, the channel
+-- heal's spam fix: only a ban the client saw is undone, never a name it did not see banned, so an
+-- unban of an offline player no longer prints "No player named" in its owner's chat.)
 ---------------------------------------------------------------------------
 
-test("1.3.4 channel owner: the author's characters the signed list names are let back in, with its King and Treasurer; never a namesake of another realm group", function()
+test("1.3.4 channel owner: a ban seen on the author's characters the signed list names, its King or its Treasurer is undone; never an unban of a name not seen banned", function()
 	local saved = { GetChannelName, JoinChannelByName, LeaveChannelByName, SetChannelPassword, ChannelUnban, ChannelModerate,
 		ChannelUnmute, C_ChatInfo, ns.rdb.realmKey, ns.Roster.byName }
 	local calls = {}
@@ -410,6 +412,9 @@ test("1.3.4 channel owner: the author's characters the signed list names are let
 				end
 			end
 			Notice("CHAT_MSG_CHANNEL_NOTICE", "YOU_JOINED")
+			for _, who in ipairs({ "Quill Maker-Launchrealm", "Quill Horde-Launchrealm", "Crown Owl-Launchrealm", "Ledger Wren-Launchrealm" }) do
+				Notice("CHAT_MSG_CHANNEL_NOTICE_USER", "PLAYER_BANNED", who)
+			end
 			Notice("CHAT_MSG_CHANNEL_NOTICE_USER", "OWNER_CHANGED", "Some Body")
 			cns.clock = cns.clock + 2
 			for _ = 1, 20 do

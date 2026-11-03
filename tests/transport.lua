@@ -18,11 +18,19 @@ local function WithComm(fn)
 		local function Send(_, msg, dist, target)
 			local entry = { msg = msg, dist = dist, target = target, at = w.now }
 			w.sent[#w.sent + 1] = entry
+			-- (1.4.0: as newer clients answer, Enum.SendAddonMessageResult: 11 during a chat lockdown,
+			-- else what w.result says for this send; 0 is success.)
+			local res = w.locked and 11 or (w.result and w.result(entry))
+			if res ~= nil then
+				if res == 0 and w.receive then w.receive(entry) end
+				return res
+			end
 			local success = not w.fail or not w.fail(entry)
 			if success and w.receive then w.receive(entry) end
 			return success
 		end
-		C_ChatInfo = { RegisterAddonMessagePrefix = function() end, SendAddonMessage = Send, SendAddonMessageLogged = Send }
+		C_ChatInfo = { RegisterAddonMessagePrefix = function() end, SendAddonMessage = Send, SendAddonMessageLogged = Send,
+			InChatMessagingLockdown = function() return w.locked == true end }
 		local c = setmetatable({ db = { blocked = {} }, rdb = {}, realm = "Realm", me = "Tester-Realm", faction = "Alliance" }, { __index = ns })
 		c.Now = function() return 1800000000 + w.now end
 		c.On = function(name, call) w.listeners[name] = call end
@@ -419,5 +427,148 @@ test("transport: guild assemblies and peer observations cannot cross a guild ses
 		eq(C.PeerCount(), 0); eq(C.PeerVersion("Old-Realm"), nil); eq(C.SharesZone("Old-Realm"), false)
 		for _, piece in ipairs(ns.Codec.Chunk(payload, "newguild")) do w.message(piece) end
 		eq(delivered, 1, "a complete transfer in the current guild still reaches its handler")
+	end)
+end)
+
+-- 1.4.0 (the queue's audit, scenarios S3 to S5): the game's "not now" holds the queue instead of
+-- failing its jobs, and a keyed message re-sent on a timer keeps its place in line.
+test("transport (1.4.0): a chat lockdown holds the forty waiting jobs instead of failing them, and all of them go once it lifts", function()
+	WithComm(function(w, C)
+		local done = {}
+		for i = 1, 40 do
+			assert(C.Whisper("Peer-Realm", "Q1~job" .. i, nil, i % 4 == 0, nil, function(sent, why)
+				done[#done + 1] = tostring(sent) .. ":" .. tostring(why)
+			end))
+		end
+		w.locked = true
+		w.step(50) -- a minute in a dungeon
+		eq(#done, 0, "no job ends during the lockdown")
+		eq(#w.sent, 0, "nothing is handed to the game while it would refuse it")
+		eq(C.QueueSize(), 40)
+		eq(C.Stats().held, true, "/oly status says the queue is held")
+		w.locked = false
+		w.step(45)
+		eq(#done, 40)
+		for i, d in ipairs(done) do eq(d, "true:nil", "job " .. i) end
+		eq(#w.messages("Q1~job"), 40, "each one once")
+		eq(C.QueueSize(), 0); eq(C.Stats().held, false)
+	end)
+end)
+
+test("transport (1.4.0): a throttled piece is tried again after a growing wait, and its transfer completes whole", function()
+	WithComm(function(w, C)
+		local calls, refused = {}, 0
+		w.result = function(entry)
+			if entry.msg:find("Cthrottle:2:", 1, true) == 1 and refused < 2 then refused = refused + 1; return refused == 1 and 3 or 8 end
+			return 0
+		end
+		assert(C.SendBatch("WHISPER", Parts(5, "throttle"), nil, "Peer-Realm", nil, function(sent, why)
+			calls[#calls + 1] = tostring(sent) .. ":" .. tostring(why)
+		end))
+		w.step(30)
+		eq(table.concat(calls, ","), "true:nil", "the transfer is not ended by the game's throttle")
+		eq(refused, 2)
+		local tries = {}
+		for _, entry in ipairs(w.messages("Cthrottle:2:")) do tries[#tries + 1] = entry.at end
+		eq(#tries, 3, "refused twice, then sent")
+		assert(tries[2] - tries[1] >= 2 and tries[3] - tries[2] >= 4, "the pump waits 2 s, then 4 s: " .. table.concat(tries, ", "))
+		eq(#w.messages("Cthrottle:"), 7, "five pieces, two of them refused once more")
+		eq(C.QueueSize(), 0); eq(C.Stats().retried, 2)
+	end)
+end)
+
+test("transport (1.4.0): a job the game keeps throttling ends after RETRY_MAX tries; a lockdown's refusal never counts", function()
+	WithComm(function(w, C)
+		local stuck, held
+		w.result = function(entry)
+			if entry.msg == "Q1~stuck" then return 8 end
+			-- An old-style lockdown refusal (no lockdown query on that client): six of them in a row.
+			if entry.msg == "Q1~held" and #w.messages("Q1~held") <= 6 then return 11 end
+			return 0
+		end
+		assert(C.Whisper("Peer-Realm", "Q1~stuck", nil, nil, nil, function(sent, why) stuck = tostring(sent) .. ":" .. tostring(why) end))
+		assert(C.Whisper("Peer-Realm", "Q1~held", nil, nil, nil, function(sent, why) held = tostring(sent) .. ":" .. tostring(why) end))
+		assert(C.Whisper("Peer-Realm", "Q1~after"))
+		w.step(300) -- (eleven refusals in a row: the pump waits 2, 4, 8, 15, then 30 s each)
+		eq(stuck, "false:8", "given up, with the game's answer")
+		eq(#w.messages("Q1~stuck"), 5)
+		eq(held, "true:nil", "held through more refusals than RETRY_MAX, then sent")
+		eq(#w.messages("Q1~held"), 7)
+		eq(#w.messages("Q1~after"), 1, "the rest of the queue goes on")
+		eq(C.QueueSize(), 0)
+	end)
+end)
+
+test("transport (1.4.0): a keyed message re-sent every 15 s behind a busy queue keeps its place and goes out", function()
+	WithComm(function(w, C)
+		local filler, asks, positions = 0, 0, {}
+		-- Twenty-one other messages always wait (the audit's S3: from thirteen, none went out).
+		local function TopUp()
+			while C.QueueSize() < 21 do
+				filler = filler + 1
+				assert(C.Whisper("Peer-Realm", "Q1~filler" .. filler))
+			end
+		end
+		TopUp()
+		local start, nextAt, newest = w.now, w.now, nil
+		while w.now - start < 600 do
+			if w.now >= nextAt then
+				newest = "P1~position~" .. asks
+				asks, nextAt = asks + 1, nextAt + 15
+				assert(C.Send("GUILD", newest, "position"))
+			end
+			local before = #w.sent
+			w.step()
+			for i = before + 1, #w.sent do
+				if w.sent[i].msg:find("^P1~position~") then
+					eq(w.sent[i].msg, newest, "the newest position, never an older one")
+					positions[#positions + 1] = w.sent[i].msg
+				end
+			end
+			TopUp()
+		end
+		eq(asks, 40)
+		assert(#positions >= 15, "the position keeps going out: " .. #positions .. " of " .. asks)
+	end)
+end)
+
+test("transport (1.4.0): after a lockdown longer than HOLD_MAX the work that waited all along is dropped, newer work goes", function()
+	WithComm(function(w, C)
+		local old, new
+		assert(C.Whisper("Peer-Realm", "Q1~before", nil, nil, nil, function(sent, why) old = tostring(sent) .. ":" .. tostring(why) end))
+		w.locked = true
+		w.step()
+		w.now = w.now + 660 -- eleven minutes in a raid
+		assert(C.Whisper("Peer-Realm", "Q1~recent", nil, nil, nil, function(sent, why) new = tostring(sent) .. ":" .. tostring(why) end))
+		w.step()
+		w.locked = false
+		w.step(5)
+		eq(old, "false:dropped", "no longer news; a must-deliver module offers it again (as for a full queue)")
+		eq(new, "true:nil")
+		eq(#w.messages("Q1~before"), 0); eq(#w.messages("Q1~recent"), 1)
+		eq(C.QueueSize(), 0)
+	end)
+end)
+
+test("transport (1.4.0): a replaced keyed message keeps its seat at the lane's end, in the middle or in another lane, and the queue drains in order", function()
+	WithComm(function(w, C)
+		local function Order()
+			local out = {}
+			for _, entry in ipairs(w.sent) do out[#out + 1] = entry.msg:match("^Q1~(.+)$") end
+			return table.concat(out, ",")
+		end
+		-- At the end of its lane, with work ahead of it and none after.
+		assert(C.Whisper("Peer-Realm", "Q1~a")); assert(C.Whisper("Peer-Realm", "Q1~b"))
+		assert(C.Whisper("Peer-Realm", "Q1~k1", "k")); assert(C.Whisper("Peer-Realm", "Q1~k2", "k"))
+		assert(C.Whisper("Peer-Realm", "Q1~c"))
+		w.step(10)
+		eq(Order(), "a,b,k2,c"); eq(C.QueueSize(), 0)
+		-- In the middle, then moved to the urgent lane: ahead of every urgent job queued after its seat.
+		w.sent = {}
+		assert(C.Whisper("Peer-Realm", "Q1~d")); assert(C.Whisper("Peer-Realm", "Q1~m1", "m"))
+		assert(C.Whisper("Peer-Realm", "Q1~e")); assert(C.Whisper("Peer-Realm", "Q1~u", nil, true))
+		assert(C.Whisper("Peer-Realm", "Q1~m2", "m", true))
+		w.step(10)
+		eq(Order(), "m2,u,d,e"); eq(C.QueueSize(), 0); eq(C.QueueRoom(), 60)
 	end)
 end)

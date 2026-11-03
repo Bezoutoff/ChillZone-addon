@@ -364,7 +364,45 @@ ns.King.Register("Y", function(sender, id, rest)
 	if copper then Dues.TakeAmount(copper, at, sender, before) end
 end)
 
-local function Heard(sender) heardAt, heardName = ns.Now(), ns.FullName(sender) end
+-- #68 (1.4.0): a pinned Treasurer character the server named offline ("No player named ... is
+-- currently playing", its reply to our own receipt ask, FP) is remembered in this realm's saved
+-- data for AWAY_FOR, so a later login or /reload does not whisper him again (one more such line in
+-- the player's chat each time) unless he was heard since. Within one session Treasury.Unavailable
+-- holds him (his addon heard again clears it); only what an earlier session saw is carried here.
+Dues.AWAY_FOR = 12 * 3600
+local carried -- [lower full name] = when the server named him offline, before this session
+local watchingAway = false
+local function AwayKey(name)
+	if type(name) ~= "string" or name == "" then return nil end
+	return ns.FullName(ns.Normal(name), ns.TREASURER_REALM):lower()
+end
+-- The records an earlier session left, read once, before this session writes any: the pinned
+-- characters only, none older than AWAY_FOR or dated ahead of our clock.
+local function Carried()
+	if carried then return carried end
+	carried = {}
+	local s = ns.rdb and ns.rdb.duesTreasurerAway
+	if type(s) ~= "table" then return carried end
+	local pins, now = {}, ns.Now()
+	-- (1.4.0: the pinned characters as the signed launch list names them, else the code's.)
+	for _, to in ipairs((ns.TreasurerPins())) do
+		local key = AwayKey(to)
+		if key then pins[key] = true end
+	end
+	for key, at in pairs(s) do
+		if pins[key] and type(at) == "number" and at <= now and now - at < Dues.AWAY_FOR then carried[key] = at else s[key] = nil end
+	end
+	return carried
+end
+-- Heard from him (his addon's answer, his receipt, his book): no longer carried as away.
+local function Back(name)
+	local key = AwayKey(name)
+	if not key then return end
+	if carried then carried[key] = nil end
+	local s = ns.rdb and ns.rdb.duesTreasurerAway
+	if type(s) == "table" then s[key] = nil end
+end
+local function Heard(sender) heardAt, heardName = ns.Now(), ns.FullName(sender); Back(sender) end
 
 -- The Treasurer's addon online: heard in the last HEARD_FOR (an answer, his book).
 -- Returns online, his name as the server wrote it, when he was last heard.
@@ -1894,6 +1932,7 @@ function Dues.HandlePayerReceipt(dist, sender, text)
 	if type(old) == "table" and seq <= (tonumber(old.seq) or 0) then return false end
 	row.sources[pin] = { seq = seq, amount = amount, copper = copper, at = at, guild = guild,
 		from = ns.FullName(ns.Normal(sender)), receivedAt = Clock() }
+	Back(sender) -- (#68: his receipt came, he is online)
 	-- Bursts of genuinely recorded gifts may update the held total, but cannot flood the payer's
 	-- chat. Replays are rejected above; each pinned issuer's local notice is limited to 30 seconds.
 	if Clock() - (payerReceiptNotice[pin] or -math.huge) >= 30 then
@@ -1928,12 +1967,59 @@ function Dues.HandlePayerAsk(dist, sender, text)
 	return QueuePayerReceipt(pin, ns.FullName(ns.Normal(sender)), proof, week)
 end
 ns.Comm.Handle("FP", function(...) Dues.HandlePayerAsk(...) end)
+-- #68: the server's not-found reply naming a pinned Treasurer character, kept for later sessions
+-- (see AWAY_FOR). Registered with the first receipt ask: a client that never asks never listens.
+function Dues.TreasurerNotFound(text)
+	-- (A secret string raises on :match: nothing to read, as Treasury.NotFound.)
+	if type(text) ~= "string" or (type(issecretvalue) == "function" and issecretvalue(text) == true) then return false end
+	local pattern = ns.Treasury.NotFoundPattern and ns.Treasury.NotFoundPattern()
+	local who = pattern and text:match(pattern)
+	if not who or not ns.rdb then return false end
+	who = who:lower()
+	for _, to in ipairs((ns.TreasurerPins())) do
+		if (ns.TellName(to) or ""):lower() == who or (ns.DisplayName(to) or ""):lower() == who then
+			Carried() -- (read before the first write: this session's own record is not carried)
+			if type(ns.rdb.duesTreasurerAway) ~= "table" then ns.rdb.duesTreasurerAway = {} end
+			ns.rdb.duesTreasurerAway[AwayKey(to)] = ns.Now()
+			return true
+		end
+	end
+	return false
+end
+-- An earlier session's record still holds him: no newer word of his reached us since (his addon's
+-- answers, Heard; his book, kept with when it came; the Treasury's audience heard lately).
+local function CarriedAway(to)
+	local key = AwayKey(to)
+	local at = key and Carried()[key]
+	if not at then return false end
+	local now, seen = ns.Now(), false
+	local reports = ns.rdb and ns.rdb.treasuryReports
+	if type(reports) == "table" then
+		for from, r in pairs(reports) do
+			if type(r) == "table" and not r.relayed and AwayKey(from) == key and (tonumber(r.t) or 0) > at then seen = true end
+		end
+	end
+	if not seen and ns.Treasury.Online then
+		for _, name in ipairs(ns.Treasury.Online()) do
+			if AwayKey(name) == key then seen = true end
+		end
+	end
+	if seen or now - at >= Dues.AWAY_FOR or at > now then
+		Back(to)
+		return false
+	end
+	return true
+end
 function Dues.RequestPayerReceipt()
 	if not Dues.Pays() or Dues.PayerStatus() == "counted" or Clock() - lastPayerAsk < Dues.ASK_EVERY then return false end
 	local sent
 	for _, to in ipairs((ns.TreasurerPins())) do
 		local me = ns.me
-		if not (ns.Treasury.Unavailable and ns.Treasury.Unavailable(to)) then
+		if not (ns.Treasury.Unavailable and ns.Treasury.Unavailable(to)) and not CarriedAway(to) then
+			if not watchingAway then
+				watchingAway = true
+				pcall(ns.RegisterEvent, "CHAT_MSG_SYSTEM", function(text) ns.SafeCall("dues treasurer away", Dues.TreasurerNotFound, text) end)
+			end
 			local ok = ns.Comm.Whisper(to, "FP~1~" .. Dues.Week(), "own dues receipt " .. to, nil, nil, nil,
 				{ owner = Dues, guard = function()
 					return Dues.Pays() and ns.me == me
@@ -2141,5 +2227,6 @@ function Dues.Reset()
 	wipe(payerReceipts); wipe(payerReceiptOrder)
 	wipe(payerReceiptNotice)
 	wipe(payerReceiptAnswered); lastPayerAsk = -math.huge
+	carried = nil
 end
 function Dues.Outbox() return outbox end

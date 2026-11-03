@@ -38,6 +38,7 @@ local MAX_KEYS = 20      -- distinct keys per diagnostic count (the rest count a
 local HEAL_GAP = 60      -- the same healing call on our channel at most this often (Comm.HealChannel)
 local MAX_HURT = 20      -- banned or muted names kept per channel to let back in (oldest dropped)
 local LOCKED_RETRY = { 60, 120, 300, 600 } -- a channel locked against us is tried again after these, then every 10 min
+local HOLD_MAX = 600     -- 1.4.0: a message held this long without going out (a lockdown) is dropped (DropStale)
 
 local peers = {}
 -- Two priorities, each with single messages and whole transfers. Intrusive lists keep
@@ -46,6 +47,8 @@ local lanes = { {}, {}, {}, {} } -- urgent single/batch, ordinary single/batch
 local keyed, owned = {}, {}
 local queueSize, ordinarySize, sequence = 0, 0, 0
 local active, batchSlot
+local refusedInRow, waitUntil = 0, -math.huge -- 1.4.0: the game's "not now" in a row, and the pump's wait after it (SendNow)
+local heldSince -- 1.4.0: when the pump began holding the queue (a lockdown, RETRY_WAIT), until it sends again
 local SyncGuild
 -- Five fragments, two chat opportunities and one urgent opportunity in eight slots:
 -- 30 pieces finish within 55.2 s; six waiting chat pieces within 28.8 s at 1.2 s/slot.
@@ -188,6 +191,9 @@ function Comm.Stats()
 		electAll = Comm.ElectsAcrossRealms(now), quietAfter = Comm.QuietAfter(now), presence = Comm.PresenceRealms(now),
 		-- 1.2.5.1: quiet presence on, and how many of our words it held (Comm.QuietHolds).
 		quietPresence = Quiet(), quietHeld = stats.quiet or 0,
+		-- 1.4.0: the game's "not now" (a throttle, a lockdown): sends kept for another try, sends
+		-- held back by a lockdown, and whether the queue is held now.
+		retried = stats.retried or 0, lockHeld = stats.locked or 0, held = heldSince ~= nil,
 		reportSt = r and r.st, reportCap = r and r.cap, reportPres = r and r.pres,
 	}
 end
@@ -292,7 +298,7 @@ local function Enqueue(dist, parts, key, target, urgent, logged, done, options)
 		urgent = urgent and true or false, logged = logged == true, done = done,
 		owner = options and options.owner, guard = options and options.guard,
 		guardKey = options and options.guardKey, permit = options and options.permit,
-		guild = GetGuildInfo("player") }
+		guild = GetGuildInfo("player"), at = GetTime() }
 	local dropped = {}
 	local previous = key and keyed[key]
 	-- A transfer already in flight remains whole. A waiting keyed job keeps the legacy
@@ -306,9 +312,14 @@ local function Enqueue(dist, parts, key, target, urgent, logged, done, options)
 		Done(job, false, "full")
 		return false
 	end
+	-- 1.4.0 (the queue's audit): the newest payload takes the waiting one's place in line, its
+	-- sequence: a message re-sent on a timer behind a busy queue was put back at the end each time
+	-- and never reached the front (a 15 s position stopped going out once 13 waited ahead of it).
+	local seat
 	if replace then
 		if job.done == nil then job.done = previous.done end
 		previous.done = nil
+		seat = previous.seq
 		Detach(previous)
 	end
 	while queueSize + #parts > MAX_QUEUE do
@@ -320,12 +331,23 @@ local function Enqueue(dist, parts, key, target, urgent, logged, done, options)
 	end
 	local accepted = queueSize + #parts <= MAX_QUEUE
 	if accepted then
-		sequence = sequence + 1
-		job.seq = sequence
 		local lane = lanes[(job.urgent and 1 or 3) + (#parts > 1 and 1 or 0)]
-		job.lane, job.prev = lane, lane.last
-		if lane.last then lane.last.next = job else lane.first = job end
-		lane.last = job
+		if seat then
+			-- (Each lane stays in sequence order: in after the last job ahead of its seat.)
+			job.seq = seat
+			local ahead = lane.last
+			while ahead and ahead.seq > seat do ahead = ahead.prev end
+			job.lane, job.prev = lane, ahead
+			if ahead then job.next = ahead.next else job.next = lane.first end
+			if job.next then job.next.prev = job else lane.last = job end
+			if ahead then ahead.next = job else lane.first = job end
+		else
+			sequence = sequence + 1
+			job.seq = sequence
+			job.lane, job.prev = lane, lane.last
+			if lane.last then lane.last.next = job else lane.first = job end
+			lane.last = job
+		end
 		queueSize = queueSize + #parts
 		if not job.urgent then ordinarySize = ordinarySize + #parts end
 		if key then keyed[key] = job end
@@ -604,16 +626,42 @@ local function IsSuccess(res)
 	return res == nil or res == true or res == 0
 end
 
+-- 1.4.0 (the queue's audit: a chat lockdown lost every waiting job, one refusal a tick, and one
+-- throttled piece ended a whole transfer). The game's answers that mean "not now":
+-- Enum.SendAddonMessageResult's AddonMessageThrottle (3), ChannelThrottle (8), GeneralError (9)
+-- and AddOnMessageLockdown (11). The job keeps its place and the whole pump waits, longer after
+-- each refusal in a row (RETRY_WAIT); a job refused RETRY_MAX times for a throttle or an error
+-- ends as before. A lockdown never counts against a job: nothing leaves while it lasts
+-- (ns.ChatLocked, C_ChatInfo.InChatMessagingLockdown where the client has it), and a transfer
+-- already begun still ends "late" past its receivers' 60 seconds. Any other answer (an offline
+-- target, 12; an old client's false) ends the job at once, as before.
+local LOCKDOWN = 11
+local RETRYABLE = { [3] = true, [8] = true, [9] = true, [LOCKDOWN] = true }
+local RETRY_WAIT = { 2, 4, 8, 15, 30 } -- seconds the pump waits after 1, 2, 3, 4, 5+ refusals in a row
+local RETRY_MAX = 5
+-- (Named apart from the channel guard's Locked further down, a different thing.)
+local function InLockdown() return ns.ChatLocked ~= nil and ns.ChatLocked() == true end
+
 -- Player text goes through the logged API, Blizzard's function for plain text payloads
 -- (receivers get CHAT_MSG_ADDON_LOGGED). Clients without it use the usual one.
 local function SendNow(dist, msg, logged, whisperTo)
+	-- (1.4.0: during a chat lockdown the game refuses it anyway: no call, no failure logged.)
+	if InLockdown() then
+		stats.locked = (stats.locked or 0) + 1
+		return false, LOCKDOWN
+	end
 	-- (A whisper goes to the name the server finds: ns.TellName. Group distributions have no target.)
 	local target = dist == "CHANNEL" and channelIndex or (dist == "WHISPER" and ns.TellName(whisperTo) or nil)
 	local send = logged and C_ChatInfo.SendAddonMessageLogged or C_ChatInfo.SendAddonMessage
 	local ok, res = pcall(send, ns.PREFIX, msg, dist, target)
 	if ok and IsSuccess(res) then
 		stats.sent = stats.sent + 1
+		refusedInRow = 0
 		return true
+	end
+	if ok and RETRYABLE[res] then
+		refusedInRow = refusedInRow + 1
+		waitUntil = GetTime() + RETRY_WAIT[math.min(refusedInRow, #RETRY_WAIT)]
 	end
 	stats.fails = stats.fails + 1
 	stats.lastFail = ("%s %s"):format(dist, tostring(res))
@@ -743,6 +791,14 @@ local function SendJob(job, now)
 	end
 	local sent, why = SendNow(job.dist, job.parts[job.i], job.logged, job.target)
 	if not sent then
+		-- (1.4.0: "not now" keeps the job in its place, RETRY_MAX tries for a throttle or an error.)
+		if RETRYABLE[why] then
+			if why ~= LOCKDOWN then job.tries = (job.tries or 0) + 1 end
+			if (job.tries or 0) < RETRY_MAX then
+				stats.retried = (stats.retried or 0) + 1
+				return true
+			end
+		end
 		Finish(job, false, why or "failed")
 		return true -- a game API was called: do not spend another slot this tick
 	end
@@ -774,6 +830,24 @@ local function SendChatPart()
 	if item.done then ns.SafeCall("chat sent", item.done, sent, (not sent) and "failed" or nil) end
 end
 
+-- The jobs not begun that waited HOLD_MAX or more (only after the pump held them: a lockdown).
+-- Their done hears "dropped", as for a full queue's eviction: what must be delivered (the arena's
+-- obligations, ArenaNet's retries) is offered again by its module, the rest is no longer news.
+local function DropStale(now)
+	local stale = {}
+	for _, lane in ipairs(lanes) do
+		local job = lane.first
+		while job do
+			if not job.started and job.at and now - job.at >= HOLD_MAX then stale[#stale + 1] = job end
+			job = job.next
+		end
+	end
+	table.sort(stale, function(a, b) return a.seq < b.seq end)
+	for _, job in ipairs(stale) do Detach(job) end
+	for _, job in ipairs(stale) do Done(job, false, "dropped") end
+	return #stale
+end
+
 local function Pump()
 	SyncGuild()
 	if queueSize == 0 and not chatQueue[1] then return end
@@ -795,6 +869,17 @@ local function Pump()
 	while chatQueue[1] and now - chatQueue[1].t > CHAT_TTL do
 		local item = table.remove(chatQueue, 1)
 		if item.done then ns.SafeCall("chat drop", item.done, false, "late") end
+	end
+	-- 1.4.0: nothing leaves during a chat lockdown (the jobs wait in their places), nor before the
+	-- wait after the game's last "not now" is over (RETRY_WAIT). Once the hold is over, what waited
+	-- HOLD_MAX or more and has not begun is dropped (DropStale).
+	if InLockdown() or now < waitUntil then
+		heldSince = heldSince or now
+		return
+	end
+	if heldSince then
+		heldSince = nil
+		DropStale(now)
 	end
 	-- Invalid jobs consume no network slot. Bound the pass even if a callback adds work.
 	for _ = 1, MAX_QUEUE do
@@ -934,40 +1019,33 @@ end
 
 local function Mine(g) return g.mine.owner or g.mine.moderator end
 
--- Players the channel must never lose, the way the server finds them: the Treasurer, and the
--- King's character when our client knows it (our own roster in his guild, or a character
--- pinned in Core.lua). 1.3.4: the addon's author too (his characters, Core.lua's
--- ns.AuthorCharacters: whom the channel's owner banned is let back in, the key's rotation his
--- to hand out), and on a launch realm group whom the author's signed list names for each.
-local function Protected()
-	local out, seen = {}, {}
-	local function Add(name)
-		name = ServerName(name)
-		if name and not seen[name:lower()] then
-			seen[name:lower()] = true
-			out[#out + 1] = name
-		end
-	end
-	Add(ns.TreasurerFull())
-	-- The King where one is named here: the signed list's (1.3.4), else the code's pin (as this
-	-- namespace holds it), on its own realm group.
-	local king, signed = ns.KingFullName()
-	if king and not signed then
-		king = ns.KING_CHARACTER
-		if type(king) == "table" then king = king[ns.faction or "Alliance"] end
-	end
-	Add(king)
-	-- (His characters of our realm group alone: a namesake on another group is someone else.)
-	local here = ns.GroupOf(ns.realm or ns.CurrentRealm())
-	for _, author in ipairs((ns.AuthorCharacters())) do
-		if ns.GroupOf(ns.RealmOf(author) or "") == here then Add(author) end
-	end
-	if ns.IsKingGuild and ns.IsKingGuild(GetGuildInfo("player")) and ns.Roster and type(ns.Roster.byName) == "table" then
-		for name, rank in pairs(ns.Roster.byName) do
-			if rank == 0 then Add(name) break end
+-- 1.4.0 (the HealChannel spam a player reported): a name we saw banned is let back in only while
+-- nothing says that player is offline. The server answers an unban of an offline name with "No
+-- player named ... is currently playing" in the player's chat, so these names wait instead: one
+-- the server already named so this session (Treasury.Unavailable, which any whisper's reply
+-- fills), or a member of our own guild that a fresh roster scan shows offline. The roster's own
+-- freshness gate (Roster.Fresh) keeps an old guild's rows out of it.
+local OFFLINE_RECHECK = 300 -- names left waiting are looked at again this often while the channel is ours
+local function OfflineMembers()
+	local R = ns.Roster
+	local fresh = R and type(R.Fresh) == "function" and R.Fresh(OFFLINE_RECHECK)
+	if not fresh or type(fresh.members) ~= "table" then return nil end
+	local out
+	for _, row in ipairs(fresh.members) do
+		if type(row) == "table" and row.online == false and type(row.full) == "string" then
+			local name = ServerName(row.full)
+			if name then
+				out = out or {}
+				out[name:lower()] = true
+			end
 		end
 	end
 	return out
+end
+local function KnownOffline(name, offline)
+	local T = ns.Treasury
+	if type(T) == "table" and type(T.Unavailable) == "function" and T.Unavailable(name) == true then return true end
+	return offline ~= nil and offline[name:lower()] == true
 end
 
 -- One healing call, protected, the same one at most every HEAL_GAP: "done", "failed",
@@ -991,10 +1069,24 @@ local function HealSoon(delay)
 	end)
 end
 
+-- Names seen banned but known offline (KnownOffline) are looked at again later, on a timer of
+-- their own: a heal due sooner (a notice's) is never held behind it.
+local recheckPending = false
+local function RecheckSoon()
+	if recheckPending then return end
+	recheckPending = true
+	ns.After(OFFLINE_RECHECK, "channel heal recheck", function()
+		recheckPending = false
+		Comm.HealChannel()
+	end)
+end
+
 -- Only while the channel is ours (owner or moderator), only to undo harm, never against
 -- anyone: the password it should have (none on the public channel, the key on the sealed
--- one), no moderation, and whoever was banned or muted while we were on it let back in, the
--- Treasurer and the King always. Only for the channel we are meant to be on: what we saw on
+-- one), no moderation, and whoever we saw banned or muted while we were on it let back in.
+-- 1.4.0: only the names we saw banned (the Treasurer and the King too: never one we did not see
+-- banned, which only made the server name every offline one in the chat), and none while it is
+-- known offline (KnownOffline). Only for the channel we are meant to be on: what we saw on
 -- another one (the public channel once we have a key) changes nothing.
 -- What someone does with the channel from our own client is not undone here: the next owner's
 -- client does it.
@@ -1020,15 +1112,18 @@ function Comm.HealChannel()
 	-- saw it turned on. (Today's clients have no ChannelModerate: nobody can turn it on either.)
 	if g.moderationOn and Do("moderation off", ChannelModerate, name) ~= "later" then g.moderationOn = nil end
 	local unban = {}
-	for who in pairs(g.banned) do unban[who] = true end
-	if g.protect then
-		for _, who in ipairs(Protected()) do unban[who] = true end
+	for who in pairs(g.banned) do unban[#unban + 1] = who end
+	table.sort(unban)
+	local offline = unban[1] and OfflineMembers() or nil
+	local away = false
+	for _, who in ipairs(unban) do
+		if KnownOffline(who, offline) then
+			away = true -- kept in g.banned: let back in once nothing says he is offline
+		elseif Do("unban " .. who, ChannelUnban, name, who) ~= "later" then
+			g.banned[who] = nil
+		end
 	end
-	local waiting = false
-	for who in pairs(unban) do
-		if Do("unban " .. who, ChannelUnban, name, who) == "later" then waiting = true else g.banned[who] = nil end
-	end
-	if not waiting then g.protect = nil end
+	if away then RecheckSoon() end
 	-- (No ChannelUnmute in today's clients either: kept for one that has it.)
 	for who in pairs(g.muted) do
 		if Do("unmute " .. who, ChannelUnmute, name, who) ~= "later" then g.muted[who] = nil end
@@ -1111,7 +1206,6 @@ function Comm.OnChannelNotice(notice, player, _, channelName, player2, _, _, _, 
 		elseif not g.mine.owner then
 			g.mine.owner = true
 			g.unwatched = not g.watched or nil
-			g.protect = true
 			RoleGiven(g)
 		end
 	elseif notice == "SET_MODERATOR" or notice == "UNSET_MODERATOR" then
@@ -1121,7 +1215,6 @@ function Comm.OnChannelNotice(notice, player, _, channelName, player2, _, _, _, 
 			g.mine.moderator = nil
 		elseif not g.mine.moderator then
 			g.mine.moderator = true
-			g.protect = true
 			RoleGiven(g)
 		end
 	elseif notice == "PASSWORD_CHANGED" then

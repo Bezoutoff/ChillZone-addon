@@ -241,6 +241,60 @@ test("Dues payer loop: a server not-found reply stops periodic pinned-character 
 	eq(tries, 1, "only the character heard back is retried")
 end)
 
+-- #68 (1.4.0): the payer's login ask (45 s in) whispered both pinned characters at every login,
+-- and the server answered each offline one with "No player named ... is currently playing" in
+-- the payer's chat: Treasury.Unavailable only lasts one session.
+test("Dues payer loop (#68): a pinned character the server named offline is not whispered at a later login, until he is heard or AWAY_FOR passes", function()
+	local w, p, t, mail = Setup()
+	local function Relog(c, ahead)
+		w:Logout(c); w.clock = w.clock + (ahead or 0); w:Login(c)
+		c.ns.splitNames = true; c.ns.Comm.Hash36 = H.ns.Comm.Hash36
+	end
+	-- Every receipt ask the payer's client handed the game since `from`, delivered or refused.
+	local function Asks(from, to)
+		local n = 0
+		for _, list in ipairs({ w.sent, w.failed }) do
+			for _, s in ipairs(list) do
+				if s.from == p.name and s.msg:sub(1, 3) == "FP~" and s.t >= from and (not to or s.target == to) then n = n + 1 end
+			end
+		end
+		return n
+	end
+	local function NotFound()
+		for _, name in ipairs(p.ns.TREASURER_CHARACTERS) do w:System(p, p.globals.ERR_CHAT_PLAYER_NOT_FOUND_S:format(name)) end
+	end
+	w:Logout(t); w:Logout(mail)
+	local since = w.clock
+	assert(w:As(p, p.ns.Dues.RequestPayerReceipt)); w:Run(8)
+	eq(Asks(since), 2, "the first ask tries both pinned characters")
+	NotFound()
+	-- A relog, then another (a /reload is the same new session), within AWAY_FOR: no ask leaves,
+	-- neither the login's nor the periodic one.
+	for i = 1, 2 do
+		since = w.clock
+		Relog(p, 600)
+		w:Run(p.ns.Dues.ASK_EVERY + 60)
+		eq(Asks(since), 0, "login " .. i .. ": no whisper to a character the server named offline at an earlier login")
+	end
+	-- AWAY_FOR on, still offline: asked again, once each, and the new reply is remembered again.
+	since = w.clock
+	Relog(p, p.ns.Dues.AWAY_FOR)
+	w:Run(60)
+	eq(Asks(since), 2, "the record expires")
+	NotFound()
+	since = w.clock
+	Relog(p, 600)
+	w:Run(60)
+	eq(Asks(since), 0, "remembered again")
+	-- The main Treasurer logs in and his addon is heard: he alone is asked; the still-offline mail
+	-- character stays quiet.
+	since = w.clock
+	Relog(t)
+	w:Run(p.ns.Dues.ASK_EVERY + 100)
+	assert(Asks(since, t.name) >= 1, "the character heard back is asked")
+	eq(Asks(since, mail.name), 0, "the one still away is not")
+end)
+
 test("Dues payer loop: native proof and pending queue caps preserve observed facts without granting overflow payer credit", function()
 	local w, p, t = Setup()
 	local p2, p3 = M.Client(w, W.NAMES.fighterB, { money = 1000000 }), M.Client(w, W.NAMES.bettor1, { money = 1000000 })

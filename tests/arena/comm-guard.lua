@@ -70,12 +70,37 @@ test("1.2: a queued guarded whisper rechecks permission immediately before the r
 		C.Pump()
 		eq(#sent, 1); eq(done[2], "false:recipient-changed")
 		lease.recipient = "Old-Realm"
-		results[1] = 8
-		C.Whisper("Old-Realm", "ZZ~retry", nil, nil, nil, function(ok, why)
-			done[#done + 1] = tostring(ok) .. ":" .. tostring(why)
-		end, guard)
-		C.Pump()
-		eq(sent[#sent].msg, "ZZ~retry"); eq(done[3], "false:8")
+		-- (1.4.0, changed on purpose: the author decided a throttle (8) no longer ends a job at the
+		-- first refusal; the queue's audit showed one throttled piece ending a whole transfer. The job
+		-- is tried again after the queue's wait, the permit asked again before each try, and only the
+		-- fifth refusal ends it, still with the game's numeric result for ArenaNet's retry policy.
+		-- Before 1.4.0 this asserted done[3] == "false:8" right after the first Pump.)
+		for i = 1, 5 do results[i] = 8 end
+		local savedTime, t = GetTime, 1000
+		GetTime = function() return t end
+		local ok, err = pcall(function()
+			local asked, tries = #checked, 0
+			C.Whisper("Old-Realm", "ZZ~retry", nil, nil, nil, function(ok, why)
+				done[#done + 1] = tostring(ok) .. ":" .. tostring(why)
+			end, guard)
+			C.Pump()
+			eq(sent[#sent].msg, "ZZ~retry"); eq(done[3], nil, "a throttle keeps the job for another try")
+			eq(C.QueueSize(), 1)
+			local before = #sent
+			C.Pump()
+			eq(#sent, before, "the queue waits after the game's refusal")
+			for _ = 1, 10 do
+				t = t + 31
+				C.Pump()
+			end
+			for _, s in ipairs(sent) do if s.msg == "ZZ~retry" then tries = tries + 1 end end
+			eq(tries, 5, "five tries in all")
+			eq(#checked - asked, 5, "the permit is asked before every try")
+			eq(done[3], "false:8", "the fifth refusal ends it with the game's numeric result")
+			eq(C.QueueSize(), 0)
+		end)
+		GetTime = savedTime
+		if not ok then error(err, 0) end
 	end)
 end)
 
