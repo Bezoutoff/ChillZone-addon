@@ -34753,6 +34753,8 @@ end)
 
 -- Locales.lua loaded fresh as the game in `code` would load it, then `files` (under Locales/),
 -- each as the game loads it. Returns the namespace, and each ns.Locale call's table by file.
+-- (1.4.0) The language files: each translates every line, loaded after all the others.
+LANGUAGE_FILES = { deDE = true, esES = true, frFR = true, itIT = true, ruRU = true }
 local function LoadLocale(code, files)
 	local lns = {}
 	local savedLocale = GetLocale
@@ -34760,6 +34762,12 @@ local function LoadLocale(code, files)
 	local calls = {}
 	local ok, err = pcall(function()
 		assert(loadfile(ADDON_DIR .. "Locales.lua"))("Olympus", lns)
+		-- (1.4.0) Every English (and Portuguese) file under Locales/ in the TOC's order, as the game
+		-- loads them before the language files, which now translate every one of their lines.
+		for line in io.lines(ADDON_DIR .. "Olympus.toc") do
+			local f = line:match("^%s*Locales[\\/](.-%.lua)%s*$")
+			if f and not LANGUAGE_FILES[f:gsub("%.lua$", "")] then assert(loadfile(ADDON_DIR .. "Locales/" .. f))("Olympus", lns) end
+		end
 		local real = lns.Locale
 		for _, file in ipairs(files or {}) do
 			lns.Locale = function(codes, strings)
@@ -34813,8 +34821,8 @@ test("1.1 languages: a language's file is taken key by key over English; a line 
 	eq(lns.LocaleCodes("|cffe6c35c[%s] x|r %d%% |Tpath:0|t %02dm"), "|c %s |r %d %% |T %02d")
 end)
 
-test("1.1 languages: the Spanish, French and German files: every line an English one, its codes the English line's, all taken; each language's own lines on the screens", function()
-	local files = { deDE = "deDE", esES = "esES", esMX = "esES", frFR = "frFR" }
+test("1.1 languages: the Spanish, French and German files (1.4.0: and Italian and Russian): every line an English one, its codes the English line's, all taken; each language's own lines on the screens", function()
+	local files = { deDE = "deDE", esES = "esES", esMX = "esES", frFR = "frFR", itIT = "itIT", ruRU = "ruRU" }
 	local english = LoadLocale("enUS").L
 	for code, file in pairs(files) do
 		local lns, calls = LoadLocale(code, { file })
@@ -34827,10 +34835,11 @@ test("1.1 languages: the Spanish, French and German files: every line an English
 			assert(type(en) == "string", file .. ": " .. tostring(k) .. " is no English line")
 			eq(Codes(v), Codes(en), file .. " " .. k .. " codes")
 			eq(lns.L[k], v, file .. " " .. k .. " taken")
-			-- Formatted as the addon formats it: no error, whatever the arguments.
+			-- Formatted as the addon formats it: no error, whatever the arguments. (1.4.0: a line the
+			-- English itself cannot format, a plain "95% of", is never formatted by the addon either.)
 			local args = {}
 			for spec in en:gsub("%%%%", ""):gmatch("%%[%-%d%.]*(%a)") do args[#args + 1] = (spec == "s") and "x" or 1 end
-			assert(pcall(string.format, v, unpack(args)), file .. " " .. k .. " formats")
+			if pcall(string.format, en, unpack(args)) then assert(pcall(string.format, v, unpack(args)), file .. " " .. k .. " formats") end
 		end
 		assert(n >= 150, file .. ": " .. n .. " lines")
 		local report = lns.LocaleReport()
@@ -54870,9 +54879,11 @@ do
 	-- PIN_ADD_TIP there still speaks of Lords' pins being outranked."
 	test("1.1 pinned line (review of Konig's fixes): the Spanish, French and German help and army pin tooltip say who pins for whom (or are left out, and the English shows)", function()
 		local want = {
-			deDE = { help = { "der König, seine Seneschalle und Hände für die Armee", "ein Gildenmeister für seine Gilde" }, tip = "über der eines Gildenmeisters", old = "Lords" },
+			-- (1.4.0: the Steward is the Truchsess in German and the Intendant in French, the glossary of
+			-- the full translations; the rule they state is the same.)
+			deDE = { help = { "der König, seine Truchsesse und Hände für die Armee", "ein Gildenmeister für seine Gilde" }, tip = "über der eines Gildenmeisters", old = "Lords" },
 			esES = { help = { "el Rey, sus Senescales y Manos para el ejército", "un maestro de hermandad para su hermandad" }, tip = "por delante de la de un maestro de hermandad", old = "Señores" },
-			frFR = { help = { "le Roi, ses Sénéchaux et ses Mains pour l'armée", "un maître de guilde pour sa guilde" }, tip = "devant celle d'un maître de guilde", old = "Seigneurs" },
+			frFR = { help = { "le Roi, ses Intendants et ses Mains pour l'armée", "un maître de guilde pour sa guilde" }, tip = "devant celle d'un maître de guilde", old = "Seigneurs" },
 		}
 		for file, lines in pairs(want) do
 			-- The file's lines, as a game in that language loads them after Locales.lua.
@@ -55453,9 +55464,13 @@ do
 		assert(ns.L.DUES_GUILD_ROW:format("300", "?", "1g", "?"):find("300 · ? · 1g · ?", 1, true))
 		assert(ns.L.DUES_GUILD_TIP:format("300", "?", "5g", "15g", 2):find("? paid 5g", 1, true))
 		assert(rawget(pt.L, "DUES_GUILD_TIP"):format("300", "?", "5g", "15g", 2):find("? pagaram 5g", 1, true))
-		for _, file in ipairs({ "esES", "frFR", "deDE" }) do
+		-- (1.4.0: the language files now translate every line, the dues' too, with the English codes;
+		-- tests/locales-full.lua checks each is taken. Here: the lines are there, with the same slots.)
+		for _, file in ipairs({ "esES", "frFR", "deDE", "itIT", "ruRU" }) do
 			local s = assert(ReadFile(ADDON_DIR .. "Locales/" .. file .. ".lua"))
-			assert(not s:find("DUES_", 1, true), file .. ": the English dues lines show there")
+			for _, key in ipairs({ "DUES_AMOUNT_DIFFERS", "DUES_TABLE_DIFFERS", "DUES_REMOVE_AMOUNT_WAIT", "DUES_REMOVE_AMOUNT" }) do
+				assert(s:find("\n\t" .. key .. " = ", 1, true), file .. ": " .. key)
+			end
 		end
 		for _, path in ipairs({ "README.md", "docs/CURSEFORGE.md" }) do
 			local doc = assert(ReadFile(ROOT .. path)):gsub("%s+", " ")
@@ -55643,11 +55658,12 @@ do
 		for _, s in ipairs({ en.KEY_WHO_GAMEPAD, pt.KEY_WHO_GAMEPAD }) do
 			assert(not s:find("Refresh", 1, true) and not s:find("Atualizar", 1, true), "no longer the census's Refresh alone: " .. s)
 		end
-		for code, file in pairs({ esES = "esES", frFR = "frFR", deDE = "deDE" }) do
+		-- (1.4.0: every language file translates this line too, and it is taken: its own shows.)
+		for code, file in pairs({ esES = "esES", frFR = "frFR", deDE = "deDE", itIT = "itIT", ruRU = "ruRU" }) do
 			local shown, given = Loaded(code, file)
 			assert(type(given) == "table" and next(given), file .. ": its lines")
-			eq(given.KEY_WHO_GAMEPAD, nil, file .. ": no line of its own")
-			eq(shown.KEY_WHO_GAMEPAD, en.KEY_WHO_GAMEPAD, file .. ": the English shows")
+			assert(type(given.KEY_WHO_GAMEPAD) == "string" and given.KEY_WHO_GAMEPAD ~= en.KEY_WHO_GAMEPAD, file .. ": a line of its own")
+			eq(shown.KEY_WHO_GAMEPAD, given.KEY_WHO_GAMEPAD, file .. ": its own shows")
 		end
 		for _, path in ipairs({ "README.md", "docs/CURSEFORGE.md" }) do
 			local doc = assert(ReadFile(ROOT .. path)):gsub("%s+", " ")
@@ -63864,7 +63880,7 @@ assert(loadfile(ROOT .. "tests/hop-regressions.lua"))(ns, test, eq, WithHop)
 local focused = Harness.watchOnly and { "watch", "watch-chat", "chat-strikes", "watch-council-view" }
 		or { "hop", "hop-sightings", "player-sightings", "transport", "admission", "privacy", "census", "authority", "chat-rooms", "war", "watch", "watch-chat", "chat-strikes", "wanted", "wanted-guilds", "wanted-sightings", "map-wanted", "king-arrow",
 		"church", "church-count", "church-fullness", "church-view", "church-head", "department-access", "nominees-durable", "watch-council-view", "innkeeper-arrow", "squads", "king-centurions", "court-calls", "weekly-brief", "main-key", "guild-charter", "officer-muster", "dues-history", "accord", "tag-follow",
-		"campaign", "guild-finance", "dues-grace", "dues-roster-checkpoints", "justice-tasks", "justice-shared", "chat-channel-links", "perf", "roster", "census-avg-level", "ranking-rules", "profile-menu", "history-carry", "carry-history", "carry-merger", "party-guard", "profile-effects", "quiet-presence", "record", "realm-pages", "census-clean", "census-stats", "cover", "bridge-people", "bridge-affairs", "site-aggregate", "selftest" }
+		"campaign", "guild-finance", "dues-grace", "dues-roster-checkpoints", "justice-tasks", "justice-shared", "chat-channel-links", "perf", "roster", "census-avg-level", "ranking-rules", "profile-menu", "history-carry", "carry-history", "carry-merger", "party-guard", "profile-effects", "quiet-presence", "record", "realm-pages", "census-clean", "census-stats", "cover", "bridge-people", "bridge-affairs", "site-aggregate", "selftest", "locales-full" }
 for _, name in ipairs(focused) do
 	print("tests/" .. name .. ".lua")
 	-- (1.1.6: the Church's files get the harness's UI helpers.)
@@ -63887,6 +63903,7 @@ for _, name in ipairs(focused) do
 		or name == "cover" and { FreshComm = FreshComm, WithGamepadUI = WithGamepadUI }
 		or name == "bridge-affairs" and { WithWindow = Harness.WithChatWindow, ROOT = ROOT } -- (931: the Companion's tabs of affairs)
 		or name == "site-aggregate" and { ROOT = ROOT }
+		or name == "locales-full" and { ROOT = ROOT } -- (1.4.0: every language)
 		or (name == "census" or name == "authority") and { FreshComm = FreshComm }
 		or name == "quiet-presence" and { FreshComm = FreshComm, WithHop = WithHop, Fire = CoreFire } -- (1.2.5.1)
 		or name == "selftest" and { WithUI = WithUI, LoadUI = LoadUI, WithGamepadUI = WithGamepadUI, FreshComm = FreshComm } -- (/oly selftest)

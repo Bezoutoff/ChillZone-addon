@@ -703,11 +703,11 @@ account, `/oly discord forget` drops this character's request and proof.
   keeps until a `/reload` (the commands typed with mouse and keyboard among it) is told once, in
   Olympus's own window, with a **Reload** button. Back to mouse and keyboard, it all comes back
   without a `/reload`.
-- English and Portuguese in full, and since 1.1 Spanish, French and German for the main
-  screens, the alerts and decrees, the Join screen and its whisper, the chats and the privacy
-  questions (the rest in English; the pages' **?** explanations and the Answers of 1.1.2 are in
-  English too). It follows the game language, and only the text on your
-  screen changes: nothing sent between players does. `/oly status` shows the language in use.
+- English, Portuguese, Spanish (Spain and Latin America), German, French, Italian and Russian,
+  every line (since 1.4.0; the Answers of 1.1.2 stay in English), the Agenda's day words
+  included. It follows the game language, and only the text on your screen changes: nothing
+  sent between players does, and a line the addon whispers to another player stays English.
+  `/oly status` shows the language in use.
 
 ### Other addons: the Olympus API (1.2.4)
 

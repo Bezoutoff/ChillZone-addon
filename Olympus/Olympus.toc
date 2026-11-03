@@ -16,9 +16,6 @@ libs\HereBeDragons\HereBeDragons-2.0.lua
 libs\HereBeDragons\HereBeDragons-Pins-2.0.lua
 
 Locales.lua
-Locales\deDE.lua
-Locales\esES.lua
-Locales\frFR.lua
 Locales\ArenaNetText.lua
 Locales\ArenaMoneyText.lua
 Locales\ArenaMarketsText.lua
@@ -52,6 +49,11 @@ Locales\AccordText.lua
 Locales\RecordText.lua
 Locales\CensusStatsText.lua
 Locales\SelfTestText.lua
+Locales\deDE.lua
+Locales\esES.lua
+Locales\frFR.lua
+Locales\itIT.lua
+Locales\ruRU.lua
 Core.lua
 GamepadRegistry.lua
 Gamepad.lua
