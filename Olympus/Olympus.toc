@@ -84,6 +84,7 @@ HopSightings.lua
 Vox.lua
 Court.lua
 Board.lua
+Groups.lua
 Week.lua
 Treasury.lua
 Dues.lua
