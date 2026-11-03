@@ -99,6 +99,25 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.JUSTICE_TASKS_CONFIRM_HINT = "Confirmar a conclusão para %s após sua própria revisão? A tentativa e a ausência observada não comprovam quem agiu ou a causa. O registro será identificado como confirmado por revisão humana."
 end
 
+-- 1.4.0, the launch (the author's ask: the letter Asmon reads on stream; the dev's, to the King and the army).
+L.LETTER_1_4_0_TITLE = "To the King, on the day the gates open"
+L.LETTER_1_4_0 = [==[Your Majesty, and every soldier of Olympus,
+
+A month ago this was a handful of guilds and an idea written by candlelight. By the end of the beta the census counted more than a hundred thousand characters, PvE included, and the addon close to a hundred thousand downloads. I counted twice. The scribes checked it too.
+
+Today the beta ends and the realm truly begins. For the march ahead:
+
+- The census counts every realm of the army, and every addon agrees on the number.
+- Every office receives a letter from the King.
+- Olympus now speaks seven languages.
+- An addon older than 1.4.0 no longer finds the army's channel. Tell your friends to update.
+- Fern has raised a guild hall for us. The button below copies its address.
+
+I came here a stranger and was welcomed like one of the court, by the funniest people this realm has ever seen and by Your Majesty's own team. Thank you for everything. I am proud to be part of this.
+
+Long live the King. Long live Olympus. The gates are open.]==]
+L.LETTER_1_4_0_SIGNED = "Your humble artificer, the Olympus dev"
+L.LETTER_1_4_0_LINK = "https://olympus.roachcouncil.com/"
 L.LETTER_1_3_3_TITLE = "Your guild on the website"
 L.LETTER_1_3_3 = [==[Version 1.3.3.
 
@@ -132,6 +151,23 @@ L.LETTER_1_3_0 = [==[Version 1.3.0.
 This is a large release and therefore starts the 1.3 line. Offline tests cover the rules and data boundaries; multiplayer relay, client-specific UI and map placement still depend on live in-game observation.]==]
 
 if GetLocale() == "ptBR" then
+	L.LETTER_1_4_0_TITLE = "Ao Rei, no dia em que os portões se abrem"
+	L.LETTER_1_4_0 = [==[Vossa Majestade, e cada soldado de Olympus,
+
+Há um mês, isto era um punhado de guildas e uma ideia escrita à luz de velas. Ao fim do beta, o censo contava mais de cem mil personagens, PvE incluído, e o addon quase cem mil downloads. Contei duas vezes. Os escribas conferiram também.
+
+Hoje o beta termina e o reino de fato começa. Para a marcha que vem:
+
+- O censo conta cada reino do exército, e todos os addons concordam no número.
+- Cada cargo recebe uma carta do Rei.
+- Olympus agora fala sete línguas.
+- Um addon anterior à 1.4.0 não encontra mais o canal do exército. Avise seus amigos para atualizar.
+- Fern ergueu um salão da guilda para nós. O botão abaixo copia o endereço.
+
+Cheguei aqui um estrangeiro e fui recebido como alguém da corte, pelas pessoas mais engraçadas que este reino já viu e pela própria equipe de Vossa Majestade. Obrigado por tudo. Tenho orgulho de fazer parte disto.
+
+Vida longa ao Rei. Vida longa a Olympus. Os portões estão abertos.]==]
+	L.LETTER_1_4_0_SIGNED = "Seu humilde artífice, o dev do Olympus"
 	L.LETTER_1_3_3_TITLE = "Sua guilda no site"
 	L.LETTER_1_3_3 = [==[Versão 1.3.3.
 

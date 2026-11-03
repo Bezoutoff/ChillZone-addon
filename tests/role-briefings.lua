@@ -507,18 +507,22 @@ end)
 -- The launch letter: the launch version's letter, once LIVE
 ---------------------------------------------------------------------------
 
-test("role briefings: once LIVE the launch letter is the launch version's letter, signed by the King, its button copying the site's link in a pop-up; not before", function()
+-- (1.4.0, the author's ask: the release writes its own launch letter, the dev's to the King and the
+-- army, which RegisterLaunch keeps; this test is the fallback, a release with no letter of its own.)
+test("role briefings: once LIVE, for a release with no letter of its own, the launch letter is the launch version's letter, signed by the King, its button copying the site's link in a pop-up; not before", function()
 	H.WithUI(function()
 		local copied
 		local saved = { read = ns.db.lettersRead }
 		local ok, err = pcall(function()
 			local own = {} -- (a copy: Letters.lua reads its words with rawget)
 			for k, v in pairs(ns.L) do own[k] = v end
+			for _, k in ipairs({ "LETTER_1_4_0_TITLE", "LETTER_1_4_0", "LETTER_1_4_0_SIGNED", "LETTER_1_4_0_LINK" }) do own[k] = nil end
 			local lns = setmetatable({ L = own, On = function() end, After = function() end,
 				Every = function() return { Cancel = function() end } end,
 				UI = setmetatable({ ShowCopy = function(title, text) copied = { title = title, text = text } end }, { __index = ns.UI or {} }) }, { __index = ns })
 			assert(loadfile(ADDON .. "Letters.lua"))("Olympus", lns)
 			local Lt = lns.Letters
+			for i = #Lt.LIST, 1, -1 do if Lt.LIST[i] == "1.4.0" then table.remove(Lt.LIST, i) end end
 			-- Not LIVE: the version letters are as they were.
 			local RB = Fresh({ Letters = Lt, L = own })
 			eq(RB.RegisterLaunch(), false)
@@ -613,4 +617,38 @@ test("role briefings: every letter's words in pt-BR too, in the same casual voic
 		assert(pt.L[key]:find("Olha", 1, true) or pt.L[key]:find("E aí", 1, true), "pt-BR opens casually: " .. key)
 	end
 	assert(pt.L.RB_LAUNCH:find("olympus.roachcouncil.com", 1, true))
+end)
+
+test("role briefings: the 1.4.0 release writes its own launch letter (the dev's, to the King and the army): RegisterLaunch keeps it, LIVE or not; its own signature and the site's link to copy", function()
+	H.WithUI(function()
+		local copied
+		local saved = { read = ns.db.lettersRead }
+		local ok, err = pcall(function()
+			local own = {}
+			for k, v in pairs(ns.L) do own[k] = v end
+			local lns = setmetatable({ L = own, On = function() end, After = function() end,
+				Every = function() return { Cancel = function() end } end,
+				UI = setmetatable({ ShowCopy = function(title, text) copied = { title = title, text = text } end }, { __index = ns.UI or {} }) }, { __index = ns })
+			assert(loadfile(ADDON .. "Letters.lua"))("Olympus", lns)
+			local Lt = lns.Letters
+			local RB = Fresh({ Letters = Lt, L = own })
+			eq(Lt.LIST[1], "1.4.0"); eq(Lt.Has("1.4.0"), true)
+			eq(RB.RegisterLaunch(), false, "not LIVE")
+			RB.LIVE = true
+			eq(RB.RegisterLaunch(), false, "LIVE: the release's own letter is kept")
+			eq(own.LETTER_1_4_0_TITLE, L.LETTER_1_4_0_TITLE); eq(own.LETTER_1_4_0, L.LETTER_1_4_0)
+			eq(Lt.LIST[1], "1.4.0"); eq(Lt.LIST[2] ~= "1.4.0", true, "listed once")
+			ns.db.lettersRead = {}
+			eq(Lt.Show("1.4.0"), true)
+			local f = Lt.Frame()
+			eq(f.title:GetText(), L.LETTER_1_4_0_TITLE)
+			eq(f.sign:GetText(), L.LETTER_1_4_0_SIGNED, "the dev's own signature")
+			eq(f.link:IsShown(), true)
+			f.link:Click()
+			eq(copied and copied.text, RB.SITE, "the site's link in the copy pop-up")
+			Lt.Hide()
+		end)
+		ns.db.lettersRead = saved.read
+		if not ok then error(err, 0) end
+	end)
 end)
