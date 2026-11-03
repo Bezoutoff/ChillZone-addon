@@ -1,8 +1,10 @@
 local ADDON, ns = ...
 
--- Ed25519 signatures (RFC 8032) and SHA-512 (FIPS 180-4) in plain Lua 5.1, for Olympus Link
--- (Link.lua, 0.9.10): the Olympus Discord bot's codes carry a signature this checks, and a
--- confirmer's addon signs what it confirms with a key of its own. Nothing here needs integers
+-- Ed25519 signatures (RFC 8032) and SHA-512 (FIPS 180-4) in plain Lua 5.1. Written for Olympus Link
+-- (0.9.10; 1.4.0 its own addon, Olympus_Link, which uses this file): the Olympus Discord bot's codes
+-- carry a signature this checks, and a confirmer's addon signs what it confirms with a key of its
+-- own. The Arena's ledgers, the records' seals and the other signed parts of Olympus use it too
+-- (ns.Ed25519). Nothing here needs integers
 -- wider than the game's Lua numbers (doubles, exact for every integer below 2^53).
 --
 -- SHA-512 works on 64-bit words kept as two 32-bit halves (hi, lo), with the game's bit

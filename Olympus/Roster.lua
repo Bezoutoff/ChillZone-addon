@@ -405,7 +405,7 @@ function Roster.Scan()
 		end
 		pubByName = byName
 	end
-	Roster.byName, Roster.guild = byName, guild -- (whose roster it is: Olympus Link's "r", Link.lua)
+	Roster.byName, Roster.guild = byName, guild -- (whose roster it is: Olympus Link's "r", the Olympus_Link module)
 	-- Consumers which use the roster as an authority boundary need to distinguish a current
 	-- server snapshot from rows left in memory after a guild/faction/realm-group change.  The
 	-- generation is process-local; together with the identity and timestamp it is only a freshness

@@ -1420,34 +1420,22 @@ test("accord: the Companion's self section carries only this account's own conse
 	end, { accepted = true, team = true, companion = true })
 end)
 
-test("accord: the private Companion sidecar saves an anonymous self revocation until the separate Companion Accord is accepted, then saves only the consented native identity", function()
+test("accord: the Companion's self section is an anonymous revocation until the separate Companion Accord is accepted, then only the consented native identity", function()
 	Scene(function(w, A)
-		local saved = { db = rawget(_G, "OlympusCompanionDB") }
-		local before = #EVENT_SCRIPTS
-		local ok, err = pcall(function()
-			OlympusCompanionDB = nil
-			assert(loadfile(ROOT .. "OlympusCompanionBridge/Checkpoint.lua"))("OlympusCompanionBridge", {})
-			local OnEvent = assert(EVENT_SCRIPTS[before + 1], "the sidecar's event frame")
-			OnEvent(nil, "ADDON_LOADED", "OlympusCompanionBridge")
-			OnEvent(nil, "PLAYER_LOGOUT")
-			local s = assert(OlympusCompanionDB.sections and OlympusCompanionDB.sections.self,
-				"before either Accord: the relay gets an anonymous revocation")
-			eq(s.data.character, nil); eq(s.data.olympus, false)
-			eq(A.Accept(), true)
-			OnEvent(nil, "PLAYER_LOGOUT")
-			s = assert(OlympusCompanionDB.sections and OlympusCompanionDB.sections.self)
-			eq(s.data.character, nil); eq(s.data.olympus, false,
-				"the Olympus Accord alone does not disclose the identity")
-			assert(ns.Consent.Choose("companionAccord", true))
-			OnEvent(nil, "PLAYER_LOGOUT")
-			s = assert(OlympusCompanionDB.sections and OlympusCompanionDB.sections.self, "after both: saved")
-			eq(s.version, 1); eq(s.data.character, ns.me); eq(s.data.guild, GetGuildInfo("player")); eq(s.data.olympus, true)
-			eq(s.data.battleTag, TAG); eq(s.data.accord, ns.ACCORD_VERSION); eq(s.data.at, w.now)
-		end)
-		for i = #EVENT_SCRIPTS, before + 1, -1 do EVENT_SCRIPTS[i] = nil end
-		OlympusCompanionDB = saved.db
-		if not ok then error(err, 0) end
-		-- The README's privacy table and the sidecar's README name it, as the code does it.
+		-- (1.4.0: what the Companion's bridge addon saves at logout is this section, read through
+		-- OlympusBridge; that addon is kept in its own repository, with its own tests.)
+		local function Self() return assert(OlympusBridge.GetSection("self"), "the self section") end
+		local s = Self()
+		eq(s.data.character, nil); eq(s.data.olympus, false, "before either Accord: an anonymous revocation")
+		eq(A.Accept(), true)
+		s = Self()
+		eq(s.data.character, nil); eq(s.data.olympus, false,
+			"the Olympus Accord alone does not disclose the identity")
+		assert(ns.Consent.Choose("companionAccord", true))
+		s = Self()
+		eq(s.version, 1); eq(s.data.character, ns.me); eq(s.data.guild, GetGuildInfo("player")); eq(s.data.olympus, true)
+		eq(s.data.battleTag, TAG); eq(s.data.accord, ns.ACCORD_VERSION); eq(s.data.at, w.now)
+		-- The README's privacy table names it, as the code does it.
 		local function Read(path)
 			local f = assert(io.open(ROOT .. path, "rb"))
 			local text = f:read("*a")
@@ -1462,9 +1450,5 @@ test("accord: the private Companion sidecar saves an anonymous self revocation u
 		for _, must in ipairs({ "Olympus Accord", "Olympus Companion Accord", "character", "BattleTag", "staff", "`OlympusBridge`" }) do
 			assert(row:find(must, 1, true), "README's self row: " .. must)
 		end
-		local sidecar = Read("OlympusCompanionBridge/README.md"):gsub("%s+", " ")
-		for _, must in ipairs({ "`self`", "character", "battleTag", "guild", "roles", "never another player's" }) do
-			assert(sidecar:find(must, 1, true), "the sidecar's README: " .. must)
-		end
-	end)
+	end, { companion = true }) -- (the Companion's bridge addon attached, as its load says: OlympusBridge.COMPANION_ATTACHED)
 end)

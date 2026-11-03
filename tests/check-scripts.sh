@@ -498,9 +498,5 @@ else
 	printf 'skip: package.sh (git, zip, unzip, luajit or a SHA-256 tool not found)\n'
 fi
 
-# The private Companion checkpoint sidecar has its own one-folder package and must remain outside
-# the public three-addon ZIP. Its focused fixture also exercises dirty/untracked/secret
-# refusals without trying to package this development checkout.
-if [ -f "$repo_root/tests/package-companion-bridge.sh" ]; then
-	"$bash_bin" "$repo_root/tests/package-companion-bridge.sh"
-fi
+# (1.4.0: the Companion's checkpoint sidecar and its one-folder package live in their own repository,
+# outside the public three-addon ZIP.)

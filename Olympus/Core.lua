@@ -2219,7 +2219,7 @@ StandIn("Acts", { "WritPrompt" })
 StandIn("Dialog", {})
 StandIn("Bank", {})
 StandIn("Backup", { "Slash" }) -- (1.1)
-StandIn("Link", { "Slash" })
+StandIn("LinkLoader", { "Slash" }) -- 1.4.0: Olympus Link's loader (LinkLoader.lua; the Link is its own addon)
 StandIn("Borders", { "SetEnabled", "Report" })
 StandIn("Nameplates", { "SetEnabled", "Report" })
 StandIn("Members", { "Show", "SetWarnDays" }) -- (1.1)
@@ -2467,7 +2467,7 @@ ns.RegisterEvent("PLAYER_LOGIN", function()
 	local missing = {}
 	-- (1.2: the file of a key named otherwise: the Blood Arena's core is ArenaNet.lua.)
 	local FILES = { Arena = "ArenaNet.lua" }
-	for _, key in ipairs({ "Who", "Channels", "King", "Hop", "Workshop", "Vox", "Court", "Treasury", "Dues", "Acts", "Dialog", "Bank", "Link", "Borders", "Nameplates", "Backup", "Loot", "War", "Crafters", "Board", "Week", "Accord", "Consent", "ViewAs", "TabardsV2", "Chronicle", "Filter", "Watch", "Judgment", "WatchChat", "Wanted", "Members", "Moderation", "Alts", "Keys", "ChatWindow", "Arena", "PlayerMenu", "Versions", "Answers", "Letters", "Nominees", "ChatStrikes", "Record", "TagFollow", "Verify" }) do
+	for _, key in ipairs({ "Who", "Channels", "King", "Hop", "Workshop", "Vox", "Court", "Treasury", "Dues", "Acts", "Dialog", "Bank", "LinkLoader", "Borders", "Nameplates", "Backup", "Loot", "War", "Crafters", "Board", "Week", "Accord", "Consent", "ViewAs", "TabardsV2", "Chronicle", "Filter", "Watch", "Judgment", "WatchChat", "Wanted", "Members", "Moderation", "Alts", "Keys", "ChatWindow", "Arena", "PlayerMenu", "Versions", "Answers", "Letters", "Nominees", "ChatStrikes", "Record", "TagFollow", "Verify" }) do
 		if ns[key].missing then missing[#missing + 1] = FILES[key] or (key .. ".lua") end
 	end
 	if ns.Gate.missing then missing[#missing + 1] = "Gamepad.lua" end -- (1.1.5, the gamepad gate)
@@ -2578,7 +2578,7 @@ local function Help()
 	if ns.RoleBriefings and ns.RoleBriefings.LIVE == true then print(L.RB_HELP) end
 	print(L.HELP_ISSUE)
 	print(L.HELP_COUNCIL)
-	print(L.HELP_DISCORD)
+	if ns.LinkLoader.Loaded() then print(L.HELP_DISCORD) end -- (1.4.0: the Olympus_Link module's command, when it is installed)
 	print(L.HELP_CMD_DECREES)
 	print(L.HELP_CMD_ARMS)
 	print(L.HELP_CHAN_ALL)
@@ -2614,7 +2614,8 @@ local function Help()
 end
 
 -- What an error report names as the command: the command itself, with what followed it for
--- all but /oly discord (0.9.10: a Discord code, a confirmer's key: never in a report or the log).
+-- all but /oly discord (0.9.10: a Discord code, a confirmer's key: never in a report or the log;
+-- 1.4.0: the command of the Olympus_Link module, still kept out whether it is installed or not).
 local function SlashWhere(input)
 	input = tostring(input)
 	local cmd = input:match("^%s*(%S*)") or ""
@@ -2962,8 +2963,9 @@ local function Slash(input)
 			-- 1.1.1: the Olympus window on its Chat tab (ChatWindow.lua), on a channel if one is named.
 			ns.ChatWindow.Toggle(ns.Channels.TierForWord(rest))
 		elseif cmd == "discord" then
-			-- Olympus Link (Link.lua): this character's Discord role; confirmers' keys; watchers.
-			ns.Link.Slash(rest)
+			-- Olympus Link: this character's Discord role; confirmers' keys; watchers. Its own addon,
+			-- Olympus_Link, when it is installed (LinkLoader.lua); else one line says it is not.
+			ns.LinkLoader.Slash(rest)
 		elseif cmd == "army" then
 			-- An attended aggregate of our own guild for the separate browser receiver (ArmyExport.lua).
 			-- Its release gate remains closed until that receiver and the real clients pass acceptance.

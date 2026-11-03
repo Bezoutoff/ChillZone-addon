@@ -15,7 +15,6 @@ git status --short
 git diff --check
 bash tests/check-scripts.sh
 bash scripts/check.sh
-node --test web/test/*.test.mjs
 scripts/package.sh --test N
 ```
 

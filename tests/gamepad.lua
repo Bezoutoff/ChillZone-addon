@@ -1179,15 +1179,24 @@ local function World(C, opts)
 		GetItemNameByID = function() return nil end,
 		GetItemCount = function() return 0 end,
 	})
+	-- (1.4.0: LoadAddOn gives the game's two answers, loaded and a reason, as Blizzard's
+	-- Blizzard_APIDocumentationGenerated/AddOnsDocumentation.lua has it and ArenaNet.lua already reads
+	-- them. An addon a session's setup lists in C.missingAddOns is not installed: false, "MISSING". One
+	-- it gives files for, C.addOnFiles[name](env), has them run there, as the client runs an addon's
+	-- files when it loads it. Any other name loads, as before.)
 	E.C_AddOns = Namespace("C_AddOns", {
 		IsAddOnLoaded = function(name) return C.loadedAddOns[name] == true end,
 		LoadAddOn = Fn("C_AddOns.LoadAddOn", function(name)
+			if C.missingAddOns and C.missingAddOns[name] then return false, "MISSING" end
+			local first = not C.loadedAddOns[name]
 			if name == "Blizzard_WorldMap" and not rawget(E, "WorldMapFrame") then
 				C.absent.WorldMapFrame = nil
 				C.MakeWorldMap()
 				C.loadedWorldMap = true
 			end
 			C.loadedAddOns[name] = true
+			local files = first and C.addOnFiles and C.addOnFiles[name]
+			if files then files(E) end
 			return true
 		end),
 	})
@@ -2758,6 +2767,60 @@ test("gamepad pass 6: the Arena's integrations: restricted calls from a click al
 	eq(A.loadedAddOns.Olympus_Arena, true)
 	GP.Covers("load-companion")
 	Check(A.ledger, "the Arena")
+end)
+
+-- 1.4.0: Olympus Link is its own load-on-demand addon, Olympus_Link, not in this package. Olympus
+-- asks for it once, when its saved variables are read (LinkLoader.lua, at INIT), handing its
+-- namespace over for that one call; the model's LoadAddOn answers "MISSING" for a module not
+-- installed and runs a stand-in module's first file for one that is (C.addOnFiles).
+local function LinkLoads(C)
+	local n = 0
+	for _, r in ipairs(C.ledger) do if r.sym == "C_AddOns.LoadAddOn" and r.ids and r.ids[1] == "load-link" then n = n + 1 end end
+	return n
+end
+test("gamepad pass: Olympus Link's own addon (1.4.0): asked for once at a gamepad login, the namespace handed over for that call alone; not installed, nothing of it runs; a switch each way asks nothing more", function()
+	-- Not installed: one ask at the login, the game's "MISSING", no namespace left in a global.
+	local C, ns = Session(true, { setup = function(c) c.missingAddOns = { Olympus_Link = true } end })
+	eq(LinkLoads(C), 1, "asked once, at the gamepad login")
+	eq(ns.LinkLoader.Loaded(), false); eq(ns.LinkLoader.Why(), "MISSING")
+	eq(rawget(ns, "Link"), nil, "no Link without its addon")
+	eq(rawget(C.env, "OlympusLinkHandoff"), nil, "the handoff cleared after the call")
+	local printed = #C.printed
+	ns.LinkLoader.Slash("OLC2.7K3M9QX2TB.someone.1799990000.a.ffffffff.sig")
+	eq(#C.printed, printed + 1, "one line")
+	assert(C.printed[#C.printed]:find(ns.L.DISCORD_NOT_INSTALLED, 1, true), "the module is not installed: " .. C.printed[#C.printed])
+	assert(not C.printed[#C.printed]:find("OLC2", 1, true), "the code is never echoed")
+	C.Switch(false); C.Advance(1)
+	C.Switch(true); C.Advance(1)
+	eq(LinkLoads(C), 1, "a switch either way asks nothing more")
+	eq(ns.LinkLoader.Load(), false, "and nor does a later ask: once a session")
+	eq(LinkLoads(C), 1)
+	Check(C.ledger, "Olympus Link not installed")
+	NoErrors(C, "Olympus Link not installed")
+	-- Installed: its first file takes the namespace during the call (and only then), sets ns.Link.
+	local during
+	local M, mns = Session(true, { setup = function(c)
+		c.addOnFiles = { Olympus_Link = function(env)
+			local host = rawget(env, "OlympusLinkHandoff")
+			rawset(env, "OlympusLinkHandoff", nil)
+			during = host
+			if type(host) == "table" and type(host.LinkLoader) == "table" and host.LinkLoader.HOST_API == 1 then
+				host.Link = { Slash = function(rest) host.Print("module: " .. tostring(rest)) end, StatusLine = function() return "test module" end }
+			end
+		end }
+	end })
+	eq(LinkLoads(M), 1, "asked once, at the gamepad login")
+	assert(during == mns, "the namespace handed over during the call")
+	eq(rawget(M.env, "OlympusLinkHandoff"), nil, "and not after it")
+	eq(mns.LinkLoader.Loaded(), true); eq(mns.LinkLoader.StatusLine(), "test module")
+	mns.LinkLoader.Slash("status")
+	assert(M.printed[#M.printed]:find("module: status", 1, true), "/oly discord goes to the module: " .. M.printed[#M.printed])
+	M.Switch(false); M.Advance(1)
+	M.Switch(true); M.Advance(1)
+	eq(LinkLoads(M), 1, "loaded once: a switch changes nothing")
+	Check(M.ledger, "Olympus Link installed")
+	NoErrors(M, "Olympus Link installed")
+	GP.Covers("load-link")
 end)
 
 -- 1.2.6, Watch duel (Daniel's duel-view request, 2026-10-19). Two players duelling in front of the

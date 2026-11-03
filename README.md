@@ -2134,108 +2134,14 @@ explicit consent and recipient limits.
   can't place shows as plain text in the census, and `/oly status` (and `/oly bug`) lists its
   name under "zones without a map id".
 
-### Olympus Link: your Discord role (1.0.0)
-Players in game prove to the Olympus bot on Discord that a character is yours, and the bot gives
-you your role. No password, no Battle.net login, and nothing leaves the game before you say yes.
-
-Not open yet: the addon carries it, but `/oly discord` says it is not open until the Olympus bot
-is ready and its key is in the addon. Until then no addon makes, keeps, announces or uses a
-confirmer key, and none asks for or signs a certificate.
-
-The Olympus bot (Fernmelder's, on Discord) issues the codes, checks every proof and gives the role;
-the Olympus Link page is a static page on this repository's GitHub Pages
-(<https://dnl-gentile.github.io/olympus-addon/>, from `web/public/`) that only reads the proof and
-sends it to the bot. The bot's side is in [`web/FERN.md`](web/FERN.md), every detail in
-[`web/WORKER.md`](web/WORKER.md).
-
-1. **Get a code** from the Olympus bot on Discord (its `/verify` command, in the Olympus
-   server: only you see the reply). It looks like
-   `OLC2.7K3M9QX2TB.your.name.1800000000.c.00000000.…` and is good for 24 hours. Keep it to
-   yourself, and don't show it (or the Olympus Link window) on a stream.
-2. **Type `/oly discord <code>`** in the game's chat (or `/oly discord` alone and paste it in the
-   box: the bot's whole line, `/oly discord` included, is fine too). The addon checks the bot's
-   signature and the expiry first, then asks: *"Link <Name> to the Discord account @your.name? …
-   Only accept if @your.name is you."* The Discord account shown is the one the bot signed into
-   the code: nobody can change it. Cancel sends nothing.
-3. **Confirmers answer in game**, by addon whisper. A High Councillor online signs a proof that
-   this character asked, with a key of their own that the bot certified (one is enough; they are
-   asked one at a time, and a second councillor online is asked too, so two proofs can travel).
-   When the bot allows it and no councillor is online, verified players drawn for your code are
-   asked instead, five at once, and three must confirm. Nobody picks who is drawn: a key is
-   drawn when SHA-256 of your code and its key id falls below the threshold the bot wrote into
-   your code, and the code is new each time. Each confirmer also signs how it knows your guild:
-   it is its own guild and its roster lists you, its `/who` saw you in it within 15 minutes, or it
-   only has your word. When every proof only has your word, the addon says so and keeps asking
-   for up to 10 minutes for one that knows it (a High Councillor who only had your word is asked
-   again every 3 minutes: its quiet `/who` may have seen you since); then it finishes, and tells
-   you the bot may refuse a guild nobody saw. No confirmer online? The request stays open until
-   the code expires and is asked again when one comes online, and at each login.
-4. **The proof reaches the bot** one of two ways:
-   - **now**: the **Olympus Link** window shows a QR code and the same link in a copy box. On the
-     Olympus Link page, share the WoW window, point your phone's camera at it, or paste the link,
-     then sign in with Discord there and it goes to the bot. The proof rides after the `#` of the
-     link, which a browser never sends to any server;
-   - **or later, by itself**: the addon hands it to the bot's watcher (a High Councillor's
-     character in watcher mode) the next time you are both online. The bot's keeper uploads what
-     the watcher kept. One rule for how long, from your code's expiry: the bot takes the proof
-     until 7 days after it, so the addon hands it to a watcher until 5 days after it (the keeper
-     has 2 days left to upload it) and, after that, tells you to scan it: the window shows it until
-     the bot's limit.
-
-`/oly discord show` opens the window again, `/oly discord status` lists every character of your
-account (waiting for confirmers, ready, delivered), `/oly discord forget` drops this character's
-request and proof.
-
-A character linked to one Discord account never moves to another by a new link: the bot refuses
-it. To remove your link, use **Delete my link** at the foot of the Olympus Link page, signed in
-with Discord: the bot takes the role away and deletes everything it keeps about your Discord
-account (your linked characters, codes and their history) except how many codes and links you
-used today, counted for a day at most. You can link again later with a new code (3 a day, the
-ones before the delete included).
-
-**For confirmers and watchers.** A confirmer's key belongs to one character, and so does its
-certificate, which names it: another character of the same account confirms nothing with it.
-**Every confirmer, High Councillors included, gets a key from the bot's keeper**, made on a
-computer from a real random source (`scripts/link-keys.py confirmer`): an id and 43 letters, and
-its certificate (a line starting with `OLK2.`, the bot's signature on the key's public half, its
-tier, an expiry and your character's name). `/oly discord key <id> <key>` keeps the key for the
-character you are on, then `/oly discord cert <certificate>` its certificate, which the addon
-checks against the bot's key, your key's public half and your character before it keeps it; until
-the bot's key is in the addon, both say Olympus Link is not open and keep nothing. `/oly discord
-key` shows the key's id and public half (to compare with what was registered), `/oly discord
-cert` the certificate's tier and days left. The key is never shown, sent, logged or written in
-`/oly status` and `/oly bug`. `/oly discord key off` removes it; the old key keeps counting at
-the bot until its keeper revokes it (the bot never asks your game), so it prints the old key's id
-for you to send them, at once if it leaked. A new key comes from the keeper too. With a key and
-its certificate, once the bot is ready, your addon says it is online every 5 minutes (the
-certificate goes with it: requesters check it, and that it names the character announcing it,
-before they ask you) and signs, by itself, the
-requests of players of an Olympus guild of your faction: one a minute and five a day per
-character, thirty a minute in all, never for the characters of your own account, and never when
-what you know says otherwise (they claim your guild and your roster doesn't list them, or your
-`/who` saw them in another guild in the last 15 minutes). A High Councillor taken off the signed
-list stops at once in game (their addon confirms nothing, and nobody's asks them); at the bot,
-their keys count until its keeper revokes their character. A High Councillor who could only take someone's word for their guild gets
-their `/who` quietly with the next Census **Refresh** (mouse and keyboard only). High
-Councillors can turn on `/oly discord watcher on`: the proofs players hand you are kept in your
-SavedVariables once your addon has checked them (every signature against the certificate the
-link carries, and enough for the bot), so made-up links never take a place. It keeps one link per
-character (its latest: a newer one replaces it) and 500 in all, with no cap per code: a code's id
-is public on a stream, and only the bot can check a link's tag, so a character that got a
-councillor's real proof for itself with someone else's code takes its own place (the bot refuses
-that link) and never the real requester's. Filling the inbox takes 500 characters; nothing
-another character sent is dropped to make room, and an entry goes once the bot can no longer take
-it, 7 days after its code expired.
-
-The addon also carries a way for High Councillors' addons to make their own key in the game and
-have the author's client certify it (the council authority), but it is **off**: a switch only the
-author turns on (`ns.LINK_COUNCIL_AUTHORITY = false` in `Olympus/Link.lua`), and even on, nothing
-of it runs before the bot is ready. WoW's Lua has no cryptographic random source, so a key made in
-the game comes from a few tens of bits of frame timing, sits in plain text in the SavedVariables,
-and its certificate would last a year (Konig's review of 1.0.0). While the switch is off no addon
-makes such a key, asks the author's client for a certificate or signs one, and none takes one:
-`/oly discord key new` says keys come from the bot's keeper, and a key an earlier version made in
-the game is removed at login, with one line saying so.
+### Olympus Link: your Discord role (its own addon since 1.4.0)
+Olympus Link lets players in game prove to the Olympus bot on Discord that a character is yours,
+so the bot gives you your role. It is not part of this addon: since 1.4.0 it is its own addon,
+**Olympus_Link**, kept and released separately, and it is not open yet. Without it,
+`/oly discord` says it is not installed and nothing of it runs; everything else in Olympus works
+the same. Installed next to Olympus, it loads by itself at login (see
+[Integrating with Olympus](#integrating-with-olympus)), `/oly discord` and its line in `/oly help`
+are its own, and its own documentation says what it does and what it sends.
 
 ### Everywhere
 - **Copy**: every tab produces a ready-to-paste text for Discord.
@@ -2490,14 +2396,11 @@ retires the old private key so a delayed message cannot split them again.
 4. Every client adds up all the summaries: that is the census.
 
 The addon itself talks only in game, through the game's own addon messages: it has no server of
-its own, and nothing it sends leaves the game. One exception is
-[Olympus Link](#olympus-link-your-discord-role-100), and only when you choose to link a
-character: it uses a website (the Olympus Link page, on this repository's GitHub Pages) and the
-Olympus bot on Discord, and the proof that a character is yours goes to the bot through that
-page or a High Councillor's watcher. A confirmer (a key from the bot's keeper) signs other
-players' requests by itself once the bot is ready, and those signatures reach the bot in their
-proofs. The other is the Olympus Companion app, only if you install it (its rows in
-[Privacy](#privacy)).
+its own, and nothing it sends leaves the game. One exception is the Olympus Companion app, only if
+you install it (its rows in [Privacy](#privacy)).
+[Olympus Link](#olympus-link-your-discord-role-its-own-addon-since-140), the Discord role, is its
+own addon, not part of this one: it goes outside the game only if you install it and choose to
+link a character, as its own documentation says.
 
 **Realms vs layers.** A realm (ClassicBetaPvP, ClassicBetaPvP2...) is a separate world
 with its own guilds; layers are copies of a zone *inside* one realm. Guilds on the same
@@ -2512,17 +2415,13 @@ window shows which realms you are counting.
 ## Privacy
 
 The addon itself talks only through the game's own addon messages: it has no server of its own,
-and what it sends stays in the game. One exception is Olympus Link, and only when you choose
-to link a character, or to confirm other players' links: a link's proof goes to the Olympus bot
-on Discord, through the Olympus Link page on GitHub Pages (where you sign in with Discord) or a
-High Councillor's watcher. A confirmer, a High Councillor too, is someone who typed in a key the
-bot's keeper made them (no addon makes or announces a key by itself, and the author's council
-authority is off): once the bot is ready, their addon says so on the Olympus channel every 5
-minutes and signs other players' requests by itself, and their character's name and signature
-reach the bot in those players' proofs, until `/oly discord key off`. The other is the Olympus
-Companion app, only if you install it: its own bridge addon takes your character's name and
-BattleTag and the Olympus and guild chat lines your client shows to Olympus's server, for its staff
-alone (the Companion's rows below). Your name is on every message (the game adds it). What goes where:
+and what it sends stays in the game. One exception is the Olympus Companion app, only if you
+install it: its own bridge addon takes your character's name and BattleTag and the Olympus and
+guild chat lines your client shows to Olympus's server, for its staff alone (the Companion's rows
+below). Olympus Link, the Discord role, is its own addon (Olympus_Link), not part of this one:
+nothing of it goes out unless you install it and choose to link a character, or to confirm other
+players' links, and its own documentation says what then goes where. Your name is on every message
+(the game adds it). What goes where:
 
 | What | Who receives it | When |
 |---|---|---|
@@ -2597,11 +2496,7 @@ alone (the Companion's rows below). Your name is on every message (the game adds
 | The crafting fees owed (1.2): each fee's seller and buyer, price, fee, gold paid, deadline, item, quantity and the seller's guild, who reported it and whether the Treasurer confirmed it | the King's character alone (whispers from the Treasurer's character) | at his ask, when he opens the Guild fees page or asks again: once each 5 minutes at most, 40 fees an answer |
 | A reminder of a crafting fee owed (1.2): the amount and the deadline | that seller alone (a whisper from the Treasurer's or the King's character) | when they press Remind him, once a day per seller at most |
 | Other players' lines in the Olympus chats as your addon accepted them (channel, sender and text; [Captains] and [Lords] only if your rank reads them), and the High Council list; and (1.2.6, `RegisterChatRecorder`) the lines of the Olympus chats and rooms as your client receives them, yours included and locally hidden lines too: [Olympus], [Captains], [Lords], the rooms you are in (Guild, guildmates without Olympus included, role rooms, squads, crafting deals' private chats) and the fight and Bones rooms | other addons in your own game, through `OlympusBridge` (made for OfficerSpy, the moderators' companion addon, and for the Olympus Companion's chat record, but any addon you install can read it, with no Companion) | always, while such an addon is loaded (no chat line while the Olympus chats are off on your client; the chat record's lines only once you accepted the Olympus Accord): Olympus sends nothing through it and never learns what that addon does with what it read |
-| Olympus Link (1.0.0): a request (your guild, faction, a random number, your code's id and a tag made from your code's signature and your name) | the confirmers asked (a whisper each): a High Councillor, or verified players drawn for your code | only after you press **Accept** on `/oly discord <code>` |
-| Olympus Link: the finished proof (your character name, realm, guild, faction, the tag, and the confirmers' names, how each knew your guild, their signatures and their keys' certificates) | the Olympus bot, through the page you scan it with, or a watcher (a High Councillor, by whisper) who hands it to the bot | when it is ready, until it is delivered (5 days after your code expired at most) |
-| Olympus Link, if you confirm (a key and its certificate from the bot's keeper, High Councillors' too): your proof for another player's request (its time, your key's id, how you know their guild, your signature), and in their finished proof your character's name and your key's certificate | that player alone (a whisper), then the Olympus bot in their finished proof | by itself, without asking you each time, once the bot is ready: only for players of an Olympus guild of your faction, never your own account's characters, one a minute and five a day per character, thirty a minute in all, until `/oly discord key off` |
-| Olympus Link: "a confirmer's key is online" (its certificate: the key's id, public half, tier, expiry and character), "a watcher is online" | everyone on the Olympus channel | every 5 minutes, only from characters with a key from the bot's keeper and its certificate, once the bot is ready (no addon makes or announces a key by itself), or a High Councillor's watcher on (`/oly discord watcher on`) |
-| Olympus Link: a High Councillor's key's public half, and the certificate for it | the author's character, and back (a whisper each) | never while the council authority is off (as it ships: only the author turns it on, and only once the bot is ready); then only from a councillor of the signed list whose addon made its own key, once a session when it hears the author |
+| Olympus Link's messages (1.0.0; its own addon, Olympus_Link, since 1.4.0): its requests, proofs, confirmers' and watchers' words | as that addon's own documentation says | only if you install the Olympus_Link addon; this addon sends none of them |
 | The Church (1.1.6): a naming or a removal (who, the place, under whom, the guild for a correspondent, the time), the author's switch for the public ranking | everyone on the Olympus channel and your guild (logged); your naming or removal also to each of the Church's keepers (the Head, the Apostles, the author) who was not online then, alone (a logged whisper each). Each addon saves the Church's book it takes; since 1.2.4 it also saves, with a guild master's correspondent, when it last confirmed him that guild's master (kept on that computer, never sent) | only when an Apostle, a missionary, a guild master, the Head, the King, a signed High Councillor or the author makes one within their authority; to a keeper who was away, once, when his addon is next heard, up to 7 days after |
 | The Church: that you hold a place (your role, your guild; a keeper also a digest of his book and the author's switch for the public ranking as his addon holds it) | everyone on the Olympus channel and your guild | while you hold one: every 5 minutes for the Head, the Apostles and the author, every 10 for the others |
 | The Church: what your addon read in your guild's log (an invite by a Church person and the join after it: both names, your guild, the hours), a registration (the name), your public-row choice | the Church's keepers online (the Head, the Apostles, the author), alone (whispers); kept on your client up to 7 days while none is online | a Church person's own addon every 5 minutes; any other member's only where a Church person was heard in the guild lately, drawn so that about two of each guild read; your own invite count and your guild's joins and leaves are never sent |
@@ -2731,8 +2626,8 @@ and to moderate. The Olympus Accord's letter and the privacy page say so.
 map, a treasury keeper's book, a sister guild's bank (1.1), a Royal Inspection's report, your answers to the author's roll
 calls, the Olympus chats, an officer's patrol findings to his guild's officers, your crafter
 listing (and with it your addon's answers to who can make it), another addon's use of the Olympus API (1.2.4: each
-addon its own Yes or the page's deliberate **Authorize all**; ordinary reads send nothing; an authorized exact-name search sends the Name-Realm, while a five-minute hostile-area search sends one selected map ID; a visible Start declares selected/configured names and included list sources; one live area uses the current or an owned exact-result map until its row expires, cancels before a 60-second rotation, stays visibly stoppable and never auto-resumes or opens the map; both receive only opted-in observers' private, expiring last-seen reports labelled as a native target point or observer encounter point; an area row omits observer identity and guild, with at most six rows from one observer and 48 distinct players at the requester; for an addon the Olympus team authorized, the same permission may let a current signed issuer or the addon's author open the bounded host-owned profile-presentation session and an admitted member enable its single fixed style on themself; it never accepts a target, asset path or arbitrary message; what the addon does with its bounded copies is its own; it may also read the King's presence as his lines and the Realm tab show it, and widen an area search to labelled not-hostile players outside Olympus guilds and the observer's group), **Guild tools: player sightings** (a separate permission enabled by its own Yes or **Authorize all**; while it and location sharing stay on, up to 64 direct observations may remain only in memory for up to 15 minutes; the same permission also permits bounded hostile-area answers on a selected map and, for a wider search, labelled not-hostile players outside Olympus guilds and your group) and Olympus Link (your **Accept**, or a confirmer's typing in the key the
-bot's keeper made them) wait for your yes. The rest of the table goes out while you are in an
+addon its own Yes or the page's deliberate **Authorize all**; ordinary reads send nothing; an authorized exact-name search sends the Name-Realm, while a five-minute hostile-area search sends one selected map ID; a visible Start declares selected/configured names and included list sources; one live area uses the current or an owned exact-result map until its row expires, cancels before a 60-second rotation, stays visibly stoppable and never auto-resumes or opens the map; both receive only opted-in observers' private, expiring last-seen reports labelled as a native target point or observer encounter point; an area row omits observer identity and guild, with at most six rows from one observer and 48 distinct players at the requester; for an addon the Olympus team authorized, the same permission may let a current signed issuer or the addon's author open the bounded host-owned profile-presentation session and an admitted member enable its single fixed style on themself; it never accepts a target, asset path or arbitrary message; what the addon does with its bounded copies is its own; it may also read the King's presence as his lines and the Realm tab show it, and widen an area search to labelled not-hostile players outside Olympus guilds and the observer's group), **Guild tools: player sightings** (a separate permission enabled by its own Yes or **Authorize all**; while it and location sharing stay on, up to 64 direct observations may remain only in memory for up to 15 minutes; the same permission also permits bounded hostile-area answers on a selected map and, for a wider search, labelled not-hostile players outside Olympus guilds and your group) and Olympus Link (its own addon since 1.4.0: your **Accept**, or a confirmer's
+typing in the key the bot's keeper made them) wait for your yes. The rest of the table goes out while you are in an
 Olympus guild, once you accepted the Olympus Accord, with no question first: your guild's census (from the member it elects, with the
 names above), the hello, your BattleTag to the moderation team alone in game, signed-leadership synchronization after the author activates it, and your addon's answer to a version check (1.1.2), an officer's loot notes and points to his guild and your addon's ask for what its book lacks
 (when the page opens), your addon's word of a direct crafting sale to the Treasurer's characters (1.2), and what other
@@ -2941,34 +2836,17 @@ few characters working together can still reach is said plainly further down
   decrees; everyone else can use [Olympus] only. Sent with Blizzard's logged addon-message
   function (lines sent any other way are dropped); rate limited per sender and per channel, and
   no single sender can fill a channel.
-- **Olympus Link** (1.0.0): the bot's codes carry an Ed25519 signature every addon checks
-  against the bot's public key, written in `Olympus/Link.lua` (`ns.LINK_BACKEND_KEYS`), so the
-  Discord account the question names is the bot's word. Each proof is an Ed25519 signature by a
-  confirmer's own key, which is one character's and certified for that character by the bot; the
-  bot's keeper makes every key on a computer, a High Councillor's too. (The council authority, the
-  author's own client, could certify High Councillors' keys made in game, `ns.LINK_CA_KEYS`, its
-  private key on his computer only and never printed, logged or sent; that path is off,
-  `ns.LINK_COUNCIL_AUTHORITY`, and while it is off no addon takes its certificates.) Nothing of a
-  key is made, kept, announced or used before the bot's key is in the addon. A requester asks only
-  confirmers whose certificate checks and names the character that announced it (a "c" counts
-  only from a name on the signed High Council list), counts a proof only once its signature
-  checks with the certified key and it was signed within its code's life, and carries each
-  proof's certificate in the link. The bot keeps only the public halves, can revoke one (a
-  council authority's key too: a revocation list), and checks every proof again (the
-  certificate, the signature, the key's owner and character, the time, the draw, how the guild
-  was known). A proof is bound to its code and requester by a
-  tag made from the code's signature, which never leaves the command you pasted: someone who sees
-  your code's id on a stream can't make a link for their own character with it. The addon signs
-  and checks in small slices over several frames, so the game never stops for it.
-  `Olympus/Ed25519.lua` is checked against RFC 8032's vectors and signs byte for byte as Python's
-  `cryptography` does, and the offline tests hold every slice to the game's Lua 5.1 rule (no
-  yield across a pcall, a sort, a gsub, a metamethod or a generic for's iterator). No key is made
-  in the game unless the author turns the council authority on (Konig's review): such a key comes
-  from the best the client offers, which is no cryptographic random source (sub-millisecond frame
-  timings, the time, the game's generator, table addresses, the cursor and the character, over
-  eight frames, through SHA-512; the comment in `Link.lua` says what an attacker could guess), so
-  every key, a High Councillor's too, is made on a computer by the bot's keeper, and a key an
-  earlier version made in the game is removed at login.
+- **Signatures and keys made in game**: `Olympus/Ed25519.lua` (Ed25519 and SHA-512, written for
+  Olympus Link and used by the Arena's ledgers, the records' seals and the other signed parts) is
+  checked against RFC 8032's vectors and signs byte for byte as Python's `cryptography` does. It
+  signs and checks in small slices over several frames, so the game never stops for it, and the
+  offline tests hold every slice to the game's Lua 5.1 rule (no yield across a pcall, a sort, a
+  gsub, a metamethod or a generic for's iterator). The keys the addon makes for itself (the army
+  channel's key, the Accord's follow key, the Arena's account key and a bank ledger's secret) mix
+  the best the client offers (`Sign.EntropySample`: sub-millisecond frame timings, the time, the
+  game's generator, table addresses, the cursor and the character) through SHA-256: no game source
+  is a cryptographic random source, and none of these keys is sent beyond what its own row says.
+  Olympus Link, its own addon since 1.4.0, documents its own keys and proofs.
 - `/oly block <name>` ignores a player completely.
 - **Block terms** (1.1) only hide lines on each screen: no word can ignore, block, kick or cut
   anyone off. The shared list is taken only from the King's, his Steward's, a Hand's or a signed
@@ -3177,12 +3055,7 @@ Other limits:
 | `/oly helpme [text]` (or **Ask a High Councillor** on the Realm tab) | ask the High Council (the moderators) for help: it goes by whisper to up to three of them online who take requests |
 | `/oly council list` · `/oly council help on\|off` | the High Council as your addon knows it; moderators: take help requests or not. The list is signed by the author on his own computer and checked by every client: no name is written in the addon's code, and nobody can forge or change it. An addon without the list (`High Council: -`) asks the channel for it a minute or so after login, and again until it has it (two and a half minutes later when nobody answered, up to 3 times). Since 1.0.0 the list also crosses realms through guild chat: guildmates on another realm answer the ask and pass the list on, and it goes on to your realm's channel |
 | `/oly council icon` (or **My council icon** on the Realm tab, councillors only; 1.2.4: **My profile**'s **Icons**) | moderators: a councillor's name always carries the High Council's mark, which nobody can change: in the game's own chat (1.1.5, `/oly chatmarks`) the game's silver elite dragon, on their tooltip and in the census the game's target-frame skull. An icon of your own after it is optional: pick it from the game's icons, like a macro's. Your addon announces it on the channel (at once, then every 20 minutes), and other clients take it only from a councillor and only as a game icon |
-| `/oly discord <code>` · `/oly discord` | Olympus Link: link this character to your Discord account with the bot's code (or paste it in a box) |
-| `/oly discord show` · `status` · `forget` | the Olympus Link window (QR code and link) again; every character's request or proof; drop this character's |
-| `/oly discord key <id> <key>` · `key` · `key new` · `key off` | confirmers (High Councillors too): keep the key the bot's keeper gave you for this character (once the bot's key is in the addon), show its id and public half, say where a new one comes from (the keeper; a key made in game only with the council authority on, off as it ships), remove it (and its certificate) and print the old key's id, which counts at the bot until its keeper revokes it |
-| `/oly discord cert <certificate>` · `cert` | confirmers: keep the bot's certificate for that key and this character (checked first), show its tier and days left |
-| `/oly discord watcher on\|off` | High Councillors: keep the proofs players hand you for the bot |
-| `/oly discord certified` | the author: every certificate his client signed as the council authority (off as it ships) for a High Councillor's key (key id, character, end), for the bot's keeper |
+| `/oly discord ...` | Olympus Link, the Discord role: its own addon, Olympus_Link (1.4.0), with its own commands when it is installed; without it, one line says it is not installed |
 | `/oly hop` | ask for an invite to the King's layer (while he is online) |
 | `/oly lfg` · `/oly lfg dungeon\|raid\|pvp\|layer [note]` · `/oly lfg off` | the Board (1.1): who is looking for a group; raise your flag (a box with your note first) or lower it |
 | `/oly week` | the week on the Board and Decrees: army and own-guild Agenda entries for 7 days, alongside your guild's calendar; eligible schedulers see separate army and guild buttons ("Sat 20:00 Raid night") |
@@ -3233,6 +3106,30 @@ the exact text first, in a window of its own, and sends nothing without your **S
 
 Type `/oly bug` (or press **Report a bug**), copy the text and open an issue. Errors are
 also saved in `WTF/Account/<ACCOUNT>/SavedVariables/Olympus.lua`.
+
+## Integrating with Olympus
+
+Other addons, and Olympus's own tools and services outside this addon, reach Olympus through its
+public API alone: `OlympusAPI` ([docs/API.md](docs/API.md): registration, the player's own Yes on
+the privacy page, bounded copies) and `OlympusBridge`, the read-only sections and chat observers
+the moderators' OfficerSpy and the Companion's bridge addon read (their rows in
+[Privacy](#privacy)). Nothing else of Olympus's is an interface: its namespace, its saved variables
+and its addon messages are its own and change between versions.
+
+The one other way in is for Olympus's own load-on-demand modules, which run as part of Olympus:
+`Olympus_Arena`, in this package, and **Olympus_Link** (Olympus Link, the Discord role), its own
+addon, kept and released separately, not in this repository or its package. When Olympus_Link is
+installed next to Olympus, `Olympus/LinkLoader.lua` loads it once a session, when Olympus's saved
+variables are read and before the login: it sets `OlympusLinkHandoff` to Olympus's namespace for
+one synchronous `C_AddOns.LoadAddOn("Olympus_Link")` call and clears it right after. The module's
+first file takes it at once and refuses a host whose `ns.LinkLoader.HOST_API` is not the one it
+was made for (1); its other files do nothing without it, so the module loaded any other way
+(another addon's load, "load always") stays inert. Without the module `ns.Link` is nil,
+`/oly discord` says it is not installed, `/oly status` says "discord link: not installed", and
+nothing else changes. A module's own tests can run in this repository's harness:
+`OLYMPUS_EXTRA_SUITE=<file.lua> luajit tests/run.lua` calls each file (`;` between several) as the
+harness's own suite files are called, where Olympus Link's tests ran when it shipped here, and
+`OLYMPUS_TEST_FILTER` runs only its tests.
 
 ## Development
 
@@ -3452,6 +3349,7 @@ bash scripts/check-affected.sh --base <verified-commit>  # complete mapped Arena
 luajit tests/check-affected-selector.lua   # dependency-selection policy, not addon coverage
 luajit tests/run.lua                      # offline tests: codec, roster, hierarchy, security, layers, decrees, channels
 OLYMPUS_TEST_FILTER='1.2 matchmaking' luajit tests/run.lua  # focused tests whose names contain this plain text
+OLYMPUS_EXTRA_SUITE=<suite.lua> OLYMPUS_TEST_FILTER=<name part> luajit tests/run.lua  # a module's own tests in this harness (Integrating with Olympus)
 scripts/lint-globals.sh                   # catches locals used before they are declared
 luajit scripts/gamepad-audit.lua [--list]  # the gamepad gate: every reach into the game's UI registered (--list: each one)
 luajit tests/gamepad.lua                   # the gamepad pass alone (the offline suite runs it too)
@@ -3459,12 +3357,9 @@ luajit scripts/forever-api.lua <Interface> [--check]  # the client model's fixtu
 luajit scripts/forever-pins.lua <Interface>  # the registry's source pins against that source (local)
 bash tests/check-scripts.sh               # verify check-script failure handling (also run in CI)
 bash tests/sign-roundtrip.sh              # the High Council signing script end to end (needs python3)
-python3 tests/fixtures/make-link-vectors.py --check  # Olympus Link's shared vectors, sample, draw and inbox (needs "cryptography")
-node --test web/test/*.test.mjs          # Olympus Link's page, core, Worker and tools (Node 22.13 or newer; also run in CI)
 python3 scripts/make-borders.py [--check] # the border textures from media/borders/src (needs Pillow)
 luajit scripts/curseforge-page.lua [--check]  # docs/CURSEFORGE-STORE.md, the CurseForge description, from docs/CURSEFORGE.md
 luajit scripts/curseforge-size.lua [--check] [page]  # that page's body as CurseForge's editor sends it (or another page's)
-python3 scripts/link-keys.py ca           # the author, once: Olympus Link's council authority (see below)
 python3 scripts/council-sign.py sign "First Surname,..." [realm group]  # the author: sign the High Council list
 python3 scripts/council-sign.py council [council.json]  # the author: sign the names, departments and titles (see the script)
 python3 scripts/council-sign.py steward "<Name-Realm>"  # the author: mark the King's Steward, sign the council (below)
@@ -3485,25 +3380,12 @@ tests, gamepad sessions and auxiliary checks. An unknown or shared/core change f
 full suite. `--files <path>...` is useful for a focused diagnostic, not proof that the whole checkout
 was checked. Name-filtered tests are also diagnostics; they do not replace release validation.
 
-`scripts/link-keys.py ca` writes `dist/LinkCA.lua` (the council authority's seed, like
-`dist/CouncilList.lua` local only: never committed or in the zip) and prints its public key,
-which goes into `ns.LINK_CA_KEYS` in `Olympus/Link.lua` and the Worker's `LINK_CA_PUBLIC`.
-The author copies the file to his own game only (`Interface/AddOns/Olympus/LinkCA.lua`) and adds
-`LinkCA.lua` at the end of `Olympus.toc` there. His client certifies nothing, and no councillor's
-addon makes a key, while `ns.LINK_COUNCIL_AUTHORITY` in `Olympus/Link.lua` is `false`, as it
-ships (Konig's review: every key comes from the bot's keeper). Only if he sets it to `true`, and
-once the bot's key is in the addon, does his client certify the High Councillors' own keys by
-itself and record each one in his SavedVariables (`/oly discord certified` lists them), and the
-bot's keeper decides then whether to set `LINK_CA_PUBLIC`. When he takes a councillor off the
-signed list, the bot's keeper revokes that character at the bot too. `web/WORKER.md` (step 1b)
-says the rest, rotation included.
-
 ### The High Council's signed lists (the author)
 
 The council's names, its departments and titles, and since 1.0.0 the King's Steward are signed
 on the author's own computer with his key (`~/.olympus/council-key.json`), from his council
 file (`~/.olympus/council.json`, the format at the top of `scripts/council-sign.py`). The
-script writes `dist/CouncilList.lua`, local only like `LinkCA.lua`; he copies it to his own game
+script writes `dist/CouncilList.lua`, local only (never committed or in the zip); he copies it to his own game
 (`Interface/AddOns/Olympus/CouncilList.lua`, listed at the end of `Olympus.toc` there) and
 `/reload`s: his client takes the lists and sends them within seconds, and every client checks
 the signature and passes them on.
@@ -3595,8 +3477,9 @@ see [Security and trust](#security-and-trust).
 
 Bundled libraries: LibStub (public domain), CallbackHandler-1.0 (Ace3, BSD),
 HereBeDragons by Nevcairiel (BSD), the map library Questie uses, and luaqrcode by Patrick
-Gundlach and contributors (speedata, 3-clause BSD) for Olympus Link's QR code
-(`Olympus/libs/QREncode/qrencode.lua`, its changes listed at its top).
+Gundlach and contributors (speedata, 3-clause BSD) for the QR codes (the army's QR export,
+`Olympus/ArmyExport.lua`, and Olympus Link's, its own addon; `Olympus/libs/QREncode/qrencode.lua`,
+its changes listed at its top).
 
 ## Credits
 

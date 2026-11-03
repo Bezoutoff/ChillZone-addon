@@ -1520,12 +1520,12 @@
         "How do I get my Discord role?",
         "What's /oly discord?"
       ],
-      "answer": "Olympus Link will prove your character to the Olympus bot on Discord for your role, but it isn't open yet: it needs a later addon update. Until then /oly discord just says it's not open.",
-      "in_game": "Olympus Link (Discord roles) isn't open yet: it comes with a later update of the addon.",
+      "answer": "Olympus Link, which proves your character to the Olympus bot on Discord for your role, is not part of this addon: it is its own addon, Olympus_Link, and it isn't open yet. Without it /oly discord just says it is not installed; everything else in Olympus works without it.",
+      "in_game": "Olympus Link (Discord roles) is its own addon, Olympus_Link, and isn't open yet. Without it /oly discord says it is not installed.",
       "sources": [
-        "README.md:1126-1135",
-        "L.LINK_NOT_OPEN (Locales.lua:952)",
-        "Link.lua:1481"
+        "README.md: Integrating with Olympus",
+        "L.DISCORD_NOT_INSTALLED (Locales.lua)",
+        "LinkLoader.lua"
       ]
     },
     {
@@ -1751,7 +1751,7 @@
       ],
       "answer": "It talks only through the game's own addon messages, with no server of its own. Your guild's census, your addon's hello and its version (to a player's Check version) go out as is; your location, chats and the rest wait for your yes. /oly privacy shows every switch.",
       "in_game": "It only uses the game's addon messages, no outside server. Location, chats and the rest wait for your yes (/oly privacy).",
-      "notes": "Exception: Olympus Link (not open yet) uses a web page and the Discord bot, only when a player chooses to link.",
+      "notes": "Olympus Link (its own addon, Olympus_Link, not part of this one, and not open yet) would use a web page and the Discord bot, only when a player chooses to link.",
       "sources": [
         "README.md:1362-1440"
       ]
