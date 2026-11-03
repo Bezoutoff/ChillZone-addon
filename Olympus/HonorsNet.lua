@@ -43,7 +43,11 @@ ns.HonorsNet = HonorsNet
 --   ID t~monthKey~m1,m2,m3~a1,a2,a3   names only: the month's top 3 donors and all time's (the
 --                                 the design dropped the week's), from the Treasurer's characters'
 --                                 client (or the King's), on the channel and on GUILD; the newest
---                                 wins; sent whatever the Treasury's ranking switches say.
+--                                 wins; sent whatever the Treasury's ranking switches say. (1.3.4) The
+--                                 King's client works out none where a Treasurer's word of the last
+--                                 DONOR_TREASURER_DAYS is known (his book is not the treasury's); his
+--                                 client and a signed High Councillor's say the Treasurer's last word
+--                                 again as it is (H.RelayDonors), taken from them too.
 --   IO monthKey~t~n1,n2,n3        the Oracle's gold, silver and bronze for that month, from a bank of
 --                                 this realm's T1~B (the first open bank by sorted name); IO R~month~
 --                                 rows by whisper: another bank's top 10 for it (name:profit:staked:
@@ -53,10 +57,12 @@ ns.HonorsNet = HonorsNet
 -- top 3 (the crook) is the Church's: ChurchCount.Top3, the newest NR~1~t word taken from the Head's,
 -- the King's or the author's client (the server stamps its sender; ChurchCount.TakeTop refuses anyone
 -- else's), held while the Church's public ranking is open and the word no older than
--- Honors.CHURCH_MAX_AGE. In this version only the author's client sends it (ChurchCount.SendTop: a
+-- Honors.CHURCH_MAX_AGE. In this version only the author's client works it out (ChurchCount.SendTop: a
 -- keeper whose root is W or H; the King's client is no keeper, and the Head is the King, root K), so
 -- the crooks move only while the author's client is online with the ranking open, and every client
--- shows none 30 days after his last word. No word of its own here: the Church's comes on CHANNEL and
+-- shows none 30 days after his last word. (1.3.4: the King's and the High Council's clients say his
+-- last word again, ChurchCount.RelayTop, taken from them too: a client never online with his gets it.)
+-- No word of its own here: the Church's comes on CHANNEL and
 -- GUILD, and CHURCH_TOP_CHANGED (or the ranking's switch, CHURCH_PUBLIC_CHANGED) looks at the
 -- honours again. (1.2.4) The same word's Apostles hold the cross. The Bones' charm is the last
 -- month's top 3 of FarkleTable.Best (the games both players' halves agree on, as this client holds
@@ -98,6 +104,14 @@ H.STRUCK_MAX = 20               -- places found false kept per milestone (the ol
 H.CLAIMS_MAX = 200
 H.CLAIM_DAYS = 7
 H.DONOR_EVERY = 1800            -- the Treasurer's client says the donors again every 30 minutes
+-- (1.3.4) The relays of his word (H.RelayDonors): the first DONOR_FIRST after the login (or the first word
+-- held), then DONOR_EVERY + DONOR_GRACE after the last word heard (the same or a newer one) or said,
+-- DONOR_JITTER at random more, the King's DONOR_KING_AFTER more again (his goes last; DONOR_GRACE: the
+-- Treasurer's client, saying it every DONOR_EVERY, speaks first). The King works out no word of his own
+-- where the Treasurer's of the last DONOR_TREASURER_DAYS is known.
+H.DONOR_FIRST, H.DONOR_GRACE, H.DONOR_JITTER, H.DONOR_KING_AFTER = 300, 120, 300, 480
+H.DONOR_TREASURER_DAYS = 30
+H.random = function(a, b) return math.random(a, b) end
 H.ORACLE_EVERY = 1800
 H.LETTERS_MAX = 20
 H.LETTER_PORTRAIT = 60          -- the letter's portrait: the size of his own on his unit frame
@@ -1158,9 +1172,43 @@ end
 local function IdBody(w, t)
 	return table.concat({ B36(t), B36(w.monthNo), #w.month > 0 and table.concat(w.month, ",") or "-", #w.all > 0 and table.concat(w.all, ",") or "-" }, "~")
 end
+-- (1.3.4) Who says the Treasurer's word again, as it is: the King's character and the signed High
+-- Council, never one of the Treasurer's characters (his own client says it, SendDonors).
+local function IsCouncillor(name) return ns.IsHighCouncillor ~= nil and ns.IsHighCouncillor(name) == true end
+function H.IsDonorRelay(name)
+	if type(name) ~= "string" or name == "" then return false end
+	local full = ns.FullName(name)
+	if ns.IsTreasurerCharacter and ns.IsTreasurerCharacter(full) then return false end
+	return ns.ArenaRoles.IsKing(full) or IsCouncillor(full)
+end
+-- A word as the Treasurer worked it out: his characters' own, or a High Councillor's relay of it (the
+-- Council works out none). The King's may be his own (where no Treasurer's is known): not that.
+local function TreasurerWord(from)
+	if type(from) ~= "string" or from == "" then return false end
+	local full = ns.FullName(from)
+	if ns.IsTreasurerCharacter and ns.IsTreasurerCharacter(full) then return true end
+	return IsCouncillor(full) and not ns.ArenaRoles.IsKing(full)
+end
+-- The time of the newest word of the Treasurer's this client heard (his own, or relayed by the Council),
+-- or nil.
+function H.TreasurerHeard()
+	local s = H.Store()
+	if not s then return nil end
+	local t = tonumber(s.donorsTr)
+	local d = s.donors
+	if type(d) == "table" and TreasurerWord(d.from) and tonumber(d.t) and (not t or d.t > t) then t = d.t end
+	return t
+end
+
 local lastId
 function H.SendDonors(force)
-	if not (ns.IsTreasurerCharacter and ns.IsTreasurerCharacter(ns.me)) and not ns.ArenaRoles.IsKing(ns.me) then return false, "who" end
+	local treasurer = ns.IsTreasurerCharacter and ns.IsTreasurerCharacter(ns.me)
+	if not treasurer and not ns.ArenaRoles.IsKing(ns.me) then return false, "who" end
+	-- (1.3.4) The King's book is not the treasury's: where the Treasurer's own word of the last
+	-- DONOR_TREASURER_DAYS is known, the King's client works out none (it only says his again,
+	-- RelayDonors); his newer word put another top 3 on every client that heard him last.
+	local heard = not treasurer and H.TreasurerHeard()
+	if heard and Now() - heard <= H.DONOR_TREASURER_DAYS * 86400 then return false, "treasurer" end
 	local w = H.DonorWord()
 	if not w then return false, "book" end
 	local sig = w.monthNo .. "|" .. table.concat(w.month, ",") .. "|" .. table.concat(w.all, ",")
@@ -1172,14 +1220,26 @@ function H.SendDonors(force)
 	if GetGuildInfo and GetGuildInfo("player") then Arena.Send("ID", "L", body, { dist = "GUILD", key = "id guild" }) end
 	return true
 end
+local donorDue, donorTimer = nil, false -- (1.3.4) our relay's next turn; its timer waiting
+-- (1.3.4) A relay's wait from now: the King's DONOR_KING_AFTER, and DONOR_JITTER at random.
+local function DonorWait() return (ns.ArenaRoles.IsKing(ns.me) and H.DONOR_KING_AFTER or 0) + H.random(0, H.DONOR_JITTER) end
 function H.TakeDonors(sender, body)
-	if not (ns.IsTreasurerCharacter(ns.FullName(sender)) or ns.ArenaRoles.IsKing(sender)) then return Count("sender") end
+	-- (1.3.4: a signed High Councillor's too, a relay's: the Council works out none of its own.)
+	if not (ns.IsTreasurerCharacter(ns.FullName(sender)) or ns.ArenaRoles.IsKing(sender) or IsCouncillor(ns.FullName(sender))) then
+		return Count("sender")
+	end
 	local t, month, m, a = Arena.Fields(body, 4)
 	if not a then return Count("shape") end
 	t, month = N(t, 0, 4294967295), N(month, 0, 99999)
 	if not t or not month or t > Now() + 60 then return Count("time") end
 	local s = H.Store(true)
-	if s.donors and (s.donors.t or 0) >= t and not Same(sender, ns.me) then return Count("older") end
+	local mine = Same(sender, ns.me)
+	if TreasurerWord(sender) and t > (tonumber(s.donorsTr) or 0) then s.donorsTr = t end
+	-- (1.3.4) The same word or a newer one from another client: our relay waits again (H.RelayDonors).
+	if not mine and (not s.donors or t >= (s.donors.t or 0)) and H.IsDonorRelay(ns.me) then
+		donorDue = Now() + H.DONOR_EVERY + H.DONOR_GRACE + DonorWait()
+	end
+	if s.donors and (s.donors.t or 0) >= t and not mine then return Count("older") end
 	local function Names(list)
 		local out = {}
 		if list ~= "-" then
@@ -1190,8 +1250,57 @@ function H.TakeDonors(sender, body)
 		end
 		return out
 	end
+	-- (from: who it came from, a relay's name for a relayed word; shown, never trusted further.)
 	s.donors = { t = t, monthNo = month, month = Names(m), all = Names(a), from = ns.FullName(sender) }
 	Changed()
+	H.WatchDonorRelay()
+	return true
+end
+
+-- (1.3.4) A relay's client (H.IsDonorRelay): the Treasurer's last word it holds (TreasurerWord: never
+-- the King's own), as it is (its time, its month, its names, each wired for our realm as Wire does), on
+-- the channel and GUILD, DONOR_EVERY + DONOR_GRACE after the last word heard (the same or a newer one) or
+-- said, DONOR_JITTER at random more (the King's DONOR_KING_AFTER later still). A word heard meanwhile
+-- starts its wait again: no relay speaks while the Treasurer's client says it, and the relays online say
+-- it about once a DONOR_EVERY between them, the King's only when none of the Council's did. A relay never
+-- makes a word newer (TakeDonors keeps the newest time).
+function H.RelayDonors()
+	if not H.IsDonorRelay(ns.me) then return false, "who" end
+	local s = H.Store()
+	local d = s and s.donors
+	if type(d) ~= "table" or not tonumber(d.t) or not tonumber(d.monthNo) or not TreasurerWord(d.from) or Same(d.from, ns.me) then
+		return false, "none"
+	end
+	local function Names(list)
+		local out = {}
+		for i, name in ipairs(type(list) == "table" and list or {}) do
+			if i > 3 or type(name) ~= "string" then break end
+			out[i] = ns.ArenaFights.Wire(name)
+		end
+		return out
+	end
+	local body = IdBody({ monthNo = d.monthNo, month = Names(d.month), all = Names(d.all) }, d.t)
+	Arena.Send("ID", "L", body, { key = "id" })
+	if GetGuildInfo and GetGuildInfo("player") then Arena.Send("ID", "L", body, { dist = "GUILD", key = "id guild" }) end
+	return true
+end
+local function DonorRelayTick()
+	donorTimer = false
+	if not H.IsDonorRelay(ns.me) then return end
+	local t = Now()
+	-- (A word heard since put its turn later: it waits on.)
+	if not donorDue or t >= donorDue then
+		H.RelayDonors()
+		donorDue = t + H.DONOR_EVERY + H.DONOR_GRACE + DonorWait()
+	end
+	H.WatchDonorRelay()
+end
+-- The relay's timer, to its next turn (the first DONOR_FIRST and its wait from now); one waits at most.
+function H.WatchDonorRelay()
+	if donorTimer or not H.IsDonorRelay(ns.me) then return false end
+	donorDue = donorDue or (Now() + H.DONOR_FIRST + DonorWait())
+	donorTimer = true
+	ns.After(math.max(1, donorDue - Now()), "arena donors relay", DonorRelayTick)
 	return true
 end
 local function OnDonors(dist, sender, mode, body)
@@ -2159,6 +2268,9 @@ function H.WatchRoles()
 		donorTicker = ns.Every(H.DONOR_EVERY, "arena donors", function() H.SendDonors(true) end)
 		ns.After(60, "arena donors login", function() H.SendDonors(true) end)
 	end
+	-- (1.3.4) The King's and the High Council's: the Treasurer's word said again, once one is held.
+	local s = H.Store()
+	if s and type(s.donors) == "table" then H.WatchDonorRelay() end
 	local bank = ns.ArenaRoles.IsBank(ns.me, "L")
 	if bank and not oracleTicker then
 		oracleTicker = ns.Every(H.ORACLE_EVERY, "arena oracle", function() H.OracleTick() end)
