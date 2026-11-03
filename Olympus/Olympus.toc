@@ -106,7 +106,7 @@ Workshop.lua
 Versions.lua
 Ed25519.lua
 libs\QREncode\qrencode.lua
-Link.lua
+LinkLoader.lua
 ArmyExport.lua
 GuildCharter.lua
 Recruit.lua

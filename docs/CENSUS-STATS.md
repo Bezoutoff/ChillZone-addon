@@ -88,8 +88,9 @@ guild name is the last field, so nothing in it can shift the others.
 
 ## The Companion
 
-- The private bridge (`OlympusCompanionBridge/Checkpoint.lua`) saves `stats` with the other
-  sections at logout or `/reload`.
+- The Companion's own bridge addon (OlympusCompanionBridge, kept with the Companion, not in this
+  repository) saves `stats` with the other sections at logout or `/reload`, read through
+  `OlympusBridge.GetSection("stats")`.
 - The core reads it from the same SavedVariables file as the checkpoint (`CensusStatisticsDecoder`,
   `companion/core/.../CheckpointIngestion.kt`); a missing, unknown or malformed section is null and
   never blocks the census. `CensusStatisticsPage` gives both shells the same lines and words.

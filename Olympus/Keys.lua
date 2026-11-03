@@ -407,13 +407,13 @@ end
 -- The King: rotate, pick the guilds, hand out, move
 ---------------------------------------------------------------------------
 
--- A new key from this computer (the Link's entropy sample, the clocks, the game's generator),
+-- A new key from this computer (the entropy sample, Sign.EntropySample; the clocks, the game's generator),
 -- SHA-256, 20 hex digits. Nothing in the game is a cryptographic source: for a channel's
 -- password it is plenty, and nobody sees it.
 function Keys.NewKey()
 	local parts = { tostring(ns.me), tostring(time and time()), tostring(GetTime and GetTime()), tostring(math.random()),
 		tostring(math.random()), tostring({}), tostring(debugprofilestop and debugprofilestop() or 0) }
-	if ns.Link and not ns.Link.missing and ns.Link.EntropySample then parts[#parts + 1] = ns.Link.EntropySample() end
+	parts[#parts + 1] = ns.Sign.EntropySample()
 	local raw = ns.Sign.SHA256(table.concat(parts, "|"))
 	local hex = {}
 	for i = 1, #raw do hex[i] = ("%02x"):format(raw:byte(i)) end

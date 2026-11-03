@@ -154,14 +154,13 @@ end
 
 -- This game account's follow key (see the top), or nil. make: one is made now for an account that
 -- accepted without one (an earlier build). From this computer's clocks, the game's generator and
--- the Link's sample, through SHA-256, as Keys.NewKey: no game source is cryptographic, and nobody
+-- the entropy sample (Sign.EntropySample), through SHA-256, as Keys.NewKey: no game source is cryptographic, and nobody
 -- but the moderation team ever receives it.
 function Accord.IsKey(k) return type(k) == "string" and #k == Accord.KEY_LEN and k:find(Accord.KEY_SHAPE) ~= nil end
 local function NewKey()
 	local parts = { tostring(ns.me), tostring(time and time()), tostring(GetTime and GetTime()), tostring(math.random()),
 		tostring(math.random()), tostring({}), tostring(debugprofilestop and debugprofilestop() or 0) }
-	local Link = ns.Link
-	if type(Link) == "table" and not Link.missing and type(Link.EntropySample) == "function" then parts[#parts + 1] = tostring(Link.EntropySample()) end
+	parts[#parts + 1] = tostring(ns.Sign.EntropySample())
 	local raw = ns.Sign.SHA256("OlympusAccordKey\0" .. table.concat(parts, "|"))
 	local hex = {}
 	for i = 1, Accord.KEY_LEN / 2 do hex[i] = ("%02x"):format(raw:byte(i)) end

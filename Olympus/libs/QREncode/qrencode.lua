@@ -27,9 +27,10 @@
 -- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 -- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
--- Olympus's copy (0.9.10, Olympus Link's QR code, Link.lua) changes four things, each marked
+-- Olympus's copy (0.9.10, for Olympus Link's QR code; 1.4.0 the army's QR export, ArmyExport.lua,
+-- and the Olympus_Link module, its own addon) changes four things, each marked
 -- "Olympus" below: xor through the game's bit library (upstream builds a 256 x 256 table), an
--- optional pause between the steps of qrcode() (Link.lua yields there, so the game never stops
+-- optional pause between the steps of qrcode() (a job yields there, so the game never stops
 -- for a big code), the encoder handed to the addon's namespace at the end of the file, and the
 -- upstream test exports (read from a global "testing") left out. Two locals named bit are called
 -- b, so they no longer hide the library's name. The encoding itself is upstream's.
@@ -1161,7 +1162,7 @@ local function qrcode(str,ec_level,mode_enc,pause)
 end
 
 -- Olympus: the game hands each file of an addon its name and namespace, and drops what the
--- file returns: the encoder goes into the namespace (ns.QREncode.qrcode) for Link.lua.
+-- file returns: the encoder goes into the namespace (ns.QREncode.qrcode) for ArmyExport.lua and Olympus_Link.
 local _, olympus = ...
 if type(olympus) == "table" then olympus.QREncode = { qrcode = qrcode } end
 

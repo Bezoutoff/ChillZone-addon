@@ -503,7 +503,7 @@ While it is on, this client stops sending, on its own, the words that announce t
 online or place him: no hello, no census report (it is never the guild's reporter, so it answers no
 census request), no layer announcement, guildmate map dot or layer-hop offer or answer, no answer
 to a player-sighting or King's-layer request, no roll-call, version-check, council-help or crafter
-answer, no author, Church, Olympus Link, council-help, crafter listing, Wanted reviewer, arena
+answer, no author, Church, Olympus Link (its own addon, when installed), council-help, crafter listing, Wanted reviewer, arena
 auditor or arbiter presence, no Wanted sighting, no treasury "taking donations" notice, no repeated
 treasury ask (a session's first still goes), no profile-presentation heartbeat and, for the King,
 no crown position or layer, no court, no tabard collector lease and no timed repeat of his Hands,
@@ -821,6 +821,23 @@ Stop/Off. Everything else remains read-only. Keep that trust: never start a sear
 without the player's action, silently add a list source, auto-resume after permission or reload,
 broaden its audience, keep it running after the visible session ends, or present a nearby encounter point as exact.
 Never persist a movement history.
+
+## Integrating with Olympus
+
+This API is how every other addon, and every tool or service of Olympus's own outside the addon,
+integrates with Olympus. Besides it, Olympus offers only `OlympusBridge`, the read-only sections and
+chat observers the moderators' OfficerSpy and the Olympus Companion's bridge addon read (the
+README's Privacy names what they carry). Olympus's namespace, its saved variables and its addon
+messages are not interfaces: they change between versions without notice.
+
+The one other way in is for Olympus's own load-on-demand modules, which run as part of Olympus:
+`Olympus_Arena`, in the Olympus package, and `Olympus_Link` (Olympus Link, the Discord role, 1.4.0),
+its own addon, released separately. Olympus loads Olympus_Link itself when it is installed
+(`Olympus/LinkLoader.lua`): once a session, when its saved variables are read, it sets the global
+`OlympusLinkHandoff` to its namespace for one synchronous `C_AddOns.LoadAddOn("Olympus_Link")` call
+and clears it right after; the module's first file takes it and checks `ns.LinkLoader.HOST_API`
+(1), and the module loaded any other way does nothing. Without the module, `/oly discord` says it is
+not installed and nothing else of Olympus changes. That handoff is not for other addons: use this API.
 
 ## Examples
 

@@ -676,8 +676,7 @@ Wallet.BankStore = Bank
 local function Random32()
 	local parts = {}
 	for i = 1, 6 do
-		local Link = ns.Link
-		parts[#parts + 1] = type(Link) == "table" and type(Link.EntropySample) == "function" and Link.EntropySample() or ""
+		parts[#parts + 1] = ns.Sign.EntropySample()
 		parts[#parts + 1] = tostring(math.random()) .. tostring({}) .. tostring(Now()) .. tostring(i)
 	end
 	return ns.Sign.SHA256(table.concat(parts, "|"))

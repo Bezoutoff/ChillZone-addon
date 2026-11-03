@@ -81,8 +81,7 @@ saturated admission test compares registry traversal work, not a live-client fra
 Current command results belong in the release handoff; this document does not preserve a
 stale pass count from either contributor branch.
 
-Run `bash scripts/check.sh`, `bash tests/check-scripts.sh` and
-`node --test web/test/*.test.mjs` from the repository root. The focused suites loaded by
+Run `bash scripts/check.sh` and `bash tests/check-scripts.sh` from the repository root. The focused suites loaded by
 `tests/run.lua` use the real addon functions and cover transfer pressure, cancellation,
 send failures, callback reentrancy, channel/guild changes, Hop response clocks, permission
 withdrawal, recipient changes, alt revisions and invalid census totals.

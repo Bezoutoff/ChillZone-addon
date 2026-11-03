@@ -503,8 +503,9 @@ function ns.StatusText()
 			add("block terms: %d yours, %d shared (%s)%s  |  acts log: %d entries", #F.Mine(), #F.SharedTerms(), F.SharedOn() and "used" or "ignored",
 				F.CanEdit() and ", you edit the shared list" or "", ns.Chronicle and ns.Chronicle.Entries and #ns.Chronicle.Entries() or 0)
 		end
-		-- Olympus Link (0.9.10): the key's id and tier only, never the key.
-		add("discord link: %s", ns.Link and ns.Link.StatusLine and ns.Link.StatusLine() or "not loaded")
+		-- Olympus Link (0.9.10): the key's id and tier only, never the key. (1.4.0: its own addon,
+		-- Olympus_Link; the loader says when it is not installed.)
+		add("discord link: %s", ns.LinkLoader and ns.LinkLoader.StatusLine and ns.LinkLoader.StatusLine() or "not loaded")
 		-- The Board (1.1): what this client holds and sends (the ch:G1, ch:G0, ch:GQ counts above).
 		add("board: %s", ns.Board and ns.Board.StatusLine and ns.Board.StatusLine() or "not loaded")
 		add("the King's week: %s", ns.Week and ns.Week.StatusLine and ns.Week.StatusLine() or "not loaded")

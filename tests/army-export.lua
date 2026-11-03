@@ -318,12 +318,55 @@ test("Army QR: the lazy renderer rotates bounded rectangles and forgets frames w
 	end)
 end)
 
-test("Army QR: the shipped module has no storage, communication or upload path and loads after Link", function()
+-- 1.4.0: the drawing helpers are ArmyExport's own (they were Olympus Link's, which is its own addon now).
+test("Army QR: the dark modules as merged rectangles, exactly; modules on whole screen pixels, about half the screen, 4 when they fit, 3 at least", function()
+	local frames = assert(Army.Frames(string.rep("x", 1023), "0123456789abcdef0123456789abcdef"))
+	local m = assert(Army.Matrix(frames[1]))
+	local n = #m
+	-- Finder patterns in three corners, the fourth corner free.
+	for _, c in ipairs({ { 1, 1 }, { n - 6, 1 }, { 1, n - 6 } }) do
+		for d = 0, 6 do assert(m[c[1] + d][c[2]] > 0 and m[c[1]][c[2] + d] > 0, "finder ring") end
+		assert(m[c[1] + 1][c[2] + 1] < 0 and m[c[1] + 3][c[2] + 3] > 0, "finder inside")
+	end
+	-- The rectangles cover exactly the dark modules, each once, with fewer textures than modules.
+	local dark, covered, seen = 0, 0, {}
+	for x = 1, n do for y = 1, n do if m[x][y] > 0 then dark = dark + 1 end end end
+	local rects = Army.Rects(m)
+	for _, r in ipairs(rects) do
+		covered = covered + r.w * r.h
+		for x = r.x + 1, r.x + r.w do for y = r.y + 1, r.y + r.h do
+			assert(m[x][y] > 0, "a light module covered at " .. x .. "," .. y)
+			assert(not seen[x * 1000 + y], "a module covered twice at " .. x .. "," .. y)
+			seen[x * 1000 + y] = true
+		end end
+	end
+	eq(covered, dark)
+	assert(#rects < dark, "merged: " .. #rects .. " rectangles for " .. dark .. " modules")
+	eq(Army.QUIET, 4, "four modules of white around the code")
+	eq(Army.ModulePixels(101, 1080, 268), 5, "1080p: about half the screen")
+	eq(Army.ModulePixels(101, 720, 179), 4, "720p: 4 still fits")
+	eq(Army.ModulePixels(101, 480, 119), 3, "a small screen: 3")
+	eq(Army.ModulePixels(101, 2160, 537), 10)
+	-- One screen pixel in UI units: 768 / the screen's height / the frame's scale.
+	local saved = GetPhysicalScreenSize
+	GetPhysicalScreenSize = function() return 1920, 1080 end
+	local px, h = Army.PixelSize({ GetEffectiveScale = function() return 0.9 end })
+	GetPhysicalScreenSize = saved
+	eq(h, 1080); assert(math.abs(px - 768 / 1080 / 0.9) < 1e-12, "pixel size " .. px)
+	px, h = Army.PixelSize(nil)
+	eq(h, saved and select(2, saved()) or 1080, "no screen size: 1080")
+end)
+
+test("Army QR: the shipped module has no storage, communication or upload path and loads after the QR encoder", function()
 	local f = assert(io.open(ADDON_DIR .. "ArmyExport.lua", "rb")); local source = f:read("*a"); f:close()
 	for _, forbidden in ipairs({ "SavedVariables", "OlympusDB", "SendAddonMessage", "SendChatMessage", "C_HTTP", "Upload" }) do
 		assert(not source:find(forbidden, 1, true), "forbidden export path: " .. forbidden)
 	end
 	assert(not source:find('SetScript("OnUpdate"', 1, true), "no permanent animation loop")
 	f = assert(io.open(ADDON_DIR .. "Olympus.toc", "rb")); local toc = f:read("*a"); f:close()
-	assert(toc:find("Link.lua\nArmyExport.lua\nGuildCharter.lua", 1, true), "ArmyExport loads immediately after Link")
+	local encoder, export = toc:find("libs\\QREncode\\qrencode.lua\n", 1, true), toc:find("\nArmyExport.lua\n", 1, true)
+	assert(encoder and export and toc:find("\nEd25519.lua\n", 1, true) < encoder and encoder < export,
+		"ArmyExport loads after Ed25519.lua (its jobs) and the QR encoder")
+	assert(not toc:find("\nLink.lua\n", 1, true), "Olympus Link is its own addon: no Link.lua here")
+	assert(not source:find("ns.Link", 1, true), "the drawing helpers are the module's own")
 end)

@@ -378,7 +378,7 @@ end
 --   Comm.lua Q1 | Positions P1 | Layers L0 L1 | Hop LN LO LQ LR LX | HopSightings LY | Decree D1 | Channels M1 | ChatRooms M2
 --   Inspect S1 U0 U1 | TabardsV2 U2 U3 U4 | King T1 T2 T3 | Court T4 T5 | Acts T6 T7 | Treasury T8 TB TE TQ TR TX
 --   Bank T9 | Vox Y1 Y3 | Loot X1 XQ XB | Crafters W0 W1 WA WL WQ WR
---   Workshop HA HI HK HQ HR HS HT V1 V2 V3 V4 V5 V6 | Link DA DB DC DE DK DR DV DW
+--   Workshop HA HI HK HQ HR HS HT V1 V2 V3 V4 V5 V6 | Olympus Link (its own addon, Olympus_Link) DA DB DC DE DK DR DV DW
 --   Authority H2 H3
 --   GuildCharter GC (master's public card), QC (outsider's bounded ask), QD (corroborated Join card)
 --   OfficerMuster OM (bounded, zone-only officer gathering, logged)
@@ -466,7 +466,7 @@ Comm.QUIET_WORDS = {
 	"^CG~%d+~S~",   -- a global census snapshot (Data.lua)
 	"^V[248]~",     -- a roll call's answer, the author's presence, a version check's answer (Workshop.lua, Versions.lua)
 	"^NK~1~p~",     -- the Church's presence (Church.lua)
-	"^D[VW]~",      -- Olympus Link's confirmer and watcher presence (Link.lua)
+	"^D[VW]~",      -- Olympus Link's confirmer and watcher presence (its own addon, Olympus_Link, when installed)
 	-- The arena auditors' and fee receiver's hello, and an auditor's whispered check of a bank
 	-- snapshot (ZQ~<mode>~H~<epoch>~<seq>, Wallet.CheckSnapshot), which marks him as heard too: a
 	-- check held back is not sent again, and the bank prunes at the next snapshot (Wallet.lua).
@@ -1892,7 +1892,8 @@ local function OnAddonMessage(prefix, text, dist, sender, target, zoneChannelID,
 	if ns.db.blocked[sender:lower()] then return end
 	if not Comm.Admit(sender, GetTime()) then return end
 	stats.recv = stats.recv + 1
-	-- Olympus Link (0.9.10): a High Councillor's addon waiting to hear the author (Link.HeardFrom)
+	-- Olympus Link (0.9.10; 1.4.0 its own addon, Olympus_Link): a High Councillor's addon waiting to
+	-- hear the author (Link.HeardFrom)
 	-- sees who speaks; only while it waits: otherwise nil, and no message pays for it.
 	local hook = Comm.senderHook
 	if hook then ns.SafeCall("link author", hook, sender, dist) end
