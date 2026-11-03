@@ -5,6 +5,9 @@ local L = ns.L
 -- Treasurer (ns.TREASURER of the guild OLYMPUS) and his mail character (the other name of
 -- ns.TREASURER_CHARACTERS, in any guild or none), the King (his character, ns.KING_CHARACTER)
 -- and the characters the King adds on the Treasury tab (his word, T1~K, like his switches).
+-- (1.3.4: those pins are the beta's; on a launch realm group the Treasurer, his mail characters
+-- and the King are whom the author's signed titles list names: Core.lua's ns.TreasurerPins,
+-- ns.KingCharacter.)
 -- Each keeper's own client keeps his character's book: gold and items he receives by trade or
 -- mail are a donation, gold and items he gives a payment. What he earns playing is his: a book
 -- is an opening balance, plus what came in, less what went out, never his character's gold. A
@@ -261,13 +264,14 @@ function Treasury.Keepers()
 end
 
 -- One of the Treasurer's pinned characters (a name as typed, whatever its case): its place in
--- ns.TREASURER_CHARACTERS (1: the Treasurer himself, 2: his mail's), or nil.
+-- ns.TreasurerPins() (1: the Treasurer himself, 2: his mail's; 1.3.4: the signed list's where it
+-- names them, Core.lua), or nil.
 local function TreasurerPin(name)
 	if type(name) ~= "string" or name == "" then return nil end
 	name = ns.FullName(ns.Normal(name))
 	local short = ns.ShortName(name):lower()
-	for i, pin in ipairs(ns.TREASURER_CHARACTERS or { ns.TREASURER }) do
-		if short == pin:lower() then return SameGroup(name, ns.TREASURER_REALM) and i or nil end
+	for i, pin in ipairs((ns.TreasurerPins())) do
+		if short == ns.ShortName(pin):lower() then return SameGroup(name, ns.RealmOf(pin)) and i or nil end
 	end
 	return nil
 end
@@ -563,8 +567,9 @@ end
 -- The Treasurer's own character on this account (where he played it with the addon on), or nil.
 local function TreasurerCharacter()
 	local mine = ns.db and ns.db.myCharacters
-	if type(mine) ~= "table" or not ns.TREASURER then return nil end
-	local want = ns.TREASURER:lower()
+	local treasurer = ns.TreasurerName()
+	if type(mine) ~= "table" or not treasurer then return nil end
+	local want = treasurer:lower()
 	for key, on in pairs(mine) do
 		if on == true and (key == want or key:sub(1, #want + 1) == want .. "-") then return key end
 	end
@@ -994,10 +999,11 @@ local function TakeBook(sender)
 	if Treasury.KeeperByName(sender) or Treasury.IsOwnCharacter(sender) then return nil end
 	local b = BookOf(key, true)
 	-- (Named as his character is, until his own login names it itself.)
-	if b and b.name == key then
-		local realm = key:sub(#ns.TREASURER + 2)
+	local treasurer = ns.TreasurerName()
+	if b and b.name == key and treasurer then
+		local realm = key:sub(#treasurer + 2)
 		if ns.realm and realm:lower() == ns.realm:lower() then realm = ns.realm end
-		b.name = ns.TREASURER .. (realm ~= "" and ("-" .. realm) or "")
+		b.name = treasurer .. (realm ~= "" and ("-" .. realm) or "")
 	end
 	return b
 end
@@ -1960,9 +1966,10 @@ local function Parts(shared, public)
 		end
 	end
 	-- The Treasurer first, his mail character next, then the King, then the others by name.
+	local pinned = #(ns.TreasurerPins())
 	local function Rank(p)
-		if not PinnedName(p.name) then return #ns.TREASURER_CHARACTERS + 2 end
-		return TreasurerPin(p.name) or #ns.TREASURER_CHARACTERS + 1
+		if not PinnedName(p.name) then return pinned + 2 end
+		return TreasurerPin(p.name) or pinned + 1
 	end
 	table.sort(parts, function(x, y)
 		local a, b = Rank(x), Rank(y)
@@ -3114,7 +3121,7 @@ end
 local function TreasurerYes()
 	local shares = ns.db and ns.db.keeperShares
 	if type(shares) ~= "table" then return false end
-	local key = TreasurerPin(ns.me) == 1 and ConsentKey() or TreasurerCharacter() or OwnKey(ns.TREASURER)
+	local key = TreasurerPin(ns.me) == 1 and ConsentKey() or TreasurerCharacter() or OwnKey(ns.TreasurerName() or "")
 	return shares[key] == true
 end
 local function MaySendEarly() return CanSend() and EarlyHolder() and TreasurerYes() end
@@ -3582,7 +3589,7 @@ function Treasury.MaySee(what)
 end
 
 -- How many keep a book: the Treasurer's characters and the King always, and the King's list.
-local function KeeperCount() return #ns.TREASURER_CHARACTERS + 1 + #Treasury.Keepers() end
+local function KeeperCount() return #(ns.TreasurerPins()) + 1 + #Treasury.Keepers() end
 
 -- A keeper's name as the tab shows it (the army's name for the King).
 local function KeeperLabel(name)
@@ -3764,14 +3771,15 @@ local function KeeperLines()
 		for key, v in pairs(extra or {}) do line[key] = v end
 		lines[#lines + 1] = line
 	end
-	Row(ns.FullName(ns.TREASURER, ns.TREASURER_REALM), L.TREASURY_KEEPER_TREASURER:format(ns.TREASURER), {
-		tooltip = function(tt) tt:AddLine(L.TREASURY_KEEPER_PINNED, 1, 1, 1, true) end })
+	local pins = ns.TreasurerPins()
+	if pins[1] then
+		Row(pins[1], L.TREASURY_KEEPER_TREASURER:format(ns.ShortName(pins[1])), {
+			tooltip = function(tt) tt:AddLine(L.TREASURY_KEEPER_PINNED, 1, 1, 1, true) end })
+	end
 	-- His mail character: his, pinned like him (not the King's to take off).
-	for _, pin in ipairs(ns.TREASURER_CHARACTERS) do
-		if pin ~= ns.TREASURER then
-			Row(ns.FullName(pin, ns.TREASURER_REALM), L.TREASURY_KEEPER_TREASURER_MAIL:format(pin), {
-				tooltip = function(tt) tt:AddLine(L.TREASURY_KEEPER_PINNED, 1, 1, 1, true) end })
-		end
+	for i = 2, #pins do
+		Row(pins[i], L.TREASURY_KEEPER_TREASURER_MAIL:format(ns.ShortName(pins[i])), {
+			tooltip = function(tt) tt:AddLine(L.TREASURY_KEEPER_PINNED, 1, 1, 1, true) end })
 	end
 	local king = ns.KingCharacter and ns.KingCharacter()
 	if king then
@@ -4823,8 +4831,7 @@ function Treasury.BackupBooks()
 	end
 	Add(ns.me)
 	if TreasurerPin(ns.me) then
-		for _, pin in ipairs(ns.TREASURER_CHARACTERS) do
-			local full = ns.FullName(pin, ns.TREASURER_REALM)
+		for _, full in ipairs((ns.TreasurerPins())) do
 			if not SameChar(full, ns.me) then Add(full) end
 		end
 	end

@@ -362,7 +362,8 @@ local function Facts(unit)
 	f.olympus = true
 	-- A nominee: named by the master of the guild the server gives him (Nominees.RoleOf).
 	f.nominee = Nominee(who, f.guild)
-	f.king = not f.covered and ns.IsKingGuild(f.guild) and (ns.IsKingCharacter(who) or (ns.KingCharacter() == nil and rankIndex == 0))
+	-- (1.3.4: its guild master stands for the King only where none is named, and no launch list reaches: ns.KingUnpinned.)
+	f.king = not f.covered and ns.IsKingGuild(f.guild) and (ns.IsKingCharacter(who) or (ns.KingCharacter() == nil and not ns.LaunchListHeld() and rankIndex == 0))
 	local guilds = ns.rdb and ns.rdb.guilds
 	local report = type(guilds) == "table" and guilds[f.guild] or nil
 	f.report = report
@@ -428,7 +429,8 @@ local function Inputs(f)
 	local masked
 	if f and f.councillor then masked = ns.CouncilMasked() == true end
 	return { guild = f and f.guild, report = report, rt = row and report.t or nil, vouch = row and report.vouch or nil,
-		council = ns.rdb and ns.rdb.council, roster = f and f.fromRoster and (ns.Roster and ns.Roster.byName or false) or nil,
+		council = ns.rdb and ns.rdb.council, titles = ns.rdb and ns.rdb.councilTitles, -- (1.3.4: the King, the Treasurer, the author it names)
+		roster = f and f.fromRoster and (ns.Roster and ns.Roster.byName or false) or nil,
 		masked = masked, who = f and f.who, off = f and f.off, nominees = NomineesVersion(), treasurer = f and f.treasurer,
 		cover = CoverVersion() }
 end
@@ -440,7 +442,8 @@ function Borders.Changed(k)
 	local report = k.guild and rdb and type(rdb.guilds) == "table" and rdb.guilds[k.guild] or nil
 	local row = type(report) == "table"
 	return report ~= k.report or (row and report.t or nil) ~= k.rt or (row and report.vouch or nil) ~= k.vouch
-		or (rdb and rdb.council) ~= k.council or (k.roster ~= nil and k.roster ~= (ns.Roster and ns.Roster.byName or false))
+		or (rdb and rdb.council) ~= k.council or (rdb and rdb.councilTitles) ~= k.titles
+		or (k.roster ~= nil and k.roster ~= (ns.Roster and ns.Roster.byName or false))
 		or (k.masked ~= nil and k.masked ~= (ns.CouncilMasked() == true))
 		or (k.who ~= nil and NetOff(k.who, k.guild) ~= k.off)
 		or k.nominees ~= NomineesVersion()
@@ -530,7 +533,7 @@ function Borders.MarkOfName(who, guild)
 				and ((type(K.IsStewardName) == "function" and K.IsStewardName(who)) or (type(K.IsHandName) == "function" and K.IsHandName(who))))))
 				and true or false
 		end
-		f.king = not f.covered and ns.IsKingGuild(guild) and (ns.IsKingCharacter(who) or (ns.KingCharacter() == nil and rank == 0))
+		f.king = not f.covered and ns.IsKingGuild(guild) and (ns.IsKingCharacter(who) or (ns.KingCharacter() == nil and not ns.LaunchListHeld() and rank == 0))
 		f.leader = rank == 0
 	end
 	local t = Match(f, true)

@@ -90,7 +90,7 @@ local function Books(week)
 				or b.duesPayerProofs[week] ~= nil and type(b.duesPayerProofs[week]) ~= "table") then covered = false end
 		end
 	end
-	for pin in ipairs(ns.TREASURER_CHARACTERS or {}) do if not pins[pin] then covered = false end end
+	for pin in ipairs((ns.TreasurerPins())) do if not pins[pin] then covered = false end end
 	for _, book in pairs(pins) do if type(book) == "table" then books[#books + 1] = book end end
 	return books, covered and #books > 0
 end

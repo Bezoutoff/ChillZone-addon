@@ -15,6 +15,8 @@ local L = ns.L
 --   * The author's presence (V4): players can send him their bug report from the Report a
 --     bug window (V5), and nowhere else.
 -- Only the character named ns.AUTHOR can send V1, V3 and V4, and only he receives V2 and V5.
+-- (1.3.4: on the beta's realm group; on a launch realm group, the characters the author's signed
+-- titles list names for it: Workshop.IsAuthorName, Core.lua's ns.AuthorCharacters.)
 -- Forever names (first name and surname) are unique across its realm group, and on the
 -- Classic realms no name has a space: nobody else can carry his. Receivers answer a roll call
 -- once per ROLL_GAP, and show "please update" once per UPDATE_GAP, only when really behind.
@@ -95,12 +97,10 @@ end
 -- Who is who
 ---------------------------------------------------------------------------
 
--- His name, on his realm group (Forever's PvP realms).
-local function IsAuthorName(name)
-	if type(name) ~= "string" or ns.ShortName(name) ~= ns.AUTHOR then return false end
-	local realm = ns.RealmOf(ns.FullName(name))
-	return realm ~= nil and ns.GroupOf(realm) == ns.GroupOf(ns.AUTHOR_REALM)
-end
+-- His name, on his realm group: one of the characters the author's signed titles list names on
+-- ours (1.3.4, a launch realm group), else the code's (ns.AUTHOR on the beta's). Core.lua:
+-- ns.IsAuthorName, ns.AuthorCharacters.
+local function IsAuthorName(name) return ns.IsAuthorName(name) end
 
 function Workshop.IsAuthor() return IsAuthorName(ns.me) end
 Workshop.IsAuthorName = IsAuthorName
@@ -109,12 +109,14 @@ Workshop.IsAuthorName = IsAuthorName
 -- no guild rank, payment authority or control of another player's result.
 function Workshop.IsPracticeOperator(name) return IsAuthorName(name) end
 function Workshop.PracticeOperators()
-	if type(ns.AUTHOR) ~= "string" or ns.AUTHOR == "" then return {} end
-	local pinned = ns.FullName(ns.AUTHOR, ns.AUTHOR_REALM)
-	local names = { pinned }
+	local names, seen = {}, {}
+	for _, pinned in ipairs((ns.AuthorCharacters())) do
+		if not seen[pinned:lower()] then seen[pinned:lower()], names[#names + 1] = true, pinned end
+	end
+	if #names == 0 then return names end
 	-- Linked realms stamp their own suffix. Retain only a guarded presence identity;
 	-- an accepted caller's event writer mark must resolve on the receiving client too.
-	if authorName and IsAuthorName(authorName) and authorName:lower() ~= pinned:lower() then names[#names + 1] = authorName end
+	if authorName and IsAuthorName(authorName) and not seen[authorName:lower()] then names[#names + 1] = authorName end
 	return names
 end
 
@@ -1659,6 +1661,9 @@ end
 -- entry of its own among the departments with three "^" (a department has two, so 0.9.9 and
 -- ReadDepartments leave it out, and 0.9.9 still takes, shows and passes on the whole list):
 --   ^steward^<Alliance|Horde>^<First Surname-Realm>,...
+-- The launch identities (1.3.4, Core.lua: ns.ReadPins) ride it the same way, after the Apostles:
+--   ^king^<side>^<Name-Realm>  ^treasurer^<side>^<Name-Realm>,...  ^author^<side>^<Name-Realm>,...
+--   ^realms^<NA|EU>^<Realm>=<pvp|pve|rp|rppvp|hardcore>,...
 -- A client that lacks the lists asks for them (0.9.9, a moderator's report: a councillor's
 -- client that never got the list had no "My council icon", and relays alone can take hours):
 --   HQ~<time of the name list it holds, or 0>~<time of the titles list it holds, or 0>
@@ -2034,6 +2039,16 @@ function Workshop.TakeTitles(blob, sender, guild)
 	local named = 0
 	for _, names in pairs(stewards) do named = named + #names end
 	ns.Log("High Council: a signed titles list of %d names in %d parts, %d Steward(s) (%s)", n, #depts, named, tostring(at))
+	-- 1.3.4: the launch identities it names (Core.lua: ns.ReadPins; read again from the signed text
+	-- whenever asked, ns.SignedPins), counted for the log, never named there.
+	local pins, count = ns.ReadPins(list), {}
+	for _, kind in ipairs({ "king", "treasurer", "author" }) do
+		count[kind] = 0
+		for _, names in pairs(pins[kind]) do count[kind] = count[kind] + #names end
+	end
+	local realms = 0
+	for _ in pairs(pins.realms) do realms = realms + 1 end
+	ns.Log("launch identities in it: King %d, Treasurer %d, author %d, realms %d", count.king, count.treasurer, count.author, realms)
 	local now = Steward()
 	if now and not was then
 		ns.Print(L.STEWARD_YOU:format(ns.KingName(ns.KingCharacter())))

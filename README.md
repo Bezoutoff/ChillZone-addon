@@ -2415,7 +2415,9 @@ find or join it. Share the same secret with the officers of the other Olympus gu
 (for example in the officers' Discord), so all guilds meet on the same sealed channel.
 Since 1.1 the King (or his Steward, for him) can also rotate the army's key from the Throne: his new key reaches the
 Lords and Captains online of the guilds he picks whom his own /who saw in them by whisper, and
-their guilds over guild chat, never on the Olympus channel.
+their guilds over guild chat, never on the Olympus channel. Since 1.3.4 the addon's author rotates
+and hands it out the same way from his own Throne view (`/oly key rotate`), without becoming King or
+Steward; a preview of another role starts none.
 
 If a guild was accidentally given a different private key and lost the shared census and
 Olympus chat, one of its current officers can use `/oly key off`. The recovery instruction stays
@@ -3493,9 +3495,40 @@ before any file or key is changed. Remove legacy `head: true` flags before signi
 Old signed marked names remain Apostles, not Heads. The King, the author or a signed High Councillor may name other Apostles in game; a newer signed list
 is the whole list again as of its time.
 
+For the launch (1.3.4), the King, the Treasurer and the author's own characters are signed the same
+way for a launch realm group: the code pins them by name on the beta's realm group alone (names get
+sniped on launch realms, so the code names nobody for them). The titles list carries them after the
+Apostles (`^king^<faction>^<Name-Realm>`, `^treasurer^<faction>^<Name-Realm>,...` with the Treasurer
+first and then his mail characters, `^author^<faction>^<Name-Realm>,...`, and
+`^realms^<NA|EU>^<Realm>=<pvp|pve|rp|rppvp|hardcore>,...`), which clients before 1.3.4 leave out
+unread and still pass on. Every name carries its realm and counts on that realm's group alone. The
+author's characters get the dev's tools (the Workshop, bug reports, and rotating the army's key),
+never the King's role or the council's. Where the list reaches but names no King for a side, nobody
+is that side's King: no guild master of a guild called Olympus stands for him there. Launch day,
+once the realms and the characters exist:
+
+```bash
+python3 scripts/council-sign.py council --group "<Realm>+<Realm>"   # the launch realm group
+python3 scripts/council-sign.py author "<Name-Realm>"               # each of the author's characters
+python3 scripts/council-sign.py king "<Name-Realm>"                 # Horde after the name for the Horde's
+python3 scripts/council-sign.py treasurer "<Treasurer-Realm>,<Mail-Realm>"
+python3 scripts/council-sign.py realm "<Realm>" pvp NA              # each realm: its kind and region
+python3 scripts/council-sign.py check
+```
+
+Sign the King once his character leads the King's guild: while a King is named, a census report of
+that guild naming another guild master is refused, as on the beta.
+`--group` is refused, with the whole list and the command that takes each off, while a Steward, an
+arbiter, an Apostle or a signed leader in the council file carries a realm of another group. Each
+command signs the whole council again and prints the titles list to paste; the author copies
+`dist/CouncilList.lua` into his game and `/reload`s, and anyone in Olympus can paste the printed
+`HT1~` text with `/oly approved paste`. `/oly status` says where each identity comes from
+(`identities: King signed ...`), never a name.
+
 `<Name-Realm>` is his character as the server writes it (first name and surname, then his
 realm), on a realm of the list's group. The script refuses anything the addon would not take,
-before anything is signed. Whoever holds this key can name a Steward, as it names the council:
+before anything is signed. Whoever holds this key can name a Steward, as it names the council
+(and, since 1.3.4, the King, the Treasurer and the author on a launch realm group):
 see [Security and trust](#security-and-trust).
 
 Bundled libraries: LibStub (public domain), CallbackHandler-1.0 (Ace3, BSD),

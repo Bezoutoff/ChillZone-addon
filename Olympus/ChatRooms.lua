@@ -428,7 +428,8 @@ KINDS[#KINDS + 1] = { prefix = "dept", kind = "department", group = "dept", auth
 		return IsAuthor(name) or DepartmentFor(name) == d or Correspondent(name, d) or (d == TREASURY and FederalTreasurer(name))
 	end,
 	Candidates = function(add, d)
-		if d == TREASURY and ns.TREASURER then add(ns.TREASURER, 3) end
+		local treasurer = d == TREASURY and ns.TreasurerName and ns.TreasurerName() -- (1.3.4: the signed list's where it names one)
+		if treasurer then add(treasurer, 3) end
 		Candidates.Leaders(add)
 		local t = ns.CouncilTitles and ns.CouncilTitles()
 		for _, dept in ipairs(t and t.depts or {}) do
@@ -920,7 +921,8 @@ end
 -- 3 a councillor, 4 a guild master (who goes first when a room has more than its share).
 function Candidates.Council(add)
 	if ns.KingCharacter then add(ns.KingCharacter(), 2) end
-	if ns.TREASURER then add(ns.TREASURER, 3) end
+	local treasurer = ns.TreasurerName and ns.TreasurerName()
+	if treasurer then add(treasurer, 3) end
 	local c = ns.rdb and ns.rdb.council
 	for key, display in pairs(type(c) == "table" and type(c.names) == "table" and c.names or {}) do
 		-- Current signed lists keep lower-case name -> display name. Older in-memory fixtures used

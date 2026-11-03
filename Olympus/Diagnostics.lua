@@ -475,8 +475,10 @@ function ns.StatusText()
 				v == true and "shared" or (v == false and "private" or "not chosen (private)"), tostring(b and b.epoch or "-"), tostring(b and b.opening or "-"))
 		end
 		if ns.faction == "Horde" then
-			add("Horde King: %s, realm %s", tostring(ns.KING_CHARACTER.Horde), tostring(ns.KingRealm and ns.KingRealm() or "?"))
+			add("Horde King: %s, realm %s", tostring(ns.KingCharacter and ns.KingCharacter() or "none here"), tostring(ns.KingRealm and ns.KingRealm() or "?"))
 		end
+		-- (1.3.4) Where the King, the Treasurer and the author come from here: the signed list or the code's pins.
+		if ns.PinsStatus then add("identities: %s", ns.PinsStatus()) end
 		-- (1.1, Fern's #11: each off until answered, on the first-open page or its command.)
 		local ri = ns.db.royalInspection
 		add("royal inspection: %s (/oly inspection on|off)", ri == true and "taking part when sampled" or (ri == false and "not taking part" or "not chosen (not taking part)"))

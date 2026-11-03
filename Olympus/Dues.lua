@@ -222,7 +222,8 @@ end
 -- a surname: ns.splitNames, as the King's view of the treasury, Treasury.Visible), on the Alliance.
 function Dues.Available()
 	if ns.faction == "Horde" or not ns.splitNames or not ns.IsMember() then return false end
-	return ns.GroupOf(ns.realm or "") == ns.GroupOf(ns.TREASURER_REALM)
+	local realm = ns.TreasurerRealm() -- (1.3.4: the signed list's Treasurer where it names one)
+	return realm ~= nil and ns.GroupOf(ns.realm or "") == ns.GroupOf(realm)
 end
 -- The King, his Steward, the author's Asmon's view: the amount is theirs to set.
 local function KingView() return ns.King.IsKing() or ns.King.IsSteward() or ns.King.Preview() end
@@ -377,7 +378,7 @@ function Dues.TreasurerOnline()
 			end
 		end
 	end
-	return ns.Now() - last <= Dues.HEARD_FOR, name or ns.FullName(ns.TREASURER, ns.TREASURER_REALM), last
+	return ns.Now() - last <= Dues.HEARD_FOR, name or ns.TreasurerFull(), last
 end
 
 ---------------------------------------------------------------------------
@@ -1673,11 +1674,8 @@ function Dues.Pays() return Dues.Available() and not ns.Treasury.IsKeeper() end
 -- Where the mail goes: the Treasurer's mail character, pinned by name (where he asked the
 -- treasury's mail to go; his book counts it), never a name heard on the channel.
 function Dues.MailTo()
-	local mail
-	for _, pin in ipairs(ns.TREASURER_CHARACTERS or {}) do
-		if pin ~= ns.TREASURER then mail = pin break end
-	end
-	return ns.FullName(mail or ns.TREASURER, ns.TREASURER_REALM)
+	local pins = ns.TreasurerPins() -- (1: the Treasurer, then his mail characters: Core.lua)
+	return pins[2] or pins[1]
 end
 
 -- F26-10: a payer's own facts, not a debt list. Intent is session-only; sent is a matched
@@ -1714,7 +1712,7 @@ function Dues.PayerStatus(week)
 	local row, guild = PayerWeek(week, false), GetGuildInfo("player")
 	if not row or not Dues.Pays() then return "unknown" end
 	local counted, at = 0, 0
-	for pin = 1, #(ns.TREASURER_CHARACTERS or {}) do
+	for pin = 1, #(ns.TreasurerPins()) do
 		local source = row.sources[pin]
 		if type(source) == "table" and source.guild == guild and source.amount == Dues.AmountOf(week)
 			and Whole(source.copper, MAX_COPPER) and Whole(source.seq, MAX_COPPER) then
@@ -1738,7 +1736,7 @@ function Dues.PayerReceiptFacts(week)
 	if not Dues.Pays() then return {} end
 	local row, out = PayerWeek(week, false), {}
 	if not row then return out end
-	for pin = 1, #(ns.TREASURER_CHARACTERS or {}) do
+	for pin = 1, #(ns.TreasurerPins()) do
 		local source = row.sources[pin]
 		if type(source) == "table" and type(source.from) == "string" and Whole(source.seq, MAX_COPPER)
 			and Whole(source.copper, MAX_COPPER) then
@@ -1915,7 +1913,7 @@ function Dues.HandlePayerAsk(dist, sender, text)
 	local pin = ReceiptSender()
 	local week = type(text) == "string" and tonumber(text:match("^FP~1~(%d+)$"))
 	if dist ~= "WHISPER" or not pin or not week or week > Dues.Week() or week < Dues.Week() - Dues.WEEKS_KEPT + 1
-		or type(sender) ~= "string" or ns.GroupOf(ns.RealmOf(sender)) ~= ns.GroupOf(ns.TREASURER_REALM) then return false end
+		or type(sender) ~= "string" or ns.GroupOf(ns.RealmOf(sender)) ~= ns.GroupOf(ns.TreasurerRealm()) then return false end
 	local key, now = ns.FullName(ns.Normal(sender)):lower(), Clock()
 	for name, at in pairs(payerReceiptAnswered) do if now - at >= Dues.ANSWER_GAP then payerReceiptAnswered[name] = nil end end
 	if payerReceiptAnswered[key] or #payerReceiptOrder >= Dues.PAYER_RECEIPTS_MAX then return false end
@@ -1933,8 +1931,8 @@ ns.Comm.Handle("FP", function(...) Dues.HandlePayerAsk(...) end)
 function Dues.RequestPayerReceipt()
 	if not Dues.Pays() or Dues.PayerStatus() == "counted" or Clock() - lastPayerAsk < Dues.ASK_EVERY then return false end
 	local sent
-	for _, name in ipairs(ns.TREASURER_CHARACTERS or {}) do
-		local to, me = ns.FullName(name, ns.TREASURER_REALM), ns.me
+	for _, to in ipairs((ns.TreasurerPins())) do
+		local me = ns.me
 		if not (ns.Treasury.Unavailable and ns.Treasury.Unavailable(to)) then
 			local ok = ns.Comm.Whisper(to, "FP~1~" .. Dues.Week(), "own dues receipt " .. to, nil, nil, nil,
 				{ owner = Dues, guard = function()

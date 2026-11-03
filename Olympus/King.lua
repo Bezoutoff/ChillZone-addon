@@ -93,12 +93,14 @@ end
 ---------------------------------------------------------------------------
 
 -- Where the King is pinned by name, another guild master of his guild is not him: nobody
--- would obey the powers the Throne gave that character.
+-- would obey the powers the Throne gave that character. (1.3.4) Nor where the author's signed
+-- launch list reaches and names no King for our side yet (ns.LaunchListHeld): on a launch realm group the
+-- first to found a guild of that name is nobody's King.
 function King.IsKing()
 	if not ns.IsMember() then return false end
 	local guild, _, rank = GetGuildInfo("player")
 	if not (ns.IsKingGuild(guild) and rank == 0) then return false end
-	return ns.KingCharacter() == nil or ns.IsKingCharacter(ns.me)
+	return (ns.KingCharacter() == nil and not ns.LaunchListHeld()) or ns.IsKingCharacter(ns.me)
 end
 
 -- The author's test build (Dev.lua, never published) shows the tab without the powers:
@@ -161,7 +163,7 @@ local function KingSender(sender, guild, soft)
 		if ns.Hop and ns.Hop.HeardKing then ns.Hop.HeardKing(sender) end -- (his realm: his own word, 1.0.0)
 		return true
 	end
-	return soft == true and ns.Data.KnownRank(sender, guild, true) == 0
+	return soft == true and not ns.LaunchListHeld() and ns.Data.KnownRank(sender, guild, true) == 0
 end
 
 -- The page refreshes at most once a second, whatever arrives.
@@ -1683,7 +1685,8 @@ local function HomeLines()
 		Para(lines, L.THRONE_COUNCIL_HINT, INK, { gapAfter = true })
 	end
 	-- (1.2: the court's queue is in The Watch, with Judgment.)
-	if mine or steward then
+	-- 1.3.4: and the addon's author's, in his own view (Keys.AuthorHere), neither King nor Steward.
+	if mine or steward or (ns.Keys.AuthorHere and ns.Keys.AuthorHere()) then
 		-- 1.1: the army's key, the King's to rotate, or his Steward's for him (Keys.lua).
 		for _, l in ipairs(ns.Keys.ThroneLines and ns.Keys.ThroneLines() or {}) do lines[#lines + 1] = l end
 	end
@@ -1710,8 +1713,10 @@ function King.Build(s)
 	-- 1.1.5: a guild master's Guild tab, in the Throne's place (Nominees.lua). (1.2: the author sees
 	-- every tab in his own view, ViewAs.lua: without a role of his own here, the Throne as it is.)
 	local V = ns.ViewAs
+	-- (1.3.4: the author himself leading a guild too sees the Throne in his own view, its key's
+	-- rotation his; his Guild tab's section follows the Throne Room there, as a King's does.)
 	local authorsOwn = type(V) == "table" and not V.missing and type(V.Available) == "function" and V.Available() == true
-		and V.Role() == "my" and not King.GuildShown()
+		and V.Role() == "my" and (not King.GuildShown() or (ns.Keys and ns.Keys.AuthorHere and ns.Keys.AuthorHere() == true))
 	if not King.ThroneShown() and not authorsOwn then
 		local N = ns.Nominees
 		local master, guild = King.GuildShown(), N and N.GuildAccess and select(2, N.GuildAccess())
