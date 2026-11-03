@@ -1274,3 +1274,28 @@ test("1.4.0 groups: a moderator's cover name on the group sections, as on the fl
 		if not ok then error(err, 0) end
 	end)
 end)
+
+-- 1.4.0: the group finder ships with its author's credit (promised to HTX with PR #62): the README,
+-- the CurseForge page and the store page made from it name him for it, and the API section of the
+-- README and the CurseForge page says a companion group finder may build on the Board's groups.
+test("1.4.0 groups: HTX credited for PR #62 in the README, the CurseForge page and its store page; the API section names the Board's groups", function()
+	local root = H.ADDON_DIR:sub(1, -#"Olympus/" - 1)
+	local function Read(path)
+		local f = assert(io.open(root .. path, "rb"), path)
+		local s = f:read("*a")
+		f:close()
+		return (s:gsub("%s+", " "))
+	end
+	for _, path in ipairs({ "README.md", "docs/CURSEFORGE.md", "docs/CURSEFORGE-STORE.md" }) do
+		local page = Read(path)
+		local credits = assert(page:match("## Credits (.-) ## "), path .. ": Credits")
+		assert(credits:find("HTX (the Board's group listings, applications and invites, adapted from PR #62)", 1, true), path .. ": HTX's credit")
+	end
+	for _, path in ipairs({ "README.md", "docs/CURSEFORGE.md" }) do
+		local api = assert(Read(path):match("### Other addons: the Olympus API %(1%.2%.4%) (.-) ## "), path .. ": the API section")
+		for _, word in ipairs({ "the Board's groups (1.4.0)", "never their names", "in place of the Board's **Your group**",
+			"never lists a group, raises a flag, applies or writes words for you", "A group finder builds on this" }) do
+			assert(api:find(word, 1, true), path .. ": " .. word)
+		end
+	end
+end)

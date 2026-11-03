@@ -2415,6 +2415,15 @@ first, and it tells his own guild, and only that guild, so its members' Olympus 
 offline in the census they send (a guildmate on an older Olympus may still count him online).
 Turning it off never turns location sharing back on.
 
+Any addon you say **Yes** to, not only an authorized one, can also read the Board's groups (1.4.0)
+as its sections show them: the group listings (how many are in a group by class and role, never
+their names), the players looking, and your own listing's applications and group. It can act on
+your own group as the Board's buttons do (invite with the game's own invite, decline, set roles,
+lower your listing) and open Olympus's own group card, listing composer or flag dialog: it never
+lists a group, raises a flag, applies or writes words for you. It may show one panel of its own in
+place of the Board's **Your group**, and the switch above it brings Olympus's own back. A group
+finder builds on this instead of a network of its own.
+
 The same registered handle can ask to contribute a client-owned page to the Olympus window when
 this build reports `ui.surface`. The shared tab rail hosts one such page per session; the other
 addons' data handles still work if that slot is occupied. Olympus keeps the window shell and puts

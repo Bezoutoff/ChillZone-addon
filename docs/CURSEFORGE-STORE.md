@@ -912,8 +912,7 @@ code.
   (the King's alone every minute, while his crown shows: one client, one message a minute).
 - A layer request goes out once; only about 6 players answer it, each by a whisper to the asker.
 - Messages are spaced 1.2 s apart, below Blizzard's addon message limits, and alert sounds
-  play at most once every 15 seconds (1.1: a softer one never silences the Call to Arms or a
-  louder alert after it).
+  play at most once every 15 seconds.
 - Chat has its own short lane: a line goes out within about a second, and while reports are
   waiting it never takes more than every other message slot.
 - The Board (1.1): a flag is repeated every 10 to 30 minutes (less often the fuller the Board),
@@ -973,8 +972,9 @@ also saved in `WTF/Account/<ACCOUNT>/SavedVariables/Olympus.lua`.
 - **Code and ideas:** RoyLeviGit (Olympus chats in their own chat window), Artz (hiding the
   Issue Reporter), bjess9 (CI and the shared checks), hypertectonic (Chattynator's tabs),
   Bernardo Costa / Costafitness (exact layer-hop confirmation and stale-request regressions,
-  adapted from PR #51), and Rick-laboratory (bounded transport, cancellation and admission
-  regressions, adapted from PR #52).
+  adapted from PR #51), Rick-laboratory (bounded transport, cancellation and admission
+  regressions, adapted from PR #52), and HTX (the Board's group listings, applications and
+  invites, adapted from PR #62).
 - **Feature requests:** Fernmelder, whose 39 posts became 1.1 (the Fernmelder release);
   shenanigans_ (the nameplate marks), Valdericht (`<OLYMPIAN>`), Pyralis Ashandar (taking
   donations) and Zeal (what the King hides stays off the channel).
