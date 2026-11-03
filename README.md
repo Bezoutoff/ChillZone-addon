@@ -942,7 +942,8 @@ The rest of their guild, and the census, are not touched: one name stops the spa
   by hand). The giver follows only within his reach: never when a character of that BattleTag he
   knows stands as high as he or the sanction does, or is the King; never on the King's game account,
   never at or below a character's own rank or protection (his addon remembers its account's highest
-  for two days); the King's game account sends its BattleTag to the King and the author alone;
+  for two days, and since 1.4.0 the realm group it was held on: a rank held on the beta's realms
+  protects nobody on a launch realm); the King's game account sends its BattleTag to the King and the author alone;
   another game account that sent the same BattleTag (another computer or licence, or a copied tag:
   another code) waits for a team member's click. A follow given by itself never replaces one already
   kept and never passes a stop given since the sanction; a giver who loses his seat takes his follows

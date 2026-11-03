@@ -909,6 +909,61 @@ test("accord: tag follow: never the King's game account, nor a councillor's own 
 	end)
 end)
 
+-- 1.4.0 (the author, 11-03: "todos os bans e tudo que tinha do beta tem que ser limpo"): the shield
+-- is the account's (ns.db.tagShield), so a rank its characters held on the beta came along to the
+-- launch realms. Each client here gets the real Data.BetaOnLaunch (the world's Data is a stand-in).
+test("accord: tag follow (1.4.0): an account's shield noted on the beta's realm group, or before 1.4.0, never shields an alt on a launch realm group, nor is merged into a launch shield; one noted there still does", function()
+	World(function(w)
+		local BETA = "ClassicBetaPvP+ClassicBetaPvP2"
+		local HC, S = Basic(w)
+		local RS = w.Client("Reevealt", Y, 3, { tag = TAG })
+		RS.ns.Data.BetaOnLaunch = ns.Data.BetaOnLaunch
+		eq(RS.ns.group, "RealmGroup", "a launch realm group")
+		-- A Steward's rank this account held on the beta, two minutes ago: 1.3.x noted no group.
+		RS.ns.db.tagShield = { n = 2, t = 5, at = w.epoch - 120 }
+		eq(w.As(RS, RS.TF.Shield, RS.name, "N"), 0, "before 1.4.0: the beta's, no shield here")
+		eq(w.As(RS, RS.TF.Shield, RS.name, "T"), 0)
+		RS.ns.db.tagShield = { n = 2, t = 5, at = w.epoch - 120, group = BETA }
+		eq(w.As(RS, RS.TF.Shield, RS.name, "N"), 0, "noted on the beta: no shield here")
+		-- On the beta's own group it still counts, as before.
+		RS.ns.group = BETA
+		eq(w.As(RS, RS.TF.Shield, RS.name, "N"), 2, "the beta's shield on the beta")
+		RS.ns.db.tagShield = { n = 2, t = 5, at = w.epoch - 120 }
+		eq(w.As(RS, RS.TF.Shield, RS.name, "T"), 5, "a shield before 1.4.0 on the beta")
+		RS.ns.group = "RealmGroup"
+		-- His other character is netted off here and the follow reaches this alt: the beta's shield
+		-- does not hold it back.
+		w.TagTo(HC, S)
+		w.epoch = w.epoch + 5
+		assert(w.As(HC, HC.M.Set, "c", S.name, true, "spam"))
+		w.Run()
+		eq(#w.Kept(RS), 1, "the follow kept on the alt's client")
+		local _, _, via = w.As(RS, RS.M.SelfOff)
+		eq(via, "tag", "reached: a rank of the beta's is nobody's here")
+		-- No rank here: nothing noted, the beta's shield stays saved (for the beta), unused.
+		w.As(RS, RS.TF.NoteShield)
+		eq(RS.ns.db.tagShield.n, 2, "kept as it was"); eq(RS.ns.db.tagShield.group, nil)
+		_, _, via = w.As(RS, RS.M.SelfOff)
+		eq(via, "tag")
+		-- The same Steward's rank noted on this launch group: it shields, as ever.
+		RS.ns.db.tagShield = { n = 2, t = 5, at = w.epoch, group = "RealmGroup" }
+		eq(w.As(RS, RS.TF.Shield, RS.name, "N"), 2, "noted here: shields")
+		_, _, via = w.As(RS, RS.M.SelfOff)
+		eq(via, nil, "the launch group's own shield holds")
+		-- A Steward here notes his own rank and its group, never merging the beta's higher one.
+		w.stewards[Fold("Highreeve-Realm")] = true
+		local St = w.Client("Highreeve", Y, 2, { tag = "Reeve#7777" })
+		St.ns.Data.BetaOnLaunch = ns.Data.BetaOnLaunch
+		St.ns.db.tagShield = { n = 9, t = 9, at = w.epoch - 60 }
+		w.As(St, St.TF.NoteShield)
+		local m = St.ns.db.tagShield
+		eq(m.n, 2, "a Steward's rank, not the beta's"); eq(m.t, 5); eq(m.group, "RealmGroup"); eq(m.at, w.epoch)
+		w.epoch = w.epoch + 60
+		w.As(St, St.TF.NoteShield)
+		eq(St.ns.db.tagShield.n, 2, "noted again"); eq(St.ns.db.tagShield.group, "RealmGroup")
+	end)
+end)
+
 ---------------------------------------------------------------------------
 -- The giver's checks
 ---------------------------------------------------------------------------

@@ -413,6 +413,19 @@ test("census groups (1.4.0): another group's numbers: a moderator's alone, two p
 	eq(beta.D.ReceiveGroupCensus("WHISPER", "First-Realm", Say(beta, { { "Launchpvp", "Alliance", 10 } })), false, "the channel only")
 end)
 
+test("census groups (1.4.0): Data.BetaOnLaunch: what the account noted on the beta's realm group, or before 1.4.0 (no group), never applies on a launch group; everything applies on the beta's", function()
+	local D, BETA = ns.Data, "ClassicBetaPvP+ClassicBetaPvP2"
+	eq(D.BetaOnLaunch(BETA, "Launchpvp"), true, "the beta's, on a launch group")
+	eq(D.BetaOnLaunch("ClassicBetaPvP2", "Launchpvp+Launchpve"), true, "one of its realms")
+	eq(D.BetaOnLaunch(nil, "Launchpvp"), true, "noted before 1.4.0: the beta's")
+	eq(D.BetaOnLaunch("", "Launchpvp"), true)
+	eq(D.BetaOnLaunch("Launchpvp", "Launchpvp"), false, "a launch group's own")
+	eq(D.BetaOnLaunch("Launchpve", "Launchpvp"), false, "another launch group's: not the beta's")
+	eq(D.BetaOnLaunch(nil, BETA), false, "on the beta everything applies")
+	eq(D.BetaOnLaunch("Launchpvp", "ClassicBetaPvP"), false)
+	eq(D.BetaOnLaunch(BETA, nil), true, "our group not known yet: the beta's stays out")
+end)
+
 test("census groups (1.4.0): our own look is kept at logout only after the census was rebuilt, never a half-heard count", function()
 	local w = GroupWorld()
 	local onLogout

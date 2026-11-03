@@ -1397,6 +1397,15 @@ function Data.IsBetaGroup(group)
 	end
 	return false
 end
+-- (1.4.0, the author: "todos os bans e tudo que tinha do beta tem que ser limpo") Whether something
+-- this account noted on realm group `noted` is the beta's while `here` is a launch realm group: then
+-- it never applies here. A note of a build before 1.4.0 names no group (nil or ""): Olympus ran on
+-- the beta's realms alone then, so it is the beta's. On the beta's own group everything applies.
+function Data.BetaOnLaunch(noted, here)
+	if Data.IsBetaGroup(here) then return false end
+	if type(noted) ~= "string" or noted == "" then return true end
+	return Data.IsBetaGroup(noted)
+end
 -- The kind ("pvp", "pve", "rp", "rppvp", "hardcore") and region ("NA", "EU") of a group, from the
 -- first of its realms the signed realm table names; nil, nil while none is known.
 function Data.GroupInfo(group)
