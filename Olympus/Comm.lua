@@ -383,7 +383,7 @@ end
 --   GuildCharter GC (master's public card), QC (outsider's bounded ask), QD (corroborated Join card)
 --   OfficerMuster OM (bounded, zone-only officer gathering, logged)
 --   Other 1.1 work: Recruit J1 J3 | Alts AL | Filter BW | Dues FA FB FC FD FQ FS FU
---   Board G0 G1 GQ | Keys K3 K4 K5 K7 | Channels N1 | Moderation O1 | ProfileEffects FX | The Watch MW | Treasury TA TD TW
+--   Board G0 G1 GQ | Keys K3 K4 K5 K7 K8 | Channels N1 | Moderation O1 | ProfileEffects FX | The Watch MW | Treasury TA TD TW
 --   Bank TL TN TO TS | Week Y2 | Wanted WS WY W4 W5, and 1.2.3's WK (a member's own kill or death,
 --   and a reviewer's relay of one) WV (a reviewer's removal or void), and 1.2.4's W7 (a member's
 --   avenged ask at login: digests of the Horde players his open deaths name). Reserved: J2 (#20's route
@@ -1368,9 +1368,9 @@ function Comm.SetRealmKey(secret)
 	end
 	local was = ns.rdb.realmKey
 	ns.rdb.realmKey = secret
-	Enqueue("GUILD", { "K1~" .. secret }, "key")
 	-- 1.1 (Keys.lua): dated now, so our guild's 1.1 clients take it over a key the King rotated
 	-- before; the key it replaces named with it (a plain K1 of that one no longer pulls them back).
+	-- 1.4.0: that K8 alone; no plain K1, which every older version reads.
 	if ns.Keys.Typed then ns.Keys.Typed(secret, was) end
 	ns.Print(ns.L.KEY_SET)
 	Comm.JoinChannel()
@@ -1928,8 +1928,8 @@ local function OnAddonMessage(prefix, text, dist, sender, target, zoneChannelID,
 			ns.After(math.random(1, 5), "key answer", function()
 				SyncGuild()
 				if not MayAnswer() then return end
-				Enqueue("GUILD", { "K1~" .. ns.rdb.realmKey }, "key", nil, nil, nil, nil, { guard = MayAnswer })
-				-- 1.1 (Keys.lua): with its epoch too (and the keys it replaced), for 1.1 guildmates.
+				-- 1.1 (Keys.lua): with its epoch (and the keys it replaced). 1.4.0: as K8 alone, no plain
+				-- K1: an older version asking gets no key (Keys.lua, 1.4.0).
 				local k3 = ns.Keys.HandOutMessage and ns.Keys.HandOutMessage()
 				if type(k3) == "string" then Enqueue("GUILD", { k3 }, "key3", nil, nil, nil, nil, { guard = MayAnswer }) end
 			end)

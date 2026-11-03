@@ -41097,8 +41097,8 @@ end)
 			eq(rot.picking, true); eq(#w.whispered, 0, "nothing sent while he picks")
 			eq(KY.Start(), true)
 			-- By whisper to the Lords and Captains the census confirms online, other guilds only.
-			eq(Whispered(w, "K3~"), "Zed-Realm,Zeus Cap-Realm")
-			for _, x in ipairs(w.whispered) do eq(x.msg, ("K3~%d~%s"):format(rot.at, rot.key)) end
+			eq(Whispered(w, "K8~"), "Zed-Realm,Zeus Cap-Realm")
+			for _, x in ipairs(w.whispered) do eq(x.msg, ("K8~%d~%s"):format(rot.at, rot.key)) end
 			-- Online as a recent report says only (a whisper to someone gone shows the King the game's error line).
 			ns.rdb.guilds["Olympus Zeus"].t = w.clock - KY.ONLINE_FRESH - 1
 			eq(#KY.Targets(), 0, "a report too old to say who is online")
@@ -41132,9 +41132,9 @@ end)
 				local rot = KY.Rotation()
 				eq(#w.whispered, 0, "nothing before the guilds are picked")
 				eq(KY.Start(), true)
-				assert(Whispered(w, "K3~"):find("Zed-Realm", 1, true), Whispered(w, "K3~"))
+				assert(Whispered(w, "K8~"):find("Zed-Realm", 1, true), Whispered(w, "K8~"))
 				for _, x in ipairs(w.sent) do assert(not x.msg:find(rot.key, 1, true), "sent " .. x.dist .. ": " .. x.msg) end
-				local msg = ("K3~%d~%s"):format(rot.at, rot.key)
+				local msg = ("K8~%d~%s"):format(rot.at, rot.key)
 				-- A Lord's client: a Hand's whisper, or anyone's, is refused; the Steward's is taken.
 				AsLord()
 				KY.HandleKey("WHISPER", "Hand Guy-Realm", msg)
@@ -41161,28 +41161,30 @@ end)
 			AsLord()
 			local at = w.clock
 			-- Not the King's name, not a whisper, dated far ahead: refused.
-			KY.HandleKey("WHISPER", "Faker-Realm", ("K3~%d~newarmykey01"):format(at))
-			KY.HandleKey("CHANNEL", KING, ("K3~%d~newarmykey01"):format(at))
-			KY.HandleKey("WHISPER", KING, ("K3~%d~newarmykey01"):format(at + 3600))
+			KY.HandleKey("WHISPER", "Faker-Realm", ("K8~%d~newarmykey01"):format(at))
+			KY.HandleKey("CHANNEL", KING, ("K8~%d~newarmykey01"):format(at))
+			KY.HandleKey("WHISPER", KING, ("K8~%d~newarmykey01"):format(at + 3600))
 			eq(ns.rdb.realmKey, nil); eq(w.joined, 0)
-			-- The King's whisper.
-			KY.HandleKey("WHISPER", KING, ("K3~%d~newarmykey01"):format(at))
+			-- The King's whisper (K8 since 1.4.0).
+			KY.HandleKey("WHISPER", KING, ("K8~%d~newarmykey01"):format(at))
 			eq(ns.rdb.realmKey, "newarmykey01"); eq(KY.Epoch(), at); eq(w.joined, 1, "the new channel")
 			eq(Whispered(w, "K4~"), KING, "the King is told")
 			eq(w.whispered[#w.whispered].msg, ("K4~%d~Olympus Zeus"):format(at))
-			-- To his guild over guild chat: with its epoch, and alone for guildmates before 1.1.
-			local k3, k1 = Sent(w, "GUILD", "K3~"), Sent(w, "GUILD", "K1~")
-			eq(k3[1], ("K3~%d~newarmykey01"):format(at)); eq(k1[1], "K1~newarmykey01")
+			-- To his guild over guild chat: with its epoch, as K8 alone. (Changed on purpose, 1.4.0, the
+			-- author's ask for the launch: no K3 and no plain K1, the forms every older version reads, so an
+			-- older version or a copy of one gets no key. Before: K3, and K1 for guildmates before 1.1.)
+			eq(Sent(w, "GUILD", "K8~")[1], ("K8~%d~newarmykey01"):format(at))
+			eq(#Sent(w, "GUILD", "K3~"), 0); eq(#Sent(w, "GUILD", "K1~"), 0)
 			for _, x in ipairs(w.sent) do assert(x.dist ~= "CHANNEL", "nothing on the channel") end
 			-- The same again: no second move; an older key: kept out.
-			KY.HandleKey("WHISPER", KING, ("K3~%d~newarmykey01"):format(at))
-			KY.HandleKey("WHISPER", KING, ("K3~%d~olderkey000"):format(at - 100))
+			KY.HandleKey("WHISPER", KING, ("K8~%d~newarmykey01"):format(at))
+			KY.HandleKey("WHISPER", KING, ("K8~%d~olderkey000"):format(at - 100))
 			eq(ns.rdb.realmKey, "newarmykey01"); eq(w.joined, 1)
 			-- A soldier the King whispered (the census was wrong): takes it, hands nothing on.
 			ns.rdb.realmKey, ns.rdb.keyEpoch = nil, nil
 			w.sent = {}
 			AsSoldier("Not Officer")
-			KY.HandleKey("WHISPER", KING, ("K3~%d~newarmykey02"):format(at + 1))
+			KY.HandleKey("WHISPER", KING, ("K8~%d~newarmykey02"):format(at + 1))
 			eq(ns.rdb.realmKey, "newarmykey02"); eq(#Sent(w, "GUILD", "K"), 0)
 		end)
 	end)
@@ -41215,43 +41217,46 @@ end)
 			w.clock = w.clock + 60
 			cns.Comm.SetRealmKey("officers own key")
 			eq(ns.rdb.realmKey, "officers own key"); eq(KY.Epoch(), w.clock)
-			eq(Sent(w, "GUILD", "K3~")[1], ("K3~%d~officers own key~%s"):format(w.clock, ns.Comm.Hash36("plainkey001")), "with the key it replaces")
+			eq(Sent(w, "GUILD", "K8~")[1], ("K8~%d~officers own key~%s"):format(w.clock, ns.Comm.Hash36("plainkey001")), "with the key it replaces")
 		end)
 	end)
 
-	test("1.1 key rotation (#8): a guildmate who logs in later asks, and an officer holding a newer key answers over guild chat; clients before 1.1 ignore K3, K4 and K5", function()
+	test("1.1 key rotation (#8): a guildmate who logs in later asks, and an officer holding a newer key answers over guild chat; clients before 1.1 ignore K3, K4, K5 and K8", function()
 		WithKeys(function(w, K)
 			AsCaptain()
 			ns.Roster.Scan()
 			ns.rdb.realmKey, ns.rdb.keyEpoch = "armykey00001", { key = ns.Comm.Hash36("armykey00001"), at = w.clock }
 			-- A guildmate holding nothing newer asks: answered, once a minute at most.
 			KY.HandleAsk("GUILD", "Member4-Realm", "K5~0")
-			eq(Sent(w, "GUILD", "K3~")[1], ("K3~%d~armykey00001"):format(w.clock))
+			eq(Sent(w, "GUILD", "K8~")[1], ("K8~%d~armykey00001"):format(w.clock))
 			KY.HandleAsk("GUILD", "Member5-Realm", "K5~0")
-			eq(#Sent(w, "GUILD", "K3~"), 1, "once a minute")
+			eq(#Sent(w, "GUILD", "K8~"), 1, "once a minute")
 			-- Holding it already: nothing; over the channel or a whisper: nothing.
 			w.clock = w.clock + 61
 			KY.HandleAsk("GUILD", "Member4-Realm", ("K5~%d"):format(w.clock - 61))
 			KY.HandleAsk("CHANNEL", "Member4-Realm", "K5~0")
 			KY.HandleAsk("WHISPER", "Member4-Realm", "K5~0")
-			eq(#Sent(w, "GUILD", "K3~"), 1)
+			eq(#Sent(w, "GUILD", "K8~"), 1)
 			-- Our own ask, after login.
 			KY.Ask()
 			eq(Sent(w, "GUILD", "K5~")[1], ("K5~%d"):format(w.clock - 61))
-			-- A guildmate's K0 (no key at all): K1 as ever, and K3 with it.
+			-- A guildmate's K0 (no key at all): the key with its epoch, as K8 alone. (Changed on purpose,
+			-- 1.4.0: before, K1 as ever and K3 with it; an older version asking now gets no key.)
 			local cns, Deliver = FreshComm()
 			cns.After = function(_, _, f) f() end
 			local out = {}
 			C_ChatInfo.SendAddonMessage = function(_, msg, dist) out[#out + 1] = dist .. " " .. msg return true end
 			Deliver("GUILD", "Member4-Realm", "K0~")
 			for _ = 1, 3 do cns.Comm.Pump() end
-			eq(out[1], "GUILD K1~armykey00001"); eq(out[2], ("GUILD K3~%d~armykey00001"):format(w.clock - 61))
+			eq(out[1], ("GUILD K8~%d~armykey00001"):format(w.clock - 61)); eq(out[2], nil, "no plain K1")
 			-- Clients of 0.9.8: K3 by whisper or over guild chat, K4, K5: dropped unread, nothing changes.
 			local old, OldDeliver = FreshComm(true)
 			ns.rdb.realmKey = "keepthiskey1"
 			local bad = old.Comm.Stats().bad
 			OldDeliver("WHISPER", KING, ("K3~%d~anotherkey01"):format(w.clock))
 			OldDeliver("GUILD", "Member2-Realm", ("K3~%d~anotherkey01"):format(w.clock))
+			OldDeliver("WHISPER", KING, ("K8~%d~anotherkey01"):format(w.clock))
+			OldDeliver("GUILD", "Member2-Realm", ("K8~%d~anotherkey01"):format(w.clock))
 			OldDeliver("WHISPER", "Zed-Realm", ("K4~%d~Olympus Zeus"):format(w.clock))
 			OldDeliver("GUILD", "Member2-Realm", "K5~0")
 			eq(ns.rdb.realmKey, "keepthiskey1"); eq(old.Comm.Stats().bad, bad)
@@ -41339,8 +41344,8 @@ end)
 			w.clock = w.clock + KY.GRACE
 			KY.Tick()
 			eq(ns.rdb.realmKey, rot.key); eq(KY.Epoch(), rot.at); eq(w.joined, 1)
-			eq(Sent(w, "GUILD", "K3~")[1], ("K3~%d~%s"):format(rot.at, rot.key))
-			eq(Sent(w, "GUILD", "K1~")[1], "K1~" .. rot.key)
+			eq(Sent(w, "GUILD", "K8~")[1], ("K8~%d~%s"):format(rot.at, rot.key))
+			eq(#Sent(w, "GUILD", "K3~"), 0); eq(#Sent(w, "GUILD", "K1~"), 0, "1.4.0: no form an older version reads")
 			assert(Printed(w, ns.L.KEY_ROTATION_MOVED))
 			assert(Page((K.Build())):find(ns.L.KEY_ROTATED_AGO:format(ns.Ago(rot.movedAt), 1, 1), 1, true))
 			for _, x in ipairs(w.sent) do assert(x.dist ~= "CHANNEL" or not x.msg:find(rot.key, 1, true), "never on the channel") end
@@ -41676,13 +41681,13 @@ end)
 			assert(page:find("<Olympus Spies>  0 · " .. ns.L.KEY_GUILD_CENSUS .. " · " .. ns.L.KEY_GUILD_WAITING:format(2), 1, true), page)
 			assert(page:find("<Olympus Zeus>  2 · " .. ns.L.KEY_GUILD_SEEN, 1, true), page)
 			eq(KY.Start(), true)
-			eq(Whispered(w, "K3~"), "Zed-Realm,Zeus Cap-Realm", "the guild his /who saw, not the made-up one")
+			eq(Whispered(w, "K8~"), "Zed-Realm,Zeus Cap-Realm", "the guild his /who saw, not the made-up one")
 			-- He checks it himself (or unchecks one): from the next round. (Before Konig's later review
 			-- the census's two "Lords" were whispered then; now only whom his /who sees in it.)
 			KY.Toggle("Olympus Spies")
 			w.clock = w.clock + 60
 			KY.Tick()
-			eq(Whispered(w, "K3~"), "Zed-Realm,Zeus Cap-Realm")
+			eq(Whispered(w, "K8~"), "Zed-Realm,Zeus Cap-Realm")
 			-- Dropped before handing out: nothing sent, and another rotation may start.
 			KY.Move()
 			w.whispered = {}
@@ -41707,7 +41712,7 @@ end)
 					assert(f and f:IsShown(), "our dialog")
 					eq(#w.whispered, 0, "nothing before his yes")
 					f.buttons[1]:Click()
-					eq(Whispered(w, "K3~"), "Zed-Realm,Zeus Cap-Realm")
+					eq(Whispered(w, "K8~"), "Zed-Realm,Zeus Cap-Realm")
 				end)
 			end)
 		end)
@@ -41772,9 +41777,9 @@ end)
 			Deliver("GUILD", "Member3-Realm", "K1~oldsharedkey")
 			eq(ns.rdb.realmKey, "brandnewkey9")
 			-- The King's rotation later (a newer epoch): taken, and an officer hands on what it replaced.
-			KY.HandleKey("WHISPER", KING, ("K3~%d~kingsnewkey1"):format(w.clock))
+			KY.HandleKey("WHISPER", KING, ("K8~%d~kingsnewkey1"):format(w.clock))
 			eq(ns.rdb.realmKey, "kingsnewkey1")
-			eq(KY.HandOutMessage(), ("K3~%d~kingsnewkey1~%s"):format(w.clock, ns.Comm.Hash36("brandnewkey9")))
+			eq(KY.HandOutMessage(), ("K8~%d~kingsnewkey1~%s"):format(w.clock, ns.Comm.Hash36("brandnewkey9")))
 			Deliver("GUILD", "Member3-Realm", "K1~brandnewkey9")
 			eq(ns.rdb.realmKey, "kingsnewkey1", "the key the King's replaced")
 		end)
@@ -41826,7 +41831,7 @@ end)
 				eq(KY.Rotation().moved, true, "he moved")
 				local got, others, missing = {}, 0, {}
 				for _, x in ipairs(out) do
-					if x.msg:sub(1, 3) == "K3~" and x.dist == "WHISPER" then got[x.to] = true end
+					if x.msg:sub(1, 3) == "K8~" and x.dist == "WHISPER" then got[x.to] = true end
 					if x.msg:sub(1, 7) == "T9~othe" then others = others + 1 end
 				end
 				for name in pairs(names) do if not got[ns.TellName(name)] and not got[name] then missing[#missing + 1] = name end end
@@ -49484,7 +49489,7 @@ test("1.1 the clipboard backup (Fern): the Treasurer's book and the toggles out 
 			eq(ns.rdb.realmKey, nil, "no key from a backup: his officers hand it over in game"); eq(joined, 0)
 			eq(ns.db.sound, false); eq(ns.db.showMap, false); eq(ns.db.minimapAngle, 123.5)
 			eq(ns.db.chatWindows[ns.me].A, "Olympus"); eq(ns.db.blocked["pest-realm"], true)
-			for i = sent + 1, #w.sent do assert(not w.sent[i].msg:find("^K1~"), "the key sent nowhere: " .. w.sent[i].msg) end
+			for i = sent + 1, #w.sent do assert(not w.sent[i].msg:find("^K[138]~"), "the key sent nowhere: " .. w.sent[i].msg) end
 			-- Written since: merged. A donation after the wipe stays, counted once, whatever the order.
 			ns.rdb.treasuryBooks = nil
 			T.OpenBook()
@@ -54285,7 +54290,7 @@ do
 	end
 	local function Whispered(w)
 		local out = {}
-		for _, x in ipairs(w.whispered) do if x.msg:sub(1, 3) == "K3~" then out[#out + 1] = x.to end end
+		for _, x in ipairs(w.whispered) do if x.msg:sub(1, 3) == "K8~" then out[#out + 1] = x.to end end
 		table.sort(out)
 		return table.concat(out, ",")
 	end
@@ -54538,7 +54543,7 @@ do
 	end
 	local function Whispered(w)
 		local out = {}
-		for _, x in ipairs(w.whispered) do if x.msg:sub(1, 3) == "K3~" then out[#out + 1] = x.to end end
+		for _, x in ipairs(w.whispered) do if x.msg:sub(1, 3) == "K8~" then out[#out + 1] = x.to end end
 		table.sort(out)
 		return table.concat(out, ",")
 	end
@@ -55573,7 +55578,7 @@ do
 	end
 	local function Whispered(w)
 		local out = {}
-		for _, x in ipairs(w.whispered) do if x.msg:sub(1, 3) == "K3~" then out[#out + 1] = x.to end end
+		for _, x in ipairs(w.whispered) do if x.msg:sub(1, 3) == "K8~" then out[#out + 1] = x.to end end
 		table.sort(out)
 		return table.concat(out, ",")
 	end

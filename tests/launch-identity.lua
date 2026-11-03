@@ -330,7 +330,7 @@ test("1.3.4 the army's key: the author rotates it and hands it out to the Lords 
 		KY.Saw("Zed-Launchrealm", "Olympus Zeus") -- (his /who listed the Lord in his guild)
 		eq(KY.Start(), true)
 		local to = {}
-		for _, x in ipairs(w.whispered) do if x.msg:sub(1, 3) == "K3~" then to[#to + 1] = x.to end end
+		for _, x in ipairs(w.whispered) do if x.msg:sub(1, 3) == "K8~" then to[#to + 1] = x.to end end
 		eq(table.concat(to, ","), "Zed-Launchrealm", "by whisper to the Lord his /who saw")
 		for _, x in ipairs(w.sent) do assert(not x.msg:find(rot.key, 1, true), "sent " .. x.dist .. ": " .. x.msg) end
 	end)
@@ -340,7 +340,7 @@ test("1.3.4 the army's key: a Lord takes the author's whispered key, from his si
 	WithKeys(function(w)
 		GetGuildInfo = function() return "Olympus Zeus", "Lord", 0 end
 		ns.me = "Zed-Launchrealm"
-		local msg = ("K3~%d~authorkey0001"):format(w.clock)
+		local msg = ("K8~%d~authorkey0001"):format(w.clock)
 		KY.HandleKey("WHISPER", "Quill Maker-Launchtwo", msg)
 		KY.HandleKey("WHISPER", "Some Soldier-Launchrealm", msg)
 		KY.HandleKey("WHISPER", ns.AUTHOR .. "-" .. ns.AUTHOR_REALM, msg)

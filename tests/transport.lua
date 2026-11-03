@@ -45,7 +45,7 @@ local function WithComm(fn)
 		c.Moderation = { Blocks = function() return false end, OwnGuildOff = function() return w.off == true end }
 		c.Layers = { Sharing = function() return w.sharing end }
 		c.Roster = { IsOfficer = function() return w.rank <= 1 end }
-		c.Keys = { HandOutMessage = function() return "K3~fixture" end }
+		c.Keys = { HandOutMessage = function() return "K8~fixture" end }
 		assert(loadfile(ROOT .. "Olympus/Comm.lua"))("Olympus", c)
 		local C = c.Comm
 		C.JoinChannel()
@@ -393,13 +393,13 @@ test("transport: delayed guild key replies recheck guild and officer authority b
 				w.login(); c.rdb.realmKey = "fixture-secret"
 				w.message("K0~")
 				if phase == "queue" then
-					eq(w.runTimers("key answer"), 1); eq(C.QueueSize(), 2, "both legacy and current reply are queued")
+					eq(w.runTimers("key answer"), 1); eq(C.QueueSize(), 1, "the current reply alone is queued (1.4.0: no plain K1)")
 				end
 				if change == "guild" then w.guild = "Olympus New" else w.rank = 3 end
 				if phase == "timer" then eq(w.runTimers("key answer"), 1) end
 				w.step(10)
 				eq(#w.messages("K1~"), 0, phase .. ": " .. change)
-				eq(#w.messages("K3~"), 0, phase .. ": " .. change)
+				eq(#w.messages("K8~"), 0, phase .. ": " .. change)
 				eq(C.QueueSize(), 0)
 			end)
 		end
@@ -407,7 +407,7 @@ test("transport: delayed guild key replies recheck guild and officer authority b
 	WithComm(function(w, C, c)
 		w.login(); c.rdb.realmKey = "fixture-secret"
 		w.message("K0~"); eq(w.runTimers("key answer"), 1); w.step(5)
-		eq(#w.messages("K1~"), 1); eq(#w.messages("K3~"), 1, "unchanged authorized guild replies still work")
+		eq(#w.messages("K1~"), 0, "1.4.0: no plain K1"); eq(#w.messages("K8~"), 1, "unchanged authorized guild replies still work")
 	end)
 end)
 

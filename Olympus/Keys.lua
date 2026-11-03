@@ -57,6 +57,12 @@ local L = ns.L
 -- his own view (King.lua); a preview of another role (Asmon's view, View as) starts none. A K3
 -- whispered by him is taken as the King's is; the same /who, guild picking and whispers to Lords and
 -- Captains alone, never the channel.
+-- 1.4.0 (the author, for the launch: a copy of an older version, or an older version itself, must not
+-- reach the official channel): the key travels as K8 alone, the same fields as K3, wherever a K3 or a
+-- K1 went (the whisper to Lords and Captains, the officers' hand-out to their guild, the answers to a
+-- guildmate's K0 or K5, /oly key). Versions before 1.4.0 read neither K8 nor a channel they have no key
+-- for: they stay off the sealed channel until they update. A K3 or K1 from an older officer is still
+-- taken here. (A head start, not a lock: whoever copies 1.4.0's code reads K8 too.)
 
 local Keys = {}
 ns.Keys = Keys
@@ -147,8 +153,9 @@ local function Hashes(s, first, except)
 	return out
 end
 
+Keys.KIND = "K8" -- (1.4.0: K3 before)
 local function Message(at, key, retires)
-	local msg = ("K3~%d~%s"):format(at, key)
+	local msg = ("%s~%d~%s"):format(Keys.KIND, at, key)
 	if type(retires) == "string" and #retires <= 60 and retires:match("^%w[%w%.]*$") then msg = msg .. "~" .. retires end
 	return msg
 end
@@ -171,7 +178,7 @@ function Keys.HandOut()
 	local at = Epoch()
 	return key, at, at and ns.rdb.keyEpoch.retires or nil
 end
--- ...as the K3 an officer answers with (nil without an epoch: then K1 alone, as before 1.1).
+-- ...as the K8 an officer answers with (nil without an epoch: then nothing, 1.4.0; K1 alone before).
 function Keys.HandOutMessage()
 	local key, at, retires = Keys.HandOut()
 	if key and at then return Message(at, key, retires) end
@@ -202,11 +209,11 @@ local function Take(key, at, quiet, retires)
 end
 Keys.Take = Take
 
--- To our guild (an officer): the key with its epoch, and alone for guildmates before 1.1.
+-- To our guild (an officer): the key with its epoch. (1.4.0: K8 alone; no K1 for guildmates before
+-- 1.1, nor a K3: an older version gets no key.)
 local function ToGuild(key, at)
 	local e = ns.rdb and ns.rdb.keyEpoch
 	ns.Comm.Send("GUILD", Message(at, key, type(e) == "table" and e.retires or nil), "key3")
-	ns.Comm.Send("GUILD", "K1~" .. key, "key")
 	stats.relayed = stats.relayed + 1
 end
 
@@ -215,7 +222,8 @@ end
 ---------------------------------------------------------------------------
 
 function Keys.HandleKey(dist, sender, text)
-	local at, key, retires = tostring(text):match("^K3~(%d+)~([^~]+)~?([%w%.]*)$")
+	-- (K8 since 1.4.0; a K3 from an older client still taken.)
+	local at, key, retires = tostring(text):match("^K[38]~(%d+)~([^~]+)~?([%w%.]*)$")
 	at = tonumber(at)
 	if not at or not ValidKey(key) then return end
 	sender = ns.FullName(sender)
@@ -356,6 +364,7 @@ function Keys.Clear()
 end
 
 ns.Comm.Handle("K3", function(...) Keys.HandleKey(...) end)
+ns.Comm.Handle("K8", function(...) Keys.HandleKey(...) end)
 ns.Comm.Handle("K4", function(...) Keys.HandleAck(...) end)
 ns.Comm.Handle("K5", function(...) Keys.HandleAsk(...) end)
 ns.Comm.Handle("K7", function(...) Keys.HandleClear(...) end)
