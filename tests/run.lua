@@ -63970,7 +63970,7 @@ assert(loadfile(ROOT .. "tests/hop-regressions.lua"))(ns, test, eq, WithHop)
 local focused = Harness.watchOnly and { "watch", "watch-chat", "chat-strikes", "watch-council-view" }
 		or { "hop", "hop-sightings", "player-sightings", "transport", "admission", "privacy", "census", "authority", "chat-rooms", "war", "watch", "watch-chat", "chat-strikes", "wanted", "wanted-guilds", "wanted-sightings", "map-wanted", "king-arrow",
 		"church", "church-count", "church-fullness", "church-view", "church-head", "department-access", "nominees-durable", "watch-council-view", "innkeeper-arrow", "squads", "king-centurions", "court-calls", "weekly-brief", "main-key", "guild-charter", "officer-muster", "dues-history", "accord", "tag-follow",
-		"campaign", "guild-finance", "dues-grace", "dues-roster-checkpoints", "justice-tasks", "justice-shared", "chat-channel-links", "perf", "roster", "census-avg-level", "ranking-rules", "profile-menu", "history-carry", "carry-history", "carry-merger", "party-guard", "profile-effects", "quiet-presence", "record", "realm-pages", "census-clean", "census-stats", "cover", "bridge-people", "bridge-affairs", "site-aggregate", "selftest", "locales-full" }
+		"campaign", "guild-finance", "dues-grace", "dues-roster-checkpoints", "justice-tasks", "justice-shared", "chat-channel-links", "perf", "roster", "census-avg-level", "ranking-rules", "profile-menu", "history-carry", "carry-history", "carry-merger", "party-guard", "profile-effects", "quiet-presence", "record", "realm-pages", "census-clean", "census-stats", "cover", "bridge-people", "bridge-affairs", "site-aggregate", "selftest", "locales-full", "role-briefings" }
 for _, name in ipairs(focused) do
 	print("tests/" .. name .. ".lua")
 	-- (1.1.6: the Church's files get the harness's UI helpers.)
@@ -63996,6 +63996,7 @@ for _, name in ipairs(focused) do
 		or name == "locales-full" and { ROOT = ROOT } -- (1.4.0: every language)
 		or (name == "census" or name == "authority") and { FreshComm = FreshComm }
 		or name == "quiet-presence" and { FreshComm = FreshComm, WithHop = WithHop, Fire = CoreFire } -- (1.2.5.1)
+		or name == "role-briefings" and { ROOT = ROOT, WithUI = WithUI, LoadUI = LoadUI, WithGamepadUI = WithGamepadUI }
 		or name == "selftest" and { WithUI = WithUI, LoadUI = LoadUI, WithGamepadUI = WithGamepadUI, FreshComm = FreshComm } -- (/oly selftest)
 		or name:match("^church") and { WithGamepadUI = WithGamepadUI, WithUI = WithUI }
 		or (name == "court-calls" and { WithThrone = WithThrone, AsKing = AsKing, AsSoldier = AsSoldier,
@@ -64326,8 +64327,8 @@ end)()
 		return n
 	end
 
-	test("1.3.3 version letters: release identity agrees across both TOCs and localized letters; reading the old release does not hide the new letter", function()
-		eq(ns.VERSION, "1.3.3")
+	test("1.4.0 version letters: release identity agrees across both TOCs and localized letters; reading the old release does not hide the new letter", function()
+		eq(ns.VERSION, "1.4.0")
 		for _, path in ipairs({ "Olympus/Olympus.toc", "Olympus_Arena/Olympus_Arena.toc" }) do
 			local toc = assert(ReadFile(ROOT .. path))
 			eq(toc:match("## Version:%s*(%S+)"), ns.VERSION, path)
@@ -64348,7 +64349,11 @@ end)()
 				assert(lns.Letters.Has("1.2.0"), code .. ": previous release letter retained")
 				assert(lns.Letters.Has("1.2.1"), code .. ": the published 1.2.1 letter retained")
 				assert(lns.Letters.Has("1.2.2"), code .. ": the published 1.2.2 letter retained")
-				assert(body:find("/oly site export", 1, true), code .. ": the site export")
+				-- (1.4.0: the launch letter, the dev's to the King and the army, with the site's link to copy.)
+				eq(rawget(lns.L, "LETTER_1_4_0_LINK"), "https://olympus.roachcouncil.com/", code .. ": the launch letter's link")
+				assert(type(rawget(lns.L, "LETTER_1_4_0_SIGNED")) == "string", code .. ": the launch letter's own signature")
+				local siteTitle, siteBody = lns.Letters.Text("1.3.3")
+				assert(siteTitle and siteBody and siteBody:find("/oly site export", 1, true), code .. ": the 1.3.3 site export retained")
 				local correctionTitle, correctionBody = lns.Letters.Text("1.3.2")
 				assert(correctionTitle and correctionBody and correctionBody:find(code == "ptBR" and "estimativa" or "estimate", 1, true), code .. ": 1.3.2 estimate correction retained")
 				local majorTitle, majorBody = lns.Letters.Text("1.3.0")
@@ -64488,7 +64493,9 @@ end)()
 			Harness.Win.UnderBar(f, { head = f.head, box = f.box }, "the letter")
 			eq(f.titleText, L.LETTER_TITLE:format(ns.VERSION))
 			eq(f.head:GetText(), L.LETTERS_TITLE)
-			eq(f.title:GetText(), title); eq(f.body:GetText(), body); eq(f.sign:GetText(), L.LETTER_SIGNED)
+			-- (1.4.0: a letter may carry its own signature, the launch letter the dev's own words; else the dev's.)
+			eq(f.title:GetText(), title); eq(f.body:GetText(), body)
+			eq(f.sign:GetText(), rawget(L, "LETTER_" .. (ns.VERSION:gsub("%.", "_")) .. "_SIGNED") or L.LETTER_SIGNED)
 			eq(f.box.template, "InsetFrameTemplate", "a compartment as the window's own")
 			eq(f.paper.texture, ns.UI.FirstTexture(ns.UI.PARCHMENTS), "parchment in it"); eq(f.paper:GetParent(), f.box)
 			eq(f.body:GetParent(), f.page); eq(f.scroll:GetScrollChild(), f.page, "a long letter scrolls")
@@ -64607,8 +64614,8 @@ end)()
 				w.login(); eq(w.after[1].sec, w.Letters.LOGIN_WAIT); eq(#w.every, 1)
 				ns.Consent.Show():Hide(); w.run()
 				eq(w.Letters.Frame():IsShown(), true); eq(w.Letters.Frame().version, savedVersion)
-				eq(w.Letters.IsRead("1.3.2"), true, "the previous patch's configured catch-up letter is included")
-				eq(w.Letters.IsRead("1.3.0"), true, "with the 1.3 line's opening letter")
+				-- (1.4.0, the launch: its letter shows alone, no catch-up; the history keeps the rest.)
+				eq(w.Letters.IsRead("1.3.3"), false, "the launch letter alone")
 				eq(w.Letters.IsRead("1.2.5.1"), false, "older history stays available without expanding the update popup")
 				eq(w.Letters.IsRead("1.2.0"), false)
 				eq(w.Letters.IsRead(savedVersion), true)
@@ -64793,7 +64800,7 @@ end)()
 			eq(f.title:IsShown(), false); eq(f.body:IsShown(), false); eq(f.all:IsShown(), false)
 			local versions = Lt.Versions()
 			eq(#versions, #Lt.LIST, "a letter for every version listed")
-			eq(table.concat(versions, " "), "1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
+			eq(table.concat(versions, " "), "1.4.0 1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
 			for i, v in ipairs(versions) do
 				local r = f.rows[i]
 				eq(r:IsShown(), true); eq(r.version, v)

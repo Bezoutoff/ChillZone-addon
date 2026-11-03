@@ -253,7 +253,7 @@ function Roster.Scan()
 	local seen, seenOffline, zoneCount, levelSum = 0, 0, 0, 0
 	local distinct, bare, made, m, dup = 0, 0, 0, 0, false
 	local online = {} -- who is online now, for the Realm tab (Views.MembersOf)
-	local covered = 0 -- online, but under a cover name (Cover.lua): counted offline
+	local covered = 0 -- online, but under a cover name (Cover.lua) or private (PrivatePresence.lua): counted offline
 	local rawRealms, servers, sample, sampleDash = {}, {}, nil, false -- for /oly status (names raw)
 	for i = 1, numTotal do
 		local name, rankName, rankIndex, level, _, zone, _, _, isOnline, _, classFile, _, _, _, _, _, guid = GetGuildRosterInfo(i)
@@ -294,6 +294,9 @@ function Roster.Scan()
 			-- every census and page we make of our roster.
 			local C = ns.Cover
 			if isOnline and C and C.Offline(full) then isOnline, covered = false, covered + 1 end
+			-- (1.4.0) So is a guildmate whose Private presence told our guild (PrivatePresence.lua).
+			local P = ns.PrivatePresence
+			if isOnline and P and P.Offline and P.Offline(full) then isOnline, covered = false, covered + 1 end
 			if full ~= name then bare = bare + 1 end
 			rankIndex = rankIndex or 9
 			if sameNames and keep[full] ~= rankIndex then sameNames = false end
