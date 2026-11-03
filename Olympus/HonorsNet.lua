@@ -35,7 +35,11 @@ ns.HonorsNet = HonorsNet
 --                                 vouched once it is a verified member's (H.Vouched, 1.2.1: our own
 --                                 guild's roster, the server's, at or above that level, with his own
 --                                 GUID; another guild's census, two of its senders other than him
---                                 listing him there, within 24 hours; never one census row); only
+--                                 listing him there, within 24 hours; never one census row) and (1.4.0,
+--                                 the review's High 7) this client saw him cross it: below it first,
+--                                 since the race's start, then there (our roster or his unit; or each
+--                                 of those two senders' own reports), the last sighting below it at most
+--                                 VOUCH_WINDOW before the claim (its from and since); only
 --                                 vouched claims take the place, which stays unless the server's word
 --                                 shows it false (H.CheckPlaces: his unit or our roster below it, or
 --                                 the GUID not his; then it goes, and he never takes it again here,
@@ -98,7 +102,11 @@ H.MEDIA = "Interface\\AddOns\\Olympus\\media\\honors\\"
 H.IL_AFTER = { 60, 600, 3600 }  -- IL this long after the level-up (and on AQ~H)
 H.VOUCH_WINDOW = 86400          -- a census report this close to the claim vouches for it
 H.VOUCHERS = 2                  -- census senders of one guild, not him, who must list him (1.2.1)
-H.VOUCH_RULE = 2                -- the rule claims were vouched under (1.2.1: claims vouched before are looked at again)
+H.VOUCH_RULE = 3                -- the rule claims were vouched under (1.2.1: claims vouched before are looked at again;
+                                -- 1.4.0: and again, his crossing seen here asked too)
+H.CROSS_SLACK = 300             -- a sighting below the milestone this long after the claim still shows the crossing
+                                -- (a report or a roster read a moment behind his level-up)
+H.LAST_MAX = 20000              -- characters (and census senders' words on them) whose last level is kept this session
 H.STRIKE_AFTER = 3600           -- a roster read this long after a place's time shows the level-up, or a lie
 H.STRUCK_MAX = 20               -- places found false kept per milestone (the oldest goes)
 H.CLAIMS_MAX = 200
@@ -128,13 +136,20 @@ end
 H.LETTER_FONT = 15              -- its words' size at least
 H.LETTER_BUTTON = 120
 H.REFRESH_DELAY = 60            -- after login, the own honours looked at once the words came in
--- The level race belongs to a future realm launch, not this correction release. A saved book,
--- a timestamp or the independent games-live switch cannot start it. No runtime setting or wire
--- word enables it: future algorithm fixtures explicitly opt in at their composition seam.
-H.LEVEL_RACE_LAUNCHED = false
-function H.LevelRaceActive() return H.LEVEL_RACE_LAUNCHED == true end
--- Historical algorithm parameter only; it is not evidence that a race has launched.
-H.RACE_START = 1790812800
+-- (1.4.0, the owner's call) The level race runs from the launch of the new realms, on them alone: this
+-- release switches it on, and it counts only where the author's signed list names this realm as a
+-- launch realm and it is none of the beta's (ns.LaunchRealm). Elsewhere (the beta, a realm the list does
+-- not name, a client that holds no list yet) it stays as 1.2.4 left it: nothing collected, sent,
+-- relayed or worn, the old book kept untouched. A saved book, a timestamp, a wire word or the games'
+-- live switch never starts it; no runtime setting either.
+H.LEVEL_RACE_LAUNCHED = true
+function H.LevelRaceActive() return H.LEVEL_RACE_LAUNCHED == true and ns.LaunchRealm() == true end
+-- The race's start (server time): 2026-11-04 00:00:00 UTC, the first second of launch day (the
+-- realms' opening hour was not known for sure: about 23:00 UTC). On a launch realm nobody can have
+-- levelled before it opened, so no real claim is ever older; the start is the second guard after the
+-- realm's: a place, claim or clerk's record timed before it (a pre-launch book, saved data from a realm
+-- of the same name) is never a launch place (H.Store drops them once, TakeRecords refuses them).
+H.RACE_START = 1793750400
 
 local stats = { refused = {}, claims = 0, vouched = 0, places = 0 }
 local function Count(why) stats.refused[why] = (stats.refused[why] or 0) + 1 return false, why end
@@ -159,6 +174,27 @@ H.GameGuid = GameGuid
 -- The core's honours store (this realm's live store: honours count only in L)
 ---------------------------------------------------------------------------
 
+-- (1.4.0) What a store kept from before the race's start (a pre-launch book or its claims, saved data
+-- of a realm of the same name) is never a launch place: once the race runs here, its places and
+-- claims timed before RACE_START (or untimed) go, with the sightings (h.lows), the first time the store
+-- is opened for that start (h.raceStart). Where the race does not run, nothing is touched.
+local function Launch(h)
+	if h.raceStart == H.RACE_START or not H.LevelRaceActive() then return end
+	local start = H.RACE_START
+	for m, list in pairs(type(h.levels) == "table" and h.levels or {}) do
+		local kept = {}
+		for _, p in ipairs(type(list) == "table" and list or {}) do
+			if type(p) == "table" and tonumber(p.t) and p.t >= start then kept[#kept + 1] = p end
+		end
+		h.levels[m] = kept[1] and kept or nil
+	end
+	for key, c in pairs(type(h.claims) == "table" and h.claims or {}) do
+		if not (type(c) == "table" and tonumber(c.t) and c.t >= start) then h.claims[key] = nil end
+	end
+	h.lows = nil
+	h.raceStart = start
+end
+
 function H.Store(make)
 	local s = Arena.Store("L")
 	if not s then return nil end
@@ -172,6 +208,7 @@ function H.Store(make)
 		h.claims = type(h.claims) == "table" and h.claims or {}
 		h.oracle = type(h.oracle) == "table" and h.oracle or {}
 	end
+	if h.raceStart ~= H.RACE_START then Launch(h) end
 	return h
 end
 
@@ -608,17 +645,23 @@ local function Secret(v) return type(issecretvalue) == "function" and issecretva
 -- Our own guild's roster as the server gives it (Roster.Fresh: a whole, recent read of our guild):
 -- a member's level, by name; nil, true for a fresh roster without him; nil, false for none fresh.
 local rosterOf, rosterLevels
-local function RosterLevel(name)
+-- Every member's level by his full name (lower case), worked out once per read; nil with none fresh.
+local function RosterRead()
 	local R = ns.Roster
 	local fresh = type(R) == "table" and type(R.Fresh) == "function" and R.Fresh() or nil
-	if type(fresh) ~= "table" or type(fresh.members) ~= "table" or type(name) ~= "string" then return nil, false end
+	if type(fresh) ~= "table" or type(fresh.members) ~= "table" then return nil end
 	if rosterOf ~= fresh.members then
 		rosterOf, rosterLevels = fresh.members, {}
 		for _, m in ipairs(fresh.members) do
 			if type(m) == "table" and type(m.full) == "string" and tonumber(m.level) then rosterLevels[m.full:lower()] = tonumber(m.level) end
 		end
 	end
-	return rosterLevels[ns.FullName(name):lower()], true
+	return rosterLevels
+end
+local function RosterLevel(name)
+	local levels = type(name) == "string" and RosterRead() or nil
+	if not levels then return nil, false end
+	return levels[ns.FullName(name):lower()], true
 end
 -- In our guild by our roster (fresh or not): the server's word on him, never another guild's census.
 local function Guildmate(name)
@@ -681,6 +724,116 @@ local function ShortOf(name)
 	if shortsCount >= H.SHORTS_MAX then shorts, shortsCount = {}, 0 end
 	shorts[name], shortsCount = v, shortsCount + 1
 	return v, true
+end
+
+-- (1.4.0, the review's High 7: a player already at or above an open milestone took it with one IL,
+-- since nothing showed when he got there.) The crossings this client saw: each character's level as
+-- last seen here this session (lastLv, lastAt: local time) and, where a later sighting puts him at or
+-- above an open milestone, the last time he was seen below it (s.lows[m][key], kept in the store). Only
+-- the server's word and each census sender's own word count, never one mixed into another: key is his
+-- full name in lower case for our roster's reads and the players in view (the server's), and
+-- "sender>name" (short names) for what one census sender's own reports said of him. A sighting below
+-- one already heard from the same source is a word behind it (levels never go down): nothing learnt.
+-- Taken once the race has started, while a milestone is open.
+local lastLv, lastAt, lastN = {}, {}, 0
+local seenRoster, lowsPruned = nil, 0
+local walked = setmetatable({}, { __mode = "k" }) -- [a census row] = its time when it was taken here
+local walkedSplit = false -- (names split or not when they were: ShortOf's names change with it)
+local function Saw(open, key, level, t, touched, who)
+	local was = lastLv[key]
+	if was ~= nil and level < was then return end
+	if was == nil then
+		if lastN >= H.LAST_MAX then lastLv, lastAt, lastN = {}, {}, 0 end
+		lastN = lastN + 1
+	elseif level > was then
+		for m, list in pairs(open) do
+			if was < m and m <= level then
+				list[key] = lastAt[key]
+				touched[who] = true
+			end
+		end
+	end
+	if was == nil or level > was or t > (lastAt[key] or 0) then lastAt[key] = t end
+	lastLv[key] = level
+end
+-- What this client sees now: our roster (once per read: a new Roster.members), the players in view,
+-- and each census row once (once more when its time changes: the same report again; all of them again
+-- when this client starts or stops splitting names), as it is taken (a row is seen before another
+-- report replaces it, Data.ChangedSoon). Returns the names seen anew or seen crossing (short, from the
+-- census; full in lower case, the server's word), with ["#roster"] when our roster was read anew; nil
+-- where nothing is taken (the race not running here or not started, every milestone placed).
+local ROSTER = "#roster"
+local function Sightings(s)
+	if type(s) ~= "table" or not H.LevelRaceActive() or Now() < H.RACE_START then return nil end
+	local lows = type(s.lows) == "table" and s.lows or {}
+	local open, any = {}, false
+	for _, m in ipairs(ns.Honors.MILESTONES) do
+		if Placed(m) then lows[m] = nil
+		else
+			lows[m] = type(lows[m]) == "table" and lows[m] or {}
+			open[m], any = lows[m], true
+		end
+	end
+	if not any then return nil end
+	s.lows = lows
+	local now, touched = ns.Now(), {}
+	-- (A crossing older than any claim it could still show: gone, once an hour.)
+	if now - lowsPruned >= 3600 then
+		lowsPruned = now
+		for _, list in pairs(open) do
+			for key, t in pairs(list) do
+				if now - (tonumber(t) or 0) > 2 * H.VOUCH_WINDOW + H.CROSS_SLACK then list[key] = nil end
+			end
+		end
+	end
+	local levels = RosterRead()
+	if levels and rosterOf ~= seenRoster then
+		seenRoster, touched[ROSTER] = rosterOf, true
+		for full, level in pairs(levels) do Saw(open, full, level, now, touched, full) end
+	end
+	for full, u in pairs(SeenUnits()) do
+		if u.level then Saw(open, full, u.level, now, touched, full) end
+	end
+	local rows = ns.rdb and ns.rdb.guilds
+	if (ns.splitNames and true or false) ~= walkedSplit then
+		walked, walkedSplit = setmetatable({}, { __mode = "k" }), ns.splitNames and true or false
+	end
+	for _, r in pairs(type(rows) == "table" and rows or {}) do
+		local t = type(r) == "table" and tonumber(r.t) or nil
+		if t and walked[r] ~= t and not r.mine and type(r.reporterFull) == "string" and type(r.top) == "table" then
+			walked[r] = t
+			local k = ShortOf(r.reporterFull)
+			for _, x in ipairs(r.top) do
+				local who = type(x) == "table" and ShortOf(x.name) or nil
+				local level = type(x) == "table" and tonumber(x.level) or nil
+				if k and who and level and who ~= k then
+					touched[who] = true
+					Saw(open, k .. ">" .. who, level, t, touched, who)
+				end
+			end
+		end
+	end
+	return touched
+end
+-- When `key` was last seen below the claim's milestone before a sighting at or above it, where that is
+-- the claim's crossing: at most VOUCH_WINDOW before the claim was heard (or CROSS_SLACK after it: a
+-- report or a roster read a moment behind his level-up); else nil.
+local function Crossing(c, key)
+	local s = H.Store()
+	local list = s and type(s.lows) == "table" and s.lows[c.level] or nil
+	local low = type(list) == "table" and tonumber(list[key]) or nil
+	local heard = tonumber(c.heardLocal)
+	if not (low and heard) or low > heard + H.CROSS_SLACK or heard - low > H.VOUCH_WINDOW then return nil end
+	return low
+end
+-- A claim shown crossing at `low`: its from (below the milestone: the level less one, all a sighting
+-- below it says) and since (that sighting, on the claim's clock: never after its t), for Honors.LevelRace.
+local function Proven(c, low)
+	if not low then return false end
+	local heard = tonumber(c.heardLocal) or low
+	c.from = c.level - 1
+	c.since = (tonumber(c.t) or Now()) - math.max(0, heard - low)
+	return true
 end
 
 -- The census's tops by the short name of each player they list (1.2.1): the rows listing him, in
@@ -800,16 +953,25 @@ function H.ListingBuilds() return listing.builds end
 --   place goes once the server's word shows it false (CheckPlaces). A claimant who is one of his
 --   guild's two census senders (or whose guild has one other sender) is vouched here only by our
 --   roster, when he is our guildmate.
+-- (1.4.0, the review's High 7) And his crossing seen here (Crossing: below the milestone, then at or
+-- above it, the last sighting below it near the claim), never his level alone: a player long past an
+-- open milestone took it with one IL, his place timed when it was heard. Our guildmate: the server's
+-- word saw it (our roster's reads, his unit). Anyone else: each sender counted saw it in his own
+-- reports (or the server's word did here). The claim keeps the newest such sighting (c.low) for its
+-- from and since (Proven). The bar against a forged place stays the census's own: two senders of a
+-- guild acting with him can still say he went up, as they can say he is there.
 -- (1.2.1) by: the census's Listing, worked out once for all the claims looked at together: the
 -- rows that list him are found by his name, the rest never looked at.
 local function VouchedBy(c, by)
 	if type(c) ~= "table" or type(c.name) ~= "string" or not tonumber(c.level) then return false end
+	local own = Crossing(c, ns.FullName(c.name):lower())
 	if Guildmate(c.name) then
 		-- (His own GUID, as the game gives a guildmate's: never a made-up one beside our roster's level.)
 		local P = ns.ArenaProfile
 		if not (type(P) == "table" and type(P.VerifyGk) == "function" and P.VerifyGk(c.name, c.gk) == true) then return false end
 		local level, fresh = RosterLevel(c.name)
-		return fresh and level ~= nil and level >= c.level or false
+		if not (fresh and level ~= nil and level >= c.level) then return false end
+		return Proven(c, own)
 	end
 	if not by then return false end
 	local who = ShortOf(c.name)
@@ -818,8 +980,9 @@ local function VouchedBy(c, by)
 	local e = by[who]
 	while e do
 		local r, guild = e.r, e.guild
-		if type(r.reporterFull) == "string" and not r.mine and type(guild) == "string"
-			and ShortOf(r.reporterFull) ~= who and math.abs((r.t or 0) - (c.heardLocal or 0)) <= H.VOUCH_WINDOW
+		local k = type(r.reporterFull) == "string" and ShortOf(r.reporterFull) or nil
+		local low = k and k ~= who and (own or Crossing(c, k .. ">" .. tostring(who))) or nil
+		if low and not r.mine and type(guild) == "string" and math.abs((r.t or 0) - (c.heardLocal or 0)) <= H.VOUCH_WINDOW
 			and ns.IsFederation(guild) and not (type(D) == "table" and type(D.NetOff) == "function" and D.NetOff(guild))
 			and e.level >= c.level then
 			local g = guild:lower()
@@ -828,9 +991,12 @@ local function VouchedBy(c, by)
 			if c.by[g] or n < 4 then
 				local senders = c.by[g] or {}
 				c.by[g] = senders
-				local k, m = ShortOf(r.reporterFull), 0
+				local m = 0
 				for _ in pairs(senders) do m = m + 1 end
-				if k and (senders[k] or m < 4) then senders[k] = true end
+				if senders[k] or m < 4 then
+					senders[k] = true
+					if not tonumber(c.low) or low > c.low then c.low = low end
+				end
 			end
 		end
 		e = e.nxt
@@ -838,11 +1004,15 @@ local function VouchedBy(c, by)
 	for _, senders in pairs(c.by) do
 		local n = 0
 		for _ in pairs(senders) do n = n + 1 end
-		if n >= H.VOUCHERS then return true end
+		if n >= H.VOUCHERS then return Proven(c, tonumber(c.low)) end
 	end
 	return false
 end
-function H.Vouched(c) return VouchedBy(c, Listing()) end
+-- (1.4.0: what this client sees now taken first, as a census change takes it.)
+function H.Vouched(c)
+	Sightings(H.Store(H.LevelRaceActive()))
+	return VouchedBy(c, Listing())
+end
 
 -- A place found false (1.2.1, the security review: a place stayed forever whatever came to light):
 -- the server's word puts its holder below its milestone, his unit's level (by his GUID), or our
@@ -928,22 +1098,36 @@ function H.CheckPlaces()
 	return out
 end
 
+-- (1.4.0, the review's High 8: every census report looked at every unvouched claim kept, up to 200 for
+-- 7 days, against the whole census.) A claim still to look at: not vouched, heard within VOUCH_WINDOW
+-- (no report after that vouches it), for a milestone whose place is not known here.
+local function Waiting(c, nowLocal)
+	return type(c) == "table" and not c.vouched and tonumber(c.level) ~= nil and not Placed(c.level)
+		and nowLocal - (tonumber(c.heardLocal) or 0) <= H.VOUCH_WINDOW
+end
+
 -- The claims against what this client knows now, the race's first half: the places held against
--- the server's word, the claims past CLAIM_DAYS gone, and every unvouched one against the census
--- (H.Vouched). A census change asks this at once (a guild's row is its newest report: a sender's
--- report is seen now or may never be); the race itself waits RACE_SOON (H.RaceSoon, 1.2.1).
-local function Look(s, now)
+-- the server's word, the claims past CLAIM_DAYS gone, and every one still waiting against the census
+-- (H.Vouched). A census change that lists a waiting claimant, or reads our roster anew, asks this at
+-- once (a guild's row is its newest report: a sender's report is seen now or may never be); the race
+-- itself waits RACE_SOON (H.RaceSoon, 1.2.1). seen: the sightings already taken (Sightings).
+local function Look(s, now, seen)
 	if not H.LevelRaceActive() then return end
-	-- (1.2.1: a claim vouched under the old rule, one census row, is vouched again under this one.)
+	-- (1.2.1: a claim vouched under the old rule, one census row, is vouched again under this one;
+	-- 1.4.0: the senders it kept too, none of them asked to have seen him cross.)
 	if s.vouchRule ~= H.VOUCH_RULE then
-		for _, c in pairs(s.claims) do if type(c) == "table" then c.vouched = false end end
+		for _, c in pairs(s.claims) do
+			if type(c) == "table" then c.vouched, c.by, c.low, c.from, c.since = false, nil, nil, nil, nil end
+		end
 		s.vouchRule = H.VOUCH_RULE
 	end
 	H.CheckPlaces()
+	if not seen then Sightings(s) end
 	local by, listed = nil, false
+	local nowLocal = ns.Now()
 	for key, c in pairs(s.claims) do
 		if now - (c.t or 0) > H.CLAIM_DAYS * 86400 then s.claims[key] = nil
-		elseif not c.vouched then
+		elseif Waiting(c, nowLocal) then
 			if not listed then by, listed = Listing(), true end
 			if VouchedBy(c, by) then c.vouched = true stats.vouched = stats.vouched + 1 end
 		end
@@ -991,7 +1175,10 @@ function H.RunRace()
 	local senders = {}
 	for _, c in pairs(s.claims) do
 		if c.vouched or ns.Now() - (c.heardLocal or 0) <= H.VOUCH_WINDOW then
-			claims[#claims + 1] = { name = c.name, gk = c.gk, guid = GameGuid(c.gk), level = c.level, t = c.t, vouched = c.vouched }
+			-- (1.4.0: a vouched claim with the crossing seen, its from and since: the race's start is
+			-- asked of since too.)
+			claims[#claims + 1] = { name = c.name, gk = c.gk, guid = GameGuid(c.gk), level = c.level, t = c.t, vouched = c.vouched,
+				from = c.vouched and c.from or nil, since = c.vouched and c.since or nil }
 			senders[c.gk] = senders[c.gk] or {}
 			senders[c.gk][ns.FullName(c.name):lower()] = true
 		end
@@ -1074,16 +1261,23 @@ local function OnLevel(dist, sender, mode, body)
 end
 ns.Comm.Handle("IL", ns.Arena.Handle("IL", OnLevel))
 
--- A census report came in, or our roster: the claims waiting are looked at again, and (1.2.1)
--- the places held (three at most: lookups alone) against the server's word, at once; the race
--- RACE_SOON later (H.RaceSoon), once for a burst of reports.
+-- A census report came in, or our roster: what this client sees is taken (1.4.0: the crossings,
+-- Sightings), the claims waiting whose claimant it lists, or every guildmate's on a new read of our
+-- roster, are looked at again (1.4.0, the review's High 8: the others never: nothing new about them),
+-- and (1.2.1) the places held (three at most: lookups alone) against the server's word, at once; the
+-- race RACE_SOON later (H.RaceSoon), once for a burst of reports. (1.4.0) The signed list that names
+-- this realm a launch realm comes as a census change too: the level-ups are watched from then on.
 ns.On("DATA_CHANGED", function()
 	if not H.LevelRaceActive() then return end
-	local s = H.Store()
-	if s and s.claims and next(s.claims) then
+	if not levelHooked then H.WatchLevels() end
+	local s = H.Store(Now() >= H.RACE_START)
+	local touched = s and Sightings(s)
+	local nowLocal = ns.Now()
+	if touched and type(s.claims) == "table" then
 		for _, c in pairs(s.claims) do
-			if not c.vouched then
-				ns.SafeCall("arena level vouch", Look, s, Now())
+			if Waiting(c, nowLocal) and type(c.name) == "string" and (touched[ShortOf(c.name)] or touched[ns.FullName(c.name):lower()]
+				or (touched[ROSTER] and Guildmate(c.name))) then
+				ns.SafeCall("arena level vouch", Look, s, Now(), true)
 				H.RaceSoon()
 				return
 			end
@@ -1121,11 +1315,13 @@ function H.TakeRecords(sender, mode, rest)
 	local any = false
 	for part in tostring(rest):gmatch("[^,]+") do
 		local m, gk, name, t = part:match("^([0-9a-z]+):([^:]+):([^:]+):([0-9a-z]+)$")
-		m = N(m, 1, 60)
-		if m and ns.Honors.LEVEL_METAL[m] and Gk(gk) and not Placed(m) then
+		m, t = N(m, 1, 60), N(t, 0, 4294967295)
+		-- (1.4.0) A place timed before the race's start (a pre-launch book a clerk kept) or ahead of
+		-- the clock is never a launch place.
+		if m and ns.Honors.LEVEL_METAL[m] and Gk(gk) and not Placed(m) and t and t >= H.RACE_START and t <= Now() + ns.Honors.SKEW then
 			local full = ns.ArenaFights.Unwire(name, sender)
 			if full and not Struck(s, m, gk, full) then
-				s.levels[m] = { { guid = Arena.GuidOf(gk), name = full, t = N(t, 0, 4294967295) or Now(), place = 1 } }
+				s.levels[m] = { { guid = Arena.GuidOf(gk), name = full, t = t, place = 1 } }
 				any = true
 				Changed(full)
 			end

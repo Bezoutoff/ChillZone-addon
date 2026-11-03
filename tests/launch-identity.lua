@@ -247,6 +247,41 @@ test("1.3.4 launch identities: ns.RealmInfo reads the signed realms; anything th
 	eq(ns.ReadApprovedGuilds("^realms^NA^Good=pvp;^king^Alliance^Crown Owl-R").Alliance, nil)
 end)
 
+-- (1.4.0) The launch's realms, for what runs on them alone (the level race, HonorsNet.LevelRaceActive):
+-- the realms the author's signed list names, never the beta's whatever a list says.
+test("1.4.0 the launch's realms (ns.LaunchRealm): a realm the signed list names; not one it leaves out, nor with no list or an older list that names no realm, nor the beta's realms whatever a list says", function()
+	WithWorld("Launchrealm", "Alliance", LAUNCH_A, function()
+		eq(ns.LaunchRealm(), true, "named")
+	end)
+	WithWorld("Launchtwo", "Alliance", LAUNCH_A, function()
+		eq(ns.LaunchRealm(), true, "the group's other realm, named too")
+	end)
+	WithWorld("Launchtwo", "Alliance", LAUNCH_B, function()
+		eq(ns.LaunchRealm(), false, "a newer list without it")
+	end)
+	WithWorld("Launchrealm", "Alliance", nil, function()
+		eq(ns.LaunchRealm(), false, "no list held")
+	end)
+	WithWorld("Realm", "Alliance", OLD, function()
+		eq(ns.LaunchRealm(), false, "a list that names no realm")
+	end)
+	-- The beta's realms: a list naming them (none signed here does: its word stood in for) counts for
+	-- nothing there.
+	WithWorld("ClassicBetaPvP", "Alliance", nil, function()
+		local info = ns.RealmInfo
+		ns.RealmInfo = function(realm) return realm == "ClassicBetaPvP" and { kind = "pvp", region = "NA" } or nil end
+		local ok, err = pcall(function()
+			eq(ns.Data.IsBetaGroup(ns.group), true)
+			eq(ns.LaunchRealm(), false, "the beta's")
+			ns.realm = "Launchrealm"
+			ns.RealmInfo = function(realm) return realm == "Launchrealm" and { kind = "pvp", region = "NA" } or nil end
+			eq(ns.LaunchRealm(), false, "a named realm in the beta's group")
+		end)
+		ns.RealmInfo = info
+		if not ok then error(err, 0) end
+	end)
+end)
+
 test("1.3.4 launch identities: a launch list is taken, shown and passed on as before: its departments, Steward and approved guilds unchanged, its text byte for byte", function()
 	WithWorld("Launchrealm", "Alliance", LAUNCH_A, function()
 		local t = ns.rdb.councilTitles

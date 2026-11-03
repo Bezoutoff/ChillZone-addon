@@ -4,6 +4,10 @@
 -- our own guild's roster, the server's; another guild's census, two of its senders other than him),
 -- and a place the server's word shows false goes (HonorsNet.CheckPlaces). On the test world. Every
 -- name is invented.
+-- (1.4.0, the review's High 7) A claim also needs its crossing seen here: below the milestone, then at
+-- or above it (our roster's reads or his unit; else each census sender's own reports). The cases below
+-- that end in a place give the viewer that sighting first (Below, a roster read a level below): each
+-- still asks what it asked of the vouch; the crossing's own cases are the last ones.
 local H = ...
 local test, eq = H.test, H.eq
 local W3 = assert(loadfile(H.ROOT .. "tests/arena/lib/fights-world.lua"))(H)
@@ -34,6 +38,11 @@ local function Report(w, viewer, guild, reporter, name, level)
 	W3.Report(viewer, guild, reporter, { { name = name, level = level, class = "WA" } })
 	w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
 end
+-- (1.4.0) His crossing as each of `reporters` saw it: a report of `guild` listing him a level below
+-- milestone m, before the case's own reports list him at it.
+local function Below(w, viewer, guild, reporters, name, m)
+	for _, r in ipairs(reporters) do Report(w, viewer, guild, r, name, m - 1) end
+end
 local function Place(viewer, m)
 	local s = viewer.ns.HonorsNet.Store()
 	local list = s and s.levels and s.levels[m]
@@ -57,6 +66,9 @@ test("1.2.1 the level race: one forged census row no longer wins a place, nor th
 		{ "f3", "Ivo Marsh" } } })
 	local viewer, alt = cast.spectator, cast.alt
 	viewer.ns.HonorsNet.RACE_START = w.clock - 86400
+	-- (1.4.0) Each sender below listed him at 59 first: every case is the vouch's own rule.
+	Below(w, viewer, "Olympus Fakers", { cast.f1, cast.f3 }, alt.name, 60)
+	Below(w, viewer, "Olympus Elsewhere", { cast.f2 }, alt.name, 60)
 	Claim(w, alt, 60)
 	local after = viewer.ns.Honors.CONFIRM_AFTER + 2
 	-- One report of another sender (any guild named Olympus): no proof.
@@ -86,6 +98,9 @@ test("1.2.1 the level race: a guildmate's claim is vouched by our own roster (th
 		{ "f1", "Garric Holt" }, { "f2", "Hale Brindle" } } })
 	local viewer = cast.spectator
 	viewer.ns.HonorsNet.RACE_START = w.clock - 86400
+	-- (1.4.0) Our roster read him at 19 first: his crossing, the server's word.
+	Roster(viewer, { { cast.mate, 19 }, { cast.liar, 15 } })
+	w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
 	Roster(viewer, { { cast.mate, 20 }, { cast.liar, 15 } })
 	Info(w, viewer)
 	local after = viewer.ns.Honors.CONFIRM_AFTER + 2
@@ -113,7 +128,9 @@ test("1.2.1 the level race: a place the server's word shows false goes (his unit
 	local net = HN(w, viewer)
 	viewer.ns.HonorsNet.RACE_START = w.clock - 86400
 	local after = viewer.ns.Honors.CONFIRM_AFTER + 2
-	-- Two forged senders of one guild win it for the level-12 alt.
+	-- Two forged senders of one guild win it for the level-12 alt (1.4.0: saying he went up too: the
+	-- census's own bar, which the server's word below takes back).
+	Below(w, viewer, "Olympus Fakers", { cast.f1, cast.f2 }, alt.name, 60)
 	Claim(w, alt, 60)
 	Report(w, viewer, "Olympus Fakers", cast.f1, alt.name, 60)
 	Report(w, viewer, "Olympus Fakers", cast.f2, alt.name, 60)
@@ -141,13 +158,17 @@ test("1.2.1 the level race: a place the server's word shows false goes (his unit
 	eq(net.TakeRecords(cast.arbiter.name, "L", rest), false, "a clerk's record of a struck place")
 	eq(Place(viewer, 60), nil)
 	-- The next proven claim takes it.
+	Below(w, viewer, "Olympus Shaw", { cast.f1, cast.f2 }, cast.real.name, 60)
 	Claim(w, cast.real, 60)
 	Report(w, viewer, "Olympus Shaw", cast.f1, cast.real.name, 60)
 	Report(w, viewer, "Olympus Shaw", cast.f2, cast.real.name, 60)
 	w:Run(after)
 	eq(Place(viewer, 60), cast.real.name, "the next one")
 	-- Our roster's word: a guildmate's place at 40 with his roster level 30, read too soon after the
-	-- place (the roster may not have his level-up yet): kept; an hour on: struck.
+	-- place (the roster may not have his level-up yet): kept; an hour on: struck. (1.4.0: a read at 39
+	-- first, his crossing.)
+	Roster(viewer, { { cast.mate, 39 } })
+	w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
 	local R = Roster(viewer, { { cast.mate, 40 } })
 	Info(w, viewer)
 	Claim(w, cast.mate, 40)
@@ -190,6 +211,7 @@ test("1.2.1 the level race: a place won under a made-up GUID goes once his unit 
 	local after = viewer.ns.Honors.CONFIRM_AFTER + 2
 	local A = viewer.ns.Arena
 	local fake = A.GK("Player-4099-0DEADBEEF")
+	Below(w, viewer, "Olympus Fakers", { cast.f1, cast.f2 }, alt.name, 60)
 	Claim(w, alt, 60, fake)
 	Report(w, viewer, "Olympus Fakers", cast.f1, alt.name, 60)
 	Report(w, viewer, "Olympus Fakers", cast.f2, alt.name, 60)
@@ -218,6 +240,7 @@ test("1.2.1 the level race: a place won under a made-up GUID goes once his unit 
 	eq(Place(viewer, 60), nil)
 	-- A unit in view at the milestone but under another GUID than his place's: the GUID was never
 	-- his, struck too.
+	Below(w, viewer, "Olympus Highs", { cast.f1, cast.f2 }, cast.high.name, 40)
 	Claim(w, cast.high, 40, A.GK("Player-4099-0CAFEBABE"))
 	Report(w, viewer, "Olympus Highs", cast.f1, cast.high.name, 40)
 	Report(w, viewer, "Olympus Highs", cast.f2, cast.high.name, 40)
@@ -230,6 +253,7 @@ test("1.2.1 the level race: a place won under a made-up GUID goes once his unit 
 	viewer.target = nil
 	local real = w:Client("Lena Shaw", { level = 20 })
 	W3.Rules(w, real)
+	Below(w, viewer, "Olympus Shaw", { cast.f1, cast.f2 }, real.name, 20)
 	Claim(w, real, 20)
 	Report(w, viewer, "Olympus Shaw", cast.f1, real.name, 20)
 	Report(w, viewer, "Olympus Shaw", cast.f2, real.name, 20)
@@ -251,6 +275,7 @@ test("1.2.1 the level race: a place whose GUID the game gives another character 
 	local after = viewer.ns.Honors.CONFIRM_AFTER + 2
 	local A = viewer.ns.Arena
 	-- Another character's GUID, which the game does not resolve here yet.
+	Below(w, viewer, "Olympus Fakers", { cast.f1, cast.f2 }, alt.name, 60)
 	Claim(w, alt, 60, A.GK(cast.other.guid))
 	Report(w, viewer, "Olympus Fakers", cast.f1, alt.name, 60)
 	Report(w, viewer, "Olympus Fakers", cast.f2, alt.name, 60)
@@ -268,6 +293,9 @@ test("1.2.1 the level race: a guildmate's claim our roster puts at the milestone
 	local w, cast = W3.New({ more = { { "mate", "Jory Pike", { level = 20 } }, { "mate2", "Kell Dunmore", { level = 20 } } } })
 	local viewer = cast.spectator
 	viewer.ns.HonorsNet.RACE_START = w.clock - 86400
+	-- (1.4.0) Our roster read both at 19 first: their crossings, the server's word.
+	Roster(viewer, { { cast.mate, 19 }, { cast.mate2, 19 } })
+	w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
 	Roster(viewer, { { cast.mate, 20 }, { cast.mate2, 20 } })
 	Info(w, viewer)
 	local after = viewer.ns.Honors.CONFIRM_AFTER + 2
@@ -284,6 +312,66 @@ test("1.2.1 the level race: a guildmate's claim our roster puts at the milestone
 	eq(Place(viewer, 20), cast.mate2.name, "his own GUID")
 	for _, c in pairs(viewer.ns.HonorsNet.Store().claims) do
 		if c.name == cast.mate.name then eq(c.vouched, false) end
+	end
+	W3.NoErrors(w)
+end)
+
+-- (1.4.0, the review's High 7: "any player already at or above an open milestone takes it with one
+-- IL". The 1.2.1 rule showed his level now, never when he got there; the claim was timed when heard,
+-- with no from or since. A level-45 player's IL for 40 took the place wherever 40 was open, 10 minutes
+-- on.) His crossing must be seen here: below the milestone, then at or above it, the last sighting
+-- below it near the claim.
+test("1.4.0 the level race (the review's High 7): a player already past an open milestone takes no place with one IL, whatever shows his level now (our roster, two senders of his guild); one seen crossing it here does, from and since set", function()
+	local w, cast = W3.New({ more = { { "mate", "Jory Pike", { level = 45 } }, { "far", "Fenn Rook", { level = 45 } },
+		{ "next", "Kell Dunmore", { level = 39 } }, { "near", "Lena Shaw", { level = 39 } }, { "f1", "Garric Holt" }, { "f2", "Hale Brindle" } } })
+	local viewer = cast.spectator
+	local net = HN(w, viewer)
+	net.RACE_START = w.clock - 86400
+	local after = viewer.ns.Honors.CONFIRM_AFTER + 2
+	-- Both at 45 whenever this client looked, an hour apart: our roster's reads (the guildmate), two
+	-- senders of his guild (the other).
+	Roster(viewer, { { cast.mate, 45 }, { cast.next, 39 } })
+	Info(w, viewer)
+	for _ = 1, 2 do
+		Report(w, viewer, "Olympus Rook", cast.f1, cast.far.name, 45)
+		Report(w, viewer, "Olympus Rook", cast.f2, cast.far.name, 45)
+		Report(w, viewer, "Olympus Shaw", cast.f1, cast.near.name, 39)
+		Report(w, viewer, "Olympus Shaw", cast.f2, cast.near.name, 39)
+		w:Run(3600)
+		Roster(viewer, { { cast.mate, 45 }, { cast.next, 39 } })
+		w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
+	end
+	-- Each sends one IL for 40, open here; his level vouched as before.
+	Claim(w, cast.mate, 40)
+	Claim(w, cast.far, 40)
+	w:Run(net.RACE_SOON)
+	w:As(viewer, net.RunRace)
+	w:Run(after)
+	w:As(viewer, net.RunRace)
+	eq(Place(viewer, 40), nil, "his level alone: no place")
+	for _, c in pairs(net.Store().claims) do eq(c.vouched, false, c.name .. ": never seen crossing 40") end
+	-- Two who cross it now: our guildmate's read at 40 (it had him at 39), and the other's senders'
+	-- next reports at 40 (theirs had her at 39). Theirs are vouched, from and since set.
+	Roster(viewer, { { cast.mate, 45 }, { cast.next, 40 } })
+	w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
+	Claim(w, cast.next, 40)
+	w:Run(1)
+	Claim(w, cast.near, 40)
+	Report(w, viewer, "Olympus Shaw", cast.f1, cast.near.name, 40)
+	Report(w, viewer, "Olympus Shaw", cast.f2, cast.near.name, 40)
+	local s = net.Store()
+	local mine = s.claims[cast.next.name:lower() .. ":40"]
+	local hers = s.claims[cast.near.name:lower() .. ":40"]
+	eq(mine.vouched, true, "our roster saw him cross"); eq(hers.vouched, true, "both senders saw her cross")
+	eq(mine.from, 39); eq(hers.from, 39)
+	assert(mine.since <= mine.t and mine.t - mine.since <= net.VOUCH_WINDOW and mine.since >= net.RACE_START, "since: the read below 40")
+	assert(hers.since <= hers.t and hers.since >= net.RACE_START, "since: her senders' reports below 40")
+	w:Run(net.RACE_SOON)
+	w:Run(after)
+	eq(Place(viewer, 40), cast.next.name, "the first of them heard, both seen crossing")
+	-- (Seen at 45 still, the two who were never seen below: never vouched.)
+	for _, c in pairs(s.claims) do
+		if c.name == cast.mate.name or c.name == cast.far.name then eq(c.vouched, false, c.name) end
 	end
 	W3.NoErrors(w)
 end)

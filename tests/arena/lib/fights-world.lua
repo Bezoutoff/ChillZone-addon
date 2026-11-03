@@ -6,9 +6,18 @@ local H = ...
 local World = H.World
 local W3 = {}
 
--- Explicit future-launch fixture, by composition: the foundation World remains unchanged and
--- OFF. A newly loaded HonorsNet is opened after file loading, before INIT/LOGIN; reload gets a
--- fresh module too. Shipped-release worlds/clients never opt in, even inside this future helper.
+-- (1.4.0) The launch's realms, by composition: the level race ships switched on (HonorsNet.
+-- LEVEL_RACE_LAUNCHED) and runs where the author's signed list names the realm, never on the beta's
+-- (ns.LaunchRealm). The foundation World holds no such list, so its race stays off as it ships there.
+-- This helper gives each newly loaded client the signed list's word that the world's realms are launch
+-- realms (ns.RealmInfo, as a ^realms^ entry gives it; the signed path itself: tests/launch-identity.lua),
+-- after file loading, before INIT/LOGIN; a reload gets it again. Shipped-release clients too: the race
+-- is the release's now.
+W3.LAUNCH_REALMS = { emberfall = { kind = "pvp", region = "NA" }, emberfall2 = { kind = "pvp", region = "NA" } }
+function W3.LaunchRealmInfo(realm)
+	local e = type(realm) == "string" and W3.LAUNCH_REALMS[(realm:gsub("[%s%-]", "")):lower()]
+	return e and { kind = e.kind, region = e.region } or nil
+end
 function W3.LevelRaceWorld(opts)
 	local w = World.New(opts)
 	local as, seen = w.As, {}
@@ -17,7 +26,7 @@ function W3.LevelRaceWorld(opts)
 		local net = c and c.ns and rawget(c.ns, "HonorsNet")
 		if type(net) == "table" and seen[c] ~= net then
 			seen[c] = net
-			if (c.compliance or w.compliance) ~= "shipped" then net.LEVEL_RACE_LAUNCHED = true end
+			rawset(c.ns, "RealmInfo", W3.LaunchRealmInfo)
 		end
 		return ...
 	end
@@ -31,7 +40,8 @@ W3.ROLL = "%s rolls %d (%d-%d)"
 
 -- A world with the King (and the live switch on unless live = false), the signed arbiter, the two
 -- fighters and a spectator; opts.more: more clients, { name, where } each. This fights-design
--- helper explicitly opens the future level race (levelRace = false keeps the shipped OFF policy).
+-- helper puts its world on the launch's realms, where the level race runs (levelRace = false: a realm
+-- the launch list does not name, where it stays off).
 function W3.New(opts)
 	opts = opts or {}
 	local w = opts.levelRace == false and World.New(opts.world) or W3.LevelRaceWorld(opts.world)

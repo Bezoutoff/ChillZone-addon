@@ -145,16 +145,22 @@ test("1.2.1 census news: two senders of a guild heard within one second both cou
 	-- The viewer's own census (the world shares the harness's Data otherwise).
 	w:As(viewer, function() assert(loadfile(H.ADDON_DIR .. "Data.lua"))("Olympus", viewer.ns) end)
 	viewer.ns.HonorsNet.RACE_START = w.clock - 86400
+	local function Rep(level)
+		return { guild = "Olympus Vale", faction = viewer.ns.faction or "Alliance", total = 20, online = 2, zones = {},
+			leader = "Corin Ash", officers = {}, top = { { name = "Brisa Vale", level = level or 20, class = "MA" } } }
+	end
+	-- (1.4.0, the review's High 7: a claim also needs its crossing seen.) Both senders listed her at 19
+	-- before her level-up, each report told in its turn.
+	for _, r in ipairs({ cast.reporter, cast.reporter2 }) do
+		eq(w:As(viewer, function() return viewer.ns.Data.Receive(Rep(19), r.name) end), true)
+		w:Run(2)
+	end
 	w:Fire(young, "PLAYER_LEVEL_UP", 20)
 	w:Run(61)
 	local claim
 	for _, c in pairs(viewer.ns.HonorsNet.Store().claims) do claim = c end
 	assert(claim, "her claim heard")
-	eq(claim.vouched, false, "no census yet")
-	local function Rep()
-		return { guild = "Olympus Vale", faction = viewer.ns.faction or "Alliance", total = 20, online = 2, zones = {},
-			leader = "Corin Ash", officers = {}, top = { { name = "Brisa Vale", level = 20, class = "MA" } } }
-	end
+	eq(claim.vouched, false, "no census at 20 yet")
 	eq(w:As(viewer, function() return viewer.ns.Data.Receive(Rep(), cast.reporter.name) end), true)
 	eq(w:As(viewer, function() return viewer.ns.Data.Receive(Rep(), cast.reporter2.name) end), true)
 	eq(viewer.rdb.guilds["Olympus Vale"].reporterFull, cast.reporter2.name, "the second report is the row")

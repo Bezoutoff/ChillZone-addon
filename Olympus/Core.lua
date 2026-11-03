@@ -1411,6 +1411,25 @@ function ns.RealmInfo(realm)
 	return e and { kind = e.kind, region = e.region } or nil
 end
 
+-- (1.4.0, the launch) This client's realm is one of the launch's: the author's signed list names it
+-- (ns.RealmInfo) and it is none of the beta's realms (Data.IsBetaGroup), whatever a list says. No list
+-- held here yet: not one. Kept while the list, our realm and our group are the same (asked with every
+-- honour a frame or a plate looks at).
+local launchMemo = {}
+function ns.LaunchRealm()
+	local pins = ns.SignedPins and ns.SignedPins() or nil
+	local m = launchMemo
+	if m.set and m.pins == pins and m.info == ns.RealmInfo and m.realm == ns.realm and m.group == ns.group then return m.on end
+	local D = ns.Data
+	local on = false
+	if type(D) == "table" and type(D.IsBetaGroup) == "function" and type(ns.realm) == "string"
+		and not D.IsBetaGroup(ns.group or ns.realm) and not D.IsBetaGroup(ns.realm) then
+		on = type(ns.RealmInfo) == "function" and ns.RealmInfo(ns.realm) ~= nil
+	end
+	launchMemo = { set = true, pins = pins, info = ns.RealmInfo, realm = ns.realm, group = ns.group, on = on }
+	return on
+end
+
 -- /oly status (1.3.4): where each identity comes from on this realm group, never a name: "signed"
 -- (the author's list), "code" (the beta's pins) or "none".
 function ns.PinsStatus()
