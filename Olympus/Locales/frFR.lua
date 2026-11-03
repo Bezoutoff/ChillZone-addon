@@ -316,7 +316,7 @@ ns.Locale("frFR", {
 	ARENA_DELAY_SET = "Délai du stream : %d s.",
 	ARENA_DELAY_USAGE = "/oly arena delay <0-900> | off (en secondes ; vue du Roi uniquement)",
 	ARENA_EPI_FMT = "le %s %s",
-	ARENA_EPI_ORDER = "an",
+	ARENA_EPI_ORDER = "na",
 	ARENA_EVENT = "Un évènement d'arène",
 	ARENA_GAMES_ARBITER = "Arbitre",
 	ARENA_GAMES_ARBITERS = "Arbitres (%d)",
@@ -5190,3 +5190,34 @@ ns.Locale("frFR", {
 	YOU_ARE_OFFICER = "En tant que Capitaine, tu peux appeler aux armes et au rassemblement. Les décrets royaux appartiennent à la Couronne et au Haut Conseil.",
 	YOU_ARE_SOLDIER = "La Couronne appelle l'armée aux armes, et les officiers d'une guilde leur propre guilde ; la Couronne et le Haut Conseil émettent les décrets royaux, un maître de guilde ceux de sa guilde. Les boutons te montrent un aperçu.",
 })
+
+-- The lists (tables), each taken whole: every key the English list has, each a text with the
+-- English one's codes (ns.LocaleCodes); anything else, and the English list stays.
+local lists = {
+	ARENA_CLASS_NAMES = { ["DR"] = "Druide", ["HU"] = "Chasseur", ["MA"] = "Mage", ["PA"] = "Paladin", ["PR"] = "Prêtre", ["RO"] = "Voleur", ["SH"] = "Chaman", ["WA"] = "Guerrier", ["WL"] = "Démoniste" },
+	ARENA_EPI_A = { [1] = "Invaincu", [2] = "Cramoisi", [3] = "Silencieux", [4] = "de Fer", [5] = "d'Or", [6] = "Véloce", [7] = "Sinistre", [8] = "Sauvage", [9] = "de Pierre", [10] = "Orageux", [11] = "Nocturne", [12] = "Sanglant", [13] = "Cendré", [14] = "de Givre", [15] = "Ardent", [16] = "Creux", [17] = "d'Acier", [18] = "Tonnant", [19] = "des Ombres", [20] = "Radieux", [21] = "Féroce", [22] = "Ancestral", [23] = "Inlassable", [24] = "Sans-Peur", [25] = "Ricanant", [26] = "Hurlant", [27] = "Écarlate", [28] = "Amer", [29] = "Intrépide", [30] = "Rieur", [31] = "Errant", [32] = "Ultime" },
+	ARENA_EPI_N = { [1] = "Loup", [2] = "Marteau", [3] = "Typhon", [4] = "Glaive", [5] = "Croc", [6] = "Bouclier", [7] = "Lion", [8] = "Grizzly", [9] = "Serpent", [10] = "Faucon", [11] = "Corbeau", [12] = "Sanglier", [13] = "Cerf", [14] = "Poing", [15] = "Roc", [16] = "Chardon", [17] = "Cobra", [18] = "Cyclone", [19] = "Gardien", [20] = "Faucheur", [21] = "Boucher", [22] = "Molosse", [23] = "Griffon", [24] = "Tigre", [25] = "Chêne", [26] = "Fendoir", [27] = "Javelot", [28] = "Brasier", [29] = "Fantôme", [30] = "Dragon", [31] = "Kodo", [32] = "Murloc" },
+	ARENA_RACE_NAMES = { [1] = "Humain", [2] = "Orc", [3] = "Nain", [4] = "Elfe de la nuit", [5] = "Mort-vivant", [6] = "Tauren", [7] = "Gnome", [8] = "Troll" },
+	HONOR_CLASS_NAMES = { ["druid"] = "Druide", ["hunter"] = "Chasseur", ["mage"] = "Mage", ["paladin"] = "Paladin", ["priest"] = "Prêtre", ["rogue"] = "Voleur", ["shaman"] = "Chaman", ["warlock"] = "Démoniste", ["warrior"] = "Guerrier" },
+	HONOR_CLASS_TITLE = { [1] = "Champion %s", [2] = "Prétendant %s", [3] = "Challenger %s" },
+	HONOR_LETTER = { ["apostle"] = "Salut,\n\nCes trente derniers jours, presque aucun Apôtre n'a amené autant de monde à Olympus que toi. Tu es %s, et la croix est à toi tant que tu restes dans le top trois.\n\nGarde la foi. Et continue de les amener.", ["arena"] = "Bon, écoute.\n\nTu es entré dans l'arène et tu as battu tout le monde. Pas la plupart. Tout le monde. Alors maintenant tu es %s, et le griffon est à toi.\n\nPetit avertissement : tous les tryhards d'Olympus veulent te le prendre maintenant. Ne les laisse pas faire.", ["bones"] = "Bon,\n\nLa taverne parle encore de tes lancers du mois dernier. Certains étaient franchement dingues. Tu es %s, et le porte-bonheur est à toi ce mois-ci.\n\nQue les os continuent de tomber en ta faveur.", ["class"] = "Salut,\n\nJ'ai vérifié. De tous ceux qui jouent ta classe dans Olympus, personne ne se bat comme toi. C'est énorme. Tu es maintenant %s.\n\nLes autres vont étudier chacun de tes gestes. Laisse-les faire. Ils ne pourront quand même pas suivre.", ["donor-month"] = "Salut,\n\nLe mois dernier, ton or a gardé les lumières allumées dans Olympus. Sincèrement, merci. Tu es %s, et le koï est à toi ce mois-ci.\n\nGarde cette main ouverte.", ["donor-top"] = "Mec,\n\nTu as mis plus d'or dans Olympus que presque tout le monde. C'est pas rien, c'est dingue. Tu es %s, et la corne d'abondance reste à toi tant que tu restes dans le top trois.\n\nJe le vois, et tout le monde le voit aussi. Merci.", ["guild"] = "Écoute,\n\nTa guilde a les niveaux les plus élevés de tout Olympus. En tête de liste. Tu es %s, et le hibou se pose sur ta bannière tant que ta guilde reste première.\n\nFais grimper les tiens, parce que les autres arrivent.", ["level"] = "La vache.\n\nTu es arrivé avant tout le monde dans Olympus. Premier. Ça, personne ne pourra jamais te l'enlever. La comète est à toi, et le nom %s aussi.\n\nMaintenant, va toucher de l'herbe. Ou pas. Respect dans tous les cas.", ["missionary"] = "Salut,\n\nCes trente derniers jours, tu as amené plus de monde dans nos guildes que presque tout le monde. C'est comme ça qu'Olympus grandit. Tu es %s, et le bâton de berger est à toi tant que tu restes dans le top trois.\n\nContinue de les amener.", ["oracle"] = "Bon,\n\nLe mois dernier, tu as lu l'arène mieux que personne. Combat après combat, tu savais, point. Tu es %s, et le corbeau est à toi ce mois-ci.\n\nTout le monde va copier tes pronostics maintenant. On ne peut pas leur en vouloir.", ["race"] = "Salut,\n\nTout ton peuple vient de gagner un nouveau nom dont se vanter, et c'est le tien. Tu es maintenant %s.\n\nVa montrer aux tiens comment on fait.", ["wanted-slayer"] = "Bon,\n\nLa Horde n'arrête pas de compter ses morts, et ton nom revient sans cesse. C'est ce que j'aime voir. Tu es maintenant %s.\n\nMonte le cheval squelette pile là où la Horde peut le voir. Qu'ils sachent qui a fait ça." },
+	HONOR_PLACE = { [1] = "1re", [2] = "2e", [3] = "3e" },
+	HONOR_RACE_NAMES = { ["orc"] = "Orc", ["dwarf"] = "Nain", ["gnome"] = "Gnome", ["human"] = "Humain", ["nightelf"] = "Elfe de la nuit", ["tauren"] = "Tauren", ["troll"] = "Troll", ["undead"] = "Mort-vivant" },
+	HONOR_RACE_TITLE = { [1] = "Meilleur combattant %s", [2] = "Prétendant %s", [3] = "Challenger %s" },
+	HONOR_RANKING = { ["apostle"] = "Apôtres", ["bones"] = "Lancer d'os", ["donor-month"] = "Donateurs du mois", ["donor-top"] = "Plus grands donateurs", ["guild"] = "Meilleure guilde", ["missionary"] = "Missionnaires", ["wanted-slayer"] = "Chasseurs" },
+	HONOR_TITLES = { ["apostle-1"] = "Lumière d'Olympus", ["apostle-2"] = "Voix d'Olympus", ["apostle-3"] = "Héraut d'Olympus", ["arena-champion"] = "Champion de l'Arène", ["arena-champion-2"] = "Prétendant de l'Arène", ["arena-champion-3"] = "Challenger de l'Arène", ["bones-1"] = "Maître des os", ["bones-2"] = "Favori de la chance", ["bones-3"] = "Main sûre", ["donor-month-1"] = "Main d'or", ["donor-month-2"] = "Main d'argent", ["donor-month-3"] = "Main de bronze", ["donor-top-1"] = "Mécène d'Olympus", ["donor-top-2"] = "Bienfaiteur d'Olympus", ["donor-top-3"] = "Ami du Trésor", ["guild-top-leader"] = "Le plus sage d'Olympus", ["level-race-20"] = "Premier au niveau 20", ["level-race-40"] = "Premier au niveau 40", ["level-race-60"] = "Premier au niveau 60", ["missionary-1"] = "Bon Pasteur", ["missionary-2"] = "Pasteur fidèle", ["missionary-3"] = "Pasteur", ["oracle-1"] = "Oracle", ["oracle-2"] = "Voyant", ["oracle-3"] = "Devin", ["the-dev"] = "Le Dev royal", ["wanted-slayer-1"] = "Fléau de la Horde", ["wanted-slayer-2"] = "Traqueur de la Horde", ["wanted-slayer-3"] = "Chasseur de primes" },
+	WEEK_MONTHS = { [1] = "janv.", [2] = "févr.", [3] = "mars", [4] = "avr.", [5] = "mai", [6] = "juin", [7] = "juil.", [8] = "août", [9] = "sept.", [10] = "oct.", [11] = "nov.", [12] = "déc." },
+	WEEK_WEEKDAYS = { [1] = "dim.", [2] = "lun.", [3] = "mar.", [4] = "mer.", [5] = "jeu.", [6] = "ven.", [7] = "sam." },
+}
+local L = ns.L
+for name, list in pairs(lists) do
+	local en = rawget(L, name)
+	local ok = type(en) == "table"
+	if ok then
+		for k, v in pairs(en) do
+			local t = list[k]
+			if type(v) ~= "string" or type(t) ~= "string" or t == "" or (ns.LocaleCodes and ns.LocaleCodes(t) ~= ns.LocaleCodes(v)) then ok = false; break end
+		end
+	end
+	if ok then L[name] = list end
+end

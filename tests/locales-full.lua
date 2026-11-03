@@ -93,3 +93,21 @@ test("languages (1.4.0): the Agenda reads a day or today/tomorrow in each langua
 	end
 	eq(W.Parse("xyz 20:00 Raid"), nil, "an unknown word is no day")
 end)
+
+test("languages (1.4.0): the lists (places, weekdays, months, class and race names, honours, the King's letters, the nickname words) are each language's own, every key the English one's", function()
+	for code, file in pairs(LANGS) do
+		local L = Load(code).L
+		for name, en in pairs(english.L) do
+			if type(en) == "table" then
+				local t = L[name]
+				assert(type(t) == "table" and t ~= en, file .. " " .. name .. ": its own list")
+				for k, v in pairs(en) do
+					assert(type(t[k]) == "string" and t[k] ~= "", file .. " " .. name .. "[" .. tostring(k) .. "]")
+					eq(ns.LocaleCodes(t[k]), ns.LocaleCodes(v), file .. " " .. name .. "[" .. tostring(k) .. "] codes")
+				end
+				for k in pairs(t) do assert(en[k] ~= nil, file .. " " .. name .. ": no key the English lacks: " .. tostring(k)) end
+			end
+		end
+		assert(L.WEEK_WEEKDAYS[1] ~= english.L.WEEK_WEEKDAYS[1], file .. ": its own Sunday")
+	end
+end)
