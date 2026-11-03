@@ -10,7 +10,7 @@ banned guilds, the Battle.net accounts ("contas azuis"), the people who have the
 - **The game's page** is `Olympus/CensusStats.lua` (commit 4cf3677b, branch `batch/census-chat`):
   the header shows the characters large and the people smaller; a click on the count opens a page in
   the Census tab with characters, people, linked alts, online now, guilds counted and reporting, the
-  size-weighted average level, the largest guilds against the 1,000 cap, the levels online, and two
+  size-weighted average level, every server (1.4.0, in place of the largest guilds: Data.Groups), the levels online, and two
   graphs (characters over 30 days, online over 24 hours) from this client's own history
   (`ns.rdb.censusHistory`).
 - **The sanitized census** is `Olympus/CensusClean.lua` (branch `claude/census-stats-section`):

@@ -272,6 +272,10 @@ local function Changed(on)
 		if C.JoinSoon then ns.SafeCall("accord channel", C.JoinSoon, math.huge) end
 		if C.RequestKey then ns.SafeCall("accord key", C.RequestKey) end
 		if C.Hello then ns.SafeCall("accord hello", C.Hello, true) end
+		-- (1.4.0) The login's ask for the army's guilds (Data.AskGlobalCensus, 20 s after INIT) was
+		-- refused while the Accord waited: a member now, ask again once the channel is joined.
+		local D = ns.Data
+		if D and D.AskGlobalCensus and ns.After then ns.After(30, "accord census", function() ns.SafeCall("accord census", D.AskGlobalCensus) end) end
 	end
 	-- The login's own asks that waited for a member and found none (the letter shows LOGIN_WAIT
 	-- after login, after most of them): the guild's newer realm key (Keys, K5), the War page's

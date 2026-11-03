@@ -149,8 +149,11 @@ channels; the same charter and Join controls work for each side.
   characters their players linked as alts counted once (see Alt links, below).
 - **The census in numbers**: a click on the header's count (from any tab) opens a page of its own
   in the Census tab: characters, people, linked alts, online now, the guilds counted (and how many
-  report right now), the army's average level (each guild's, weighted by its size), the five
-  largest guilds against the game's 1,000 cap and the levels online. Two small graphs show how the
+  report right now), the army's average level (each guild's, weighted by its size), every server
+  (1.4.0: the characters and people of all of them, by ruleset, by region and by faction, then each
+  server, yours first; another server's numbers arrive through players who also play there, counted
+  when it is what you saw yourself, when two players agree or when a moderator says it, and listed
+  grey otherwise; the beta's realms never count) and the levels online. Two small graphs show how the
   counts moved: the characters over the last 30 days (each day's highest) and who was online over
   the last 24 hours (each hour's most); hover a day or an hour for its numbers. Your own addon
   writes the census down every 15 minutes while you play, about 3 minutes after login once the
@@ -2471,6 +2474,8 @@ alone (the Companion's rows below). Your name is on every message (the game adds
 | Your guild's census: size, online count, classes, levels, rank names, the leader and officers (name, online, days away, class, level), addon versions | everyone on the Olympus channel | from one elected member per guild (and a runner-up), every few minutes |
 | The census names people: your guild's leader and officers (above) and its five highest-level members (name, level and class), online or not, with the addon or not; the Realm's level race shows them | everyone on the Olympus channel | in every census report of your guild, from the member it elects: nobody named is asked |
 | Zones in that census: members per zone (numbers only), a leader's or officer's zone | everyone on the Olympus channel | only if the member sending it shares their zone and layer; a leader's or officer's zone only if they share theirs too |
+| The army's guild counts, repeated (1.4.0): each Olympus guild's name, size, online count, average level and when it was seen, as your client holds them | everyone on the Olympus channel | only when a client that holds less asks and no moderator or two other players answered first, at most every 3 minutes; never in quiet presence. Kept: another player's row a day (as one witness), a row two players agree on a week |
+| Other servers' totals (1.4.0): for each realm group you played (or that two players or a moderator told you of), its characters, people, number of guilds and when they were seen; never your current server's, never the beta's on a launch realm | everyone on the Olympus channel | after login and about every half hour, only what is newer than what was said lately. Kept a week in your saved variables (account-wide) |
 | Your zone, layer, guild rank and guild (layer announcements) | everyone on the Olympus channel | only if you share: officers and one member in eight announce, every 10 minutes and when their layer changes |
 | A layer hop ask: the zone you are in and the layer you want; or a King-layer discovery question: the map and current crown lease, but no claimed destination layer | everyone on the Olympus channel | when you ask to hop or explicitly click the King's unknown-layer line |
 | An answer to an ask for your layer (it tells the asker you are on it), including a direct sighting when an active asker is discovering the King's layer | the asker alone (a whisper; a direct sighting is never broadcast by itself) | only if you share your zone and layer and said yes to layer help (1.1: off until you answer, on the first-open page or with `/oly layerhelp on`; `/oly layerhelp off` stops it); direct sightings require two independent answers, last only for that request and are withdrawn on opt-out while it remains active |

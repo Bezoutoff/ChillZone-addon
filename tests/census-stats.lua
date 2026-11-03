@@ -182,7 +182,7 @@ local function Find(lines, text)
 	for i, line in ipairs(lines) do if Bare(line.text) == text then return line, i end end
 end
 
-test("census page: characters, people, linked alts, online, guilds counted, the weighted average level, the largest guilds against the cap and the levels online", function()
+test("census page: characters, people, linked alts, online, guilds counted, the weighted average level, every server (1.4.0, no largest guilds) and the levels online", function()
 	WithCensus({
 		["Olympus"] = Report(900, { online = 200, avgLevel = 40, levels = { 10, 20, 30, 40, 50, 30, 20 } }),
 		["Olympus II"] = Report(300, { online = 50, avgLevel = 60, levels = { 0, 0, 0, 0, 10, 20, 20 } }),
@@ -207,15 +207,10 @@ test("census page: characters, people, linked alts, online, guilds counted, the 
 		local tip = {}
 		Find(lines, L.CENSUS_STATS_PEOPLE).tooltip({ AddLine = function(_, s) tip[#tip + 1] = s end })
 		eq(tip[2], L.CENSUS_STATS_PEOPLE_TIP)
-		-- The largest guilds, each a meter of the game's 1,000 cap, an old report grey.
-		local largest, at = Find(lines, L.CENSUS_STATS_LARGEST)
-		eq(largest.header, true)
-		eq(Bare(lines[at + 1].text), "Olympus"); eq(Bare(lines[at + 1].right), "900 " .. L.CENSUS_STATS_OF_CAP:format("1,000"))
-		eq(lines[at + 1].meter.value, 900); eq(lines[at + 1].meter.total, ns.Codec.GUILD_CAP)
-		eq(lines[at + 3].text, V.Grey("Olympus III"), "an old report: grey")
-		tip = {}
-		lines[at + 1].tooltip({ AddLine = function(_, s) tip[#tip + 1] = s end, AddDoubleLine = function(_, a, b) tip[#tip + 1] = a .. "=" .. b end })
-		eq(tip[#tip], L.CENSUS_STATS_SHARE:format("69"), "900 of 1,300 characters")
+		-- 1.4.0 (the author, 11-03: "Guilda com mais jogadores... sempre vai ser as guildas com 1000...
+		-- aquela lista não faz sentido"): no largest guilds; every server in their place, ours counted live.
+		eq(Find(lines, "Largest guilds"), nil, "the largest guilds are gone")
+		-- (Every server: its own test below, with a realm group known.)
 		-- The levels online, the highest band first, from the guilds reporting now.
 		local _, lv = Find(lines, L.CENSUS_STATS_LEVELS)
 		assert(lv, "levels online")
@@ -229,46 +224,57 @@ test("census page: characters, people, linked alts, online, guilds counted, the 
 	end)
 end)
 
--- Regression: the largest guilds were the first five in the default order, which puts every guild
--- reporting now ahead of the rest. A guild still counted (a report within the day) but not reporting
--- now (its reporters logged off) fell behind smaller ones and out of the five, however large it was.
-test("census page: the largest guilds by their size, a large guild not reporting now still among them (grey); ties: the exact <OLYMPUS>, the average level, the name", function()
-	local old = os.time() - ns.Data.FRESH - 10 * 60
-	WithCensus({
-		["Olympus"] = Report(300, { online = 30 }),
-		["Olympus II"] = Report(200, { online = 20 }),
-		["Olympus III"] = Report(150, { online = 15 }),
-		["Olympus IV"] = Report(120, { online = 12 }),
-		["Olympus V"] = Report(110, { online = 11, avgLevel = 30 }),
-		["Olympus VI"] = Report(950, { online = 0, t = old }),
-		["Olympus VII"] = Report(110, { online = 0, avgLevel = 50, t = old }),
-	}, 0, function()
-		local w = World({ realData = true, clock = os.time() })
-		local lines = w.CS.Build()
-		local _, at = Find(lines, L.CENSUS_STATS_LARGEST)
-		local names = {}
-		for i = at + 1, at + w.CS.TOP_GUILDS do names[#names + 1] = Bare(lines[i].text) end
-		eq(table.concat(names, " | "), "Olympus VI | Olympus | Olympus II | Olympus III | Olympus IV")
-		eq(lines[at + 1].text, V.Grey("Olympus VI"), "not reporting now: grey, still the largest")
-		eq(lines[at + 1].meter.value, 950)
-		eq(lines[at + 2].text, "Olympus", "reporting now: plain")
-		eq(Bare(lines[at + w.CS.TOP_GUILDS + 1].text), L.CENSUS_STATS_MORE_GUILDS:format(2))
+-- 1.4.0 (the author, 11-03): every server on the page: "os números totais, tipo todas as pessoas
+-- que estão jogando PVP e PVE ... quantas tem nesse servidor, quantas tem nesse. E, tipo, Europa, e
+-- América do Norte"; "os números do beta não devem ser utilizados".
+test("census page (1.4.0): every server: the totals, by ruleset and by region, each server with ours first; a lone report grey and out of the totals; the beta's never on a launch realm", function()
+	local saved = { group = ns.group, info = ns.RealmInfo, counted = ns.db.groupCensus, heard = ns.db.groupHeard, faction = ns.faction }
+	local ok, err = pcall(function()
+		WithCensus({ ["Olympus"] = Report(900, { online = 200 }) }, 0, function()
+			local now = os.time()
+			ns.group, ns.faction = "Normalone+Normaltwo", "Alliance"
+			ns.RealmInfo = function(realm)
+				return ({ Normalone = { kind = "pve", region = "NA" }, Pvpone = { kind = "pvp", region = "NA" },
+					Euro = { kind = "pvp", region = "EU" } })[realm]
+			end
+			ns.db.groupCensus = {
+				["Alliance|Pvpone"] = { group = "Pvpone", faction = "Alliance", characters = 3000, people = 2500, guilds = 4, observed = now - 3600, src = "own" },
+				["Alliance|Euro"] = { group = "Euro", faction = "Alliance", characters = 600, people = 500, guilds = 2, observed = now - 7200, src = "witnessed", w = 2 },
+				["Alliance|ClassicBetaPvP+ClassicBetaPvP2"] = { group = "ClassicBetaPvP+ClassicBetaPvP2", faction = "Alliance", characters = 80000, people = 70000, guilds = 120, observed = now - 3600, src = "own" },
+			}
+			ns.db.groupHeard = {
+				["Alliance|Lonely"] = { group = "Lonely", faction = "Alliance", characters = 9999, people = 9000, guilds = 9, observed = now - 600, src = "heard", w = 1 },
+			}
+			local w = World({ realData = true, clock = now })
+			local lines = w.CS.Build()
+			eq(Bare(Find(lines, L.CENSUS_STATS_ALL_CHARACTERS).right), "4,500", "900 here + 3,000 PvP + 600 EU; the beta and the lone report out")
+			eq(Bare(Find(lines, L.CENSUS_STATS_ALL_PEOPLE).right), "~3,900")
+			local _, kinds = Find(lines, L.CENSUS_STATS_BY_KIND)
+			assert(kinds, "by ruleset")
+			eq(Bare(lines[kinds + 1].text), L.CENSUS_STATS_KIND_PVP); eq(Bare(lines[kinds + 1].right), "3,600 80%")
+			eq(Bare(lines[kinds + 2].text), L.CENSUS_STATS_KIND_PVE); eq(Bare(lines[kinds + 2].right), "900 20%")
+			local _, regions = Find(lines, L.CENSUS_STATS_BY_REGION)
+			eq(Bare(lines[regions + 1].text), L.CENSUS_STATS_REGION_NA); eq(Bare(lines[regions + 1].right), "3,900 87%")
+			eq(Bare(lines[regions + 2].text), L.CENSUS_STATS_REGION_EU); eq(Bare(lines[regions + 2].right), "600 13%")
+			eq(Find(lines, L.CENSUS_STATS_KIND_WAIT), nil, "every server's kind is known")
+			local _, each = Find(lines, L.CENSUS_STATS_EACH_SERVER)
+			assert(Bare(lines[each + 1].text):find("Normalone + Normaltwo", 1, true), "ours first")
+			assert(Bare(lines[each + 1].text):find(L.CENSUS_STATS_HERE, 1, true))
+			eq(Bare(lines[each + 1].right), "900")
+			assert(Bare(lines[each + 2].text):find("Pvpone", 1, true)); eq(Bare(lines[each + 2].right), "3,000")
+			assert(Bare(lines[each + 3].text):find("Euro", 1, true))
+			eq(lines[each + 4].text, V.Grey("Lonely"), "a lone report: grey"); eq(lines[each + 4].right, V.Grey("9,999"))
+			eq(lines[each + 5], nil, "the beta's realms: not listed on a launch realm")
+			for _, line in ipairs(lines) do assert(not tostring(line.text):find("ClassicBeta", 1, true), "no beta anywhere") end
+			-- No realm table yet: the rulesets and regions wait for it.
+			ns.RealmInfo = nil
+			lines = World({ realData = true, clock = now }).CS.Build()
+			assert(Find(lines, L.CENSUS_STATS_KIND_WAIT), "the page says they will come")
+			eq(Find(lines, L.CENSUS_STATS_BY_KIND), nil)
+		end)
 	end)
-	-- A tie at the same size: the exact <OLYMPUS> first, then the higher average level, then the name,
-	-- whether reporting now or not.
-	WithCensus({
-		["Olympus Reborn"] = Report(400, { online = 40, avgLevel = 20 }),
-		["Olympus Rising"] = Report(400, { online = 0, avgLevel = 55, t = old }),
-		["OLYMPUS"] = Report(400, { online = 0, avgLevel = 10, t = old }),
-		["Olympus Alpha"] = Report(400, { online = 40, avgLevel = 20 }),
-	}, 0, function()
-		local w = World({ realData = true, clock = os.time() })
-		local lines = w.CS.Build()
-		local _, at = Find(lines, L.CENSUS_STATS_LARGEST)
-		local names = {}
-		for i = at + 1, at + 4 do names[#names + 1] = Bare(lines[i].text) end
-		eq(table.concat(names, " | "), "OLYMPUS | Olympus Rising | Olympus Alpha | Olympus Reborn")
-	end)
+	ns.group, ns.RealmInfo, ns.db.groupCensus, ns.db.groupHeard, ns.faction = saved.group, saved.info, saved.counted, saved.heard, saved.faction
+	if not ok then error(err, 0) end
 end)
 
 test("census page: the graphs: 30 days of characters, the scale's ends written on its left, today last and brighter; 24 hours of online from 0; each slot its own tooltip", function()
@@ -503,7 +509,9 @@ test("census page: every line in English and Portuguese, the Portuguese its own"
 	local en = {}
 	en.L = setmetatable({}, { __index = function(_, k) return k end })
 	assert(loadfile(ROOT .. "Olympus/Locales/CensusStatsText.lua"))("Olympus", en)
-	local same = { CENSUS_STATS_TIME_FORMAT = true, CENSUS_STATS_WHEN = true, CENSUS_STATS_OF_CAP = true }
+	-- (1.4.0: the ~ of an estimate and the rulesets' names are the same words in both.)
+	local same = { CENSUS_STATS_TIME_FORMAT = true, CENSUS_STATS_WHEN = true, CENSUS_STATS_APPROX = true,
+		CENSUS_STATS_KIND_PVP = true, CENSUS_STATS_KIND_PVE = true, CENSUS_STATS_KIND_RPPVP = true, CENSUS_STATS_KIND_RP = true, CENSUS_STATS_KIND_HARDCORE = true }
 	local n = 0
 	for key, text in pairs(en.L) do
 		n = n + 1

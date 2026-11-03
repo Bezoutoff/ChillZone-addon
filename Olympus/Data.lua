@@ -156,7 +156,15 @@ local function DropDeadVotes(now)
 		end
 	end
 end
-ns.On("LOGIN", function() ns.RegisterEvent("PLAYER_LOGOUT", function() DropDeadVotes(ns.Now()) end) end)
+ns.On("LOGIN", function() ns.RegisterEvent("PLAYER_LOGOUT", function()
+	DropDeadVotes(ns.Now())
+	-- (1.4.0) Our own look at this realm group, kept for the next group this account logs into
+	-- (Data.RecordGroupCensus), once the census was rebuilt after login: never a half-heard count.
+	local now, at = ns.Now(), ns.Comm and ns.Comm.loginAt
+	if Data.RecordGroupCensus and at and now - at >= Data.CROWN_AFTER and not (Data.Rebuilding and Data.Rebuilding(now)) then
+		ns.SafeCall("census group at logout", Data.RecordGroupCensus)
+	end
+end) end)
 
 ns.On("INIT", function()
 	local now = ns.Now()
@@ -859,14 +867,33 @@ end
 -- Council may retain and repeat these normalized rows; the original observation time travels
 -- with each row, so a relay cannot make old information fresh.
 Data.GLOBAL_PROTOCOL = 1
--- Every client asks once after login, then only occasionally. A six-hour refresh is enough for
--- anti-entropy without turning a large installation into a continuous query stream; trusted
--- relays still answer a fresh client immediately.
-Data.GLOBAL_ASK_EVERY = 6 * 60 * 60
+-- 1.4.0 (the author, 11-03: "garantir que a contagem das pessoas vai ser correta, vai retransmitir
+-- e não vai ficar com as pessoas com números mais baixos do que outras... se múltiplas pessoas me
+-- mandam números com os mesmos dados, eu vou confiar"): every client asks after login, again once
+-- more of the army is on, then every half hour. An ask carries what its client already holds (how
+-- many guilds, its newest observation), so a holder that has nothing newer stays silent and the
+-- asks cost a few bytes each.
+Data.GLOBAL_ASK_EVERY = 30 * 60
+Data.GLOBAL_ASK_AGAIN = 3 * 60
 Data.GLOBAL_ANSWER_GAP = 3 * 60
 Data.GLOBAL_MAX_BYTES = ns.Codec.CHUNK * ns.Codec.MAX_CHUNKS
 Data.GLOBAL_MAX_ROWS = 180
+-- 1.4.0, the witnesses (the author's rule of 10-20: one person is one witness; a count is confirmed
+-- by a moderator alone, or by two or more people agreeing: observed within half an hour of each
+-- other, sizes within max(5, 5%)). A trusted relay's row (above) stands alone; any other member's
+-- row is a witness, kept a day, and a guild's row is taken when two people's agree. Our own direct
+-- row of that guild (its reporter heard here) is one of the two.
+Data.WITNESS_WINDOW = 30 * 60
+Data.WITNESS_SLACK, Data.WITNESS_SHARE = 5, 0.05
+Data.WITNESS_KEEP = 24 * 60 * 60
+Data.WITNESS_MAX = 8
+-- Who answers an ask: a trusted relay after 2-9 s, as before; any other member later, after
+-- MEMBER_ANSWER_AFTER + up to MEMBER_ANSWER_SPREAD s, unless MEMBER_ANSWERS answers (or a trusted
+-- one) were already heard since the ask. Each answer is announced first by a one-piece claim
+-- ("CG~1~C~t"), which reaches everyone long before a snapshot of many pieces, so the rest hold back.
+Data.MEMBER_ANSWER_AFTER, Data.MEMBER_ANSWER_SPREAD, Data.MEMBER_ANSWERS = 12, 60, 2
 local globalLastSent, globalLastHeard, globalAnswerPending = 0, 0, false
+local answersHeard = {} -- { t, trusted } of the claims and snapshots heard, the last few minutes
 
 local function GlobalStore()
 	ns.rdb.censusGlobal = type(ns.rdb.censusGlobal) == "table" and ns.rdb.censusGlobal or {}
@@ -888,21 +915,122 @@ end
 local function GlobalTrusted(name)
 	return ns.Church and ns.Church.IsLedgerRelay and ns.Church.IsLedgerRelay(name) == true
 end
-local function GlobalTake(name, total, online, avg10, observed, by, heardAt)
+-- 1.4.0: a member who may answer an ask with what it holds (any member; trust is the receiver's).
+local function GlobalMember()
+	if ns.QuietPresence and ns.QuietPresence() then return false end
+	return type(ns.IsMember) ~= "function" or ns.IsMember() == true
+end
+-- A row as the wire carries it, checked: { name, total, online, avg10, observed } or nil.
+local function GlobalRow(name, total, online, avg10, observed)
 	name = GlobalGuildField(name)
 	total = GlobalNumber(total, 0, ns.Codec.GUILD_CAP)
 	online = GlobalNumber(online, 0, ns.Codec.GUILD_CAP)
 	avg10 = GlobalNumber(avg10, 0, 600)
 	observed = GlobalNumber(observed, 1, 4102444800)
-	if not (name and total and online and avg10 and observed) or online > total then return false end
+	if not (name and total and online and avg10 and observed) or online > total then return nil end
 	local now = ns.Now()
-	if observed > now + 5 * 60 or now - observed > Data.KEEP then return false end
-	local store, key = GlobalStore(), name:lower()
+	if observed > now + 5 * 60 or now - observed > Data.KEEP then return nil end
+	return { name = name, total = total, online = online, avg10 = avg10, observed = observed }
+end
+local function GlobalTake(name, total, online, avg10, observed, by, heardAt, witnesses)
+	local row = GlobalRow(name, total, online, avg10, observed)
+	if not row then return false end
+	local now = ns.Now()
+	local store, key = GlobalStore(), row.name:lower()
 	local old = store[key]
-	if type(old) == "table" and (tonumber(old.observed) or 0) > observed then return false end
-	store[key] = { name = name, total = total, online = online, avg10 = avg10,
-		observed = observed, by = ns.FullName(by), heard = heardAt or now }
-	return old == nil or old.total ~= total or old.online ~= online or old.avg10 ~= avg10 or old.observed ~= observed
+	if type(old) == "table" and (tonumber(old.observed) or 0) > row.observed then return false end
+	store[key] = { name = row.name, total = row.total, online = row.online, avg10 = row.avg10,
+		observed = row.observed, by = ns.FullName(by), heard = heardAt or now, w = witnesses }
+	return old == nil or old.total ~= row.total or old.online ~= row.online or old.avg10 ~= row.avg10 or old.observed ~= row.observed
+end
+
+-- 1.4.0, the witnesses (see Data.WITNESS_WINDOW above). ns.rdb.censusWitness[guild lower] =
+-- { [person] = { name, total, online, avg10, observed, heard, by } }: the last row each person sent
+-- for that guild. A person is his confirmed alt group's main (Alts.Group), else his name, so one
+-- player's characters are one witness.
+local function Witnesses()
+	ns.rdb.censusWitness = type(ns.rdb.censusWitness) == "table" and ns.rdb.censusWitness or {}
+	return ns.rdb.censusWitness
+end
+local function PersonKey(name)
+	local full = ns.FullName(name)
+	local A = ns.Alts
+	local g = A and A.Group and full and A.Group(full)
+	if type(g) == "table" and type(g.main) == "string" then return "p:" .. ns.FullName(g.main):lower() end
+	return full and full:lower() or nil
+end
+-- Two rows agree: observed within the window of each other, sizes within max(5, 5%).
+function Data.WitnessesAgree(a, b)
+	if type(a) ~= "table" or type(b) ~= "table" then return false end
+	if math.abs((a.observed or 0) - (b.observed or 0)) > Data.WITNESS_WINDOW then return false end
+	local big = math.max(a.total or 0, b.total or 0)
+	return math.abs((a.total or 0) - (b.total or 0)) <= math.max(Data.WITNESS_SLACK, Data.WITNESS_SHARE * big)
+end
+-- The direct row this client holds for a guild (its reporter heard here), as a witness, or nil.
+local function OwnWitness(key)
+	for name, g in pairs(ns.rdb.guilds or {}) do
+		if name:lower() == key and type(g) == "table" then
+			return GlobalRow(name, math.min(tonumber(g.total) or 0, ns.Codec.GUILD_CAP), math.min(tonumber(g.online) or 0, ns.Codec.GUILD_CAP),
+				Data.AvgTenths(g) or 0, ObservationTime(g))
+		end
+	end
+	return nil
+end
+-- A member's row heard: kept as his witness; when two people's rows of the guild agree, the newer of
+-- the agreeing pair is taken (true when the shown row changed). Older witnesses and the excess go.
+local function TakeWitness(row, sender, now)
+	local who = PersonKey(sender)
+	if not who then return false end
+	local all, key = Witnesses(), row.name:lower()
+	local list = type(all[key]) == "table" and all[key] or {}
+	all[key] = list
+	list[who] = { name = row.name, total = row.total, online = row.online, avg10 = row.avg10,
+		observed = row.observed, heard = now, by = ns.FullName(sender) }
+	local entries = {}
+	for person, e in pairs(list) do
+		if type(e) ~= "table" or now - (tonumber(e.heard) or 0) > Data.WITNESS_KEEP or now - (tonumber(e.observed) or 0) > Data.KEEP then
+			list[person] = nil
+		else
+			entries[#entries + 1] = { person = person, e = e }
+		end
+	end
+	if #entries > Data.WITNESS_MAX then
+		table.sort(entries, function(a, b)
+			if a.e.observed ~= b.e.observed then return a.e.observed > b.e.observed end
+			return a.person < b.person
+		end)
+		for i = #entries, Data.WITNESS_MAX + 1, -1 do list[entries[i].person] = nil; entries[i] = nil end
+	end
+	local own = OwnWitness(key)
+	if own then entries[#entries + 1] = { person = "\001self", e = own } end
+	-- The row taken from the agreeing pairs: the newest observation; at the same time the larger
+	-- size, then the more online. The same witnesses give every client the same row, whatever order
+	-- they arrived in.
+	local function Later(a, b)
+		if a.observed ~= b.observed then return a.observed > b.observed end
+		if a.total ~= b.total then return a.total > b.total end
+		return a.online > b.online
+	end
+	local best
+	for i = 1, #entries do
+		for j = i + 1, #entries do
+			local a, b = entries[i].e, entries[j].e
+			if Data.WitnessesAgree(a, b) then
+				local newer = Later(b, a) and b or a
+				if not best or Later(newer, best) then best = newer end
+			end
+		end
+	end
+	if not best or best == own then return false end
+	return GlobalTake(best.name, best.total, best.online, best.avg10, best.observed, best.by, now, 2)
+end
+
+-- The witnesses a guild's shown relayed row stands on (Census tooltips, /oly status): 2 for a row
+-- two people agreed on, 1 for a trusted relay's own, nil for none.
+function Data.GlobalWitnesses(name)
+	local e = type(name) == "string" and GlobalStore()[name:lower()]
+	if type(e) ~= "table" then return nil end
+	return tonumber(e.w) or 1
 end
 
 function Data.CaptureGlobalCensus()
@@ -932,14 +1060,58 @@ local function GlobalRows()
 	return rows
 end
 
+-- 1.4.0: the rows this client would send. A trusted relay's store (its own direct rows captured
+-- into it, as before); a member's own direct rows with the confirmed rows it holds, the newer of
+-- each guild's two. The freshest first.
+local function SendableRows()
+	if GlobalTrusted(ns.me) then
+		Data.CaptureGlobalCensus()
+		return GlobalRows()
+	end
+	local byKey, now = {}, ns.Now()
+	for _, e in ipairs(GlobalRows()) do byKey[e.name:lower()] = e end
+	for name, g in pairs(ns.rdb.guilds or {}) do
+		if type(g) == "table" then
+			local observed = ObservationTime(g)
+			local row = now - observed <= Data.KEEP and GlobalRow(name, math.min(tonumber(g.total) or 0, ns.Codec.GUILD_CAP),
+				math.min(tonumber(g.online) or 0, ns.Codec.GUILD_CAP), Data.AvgTenths(g) or 0, observed) or nil
+			local key = row and row.name:lower()
+			if row and (not byKey[key] or byKey[key].observed < row.observed) then byKey[key] = row end
+		end
+	end
+	local rows = {}
+	for _, e in pairs(byKey) do rows[#rows + 1] = e end
+	table.sort(rows, function(a, b)
+		if a.observed ~= b.observed then return a.observed > b.observed end
+		return a.name < b.name
+	end)
+	return rows
+end
+
+-- What this client holds, for its asks: the guilds it could count (within TOTAL_KEEP) and its
+-- newest observation of any of them.
+function Data.GlobalDigest()
+	local seen, n, newest, now = {}, 0, 0, ns.Now()
+	local function Add(name, observed)
+		if type(name) ~= "string" or now - observed > Data.TOTAL_KEEP then return end
+		local key = name:lower()
+		if not seen[key] then seen[key], n = true, n + 1 end
+		if observed > newest then newest = observed end
+	end
+	for _, e in ipairs(GlobalRows()) do Add(e.name, e.observed) end
+	for name, g in pairs(ns.rdb.guilds or {}) do
+		if type(g) == "table" then Add(name, ObservationTime(g)) end
+	end
+	return n, newest
+end
+
 -- One bounded chunked snapshot.  The freshest rows win the bound; with the current army the
 -- complete snapshot is well below it.  A later ask repeats it, so queue pressure loses no state.
 function Data.GlobalCensusPayload()
-	if not GlobalTrusted(ns.me) then return nil end
-	Data.CaptureGlobalCensus()
+	if not GlobalTrusted(ns.me) and not GlobalMember() then return nil end
 	local head, out = ("CG~%d~S~%d~"):format(Data.GLOBAL_PROTOCOL, math.floor(ns.Now())), {}
 	local bytes = #head
-	for _, e in ipairs(GlobalRows()) do
+	for _, e in ipairs(SendableRows()) do
 		if #out >= Data.GLOBAL_MAX_ROWS then break end
 		local row = ("%s,%d,%d,%d,%d"):format(e.name, e.total, e.online, e.avg10, e.observed)
 		local extra = #row + (#out > 0 and 1 or 0)
@@ -952,61 +1124,129 @@ end
 function Data.SendGlobalCensus()
 	-- Quiet presence (Core.lua): no snapshot of ours, which would name us as its sender online.
 	if ns.QuietPresence and ns.QuietPresence() then return false end
+	local trusted = GlobalTrusted(ns.me)
+	if not trusted and not GlobalMember() then return false end
 	local payload = Data.GlobalCensusPayload()
 	if not payload or payload:sub(-1) == "~" then return false end
+	-- 1.4.0: a member's answer is announced first by a one-piece claim, which reaches the channel
+	-- long before the snapshot's pieces do, so the other members asked hold back (MEMBER_ANSWERS).
+	if not trusted then
+		ns.Comm.Send("CHANNEL", ("CG~%d~C~%d"):format(Data.GLOBAL_PROTOCOL, math.floor(ns.Now())), "census-global-claim")
+	end
 	-- A keyed job carries its permit, which the transport asks before each piece goes out
 	-- (Comm.lua's NormalizeOptions refuses a key without one, and the snapshot then never left):
-	-- the channel's lane alone, and only while this client still holds the relay's trust.
+	-- the channel's lane alone, and only while this client still holds what it sent as (a trusted
+	-- relay's trust, or a member's membership).
 	local key = "census-global"
 	local ok = ns.Comm.SendChunked(payload, false, "CHANNEL", nil, { owner = Data, key = key,
 		permit = function(_, guardKey, dist, target)
 			if guardKey ~= key or dist ~= "CHANNEL" or target ~= nil then return false, "lane" end
-			if not GlobalTrusted(ns.me) then return false, "trust" end
+			if trusted and not GlobalTrusted(ns.me) then return false, "trust" end
+			if not trusted and not GlobalMember() then return false, "member" end
 			return true
 		end })
 	if ok then globalLastSent = ns.Now() end
 	return ok
 end
 
--- Public for the focused harness.  The server-stamped sender is the trust boundary; the rows
--- themselves are never mistaken for signed census authority.
+-- The answers (claims and snapshots) heard lately, and how many came since a time.
+local function HeardAnswer(now, trusted)
+	answersHeard[#answersHeard + 1] = { t = now, trusted = trusted == true }
+	local keep = {}
+	for _, a in ipairs(answersHeard) do
+		if now - a.t <= 10 * 60 then keep[#keep + 1] = a end
+	end
+	while #keep > 32 do table.remove(keep, 1) end
+	answersHeard = keep
+end
+local function AnswersSince(t)
+	local n, trusted = 0, false
+	for _, a in ipairs(answersHeard) do
+		if a.t >= t then n, trusted = n + 1, trusted or a.trusted end
+	end
+	return n, trusted
+end
+-- An asker behind this client: it holds fewer guilds, or its newest observation is older than ours
+-- by more than FRESH. An ask of 1.3.3 says nothing of what it holds: answered as before.
+local function Behind(n, newest)
+	if not n then return true end
+	local mine, mineNewest = Data.GlobalDigest()
+	return mine > n or mineNewest > (newest or 0) + Data.FRESH
+end
+local function AnswerAsk(body, now)
+	local trusted = GlobalTrusted(ns.me)
+	if not trusted and not GlobalMember() then return true end
+	if now - globalLastSent < Data.GLOBAL_ANSWER_GAP or globalAnswerPending then return true end
+	local n, newest = tostring(body or ""):match("^(%d+)~(%d+)$")
+	if not Behind(tonumber(n), tonumber(newest)) then return true end
+	globalAnswerPending = true
+	local heardAt = globalLastHeard
+	local delay = trusted and math.random(2, 9) or (Data.MEMBER_ANSWER_AFTER + math.random(0, Data.MEMBER_ANSWER_SPREAD))
+	ns.After(delay, "global census answer", function()
+		globalAnswerPending = false
+		if ns.Now() - globalLastSent < Data.GLOBAL_ANSWER_GAP then return end
+		if GlobalTrusted(ns.me) then
+			if globalLastHeard <= heardAt then Data.SendGlobalCensus() end
+			return
+		end
+		local count, byTrusted = AnswersSince(now)
+		if byTrusted or count >= Data.MEMBER_ANSWERS then return end
+		if GlobalMember() then Data.SendGlobalCensus() end
+	end)
+	return true
+end
+
+-- Public for the focused harness.  The server-stamped sender is the trust boundary: a trusted
+-- relay's rows are taken as they come; any other member's are witnesses (TakeWitness), taken when
+-- two people agree. The rows themselves are never mistaken for signed census authority.
 function Data.ReceiveGlobalCensus(dist, sender, text)
 	if dist ~= "CHANNEL" or type(text) ~= "string" or type(sender) ~= "string"
 		or sender == "" or #sender > 100 or sender:find("[%c~]") then return false end
-	local ver, kind, made, body = text:match("^CG~(%d+)~([SQ])~(%d*)~?(.*)$")
+	local ver, kind, made, body = text:match("^CG~(%d+)~([SQC])~(%d*)~?(.*)$")
 	if tonumber(ver) ~= Data.GLOBAL_PROTOCOL then return false end
+	local now = ns.Now()
+	local self = type(ns.me) == "string" and ns.FullName(sender) == ns.FullName(ns.me)
+	if kind == "C" then
+		-- A member's claim: its snapshot follows. It counts as an answer heard (AnswerAsk).
+		if not self then HeardAnswer(now, GlobalTrusted(sender)) end
+		return true
+	end
 	if kind == "Q" then
 		-- A query grants no authority and the answer is broadcast to the channel.  Requiring
 		-- the requester itself to be a keeper made anti-entropy useless for the ordinary late
 		-- client it was designed to heal.  Only snapshot senders need the trusted-relay gate.
-		if not GlobalTrusted(ns.me) or ns.Now() - globalLastSent < Data.GLOBAL_ANSWER_GAP or globalAnswerPending then return true end
-		globalAnswerPending = true
-		local heardAt = globalLastHeard
-		ns.After(math.random(2, 9), "global census answer", function()
-			globalAnswerPending = false
-			if GlobalTrusted(ns.me) and globalLastHeard <= heardAt and ns.Now() - globalLastSent >= Data.GLOBAL_ANSWER_GAP then Data.SendGlobalCensus() end
-		end)
-		return true
+		if self then return true end
+		return AnswerAsk(body, now)
 	end
-	if not GlobalTrusted(sender) then return false end
+	if self then return true end
+	local trusted = GlobalTrusted(sender)
 	local snapshotAt = GlobalNumber(made, 1, 4102444800)
-	if not snapshotAt or snapshotAt > ns.Now() + 5 * 60 or ns.Now() - snapshotAt > Data.KEEP then return false end
-	local changed, count = false, 0
+	if not snapshotAt or snapshotAt > now + 5 * 60 or now - snapshotAt > Data.KEEP then return false end
+	local changed, count, bad = false, 0, false
 	for row in tostring(body):gmatch("[^;]+") do
-		if count >= Data.GLOBAL_MAX_ROWS then return false end
+		if count >= Data.GLOBAL_MAX_ROWS then bad = true; break end
 		local name, total, online, avg10, observed = row:match("^([^,]+),(%d+),(%d+),(%d+),(%d+)$")
-		if not name then return false end
+		if not name then bad = true; break end
 		count = count + 1
-		if GlobalTake(name, total, online, avg10, observed, sender, ns.Now()) then changed = true end
+		if trusted then
+			if GlobalTake(name, total, online, avg10, observed, sender, now) then changed = true end
+		else
+			local r = GlobalRow(name, total, online, avg10, observed)
+			if r and TakeWitness(r, sender, now) then changed = true end
+		end
 	end
-	if count == 0 then return false end
-	globalLastHeard = ns.Now()
+	-- (1.4.0: the rows taken before a malformed one stay, and now say so.)
 	if changed then Data.ChangedSoon() end
+	if bad or count == 0 then return false end
+	globalLastHeard = now
+	HeardAnswer(now, trusted)
 	return true
 end
 
+-- The ask, with what this client holds (Data.GlobalDigest): a holder with nothing newer stays quiet.
 function Data.AskGlobalCensus()
-	return ns.Comm.Send("CHANNEL", ("CG~%d~Q~%d"):format(Data.GLOBAL_PROTOCOL, math.floor(ns.Now())), "census-global-ask")
+	local n, newest = Data.GlobalDigest()
+	return ns.Comm.Send("CHANNEL", ("CG~%d~Q~%d~%d~%d"):format(Data.GLOBAL_PROTOCOL, math.floor(ns.Now()), n, newest), "census-global-ask")
 end
 
 local function SummaryGuilds()
@@ -1096,14 +1336,334 @@ function Data.Summary()
 	return s
 end
 
+---------------------------------------------------------------------------
+-- 1.4.0: every server's numbers (the author, 11-03: "o número principal ele vai contar do servidor
+-- que você tá, em cima, o número de personagens e o número de pessoas. Quando você clica, aí tem o
+-- número total de personagens, o número total de pessoas ... quantas pessoas estão no PVP, se a
+-- pessoa tiver no PVE, ou vice-versa ... todos os servidores ... Europa, e América do Norte ... os
+-- números do beta não devem ser utilizados").
+-- The game shows a client its own realm group alone. Another group's numbers reach it only through
+-- a player who was there: this account's own last look at each group it played (kept account-wide,
+-- ns.db.groupCensus, as the census it held there: Data.Summary), and what other players who were
+-- there say on our channel (CX). A trusted relay's word stands alone; anyone else's is a witness, and
+-- a group's numbers are taken when two people's agree (the author's rule of 10-20), with a window and
+-- a share wider than the guilds' (GROUP_WINDOW, GROUP_SHARE): they looked at different moments. A
+-- lone witness is listed grey and stays out of the totals. The beta's realm groups never count on a
+-- launch realm. A group's kind (PvP, PvE...) and region (NA, EU) come from the realm table the
+-- author signs (ns.RealmInfo); unknown, it is listed as such.
+---------------------------------------------------------------------------
+Data.GROUP_PROTOCOL = 1
+Data.GROUP_KEEP = 7 * 24 * 60 * 60  -- listed this long after it was seen
+Data.GROUP_COUNT = 48 * 60 * 60     -- counted in the totals this long after it was seen
+Data.GROUP_WINDOW = 2 * 60 * 60     -- two people's looks agree within this...
+Data.GROUP_SHARE = 0.10             -- ...and within max(WITNESS_SLACK, this share)
+Data.GROUP_MAX = 64                 -- groups kept per faction
+Data.GROUP_SAY_AFTER = 90           -- after login, and then every GROUP_SAY_EVERY (with a spread)
+Data.GROUP_SAY_EVERY = 30 * 60
+Data.GROUP_SAY_SPREAD = 5 * 60
+Data.GROUP_SAY_MAX = 24             -- rows in one word
+Data.BETA_REALMS = { ClassicBetaPvP = true, ClassicBetaPvP2 = true }
+local groupHeard = {}   -- [key] = the newest look at that group heard on our channel (this session)
+local groupWitness = {} -- [key] = { [person] = row }: the witnesses heard this session
+
+local function GroupStore(which)
+	local db = ns.db
+	if type(db) ~= "table" then return {} end
+	local name = which == "heard" and "groupHeard" or "groupCensus"
+	db[name] = type(db[name]) == "table" and db[name] or {}
+	return db[name]
+end
+local function GroupKey(faction, group) return faction .. "|" .. group end
+local function GroupField(group)
+	if type(group) ~= "string" or group == "" or #group > 160 or group:find("[|;~,%c]") then return nil end
+	return group
+end
+local function OurFaction() return ns.faction == "Horde" and "Horde" or "Alliance" end
+
+-- A group of the beta's realms.
+function Data.IsBetaGroup(group)
+	for realm in tostring(group or ""):gmatch("[^+]+") do
+		if Data.BETA_REALMS[realm] then return true end
+	end
+	return false
+end
+-- The kind ("pvp", "pve", "rp", "rppvp", "hardcore") and region ("NA", "EU") of a group, from the
+-- first of its realms the signed realm table names; nil, nil while none is known.
+function Data.GroupInfo(group)
+	local info = ns.RealmInfo
+	if type(info) ~= "function" then return nil, nil end
+	for realm in tostring(group or ""):gmatch("[^+]+") do
+		local ok, i = pcall(info, realm)
+		if ok and type(i) == "table" then return i.kind, i.region end
+	end
+	return nil, nil
+end
+
+-- A row as it is kept and sent, checked: { group, faction, characters, people, guilds, observed }.
+local function GroupRow(group, faction, characters, people, guilds, observed)
+	group = GroupField(group)
+	if faction ~= "Alliance" and faction ~= "Horde" then return nil end
+	characters = GlobalNumber(characters, 1, Data.MAX_GUILDS * ns.Codec.GUILD_CAP)
+	people = characters and GlobalNumber(people, 0, characters)
+	guilds = GlobalNumber(guilds, 0, Data.MAX_GUILDS)
+	observed = GlobalNumber(observed, 1, 4102444800)
+	if not (group and characters and people and guilds and observed) then return nil end
+	local now = ns.Now()
+	if observed > now + 5 * 60 or now - observed > Data.GROUP_KEEP then return nil end
+	return { group = group, faction = faction, characters = characters, people = people, guilds = guilds, observed = observed }
+end
+-- Whether a group's numbers belong on this client's page: never the beta's on a launch realm.
+local function Listed(group)
+	return not Data.IsBetaGroup(group) or Data.IsBetaGroup(ns.group)
+end
+
+local function PruneGroups(now)
+	for _, which in ipairs({ "counted", "heard" }) do
+		local store = GroupStore(which)
+		local per = {}
+		for key, e in pairs(store) do
+			if type(e) ~= "table" or not GroupRow(e.group, e.faction, e.characters, e.people, e.guilds, e.observed) then
+				store[key] = nil
+			else
+				per[e.faction] = per[e.faction] or {}
+				table.insert(per[e.faction], { key = key, observed = e.observed })
+			end
+		end
+		for _, list in pairs(per) do
+			if #list > Data.GROUP_MAX then
+				table.sort(list, function(a, b) return a.observed > b.observed end)
+				for i = Data.GROUP_MAX + 1, #list do store[list[i].key] = nil end
+			end
+		end
+	end
+end
+
+-- This client's own look at its realm group: the census it holds now (Data.Summary). Taken by the
+-- census page's sampler (CensusStats.Sample, every quarter-hour once the census is rebuilt) and at
+-- logout, so a player who goes to another group carries it there.
+function Data.RecordGroupCensus(s, now)
+	local group = GroupField(ns.group)
+	if not group then return false end
+	s, now = s or Data.Summary(), now or ns.Now()
+	local counted = 0
+	for _, e in ipairs(s.guilds or {}) do if e.counted then counted = counted + 1 end end
+	local row = GroupRow(group, OurFaction(), tonumber(s.characters or s.total) or 0, tonumber(s.total) or 0, counted, now)
+	if not row then return false end
+	row.src = "own"
+	GroupStore()[GroupKey(row.faction, row.group)] = row
+	GroupStore("heard")[GroupKey(row.faction, row.group)] = nil
+	PruneGroups(now)
+	return true
+end
+
+local function GroupAgree(a, b)
+	if math.abs(a.observed - b.observed) > Data.GROUP_WINDOW then return false end
+	local big = math.max(a.characters, b.characters)
+	return math.abs(a.characters - b.characters) <= math.max(Data.WITNESS_SLACK, Data.GROUP_SHARE * big)
+end
+local function GroupLater(a, b)
+	if a.observed ~= b.observed then return a.observed > b.observed end
+	if a.characters ~= b.characters then return a.characters > b.characters end
+	return a.people > b.people
+end
+-- Another group's row heard from `sender`: taken (true when what this client counts changed).
+local function TakeGroup(row, sender, trusted, now)
+	local key = GroupKey(row.faction, row.group)
+	if row.group == ns.group and row.faction == OurFaction() then return false end -- our own: we see it live
+	local store = GroupStore()
+	local held = store[key]
+	local function Keep(r, src, w)
+		if type(held) == "table" and (tonumber(held.observed) or 0) >= r.observed then return false end
+		store[key] = { group = r.group, faction = r.faction, characters = r.characters, people = r.people, guilds = r.guilds,
+			observed = r.observed, src = src, by = ns.FullName(sender), w = w }
+		local h = GroupStore("heard")[key]
+		if type(h) == "table" and (tonumber(h.observed) or 0) <= r.observed then GroupStore("heard")[key] = nil end
+		return true
+	end
+	if trusted then return Keep(row, "relay", 1) end
+	local who = PersonKey(sender)
+	if not who then return false end
+	local list = groupWitness[key] or {}
+	groupWitness[key] = list
+	list[who] = row
+	local entries = {}
+	for _, e in pairs(list) do entries[#entries + 1] = e end
+	if type(held) == "table" and held.src == "own" then entries[#entries + 1] = held end
+	local best
+	for i = 1, #entries do
+		for j = i + 1, #entries do
+			local a, b = entries[i], entries[j]
+			if GroupAgree(a, b) then
+				local newer = GroupLater(b, a) and b or a
+				if not best or GroupLater(newer, best) then best = newer end
+			end
+		end
+	end
+	if best and best ~= held and Keep(best, "witnessed", 2) then return true end
+	-- A lone witness: listed grey (its newest), never counted.
+	if not (type(held) == "table" and held.observed >= row.observed) then
+		local heard = GroupStore("heard")
+		local old = heard[key]
+		if not (type(old) == "table" and (tonumber(old.observed) or 0) >= row.observed) then
+			heard[key] = { group = row.group, faction = row.faction, characters = row.characters, people = row.people,
+				guilds = row.guilds, observed = row.observed, src = "heard", by = ns.FullName(sender), w = 1 }
+		end
+	end
+	return false
+end
+
+-- What this client sends: its rows of the OTHER groups (ours everyone here sees live), its own looks
+-- and those it took, newer than what was said here lately; the beta's never on a launch realm.
+function Data.GroupCensusPayload(now)
+	now = now or ns.Now()
+	local rows = {}
+	for key, e in pairs(GroupStore()) do
+		local row = type(e) == "table" and GroupRow(e.group, e.faction, e.characters, e.people, e.guilds, e.observed)
+		if row and not (row.group == ns.group and row.faction == OurFaction()) and Listed(row.group)
+			and row.observed > (groupHeard[key] or 0) + Data.FRESH then
+			rows[#rows + 1] = row
+		end
+	end
+	if #rows == 0 then return nil end
+	table.sort(rows, function(a, b) return GroupLater(a, b) end)
+	local out = {}
+	for i = 1, math.min(#rows, Data.GROUP_SAY_MAX) do
+		local r = rows[i]
+		out[#out + 1] = ("%s|%s|%d|%d|%d|%d"):format(r.group, r.faction, r.characters, r.people, r.guilds, r.observed)
+	end
+	return ("CX~%d~S~%d~%s"):format(Data.GROUP_PROTOCOL, math.floor(now), table.concat(out, ";"))
+end
+
+function Data.SayGroupCensus()
+	if not GlobalTrusted(ns.me) and not GlobalMember() then return false end
+	local now = ns.Now()
+	local payload = Data.GroupCensusPayload(now)
+	if not payload then return false end
+	local trusted = GlobalTrusted(ns.me)
+	local key = "census-groups"
+	return ns.Comm.SendChunked(payload, false, "CHANNEL", nil, { owner = Data, key = key,
+		permit = function(_, guardKey, dist, target)
+			if guardKey ~= key or dist ~= "CHANNEL" or target ~= nil then return false, "lane" end
+			if trusted and not GlobalTrusted(ns.me) then return false, "trust" end
+			if not trusted and not GlobalMember() then return false, "member" end
+			return true
+		end }) == true
+end
+
+function Data.ReceiveGroupCensus(dist, sender, text)
+	if dist ~= "CHANNEL" or type(text) ~= "string" or type(sender) ~= "string"
+		or sender == "" or #sender > 100 or sender:find("[%c~]") then return false end
+	local ver, made, body = text:match("^CX~(%d+)~S~(%d+)~(.*)$")
+	if tonumber(ver) ~= Data.GROUP_PROTOCOL then return false end
+	if type(ns.me) == "string" and ns.FullName(sender) == ns.FullName(ns.me) then return true end
+	local now = ns.Now()
+	local at = GlobalNumber(made, 1, 4102444800)
+	if not at or at > now + 5 * 60 or now - at > Data.GROUP_KEEP then return false end
+	local trusted = GlobalTrusted(sender)
+	local changed, count = false, 0
+	for part in tostring(body):gmatch("[^;]+") do
+		if count >= Data.GROUP_SAY_MAX then break end
+		count = count + 1
+		local g, f, c, p, n, o = part:match("^([^|]+)|(%a+)|(%d+)|(%d+)|(%d+)|(%d+)$")
+		local row = g and GroupRow(g, f, c, p, n, o)
+		if row then
+			local key = GroupKey(row.faction, row.group)
+			if row.observed > (groupHeard[key] or 0) then groupHeard[key] = row.observed end
+			if Listed(row.group) and TakeGroup(row, sender, trusted, now) then changed = true end
+		end
+	end
+	if count == 0 then return false end
+	if changed then Data.ChangedSoon() end
+	return true
+end
+
+-- Every server this client knows of, for the census page: { rows = { { group, faction, characters,
+-- people, guilds, observed, src, w, kind, region, counted, ours } }, characters, people, kinds =
+-- { [kind or "?"] = { characters, people } }, regions = { [region or "?"] = {...} }, factions = {...} }.
+-- Ours is the census held now (Data.Summary); the others as kept; a lone witness listed, not counted.
+function Data.Groups(s, now)
+	now = now or ns.Now()
+	s = s or Data.Summary()
+	local out = { rows = {}, characters = 0, people = 0, kinds = {}, regions = {}, factions = {} }
+	local seen = {}
+	local function Add(e, counted, ours)
+		local key = GroupKey(e.faction, e.group)
+		if seen[key] then return end
+		seen[key] = true
+		local kind, region = Data.GroupInfo(e.group)
+		local row = { group = e.group, faction = e.faction, characters = e.characters, people = e.people, guilds = e.guilds,
+			observed = e.observed, src = e.src, w = e.w, kind = kind, region = region, counted = counted, ours = ours }
+		out.rows[#out.rows + 1] = row
+		if not counted then return end
+		out.characters, out.people = out.characters + e.characters, out.people + e.people
+		for _, pair in ipairs({ { out.kinds, kind or "?" }, { out.regions, region or "?" }, { out.factions, e.faction } }) do
+			local t = pair[1][pair[2]] or { characters = 0, people = 0 }
+			t.characters, t.people = t.characters + e.characters, t.people + e.people
+			pair[1][pair[2]] = t
+		end
+	end
+	local group = GroupField(ns.group)
+	if group and (tonumber(s.characters or s.total) or 0) > 0 then
+		local counted = 0
+		for _, e in ipairs(s.guilds or {}) do if e.counted then counted = counted + 1 end end
+		Add({ group = group, faction = OurFaction(), characters = tonumber(s.characters or s.total) or 0,
+			people = tonumber(s.total) or 0, guilds = counted, observed = now, src = "live" }, true, true)
+	end
+	local kept = {}
+	for _, e in pairs(GroupStore()) do
+		if type(e) == "table" and GroupRow(e.group, e.faction, e.characters, e.people, e.guilds, e.observed) and Listed(e.group) then kept[#kept + 1] = e end
+	end
+	table.sort(kept, GroupLater)
+	for _, e in ipairs(kept) do Add(e, now - e.observed <= Data.GROUP_COUNT, false) end
+	local heard = {}
+	for _, e in pairs(GroupStore("heard")) do
+		if type(e) == "table" and GroupRow(e.group, e.faction, e.characters, e.people, e.guilds, e.observed) and Listed(e.group) then heard[#heard + 1] = e end
+	end
+	table.sort(heard, GroupLater)
+	for _, e in ipairs(heard) do Add(e, false, false) end
+	table.sort(out.rows, function(a, b)
+		if a.ours ~= b.ours then return a.ours end
+		if a.counted ~= b.counted then return a.counted end
+		if a.characters ~= b.characters then return a.characters > b.characters end
+		return a.group < b.group
+	end)
+	return out
+end
+
+local function SaySoon()
+	ns.After(math.random(0, Data.GROUP_SAY_SPREAD), "census groups", function() ns.SafeCall("census groups", Data.SayGroupCensus) end)
+end
+
 ns.On("INIT", function()
 	local store, now = GlobalStore(), ns.Now()
 	for key, e in pairs(store) do
 		if type(e) ~= "table" or not GlobalGuildField(e.name) or now - (tonumber(e.observed) or 0) > Data.KEEP then store[key] = nil end
 	end
+	-- (1.4.0) The witnesses kept past a day, or of a guild no longer Olympus, go.
+	local ws = ns.rdb.censusWitness
+	if type(ws) == "table" then
+		for key, list in pairs(ws) do
+			if type(list) ~= "table" then
+				ws[key] = nil
+			else
+				for person, e in pairs(list) do
+					if type(e) ~= "table" or not GlobalGuildField(e.name) or now - (tonumber(e.heard) or 0) > Data.WITNESS_KEEP then list[person] = nil end
+				end
+				if next(list) == nil then ws[key] = nil end
+			end
+		end
+	end
 	if ns.Comm and ns.Comm.Handle then ns.Comm.Handle("CG", Data.ReceiveGlobalCensus) end
 	ns.After(20, "global census ask", Data.AskGlobalCensus)
+	-- (1.4.0) Once more after the evening's first minutes, when more of the army is on.
+	ns.After(20 + Data.GLOBAL_ASK_AGAIN, "global census ask again", Data.AskGlobalCensus)
 	ns.Every(Data.GLOBAL_ASK_EVERY, "global census ask", Data.AskGlobalCensus)
+	-- (1.4.0) Every server's numbers: heard, said after login and every half hour (spread), and our
+	-- own look kept at logout (and by the census page's sampler).
+	if ns.Comm and ns.Comm.Handle then ns.Comm.Handle("CX", Data.ReceiveGroupCensus) end
+	PruneGroups(now)
+	ns.After(Data.GROUP_SAY_AFTER, "census groups", SaySoon)
+	ns.Every(Data.GROUP_SAY_EVERY, "census groups", SaySoon)
 end)
 
 -- Tonight's count (1.1, Fern's #16): this client's own view of the evening, from the reports it

@@ -24,7 +24,6 @@ CS.RECENT_MAX = 200        -- at most (two days of quarter-hours: 192)
 CS.DAYS = 30               -- days, today among them
 CS.HOURS = 24              -- the online graph's hours
 CS.FUTURE = 5 * 60         -- a sample later than now by more than this (the clock went back) is dropped
-CS.TOP_GUILDS = 5          -- the largest guilds listed
 CS.TICK = 60               -- how often the sampler looks whether a sample is due
 CS.ARMY_COLOR = { 1, 0.82, 0 }
 CS.ONLINE_COLOR = { 0.25, 1, 0.25 }
@@ -148,6 +147,9 @@ function CS.Sample(now)
 	local day = ParseDay(h.days[key]) or { c = 0, p = 0, o = 0, n = 0 }
 	h.days[key] = ("%d,%d,%d,%d"):format(math.max(day.c, c), math.max(day.p, p), math.max(day.o, o), day.n + 1)
 	CS.Prune(now)
+	-- (1.4.0) The same look kept as this realm group's, for the other groups this account plays
+	-- (Data.RecordGroupCensus: every server's numbers on the page).
+	if D.RecordGroupCensus then D.RecordGroupCensus(s, now) end
 	return true
 end
 
@@ -378,6 +380,85 @@ local function Percent(n, of)
 	return ("%d%s%d"):format(math.floor(p), L.DECIMAL_MARK or ".", math.floor(p * 10) % 10)
 end
 
+-- 1.4.0: every server this client knows of (Data.Groups): the characters and people of them all, by
+-- ruleset (PvP, PvE...), by region (NA, EU) and by faction when both are known, then each server,
+-- ours first. A server heard from one player alone is listed grey and left out of the totals.
+CS.KIND_ORDER = { "pvp", "rppvp", "pve", "rp", "hardcore", "?" }
+CS.REGION_ORDER = { "NA", "EU", "?" }
+local function KindLabel(kind)
+	local k = ({ pvp = "PVP", rppvp = "RPPVP", pve = "PVE", rp = "RP", hardcore = "HARDCORE" })[kind or "?"]
+	return k and L["CENSUS_STATS_KIND_" .. k] or L.CENSUS_STATS_KIND_UNKNOWN
+end
+local function RegionLabel(region)
+	return (region == "NA" or region == "EU") and L["CENSUS_STATS_REGION_" .. region] or L.CENSUS_STATS_REGION_UNKNOWN
+end
+local function ServerName(group) return (tostring(group):gsub("%+", " + ")) end
+function CS.ServerLines(lines, s, now)
+	local D = ns.Data
+	if not (D and D.Groups) then return end
+	local g = D.Groups(s, now)
+	if #g.rows == 0 then return end
+	local Vw = V()
+	local Grey = Vw.Grey
+	lines[#lines + 1] = { text = L.CENSUS_STATS_SERVERS, header = true, tooltip = function(tt)
+		tt:AddLine(L.CENSUS_STATS_SERVERS, 1, 0.82, 0)
+		tt:AddLine(L.CENSUS_STATS_SERVERS_TIP, 1, 1, 1, true)
+	end }
+	lines[#lines + 1] = Row(L.CENSUS_STATS_ALL_CHARACTERS, White(F(g.characters)), L.CENSUS_STATS_SERVERS_TIP)
+	lines[#lines + 1] = Row(L.CENSUS_STATS_ALL_PEOPLE, White(L.CENSUS_STATS_APPROX:format(F(g.people))), L.CENSUS_STATS_PEOPLE_TIP)
+	local function Split(title, order, totals, label)
+		local any = 0
+		for _, key in ipairs(order) do if totals[key] then any = any + 1 end end
+		if any == 0 or (any == 1 and totals["?"]) then return any == 1 end
+		lines[#lines + 1] = { text = title, indent = 1 }
+		for _, key in ipairs(order) do
+			local t = totals[key]
+			if t then
+				lines[#lines + 1] = { text = label(key), indent = 2,
+					right = White(F(t.characters)) .. " " .. Grey(Percent(t.characters, g.characters) .. "%"),
+					meter = { value = t.characters, total = math.max(1, g.characters) },
+					tooltip = function(tt)
+						tt:AddLine(label(key), 1, 0.82, 0)
+						tt:AddDoubleLine(L.CENSUS_STATS_CHARACTERS, F(t.characters), 1, 0.82, 0, 1, 1, 1)
+						tt:AddDoubleLine(L.CENSUS_STATS_PEOPLE, L.CENSUS_STATS_APPROX:format(F(t.people)), 1, 0.82, 0, 1, 1, 1)
+					end }
+			end
+		end
+		return false
+	end
+	local unknownKind = Split(L.CENSUS_STATS_BY_KIND, CS.KIND_ORDER, g.kinds, KindLabel)
+	local unknownRegion = Split(L.CENSUS_STATS_BY_REGION, CS.REGION_ORDER, g.regions, RegionLabel)
+	if g.factions.Alliance and g.factions.Horde then
+		Split(L.CENSUS_STATS_BY_FACTION, { "Alliance", "Horde" }, g.factions, function(f)
+			return f == "Horde" and L.CENSUS_STATS_FACTION_HORDE or L.CENSUS_STATS_FACTION_ALLIANCE
+		end)
+	end
+	if unknownKind or unknownRegion then lines[#lines + 1] = { text = Grey(L.CENSUS_STATS_KIND_WAIT), indent = 1 } end
+	lines[#lines + 1] = { text = L.CENSUS_STATS_EACH_SERVER, indent = 1 }
+	for _, r in ipairs(g.rows) do
+		local tags = {}
+		if r.kind then tags[#tags + 1] = KindLabel(r.kind) end
+		if r.region then tags[#tags + 1] = RegionLabel(r.region) end
+		if r.faction == "Horde" then tags[#tags + 1] = L.CENSUS_STATS_FACTION_HORDE end
+		local name = ServerName(r.group) .. (#tags > 0 and (" " .. Grey("(" .. table.concat(tags, ", ") .. ")")) or "")
+		if r.ours then name = name .. " " .. Grey(L.CENSUS_STATS_HERE) end
+		local right = r.counted and White(F(r.characters)) or Grey(F(r.characters))
+		lines[#lines + 1] = { text = r.counted and name or Grey(ServerName(r.group)), indent = 2, right = right,
+			tooltip = function(tt)
+				tt:AddLine(ServerName(r.group), 1, 0.82, 0)
+				tt:AddDoubleLine(L.CENSUS_STATS_CHARACTERS, F(r.characters), 1, 0.82, 0, 1, 1, 1)
+				tt:AddDoubleLine(L.CENSUS_STATS_PEOPLE, L.CENSUS_STATS_APPROX:format(F(r.people)), 1, 0.82, 0, 1, 1, 1)
+				tt:AddDoubleLine(L.CENSUS_STATS_GUILDS, F(r.guilds or 0), 1, 0.82, 0, 1, 1, 1)
+				if not r.ours then tt:AddLine(L.CENSUS_STATS_SEEN:format(ns.Ago and ns.Ago(r.observed) or ""), 0.75, 0.75, 0.75) end
+				local src = r.ours and L.CENSUS_STATS_SRC_LIVE or ({ own = L.CENSUS_STATS_SRC_OWN, relay = L.CENSUS_STATS_SRC_RELAY,
+					witnessed = L.CENSUS_STATS_SRC_WITNESSED, heard = L.CENSUS_STATS_SRC_HEARD })[r.src or ""] or ""
+				if src ~= "" then tt:AddLine(src, 0.75, 0.75, 0.75, true) end
+				if not r.counted and not r.ours then tt:AddLine(L.CENSUS_STATS_NOT_COUNTED, 1, 0.5, 0.5, true) end
+			end }
+	end
+	lines[#lines].gapAfter = true
+end
+
 -- The page's lines, its detail title and text (Views.Build's census, while the page shows).
 function CS.Build(s, now)
 	s = s or ns.Data.Summary()
@@ -412,37 +493,10 @@ function CS.Build(s, now)
 	local online, hours = OnlineGraph(now)
 	GraphLines(lines, L.CENSUS_STATS_ONLINE_GRAPH, online, hours, function(e) return e.o end, HourLabel)
 
-	-- The largest guilds counted, each against the game's cap of a guild: by their size alone (the
-	-- default order puts the guilds reporting now first, and would leave out a large one whose
-	-- reporters logged off), a tie as every count of guilds breaks it (Data.SortGuildCounts).
-	local cap = ns.Codec.GUILD_CAP
-	local largest = {}
-	for _, e in ipairs(s.guilds or {}) do
-		if e.counted then largest[#largest + 1] = { name = e.name, e = e, size = math.min(tonumber(e.g.total) or 0, cap) } end
-	end
-	ns.Data.SortGuildCounts(largest, "size")
-	if #largest > 0 then
-		lines[#lines + 1] = { text = L.CENSUS_STATS_LARGEST, header = true }
-		for i = 1, math.min(CS.TOP_GUILDS, #largest) do
-			local e, size = largest[i].e, largest[i].size
-			local name = Plain(e.name)
-			lines[#lines + 1] = {
-				text = e.fresh and name or Grey(name),
-				right = White(F(size)) .. " " .. Grey(L.CENSUS_STATS_OF_CAP:format(F(cap))),
-				meter = { value = size, total = cap },
-				tooltip = function(tt)
-					tt:AddLine(name, 1, 0.82, 0)
-					tt:AddDoubleLine(L.CENSUS_STATS_CHARACTERS, F(size), 1, 0.82, 0, 1, 1, 1)
-					tt:AddDoubleLine(L.CENSUS_STATS_ONLINE, F(e.g.online or 0), 1, 0.82, 0, 0.25, 1, 0.25)
-					tt:AddLine(L.CENSUS_STATS_SHARE:format(Percent(size, characters)), 0.75, 0.75, 0.75)
-				end,
-			}
-		end
-		if #largest > CS.TOP_GUILDS then
-			lines[#lines + 1] = { text = Grey(L.CENSUS_STATS_MORE_GUILDS:format(#largest - CS.TOP_GUILDS)), indent = 1 }
-		end
-		lines[#lines].gapAfter = true
-	end
+	-- 1.4.0 (the author, 11-03): the "largest guilds" are gone ("sempre vai ser as guildas com 1000,
+	-- então não vai ter primeiro lugar, aquela lista não faz sentido"); in their place every server
+	-- this client knows of: the totals, PvP and PvE, NA and EU, and each server (Data.Groups).
+	CS.ServerLines(lines, s, now)
 
 	-- The levels online.
 	local bands = CS.LevelBands(s)

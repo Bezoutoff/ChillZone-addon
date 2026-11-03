@@ -409,6 +409,7 @@ end
 --   1.2.4, Dues FP FR (a payer's private receipt ask and the pinned Treasurer's observed receipt).
 --   1.2.4, ChurchFullness NF (private coverage recovery between a current nominee and the guild desk).
 --   1.2.6, global census CG (trusted anti-entropy snapshots; counts only, never census authority).
+--   1.4.0, every server's census CX (a realm group's totals, carried to the other groups by players who were there).
 --   1.2.5, PlayerSightings PS (request-bound queries; private last-seen answers and withdrawals).
 --   1.2.5.1, the Olympus Accord: Accord BT BQ (the first, a player's BattleTag to a moderation team
 --   member who asked, a logged whisper; the second, that member's ask, on the Olympus channel).
