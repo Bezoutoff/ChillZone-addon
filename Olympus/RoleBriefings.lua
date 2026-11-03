@@ -30,7 +30,7 @@ local L = ns.L
 local Brief = {}
 ns.RoleBriefings = Brief
 
-Brief.LIVE = false
+Brief.LIVE = true -- (1.4.0, the launch: the author turned them on)
 Brief.RULE = 1
 Brief.MAX = 48
 Brief.PAPER_WRAP = 48

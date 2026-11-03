@@ -103,9 +103,9 @@ test("role briefings: while not LIVE a real office makes no letter, no line in c
 		eq(w.printed[#w.printed], L.RB_NOT_LIVE)
 		eq(#w.opened, 0, "no page opened")
 	end)
-	-- The shipped file: off until the author turns it on.
+	-- The shipped file: (changed on purpose, 1.4.0, the launch: the author turned them on; off until then.)
 	local src = assert(io.open(ADDON .. "RoleBriefings.lua")):read("*a")
-	assert(src:find("\nBrief.LIVE = false\n", 1, true), "RoleBriefings.lua ships with Brief.LIVE = false")
+	assert(src:find("\nBrief.LIVE = true ", 1, true), "RoleBriefings.lua ships with Brief.LIVE = true for the launch")
 end)
 
 test("role briefings: the author and the King preview every letter from the Realm (and the Workshop); a preview saves, sends and marks nothing, and its buttons do nothing but copy the site", function()
@@ -523,8 +523,10 @@ test("role briefings: once LIVE, for a release with no letter of its own, the la
 			assert(loadfile(ADDON .. "Letters.lua"))("Olympus", lns)
 			local Lt = lns.Letters
 			for i = #Lt.LIST, 1, -1 do if Lt.LIST[i] == "1.4.0" then table.remove(Lt.LIST, i) end end
-			-- Not LIVE: the version letters are as they were.
-			local RB = Fresh({ Letters = Lt, L = own })
+			-- Not LIVE: the version letters are as they were. (Loaded without them, so the file's own LIVE,
+			-- on since 1.4.0, registers nothing at load; then off.)
+			local RB, rc = Fresh({ Letters = false, L = own })
+			rc.Letters, RB.LIVE = Lt, false
 			eq(RB.RegisterLaunch(), false)
 			eq(Lt.Has(RB.LAUNCH_VERSION), false); eq(Lt.LIST[1] ~= RB.LAUNCH_VERSION, true)
 			-- LIVE: it is that version's letter, first in the list.
@@ -633,6 +635,7 @@ test("role briefings: the 1.4.0 release writes its own launch letter (the dev's,
 			local Lt = lns.Letters
 			local RB = Fresh({ Letters = Lt, L = own })
 			eq(Lt.LIST[1], "1.4.0"); eq(Lt.Has("1.4.0"), true)
+			RB.LIVE = false
 			eq(RB.RegisterLaunch(), false, "not LIVE")
 			RB.LIVE = true
 			eq(RB.RegisterLaunch(), false, "LIVE: the release's own letter is kept")
