@@ -25,7 +25,9 @@ local L = ns.L
 --     Treasury's ranking (Donors below), the Church's public top three, and each game's ranking the
 --     King made public: never a staff view), the player's own frame and title, his own Olympus
 --     guild, rank and role, and the leader's presence as the King's lines on the Census and the
---     Realm, his crown and the Realm tab's layer list show it (LeaderPresence below). Never the
+--     Realm, his crown and the Realm tab's layer list show it (LeaderPresence below); (1.4.0) and
+--     whether a player the game shows him right now is in an Olympus guild (IsOlympusMember below:
+--     a live unit token's guild, as the game gives it, and Olympus's own rule). Never the
 --     census, another player's private data, the Wanted page's victims or stored sightings, a
 --     movement history, a staff view or a secret (a key, sealed channel name, signature or private
 --     list). The Board's groups (1.2, Groups.lua) as its sections show them: the listings (how many
@@ -86,15 +88,19 @@ API.VERSION = 1
 -- stays 1.
 -- Version 9 adds the leader's presence (GetLeaderPresence, LEADER_CHANGED) and the wider "outsiders"
 -- area scope: what a Yes gives grew, so it is asked again.
--- Version 10 (1.2) adds the Board's groups: their reads (the listings, the players looking, the
+-- Version 10 (1.4.0) adds the Board's groups: their reads (the listings, the players looking, the
 -- player's own listing's applications and group) and the actions on his own listing (invite,
--- decline, roles, lower) with Olympus's own dialogs opened. What a Yes gives grew again, and the
--- line says so (both texts, Locales/APIText.lua): every addon is asked again.
+-- decline, roles, lower) with Olympus's own dialogs opened; and IsOlympusMember (whether a player a
+-- live unit token names is in an Olympus guild). What a Yes gives grew again (one step for both,
+-- the same release), and the line says so (both texts, Locales/APIText.lua): every addon is asked
+-- again.
 API.CONSENT_VERSION = 10
 API.MAX_ADDONS = 16       -- addons registered in one session
 API.SURFACE_LIMIT = 1     -- one client-owned page in the shared tab rail per session
 API.RATE_MAX = 20         -- data calls one addon makes...
 API.RATE_WINDOW = 10      -- ...in this many seconds
+API.UNIT_RATE_MAX = 80    -- (1.4.0) IsOlympusMember calls one addon makes a RATE_WINDOW: a raid of 40 twice,
+                          -- on a budget of its own, so a raid check neither starves nor is starved by the reads
 API.MAX_CALLBACKS = 4     -- one addon's callbacks for one event
 API.CALLBACK_FAILS = 3    -- a callback that failed this many times is dropped
 API.DISPATCH_DELAY = 2    -- a change is told this long after it, a burst of them once
@@ -415,6 +421,64 @@ function API.Profile()
 		if type(v.title) == "string" then out.title = Plain(Call("HonorsNet", "TitleText", v.title), 64) end
 	end
 	return out
+end
+
+-- (1.4.0) The game's own unit tokens IsOlympusMember takes, lower-cased: player, target, focus,
+-- mouseover, party1-4, raid1-40 and nameplateN, each alone or followed by "target" once
+-- (targettarget, party1target). Never a name: a player's name holds no digit, and the game's
+-- UnitExists would also take a group member's name, so a name would let an addon ask about someone
+-- the game is not showing this player. The game numbers nameplate tokens as it hands them out: the
+-- bound is wide, and a token never names more than the plate it is.
+API.NAMEPLATE_MAX = 200
+local function BaseToken(u)
+	if u == "player" or u == "target" or u == "focus" or u == "mouseover" then return true end
+	local kind, digits = u:match("^(%a+)([1-9]%d*)$")
+	local n = tonumber(digits)
+	if not n then return false end
+	return (kind == "party" and n <= 4) or (kind == "raid" and n <= 40) or (kind == "nameplate" and n <= API.NAMEPLATE_MAX)
+end
+function API.UnitToken(unit)
+	if Secret(unit) or type(unit) ~= "string" or #unit > 24 then return nil end
+	local u = unit:lower()
+	if BaseToken(u) then return u end
+	local inner = u:match("^(.+)target$")
+	if inner and BaseToken(inner) then return u end
+	return nil
+end
+
+-- The game's answer to a unit question, protected: nil when the client has no such function, the
+-- call failed or the value is secret.
+local function Ask(fn, unit)
+	if type(fn) ~= "function" then return nil end
+	local ok, v = pcall(fn, unit)
+	if not ok or Secret(v) then return nil end
+	return v
+end
+
+-- (1.4.0, promised to an addon author: a safe eligibility check) Whether the player a live unit
+-- token names is in an Olympus guild, as this client counts Olympus guilds (ns.IsFederation: the
+-- name rule, the King's guild, the signed approved and removed lists): true or false, or nil when
+-- this client cannot tell. What it reads is the game's for that unit now (UnitExists, UnitIsPlayer,
+-- UnitFactionGroup, GetGuildInfo) and Olympus's guild rule: no census, roster, sighting, sanction
+-- (a net-off is never told) or stored list of people, and nothing is kept. nil:
+--   - the game shows nothing for that token now, or a value it keeps secret;
+--   - another faction's player: Olympus's lists here are this faction's (the Horde has its own);
+--   - no guild from the game: a player in none and one whose guild the game has not given yet look
+--     the same (GetGuildInfo gives nil for both), so neither is called "not a member".
+-- false: a unit that is no player (a creature, a pet), or a player of a guild that is not Olympus's.
+function API.IsOlympusMember(unit)
+	unit = API.UnitToken(unit)
+	if not unit or not Ask(UnitExists, unit) then return nil end
+	local player = Ask(UnitIsPlayer, unit)
+	if player == nil then return nil end
+	if not player then return false end
+	local mine, theirs = Ask(UnitFactionGroup, "player"), Ask(UnitFactionGroup, unit)
+	if type(mine) ~= "string" or mine == "" or theirs ~= mine then return nil end
+	local guild = Ask(GetGuildInfo, unit)
+	if type(guild) ~= "string" or guild == "" or type(ns.IsFederation) ~= "function" then return nil end
+	local ok, yes = pcall(ns.IsFederation, guild)
+	if not ok then return nil end
+	return yes == true
 end
 
 -- The current host-owned profile-presentation session, without its internal issuer, grant id,
@@ -1200,15 +1264,18 @@ end
 
 -- A data call: the player's Yes, an Olympus guild (where asked), and the addon within its rate.
 -- Past it, said in the log once a session for that addon (review of 1.2.4: once a window filled the
--- log's ring, and the 25 lines /oly bug copies, with one addon polling).
-local function Spend(c)
+-- log's ring, and the 25 lines /oly bug copies, with one addon polling). (1.4.0) unit: an
+-- IsOlympusMember call, on its own budget (UNIT_RATE_MAX), said once a session too.
+local function Spend(c, unit)
 	local now = ns.Now and ns.Now() or 0
-	local r = c.rate
+	local r, max = c.rate, API.RATE_MAX
+	if unit then r, max = c.unitRate, API.UNIT_RATE_MAX end
 	if now - r.at >= API.RATE_WINDOW or now < r.at then r.at, r.n = now, 0 end
-	if r.n >= API.RATE_MAX then
-		if not c.rateSaid then
-			c.rateSaid = true
-			ns.Log("api: %s asked more than %d times in %d s (said once a session)", c.name, API.RATE_MAX, API.RATE_WINDOW)
+	if r.n >= max then
+		if not r.said then
+			r.said = true
+			ns.Log("api: %s asked more than %d %s in %d s (said once a session)", c.name, max,
+				unit and "membership checks" or "times", API.RATE_WINDOW)
 		end
 		return false
 	end
@@ -1372,6 +1439,19 @@ function METHODS.GetRankings(c, kind)
 	return Read(c, true, API.Rankings, kind)
 end
 function METHODS.GetProfile(c) return Read(c, false, API.Profile) end
+-- (1.4.0) true or false, or nil and why: "unit" (not a unit token it takes, checked first and free),
+-- the usual "pending", "refused", "guild" and "busy" (its own budget, UNIT_RATE_MAX), or "unknown"
+-- (API.IsOlympusMember's nil: this client cannot tell).
+function METHODS.IsOlympusMember(c, unit)
+	local token = API.UnitToken(unit)
+	if not token then return nil, "unit" end
+	if not Granted(c) then return nil, Status(c) end
+	if not Member() then return nil, "guild" end
+	if not Spend(c, true) then return nil, "busy" end
+	local yes = API.IsOlympusMember(token)
+	if yes == nil then return nil, "unknown" end
+	return yes
+end
 function METHODS.GetLeaderPresence(c)
 	if not Has("Hop", "King") then return nil, "unavailable" end
 	return Read(c, true, API.LeaderPresence)
@@ -2099,7 +2179,7 @@ local function ReadOnly(_, k) error("OlympusAPI: read-only (" .. tostring(k) .. 
 
 local function NewClient(name, key, title, slot)
 	local c = { name = name, key = key, title = title, consentKey = "api:" .. key, callbacks = {}, told = {}, fails = {},
-		rate = { at = -math.huge, n = 0 }, surfaceOwner = "api-surface:" .. tostring(slot), searches = {}, sightingTold = {}, sightingEnded = {},
+		rate = { at = -math.huge, n = 0 }, unitRate = { at = -math.huge, n = 0 }, surfaceOwner = "api-surface:" .. tostring(slot), searches = {}, sightingTold = {}, sightingEnded = {},
 		areaMapOwner = {}, areaMapFrames = {}, pinOwner = {}, pinFrames = {}, pinCount = 0, areaProofs = {}, profileOwner = "api-profile:" .. tostring(slot),
 		quietOwner = "api-quiet:" .. tostring(slot), panelOwner = "api-panel:" .. tostring(slot), manageRate = { at = -math.huge, n = 0 },
 		authKey = API.AuthorizedKey(key) }
@@ -2144,7 +2224,7 @@ end
 
 -- What this build gives: a feature ("wanted", "rankings", "rankings.<kind>", "profile", "leader",
 -- "callbacks", "network.sightings", "network.sightings.area-scope", "presence.quiet", "ui.guild-tools", "ui.surface",
--- 1.4.0's "groups", "groups.manage", "ui.board-groups") or an event's name.
+-- and 1.4.0's "groups", "groups.manage", "ui.board-groups" and "unit.member") or an event's name.
 local function SightingsComplete()
 	for _, fn in ipairs({ "Start", "Cancel", "Session", "StartArea", "CancelArea", "AreaSession" }) do
 		if not Has("PlayerSightings", fn) then return false end
@@ -2159,6 +2239,7 @@ local FEATURES = {
 	["rankings.church"] = function() return Has("HonorsNet", "ChurchTop") end,
 	["rankings.games"] = function() return Has("ArenaHome", "RankingsPublic") end,
 	profile = function() return true end,
+	["unit.member"] = function() return type(ns.IsFederation) == "function" end,
 	leader = function() return Has("Hop", "King") and Has("King", "Location") and Has("Layers", "ForMap") end,
 	callbacks = function() return true end,
 	["network.sightings"] = SightingsComplete,

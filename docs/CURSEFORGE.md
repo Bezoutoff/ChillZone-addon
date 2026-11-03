@@ -184,7 +184,9 @@ versions before 1.1 just get the whisper, as before.
   explanation once per appointment. They can edit their own group's list, not another leader's;
   existing authorized officers retain oversight. Old oversized saved groups stay read-only until
   an authorized, confirmed replacement archives the original membership privately. No guild
-  invitations, removals or native promotions happen automatically.
+  invitations, removals or native promotions happen automatically. An online member of the group
+  has **Invite online member to raid** (1.4.0): one party invite on the Legate's click, only while
+  the guild roster still lists that member.
 - **Level race**: the highest level players of the realm.
 - **Recruiting**: the guilds that still have free slots, so new players go where there is room
   (the five with the most, then every one on a click, 1.1).
@@ -1689,7 +1691,8 @@ account, `/oly discord forget` drops this character's request and proof.
 Another addon can read, with your permission, what Olympus already shows you: the Wanted list
 and its bounties, the public rankings (the Slayers, the Church's top three, the games the King
 made public, the donors' top three while he shows the Treasury's ranking), your own frame and
-title, your Olympus guild, rank and role, and the King's presence as his lines and the Realm tab
+title, your Olympus guild, rank and role, whether a player your game shows you now is in an
+Olympus guild, and the King's presence as his lines and the Realm tab
 show it (online, the zone they name, his crown while he shares it, whether you are on his layer,
 and his zone's layers with their "~N with Olympus" counts while you are there). The King's
 presence, the player-sighting searches and the profile presentation below are reserved for addons
