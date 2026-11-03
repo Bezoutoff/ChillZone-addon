@@ -2665,7 +2665,7 @@ test("1.2.4 the API: its words in English and pt-BR; docs/API.md names every met
 			assert(ptFull:find(word, 1, true), "API_CONSENT_TEXT (pt-BR) still says: " .. word)
 		end
 	end
-	-- (1.2) The Board's groups, in both lines (they are not reserved) and both languages: what is
+	-- (1.4.0) The Board's groups, in both lines (they are not reserved) and both languages: what is
 	-- read, what may be done to the player's own group, what never is, and the panel's switch.
 	for _, k in ipairs({ "API_CONSENT_TEXT", "API_CONSENT_TEXT_BASIC" }) do
 		local line = assert(src:match("\nL%." .. k .. ' = "(.-)"\n'), k)
@@ -3027,7 +3027,7 @@ test("accord: the API before the Olympus Accord is accepted reads as outside an 
 end)
 
 ---------------------------------------------------------------------------
--- 1.2, the Board's groups through the API ("groups", "groups.manage", "ui.board-groups"). Board.lua
+-- 1.4.0, the Board's groups through the API ("groups", "groups.manage", "ui.board-groups"). Board.lua
 -- and Groups.lua load into each client that takes part (the world's clients load neither), so the
 -- listings, flags, applications and answers travel between them as the game carries them. The
 -- addon here is an ordinary one: these features are not reserved.
@@ -3078,7 +3078,7 @@ local function LineId(lines, id)
 	for _, l in ipairs(lines) do if l.id == id then return l end end
 end
 
-test("1.2 the API groups: Has; GetGroups and GetLooking copy what the Board's sections show, field by field, in its order: counts not names, no time, the King's screen's words hidden; the usual gates", function()
+test("1.4.0 the API groups: Has; GetGroups and GetLooking copy what the Board's sections show, field by field, in its order: counts not names, no time, the King's screen's words hidden; the usual gates", function()
 	local w, cast, viewer, API, api, leader, quester, mate = GroupsWorld()
 	local O, L = viewer.OlympusAPI, viewer.ns.L
 	for _, f in ipairs({ "groups", "groups.manage", "ui.board-groups", "GROUPS_CHANGED", "LOOKING_CHANGED", "MY_GROUP_CHANGED" }) do
@@ -3137,7 +3137,7 @@ test("1.2 the API groups: Has; GetGroups and GetLooking copy what the Board's se
 	eq(looking[1].roles.tank, true); eq(looking[1].roles.healer, false); eq(looking[1].fits, false, "no listing of ours")
 	eq(looking[2].kind, "pvp"); eq(looking[2].places, "any")
 	eq(#Do(w, viewer, api, "GetLooking", "pvp"), 1); eq(#Do(w, viewer, api, "GetLooking", "quest"), 0, "no flag looks for a quest")
-	-- (Daniel's test of a companion, 1.2) The player's own flag is on the list too, first, marked own:
+	-- (Daniel's test of a companion, 1.4.0) The player's own flag is on the list too, first, marked own:
 	-- the Board's flags page shows it, and a companion's list of players looking must not leave it out.
 	-- (The client's own map names, which the Board's flags page reads for his flag's zone while he
 	-- shares his location: the real C_Map has GetMapInfo, the viewer's stand-in above only the best map.)
@@ -3165,7 +3165,7 @@ test("1.2 the API groups: Has; GetGroups and GetLooking copy what the Board's se
 	W3.NoErrors(w)
 end)
 
-test("1.2 the API groups: GetMyGroup, and the own-group actions run the Board's own handlers (the game's invite, decline, roles, a player looking, lower); each refusal says why; a rate of their own", function()
+test("1.4.0 the API groups: GetMyGroup, and the own-group actions run the Board's own handlers (the game's invite, decline, roles, a player looking, lower); each refusal says why; a rate of their own", function()
 	local w, cast, viewer, API, api, leader, quester, mate = GroupsWorld()
 	local applicant2 = LoadGroups(w, w:Client("Sela Brook", { guild = DAWN }))
 	local looker = LoadGroups(w, w:Client("Tobin Reed", { guild = DAWN }))
@@ -3258,7 +3258,7 @@ test("1.2 the API groups: GetMyGroup, and the own-group actions run the Board's 
 	W3.NoErrors(w)
 end)
 
-test("1.2 the API groups: OpenGroup, OpenListingDialog and OpenFlagDialog open Olympus's own card, composer and flag dialog on the Board, and send nothing", function()
+test("1.4.0 the API groups: OpenGroup, OpenListingDialog and OpenFlagDialog open Olympus's own card, composer and flag dialog on the Board, and send nothing", function()
 	local w, cast, viewer, API, api, leader = GroupsWorld()
 	local L = viewer.ns.L
 	w:As(viewer, viewer.Consent.Choose, "api:groupfinder", true)
@@ -3285,7 +3285,7 @@ test("1.2 the API groups: OpenGroup, OpenListingDialog and OpenFlagDialog open O
 	W3.NoErrors(w)
 end)
 
-test("1.2 the API groups: GROUPS_CHANGED, LOOKING_CHANGED and MY_GROUP_CHANGED once a burst settles, only on a real change, never in combat nor without a Yes", function()
+test("1.4.0 the API groups: GROUPS_CHANGED, LOOKING_CHANGED and MY_GROUP_CHANGED once a burst settles, only on a real change, never in combat nor without a Yes", function()
 	local w, cast, viewer, API, api, leader, quester, mate = GroupsWorld()
 	local told = { GROUPS_CHANGED = {}, LOOKING_CHANGED = {}, MY_GROUP_CHANGED = {} }
 	for event, list in pairs(told) do
@@ -3324,7 +3324,7 @@ test("1.2 the API groups: GROUPS_CHANGED, LOOKING_CHANGED and MY_GROUP_CHANGED o
 	W3.NoErrors(w)
 end)
 
-test("1.2 the API group panel: one a session; it takes Your group's place while the addon has its Yes, with a switch back to Olympus's own kept for the account; build errors contained; Unregister gives the Board's own back", function()
+test("1.4.0 the API group panel: one a session; it takes Your group's place while the addon has its Yes, with a switch back to Olympus's own kept for the account; build errors contained; Unregister gives the Board's own back", function()
 	local w, cast, viewer, API, api, leader = GroupsWorld()
 	local L = viewer.ns.L
 	Install(viewer, "OtherPanel", "Other Panel")

@@ -103,7 +103,7 @@ local function Sent(w, prefix)
 	return nil
 end
 
-test("1.2 groups: a listing's message, its checks, its words made safe; later fields are left for later versions", function()
+test("1.4.0 groups: a listing's message, its checks, its words made safe; later fields are left for later versions", function()
 	local G = ns.Groups
 	local msg = G.Encode({ id = "a7", guild = "Olympus II", kind = "D", target = "DM", level = 18, class = "PR", need = "103", size = 2,
 		every = 10, age = 3, note = " need |cffff0000heals|r~now " })
@@ -129,7 +129,7 @@ test("1.2 groups: a listing's message, its checks, its words made safe; later fi
 		"GL~a~Olympus II~D~DM~18~PR~113~1~~~10", "G1~a~Olympus II~D~42~PR~10~3~~", 42 }) do
 		eq(G.Decode(bad), nil, tostring(bad))
 	end
-	-- 1.2: a minimum level (2-99, or empty for any); a quest by a typed name (its target 0, its
+	-- 1.4.0: a minimum level (2-99, or empty for any); a quest by a typed name (its target 0, its
 	-- title the name; never without one).
 	e = G.Decode(G.Encode({ id = "m", guild = "Olympus II", kind = "D", target = "SM", level = 30, need = "113", size = 1, every = 10, age = 0, min = 30 }))
 	eq(e.min, 30)
@@ -146,7 +146,7 @@ test("1.2 groups: a listing's message, its checks, its words made safe; later fi
 	eq(G.Decode("GL~a~Olympus II~D~DM~18~PR~113~1~~Elwynn~10~0~~").zone, "", "a dungeon has no zone")
 	eq(G.Decode("GL~a~Olympus II~D~DM~18~PR~113~1~~~4~0~~"), nil, "every 4: too often")
 	eq(G.NeedShort("113"), "1T 1H 3D"); eq(G.NeedShort("0++"), "H+ D+"); eq(G.NeedShort("000"), ns.L.GROUPS_FULL)
-	-- Who else is in a group (GM, review of 1.2): how many, by class and role, never a name.
+	-- Who else is in a group (GM, review of PR #62): how many, by class and role, never a name.
 	local counts = G.MemberCounts({ { name = "Brenna Stoutheart-Realm", class = "PR", role = "H" }, { name = "Cora-Other", class = "MA" },
 		{ name = "Dora-Realm", class = "PR", role = "H" }, { name = "Eda-Realm", class = "" } })
 	local gm = G.EncodeMembers("a7", counts)
@@ -166,7 +166,7 @@ test("1.2 groups: a listing's message, its checks, its words made safe; later fi
 	assert(#gm <= 250, "one message: " .. #gm)
 	eq(G.DecodeMembers(gm).total, 39)
 	eq(#G.DecodeMembers("GM~a7~").counts, 0, "nobody else: the counts emptied")
-	-- (Review of 1.2, B2: GM travels without the logged API, so it takes no words at all: a
+	-- (Review of PR #62, B2: GM travels without the logged API, so it takes no words at all: a
 	-- modified client's sentences, a name, more than 39, a pair twice, a count of 0 are refused.)
 	for _, bad in ipairs({ "GM~a7~0~buy gold at some site dot com now:WA:T,another sentence of words here:PR:H",
 		"GM~a7~0~Name:PR:", "GM~a7~Aldric:PR:H", "GM~a7~PRH0", "GM~a7~PRX1", "GM~a7~PrH1", "GM~a7~PRH100", "GM~a7~PRH20,MAD20",
@@ -191,7 +191,7 @@ test("1.2 groups: a listing's message, its checks, its words made safe; later fi
 	eq(ns.Board.Decode(msg), nil)
 end)
 
-test("1.2 groups: the Board's strip; the flags page is as it was; a leader lists a dungeon group (where, roles, a note logged)", function()
+test("1.4.0 groups: the Board's strip; the flags page is as it was; a leader lists a dungeon group (where, roles, a note logged)", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		B.HandlePost("CHANNEL", "Aldric-Realm", ns.Board.Encode({ id = "f1", guild = "Olympus Zeus", flag = "R", level = 30, class = "WA", every = 10, age = 0, note = "lf raid" }))
@@ -254,7 +254,7 @@ test("1.2 groups: the Board's strip; the flags page is as it was; a leader lists
 	end)
 end)
 
-test("1.2 groups: others' listings on the Board, by kind; only Olympus guilds, never an ignored or netted-off player; lowered at once", function()
+test("1.4.0 groups: others' listings on the Board, by kind; only Olympus guilds, never an ignored or netted-off player; lowered at once", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("a1", "Olympus Zeus", "D", "SFK", "103", 2, "lfm sfk"))
@@ -266,7 +266,7 @@ test("1.2 groups: others' listings on the Board, by kind; only Olympus guilds, n
 		eq(#G.List("D"), 1); eq(#G.List("R"), 1); eq(#G.List(), 2)
 		G.Show("D", true)
 		local lines = B.Lines()
-		-- (1.2 review: the row holds where and who; what it needs, short, on the right where it is never
+		-- (PR #62 review: the row holds where and who; what it needs, short, on the right where it is never
 		-- cut; the rest, the note too, in its tooltip and its card.)
 		local card = Line(lines, "[Shadowfang Keep]")
 		assert(card, Texts(lines))
@@ -303,7 +303,7 @@ test("1.2 groups: others' listings on the Board, by kind; only Olympus guilds, n
 	end)
 end)
 
-test("1.2 groups: apply with a role the group needs (the note logged, to the leader alone); withdraw; the leader's answers", function()
+test("1.4.0 groups: apply with a role the group needs (the note logged, to the leader alone); withdraw; the leader's answers", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("a1", "Olympus Zeus", "D", "SFK", "103", 0))
@@ -359,7 +359,7 @@ test("1.2 groups: apply with a role the group needs (the note logged, to the lea
 	end)
 end)
 
-test("1.2 groups: the leader's applicants (a sound, details on hover); Invite as their role is the game's invite by click; the role comes off when they join, back when they don't; the last role closes the listing", function()
+test("1.4.0 groups: the leader's applicants (a sound, details on hover); Invite as their role is the game's invite by click; the role comes off when they join, back when they don't; the last role closes the listing", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		assert(G.Post("D", "DM", nil, "112", "lfm"))
@@ -468,7 +468,7 @@ test("1.2 groups: the leader's applicants (a sound, details on hover); Invite as
 	end)
 end)
 
-test("1.2 groups: the Board's ask is answered with our listing; it survives a /reload; it ends after its hour; /oly group", function()
+test("1.4.0 groups: the Board's ask is answered with our listing; it survives a /reload; it ends after its hour; /oly group", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		assert(G.Post("R", "MC", nil, "+++", ""))
@@ -513,7 +513,7 @@ test("1.2 groups: the Board's ask is answered with our listing; it survives a /r
 	end)
 end)
 
-test("1.2 groups: a quest from our own log, its title with it; quests we have come first", function()
+test("1.4.0 groups: a quest from our own log, its title with it; quests we have come first", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		w.quests = { { title = "Elwynn Forest", header = true }, { title = "Kill Hogger", level = 11, id = 176, group = 3 },
@@ -542,7 +542,7 @@ test("1.2 groups: a quest from our own log, its title with it; quests we have co
 	end)
 end)
 
-test("1.2 groups: English and Portuguese for every string; the help names /oly group", function()
+test("1.4.0 groups: English and Portuguese for every string; the help names /oly group", function()
 	local pt = {}
 	local saved = GetLocale
 	GetLocale = function() return "ptBR" end
@@ -564,7 +564,7 @@ test("1.2 groups: English and Portuguese for every string; the help names /oly g
 	assert(ns.L.HELP_GROUPS:find("/oly group", 1, true))
 end)
 
-test("1.2 groups: a minimum level: the composer starts at the place's own, a click steps it; under it no apply, and the leader takes none", function()
+test("1.4.0 groups: a minimum level: the composer starts at the place's own, a click steps it; under it no apply, and the leader takes none", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		G.Show("D", true)
@@ -606,7 +606,7 @@ test("1.2 groups: a minimum level: the composer starts at the place's own, a cli
 	end)
 end)
 
-test("1.2 groups: a quest by a typed name (an elite, a rare): its dialog, then the roles; it travels as quest 0 with the name", function()
+test("1.4.0 groups: a quest by a typed name (an elite, a rare): its dialog, then the roles; it travels as quest 0 with the name", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		G.Show("Q", true)
@@ -634,7 +634,7 @@ test("1.2 groups: a quest by a typed name (an elite, a rare): its dialog, then t
 	end)
 end)
 
-test("1.2 groups: who is in a listed group: the leader's GM counts them by class and role, never by name (review of 1.2); on hover and on its card; again when it changes", function()
+test("1.4.0 groups: who is in a listed group: the leader's GM counts them by class and role, never by name (review of PR #62); on hover and on its card; again when it changes", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		ns.splitNames = true
@@ -701,7 +701,7 @@ test("1.2 groups: who is in a listed group: the leader's GM counts them by class
 	end)
 end)
 
-test("1.2 flags for several places: roles and picks after the note (a 1.1 Board reads the plain flag); matching players in each group section", function()
+test("1.4.0 flags for several places: roles and picks after the note (a 1.1 Board reads the plain flag); matching players in each group section", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		-- The composer on the flags page: roles, then places by kind, Any for a whole kind.
@@ -770,7 +770,7 @@ test("1.2 flags for several places: roles and picks after the note (a 1.1 Board 
 	end)
 end)
 
-test("1.2 groups: our own group shows in the list, marked, with its card and our roster on hover; someone else's card in full; the notices", function()
+test("1.4.0 groups: our own group shows in the list, marked, with its card and our roster on hover; someone else's card in full; the notices", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		ns.splitNames = true
@@ -824,7 +824,7 @@ test("1.2 groups: our own group shows in the list, marked, with its card and our
 	end)
 end)
 
-test("1.2 groups: filters (I can join, in my log, my zone; players by fit and role); a flag's player invited as a role their flag names", function()
+test("1.4.0 groups: filters (I can join, in my log, my zone; players by fit and role); a flag's player invited as a role their flag names", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		G.HandlePost("CHANNEL", "Aldric-Realm", G.Encode({ id = "a1", guild = "Olympus Zeus", kind = "D", target = "BRD", level = 55, class = "WA",
@@ -894,7 +894,7 @@ test("1.2 groups: filters (I can join, in my log, my zone; players by fit and ro
 	end)
 end)
 
-test("1.2 groups: a listing repeats every 5 minutes while few are up (up to 30 when the Board is full), and leaves every Board about 12 minutes after its leader went quiet", function()
+test("1.4.0 groups: a listing repeats every 5 minutes while few are up (up to 30 when the Board is full), and leaves every Board about 12 minutes after its leader went quiet", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		eq(G.Interval(0), 5); eq(G.Interval(40), 8); eq(G.Interval(150), 30)
@@ -912,10 +912,10 @@ test("1.2 groups: a listing repeats every 5 minutes while few are up (up to 30 w
 end)
 
 ---------------------------------------------------------------------------
--- The review of 1.2 (PR #62): each finding's regression test, failing on the PR's head.
+-- The review of PR #62: each finding's regression test, failing on the PR's head.
 ---------------------------------------------------------------------------
 
-test("1.2 groups review (B1): on WoW: Forever an invited applicant who joins is recognised; the unit functions give the surname where the realm goes", function()
+test("1.4.0 groups review (B1): on WoW: Forever an invited applicant who joins is recognised; the unit functions give the surname where the realm goes", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		ns.splitNames = true
@@ -943,7 +943,7 @@ test("1.2 groups review (B1): on WoW: Forever an invited applicant who joins is 
 	end)
 end)
 
-test("1.2 groups review (B3): the listing dialog says what goes out: counts by class and role, never the group's names", function()
+test("1.4.0 groups review (B3): the listing dialog says what goes out: counts by class and role, never the group's names", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		G.Show("D", true)
@@ -958,7 +958,7 @@ test("1.2 groups review (B3): the listing dialog says what goes out: counts by c
 	end)
 end)
 
-test("1.2 groups review (B4): a typed name's listing carries the leader's zone only while he shares it, never from an instance, read again at each send", function()
+test("1.4.0 groups review (B4): a typed name's listing carries the leader's zone only while he shares it, never from an instance, read again at each send", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		GetRealZoneText = function() return "Duskwood" end
@@ -992,7 +992,7 @@ test("1.2 groups review (B4): a typed name's listing carries the leader's zone o
 	end)
 end)
 
-test("1.2 groups review (B5): on the King's screen a quest's title and zone are a player's words: a typed name never shows, a log quest only as his own log has it", function()
+test("1.4.0 groups review (B5): on the King's screen a quest's title and zone are a player's words: a typed name never shows, a log quest only as his own log has it", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("t1", "Olympus Zeus", "Q", "0", "012", 0, "rude note", "some rude words"))
@@ -1023,7 +1023,7 @@ test("1.2 groups review (B5): on the King's screen a quest's title and zone are 
 	end)
 end)
 
-test("1.2 groups review (B6): the Board's answer share counts group listings too, so about ANSWER_TARGET holders answer an ask", function()
+test("1.4.0 groups review (B6): the Board's answer share counts group listings too, so about ANSWER_TARGET holders answer an ask", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		for i = 1, 99 do
@@ -1046,7 +1046,7 @@ test("1.2 groups review (B6): the Board's answer share counts group listings too
 	end)
 end)
 
-test("1.2 groups review (B7): /oly group before the game restarts after the update (Groups.lua not loaded yet) says to restart, no error", function()
+test("1.4.0 groups review (B7): /oly group before the game restarts after the update (Groups.lua not loaded yet) says to restart, no error", function()
 	local savedSlash, savedEvents, savedDialogs = {}, #EVENT_SCRIPTS, {}
 	for k, v in pairs(SlashCmdList) do savedSlash[k] = v end
 	for k, v in pairs(StaticPopupDialogs) do savedDialogs[k] = v end
@@ -1087,7 +1087,7 @@ test("1.2 groups review (B7): /oly group before the game restarts after the upda
 	if not ok then error(err, 0) end
 end)
 
-test("1.2 groups review (8): a quest's zone is the sender's words too: heard without the logged API it shows without it", function()
+test("1.4.0 groups review (8): a quest's zone is the sender's words too: heard without the logged API it shows without it", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		w.logged = false
@@ -1102,7 +1102,7 @@ test("1.2 groups review (8): a quest's zone is the sender's words too: heard wit
 	end)
 end)
 
-test("1.2 groups review (9): the Quests section reads the quest log once for the whole page, however many listings it shows", function()
+test("1.4.0 groups review (9): the Quests section reads the quest log once for the whole page, however many listings it shows", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		w.quests = { { title = "Elwynn Forest", header = true }, { title = "Kill Hogger", level = 11, id = 176, group = 3 } }
@@ -1125,7 +1125,7 @@ test("1.2 groups review (9): the Quests section reads the quest log once for the
 	end)
 end)
 
-test("1.2 groups review (10): a roster change redraws the Board only when it changes what it shows: never without a listing or an invite", function()
+test("1.4.0 groups review (10): a roster change redraws the Board only when it changes what it shows: never without a listing or an invite", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		local changes, roster = 0, 0
@@ -1149,7 +1149,7 @@ test("1.2 groups review (10): a roster change redraws the Board only when it cha
 	end)
 end)
 
-test("1.2 groups review (11): an application for a role the listing no longer wants is refused; the chat line comes once for each applicant or new role", function()
+test("1.4.0 groups review (11): an application for a role the listing no longer wants is refused; the chat line comes once for each applicant or new role", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		assert(G.Post("D", "DM", nil, "103", ""))
@@ -1173,7 +1173,7 @@ test("1.2 groups review (11): an application for a role the listing no longer wa
 	end)
 end)
 
-test("1.2 groups review (12): a refused game invite never breaks the click: nothing marked invited, nobody told, the player told", function()
+test("1.4.0 groups review (12): a refused game invite never breaks the click: nothing marked invited, nobody told, the player told", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		assert(G.Post("D", "DM", nil, "113", ""))
@@ -1190,7 +1190,7 @@ test("1.2 groups review (12): a refused game invite never breaks the click: noth
 	end)
 end)
 
-test("1.2 groups review (13, 15): /oly status counts the groups (no name); players looking are sorted with their fit worked out once each", function()
+test("1.4.0 groups review (13, 15): /oly status counts the groups (no name); players looking are sorted with their fit worked out once each", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		assert(G.Post("D", "DM", nil, "103", ""))

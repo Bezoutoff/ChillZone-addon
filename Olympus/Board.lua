@@ -5,7 +5,7 @@ local L = ns.L
 -- share. One click raises a flag (a dungeon, a raid, PvP or a layer) with a short note if the
 -- player wants one; the card shows the poster's zone only while they share it (/oly location on)
 -- and says the zone is hidden otherwise. A click on someone else's card whispers them. Nothing
--- here queues or forms a group by itself: the whisper is the player's own. 1.2: the Board's
+-- here queues or forms a group by itself: the whisper is the player's own. 1.4.0: the Board's
 -- sections (Groups.lua) list groups looking for players, and a leader invites an applicant, or a
 -- flag's player, with the game's own invite from his click alone. A page of the Realm tab, like
 -- the Olympus chats (Views.lua); /oly lfg opens it.
@@ -22,7 +22,7 @@ local L = ns.L
 --       note   the poster's own words, NOTE_MAX bytes at most, the last field: sent with the
 --              logged API (the server keeps them, so abuse can be reported); one sent without
 --              it, where this client has both, shows without its words (as a decree's)
---   1.2: a dungeon, raid or PvP flag may name more, after its note (clients before 1.2 read up to
+--   1.4.0: a dungeon, raid or PvP flag may name more, after its note (clients before 1.4.0 read up to
 --   the note, and show it as the plain flag of its first kind):
 --     ...~<note>~<roles>~<picks>
 --       roles  the roles its player plays, of T, H and D in that order (empty: not said)
@@ -68,7 +68,7 @@ Board.CAMP_GAP = 10 * 60     -- one new camp every 10 minutes per character
 Board.CAMP_MAX = 60          -- camps kept on the Board
 Board.CAMP_BADGE = 18        -- a camp badge on the world map
 Board.CAMP_ICON = "Interface\\Icons\\Spell_Fire_Fire"
-Board.PICKS_MAX = 8          -- places a flag may name (1.2)
+Board.PICKS_MAX = 8          -- places a flag may name (1.4.0)
 Board.PICK_KINDS = { "D", "R", "P" }
 
 -- Swappable in tests.
@@ -145,14 +145,14 @@ end
 Board.KINDS = { D = true, R = true, P = true, L = true, C = true }
 local function Life(flag) return flag == "C" and Board.CAMP_LIFE or Board.LIFETIME end
 
--- 1.2: a flag's roles ("THD", any of them, in that order) as this version takes them, or "".
+-- 1.4.0: a flag's roles ("THD", any of them, in that order) as this version takes them, or "".
 function Board.CleanRoles(s)
 	s = tostring(s or "")
 	local out = ""
 	for _, r in ipairs({ "T", "H", "D" }) do if s:find(r, 1, true) then out = out .. r end end
 	return out
 end
--- 1.2: a flag's picks as a list { { kind, any = true } or { kind, keys = { ... } } }, or nil for
+-- 1.4.0: a flag's picks as a list { { kind, any = true } or { kind, keys = { ... } } }, or nil for
 -- anything malformed (and for none).
 function Board.ParsePicks(s)
 	if type(s) ~= "string" or s == "" then return nil end
@@ -188,7 +188,7 @@ function Board.Encode(e)
 	local zone = tonumber(e.zone) and tostring(math.floor(e.zone)) or ""
 	local msg = ("G1~%s~%s~%s~%d~%s~%d~%d~%s~%s"):format(e.id, CleanGuild(e.guild), e.flag, math.floor(tonumber(e.level) or 1),
 		tostring(e.class or ""), e.every, math.max(0, math.floor(tonumber(e.age) or 0)), zone, Board.CleanNote(e.note))
-	-- (1.2: roles and picks, only on a flag that has them: any other is the message it always was.)
+	-- (1.4.0: roles and picks, only on a flag that has them: any other is the message it always was.)
 	local roles, picks = Board.CleanRoles(e.roles), Board.ParsePicks(e.picks) and e.picks or ""
 	if roles ~= "" or picks ~= "" then msg = msg .. "~" .. roles .. "~" .. picks end
 	return msg
@@ -206,7 +206,7 @@ function Board.Decode(s)
 	if class ~= "" and not class:find("^%u%u$") then return nil end
 	if zone ~= "" and not zone:find("^%d%d?%d?%d?%d?%d?$") then return nil end
 	if flag == "C" and zone == "" then return nil end -- (a camp is its zone)
-	-- 1.2: roles and picks after the note, on a dungeon, raid or PvP flag; a malformed one is left
+	-- 1.4.0: roles and picks after the note, on a dungeon, raid or PvP flag; a malformed one is left
 	-- out (the flag shows as before), and so are picks whose first kind isn't the flag's.
 	local roles, picks = rest:match("^[^~]*~([^~]*)~?([^~]*)")
 	roles = roles and roles:find("^[THD]?[THD]?[THD]?$") and Board.CleanRoles(roles) or ""
@@ -396,7 +396,7 @@ local function MyLevel()
 	local level = UnitLevel and UnitLevel("player") or 1
 	return math.max(1, math.min(99, tonumber(level) or 1))
 end
-Board.MyClass, Board.MyLevel = MyClass, MyLevel -- (1.2: a group listing's too, Groups.lua)
+Board.MyClass, Board.MyLevel = MyClass, MyLevel -- (1.4.0: a group listing's too, Groups.lua)
 
 -- The G1 for one of our posts as it stands now: a flag's zone read again each time (where we
 -- are, and none the moment the player stops sharing); a camp keeps its own (where it was dropped).
@@ -479,7 +479,7 @@ function Board.Ready()
 end
 
 -- One click: our flag goes up (it replaces the one we had), with the note typed in the dialog.
--- `extra` (1.2): { roles, picks } for a flag naming several places and the roles its player plays;
+-- `extra` (1.4.0): { roles, picks } for a flag naming several places and the roles its player plays;
 -- its flag is the first kind of its picks.
 function Board.Raise(flag, note, extra)
 	if not Board.LABEL[flag] then return false, "flag" end
@@ -641,17 +641,17 @@ function Board.Ask(now)
 	return true
 end
 
--- When our ask went (nil before it): whispered posts are taken for ANSWER_WINDOW after it (1.2:
+-- When our ask went (nil before it): whispered posts are taken for ANSWER_WINDOW after it (1.4.0:
 -- a group listing's too, Groups.lua).
 function Board.AskedAt() return askAt end
 
--- 1.2: our group listing (Groups.lua), when we have one up.
+-- 1.4.0: our group listing (Groups.lua), when we have one up.
 local function GroupListing()
 	return ns.Groups and not ns.Groups.missing and ns.Groups.Mine and ns.Groups.Mine() or nil
 end
 
 -- Every post of ours, whispered to one asker (its note through the logged API), and our group
--- listing (1.2) with it.
+-- listing (1.4.0) with it.
 local function Answer(asker)
 	local now = ns.Now()
 	for _, p in ipairs(Board.Own()) do
@@ -676,7 +676,7 @@ function Board.HandleAsk(dist, sender, text)
 	if Recent(answersSent, now, 60) >= Board.ANSWERS_PER_MIN then return end
 	if ns.Comm.QueueSize() >= Board.ANSWER_QUEUE or Locked() then return end
 	-- A full Board: only a share of its holders answer (about ANSWER_TARGET in all). (Review of
-	-- 1.2: its group listings' holders answer too, so they count among them.)
+	-- 1.4.0: its group listings' holders answer too, so they count among them.)
 	local G = ns.Groups
 	local holders = Board.Count() + (G and not G.missing and G.Count and (tonumber((G.Count())) or 0) or 0)
 	if Board.random() > math.min(1, Board.ANSWER_TARGET / math.max(1, holders)) then return end
@@ -749,13 +749,13 @@ function Board.ZoneText(zone)
 	return Grey(L.BOARD_ZONE_HIDDEN)
 end
 
--- What a flag is for, as its card and the chat say it: its label, or (1.2) its picks by name.
+-- What a flag is for, as its card and the chat say it: its label, or (1.4.0) its picks by name.
 function Board.FlagText(e)
 	local list = e and Board.ParsePicks(e.picks)
 	if not list or not (ns.Groups and not ns.Groups.missing and ns.Groups.PicksText) then return Label(e.flag) end
 	return ns.Groups.PicksText(list)
 end
--- 1.2: the roles a flag says, "Tank, Healer", or nil.
+-- 1.4.0: the roles a flag says, "Tank, Healer", or nil.
 function Board.RolesText(e)
 	local roles = e and Board.CleanRoles(e.roles) or ""
 	if roles == "" then return nil end
@@ -870,7 +870,7 @@ Board.Hit = Hit
 -- camps (Board.CampLines). `q`: the Realm tab's search, over the cards.
 function Board.Lines(q)
 	local lines = { { text = Gold(L.BOARD_BACK), onClick = function() ns.Views.ShowBoard(false) end, gapAfter = true } }
-	-- 1.2: the Board's sections (Groups.lua): its flags, or one kind of group listing.
+	-- 1.4.0: the Board's sections (Groups.lua): its flags, or one kind of group listing.
 	local G = ns.Groups
 	if G and not G.missing and G.NavLine then
 		lines[#lines + 1] = G.NavLine()
@@ -892,7 +892,7 @@ function Board.Lines(q)
 				onClick = function() Board.Lower() end,
 				tooltip = function(tt) tt:AddLine(L.BOARD_MINE:format(Label(mine.flag)), 1, 0.82, 0); tt:AddLine(L.BOARD_MINE_TIP, 1, 1, 1, true) end }
 		elseif multi and G.FlagComposing() then
-			-- 1.2: a flag for several places, and the roles we play (Groups.lua).
+			-- 1.4.0: a flag for several places, and the roles we play (Groups.lua).
 			G.FlagComposerLines(lines)
 		else
 			for _, flag in ipairs(Board.FLAGS) do
@@ -1128,7 +1128,7 @@ function Board.Slash(cmd, rest)
 		end
 		return Board.PromptCamp(rest)
 	end
-	-- (Groups.lua, 1.2: a stand-in until the game restarts after the update, Core.lua.)
+	-- (Groups.lua, 1.4.0: a stand-in until the game restarts after the update, Core.lua.)
 	if cmd == "group" or cmd == "groups" then return ns.Groups.Slash(rest) end
 	-- (/oly lfg and /oly week: the Board on its flags, where the week is too.)
 	if ns.Groups and not ns.Groups.missing and ns.Groups.Show then ns.Groups.Show("flags", true) end

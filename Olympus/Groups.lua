@@ -1,7 +1,7 @@
 local ADDON, ns = ...
 local L = ns.L
 
--- Group listings on the Board (1.2): a leader lists a group for a dungeon, a raid, PvP or a quest,
+-- Group listings on the Board (1.4.0): a leader lists a group for a dungeon, a raid, PvP or a quest,
 -- with the roles it still needs; a player applies with one role and a short note; the leader
 -- invites or declines from the same page. The Board's flags stay what they are (Board.lua): a
 -- player looking for a group raises a flag, a group looking for players is listed here. The
@@ -44,7 +44,7 @@ local L = ns.L
 --   GW~<id>                                         an application withdrawn (whispered)
 --   GR~<id>~<answer>                                the leader's answer, whispered: I invited,
 --                                                   D declined, F the listing closed
--- The Board's ask (GQ, Board.lua) is answered with our listing too. Clients before 1.2 have no
+-- The Board's ask (GQ, Board.lua) is answered with our listing too. Clients before 1.4.0 have no
 -- handler for these: they leave them unread, and their Board is unchanged.
 -- What applies to a flag applies here (Board.lua): Olympus guilds only, our own guild's names
 -- from our roster, one guild per sender, a name the moderators took off (net-off) neither lists
@@ -169,7 +169,7 @@ local lastList, lists = -math.huge, {}
 local view = "flags"   -- the Board's section shown: "flags" (Board.lua's page) or a kind
 local opened           -- the card (a leader's name) or applicant opened, its actions under it
 local compose          -- the listing being made: { kind, target, title, need }
-local flagCompose      -- the flag for several places being made (1.2): { roles = { T = true... }, picks = { D = { any, keys = { [key] = true } } }, open = kind }
+local flagCompose      -- the flag for several places being made (1.4.0): { roles = { T = true... }, picks = { D = { any, keys = { [key] = true } } }, open = kind }
 
 local function Gold(s) return "|cffffd200" .. s .. "|r" end
 local function Grey(s) return "|cff9d9d9d" .. s .. "|r" end
@@ -253,7 +253,7 @@ function Groups.Decode(s)
 		min = CleanMin(min), zone = kind == "Q" and Groups.CleanZone(zone) or "", every = every, age = age, title = title, note = ns.Board.CleanNote(rest:match("^[^~]*")) }
 end
 
--- How many others are in a group, by class and role (review of 1.2: never their names):
+-- How many others are in a group, by class and role (review of PR #62: never their names):
 -- { { class, role, count } } from the members as GroupMembers gives them, one entry for each class
 -- and role, in a fixed order (by class, then T, H, D, none), MEMBERS_MAX others at most counted.
 local ROLE_ORDER = { T = 1, H = 2, D = 3 }
@@ -340,7 +340,7 @@ function Groups.KindLabel(kind) return L["GROUPS_KIND_" .. tostring(kind)] or to
 function Groups.RoleLabel(role) return L["GROUPS_ROLE_" .. tostring(role)] or tostring(role) end
 
 -- Where a listing is for: a place's name, a quest's title, or "Other". On the King's screen (his
--- stream, ns.KingsScreen) a quest's title is a player's words, as a note is (review of 1.2): it
+-- stream, ns.KingsScreen) a quest's title is a player's words, as a note is (review of PR #62): it
 -- shows only as his own quest log has that quest, else "A quest"; a typed name never.
 function Groups.Target(kind, target, title)
 	if kind == "Q" then
@@ -479,7 +479,7 @@ function Groups.CurrentZone()
 	local z = GetRealZoneText and GetRealZoneText() or (GetZoneText and GetZoneText()) or ""
 	return Groups.CleanZone(type(z) == "string" and z or "")
 end
--- The zone a typed name's listing carries (review of 1.2): ours only while we share where we are
+-- The zone a typed name's listing carries (review of PR #62): ours only while we share where we are
 -- (/oly location on) and never from an instance, as a flag's (Board.SharedZone); else none.
 function Groups.SharedZone()
 	if not (ns.Layers and ns.Layers.Sharing and ns.Layers.Sharing()) then return "" end
@@ -487,7 +487,7 @@ function Groups.SharedZone()
 	return Groups.CurrentZone()
 end
 
--- The quest log for one page (review of 1.2: read once for all its rows, never once a row):
+-- The quest log for one page (review of PR #62: read once for all its rows, never once a row):
 -- Groups.WithLog holds what Log reads until it returns; outside it each Log reads afresh (a
 -- tooltip on hover).
 local logHeld, logMemo = false, nil
@@ -869,7 +869,7 @@ function Groups.HandleApply(dist, sender, text)
 	local now = ns.Now()
 	local old = applicants[sender]
 	if old and now - old.at < Groups.APPLY_GAP then return end
-	-- (Review of 1.2: a role the listing no longer wants is refused, as the applicant's own
+	-- (Review of PR #62: a role the listing no longer wants is refused, as the applicant's own
 	-- addon refuses it; their earlier application, if any, stays as it was.)
 	if not Groups.Wants(own.need, a.role) then return end
 	if not old then
@@ -882,7 +882,7 @@ function Groups.HandleApply(dist, sender, text)
 	-- (A sound of its own, the "groups" switch of /oly sound; once for each new applicant.)
 	if not old then ns.PlayAlert("soft", "groups") end
 	Save()
-	-- The chat line for a new applicant, or one who changed role (review of 1.2: not again for the
+	-- The chat line for a new applicant, or one who changed role (review of PR #62: not again for the
 	-- same application repeated).
 	if not old or old.role ~= a.role then
 		ns.Print(L.GROUPS_APPLICANT:format(Shown(sender) or sender, Groups.RoleLabel(a.role), Groups.Target(own.kind, own.target, own.title)))
@@ -912,7 +912,7 @@ local function MayInvite()
 end
 
 -- The game's invite, from the leader's click (the gp:roster-actions entry: never otherwise),
--- protected (review of 1.2: a refused invite never breaks the click), as FarkleTable's. Whether
+-- protected (review of PR #62: a refused invite never breaks the click), as FarkleTable's. Whether
 -- the game took the call.
 local function GameInvite(name) -- gp:roster-actions
 	local target = ns.TellName(name) or name
@@ -1211,7 +1211,7 @@ local function CountText(c)
 end
 
 -- Who is in a group: ours by name (our own group, as it is); anyone else's as its leader's GM
--- counts them, by class and role (review of 1.2: never their names).
+-- counts them, by class and role (review of PR #62: never their names).
 function Groups.MembersTip(tt, e)
 	if e.mine then
 		local list = e.members or {}
@@ -1322,7 +1322,7 @@ local function CardLines(lines, e)
 			for _, m in ipairs(list) do lines[#lines + 1] = MemberRow(m, 3) end
 		end
 	elseif #(e.counts or {}) > 0 then
-		-- (Review of 1.2: anyone else's group by class and role, never by name.)
+		-- (Review of PR #62: anyone else's group by class and role, never by name.)
 		Add(Gold(L.GROUPS_IN_GROUP))
 		for _, c in ipairs(e.counts) do
 			lines[#lines + 1] = { indent = 3, text = CountText(c), right = c.role and Green(Groups.RoleLabel(c.role)) or Grey(L.GROUPS_ROLE_UNSET) }
@@ -1480,7 +1480,7 @@ function Groups.ConfirmName(data, name)
 	data.answered = true
 	name = Groups.CleanTitle(name)
 	if name == "" or not compose or compose.kind ~= "Q" then return end
-	-- (Review of 1.2: no zone kept for a typed name; it carries ours at each send only while we
+	-- (Review of PR #62: no zone kept for a typed name; it carries ours at each send only while we
 	-- share it, Groups.OwnZone.)
 	Groups.ChooseTarget("0", name, "")
 	return true
@@ -1538,7 +1538,7 @@ local function PageLines(lines, q)
 		lines[#lines + 1] = { indent = 0, text = Grey(L.GROUPS_EXPLAIN), gapAfter = true }
 		lines[#lines + 1] = { header = true, text = L.GROUPS_YOURS,
 			tooltip = function(tt) tt:AddLine(L.GROUPS_YOURS, 1, 0.82, 0); tt:AddLine(L.GROUPS_YOURS_TIP, 1, 1, 1, true) end }
-		-- 1.2 (API.lua's ui.board-groups): a companion addon's panel in place of what follows, with
+		-- 1.4.0 (API.lua's ui.board-groups): a companion addon's panel in place of what follows, with
 		-- the player's switch back to Olympus's own (Groups.PanelLines); the composer stays ours.
 		if Groups.PanelLines(lines, kind, compose and compose.kind == kind and not own and function() ComposerLines(lines, kind) end) then
 			-- (drawn there)
@@ -1579,14 +1579,14 @@ local function PageLines(lines, q)
 		local askAt = ns.Board.AskedAt and ns.Board.AskedAt()
 		lines[#lines + 1] = { indent = 1, text = Grey((q or f ~= "all") and L.SEARCH_NO_MATCH or (askAt and ns.Now() - askAt < 30 and L.BOARD_GATHERING or L.GROUPS_EMPTY)) }
 	end
-	-- 1.2: the players whose flag looks for this kind, the ones fitting our group first.
+	-- 1.4.0: the players whose flag looks for this kind, the ones fitting our group first.
 	Groups.LookingLines(lines, kind, q)
 	return lines
 end
 function Groups.Lines(lines, q) return Groups.WithLog(PageLines, lines, q) end
 
 ---------------------------------------------------------------------------
--- A companion addon's panel in place of Your group (1.2, API.lua's ui.board-groups)
+-- A companion addon's panel in place of Your group (1.4.0, API.lua's ui.board-groups)
 ---------------------------------------------------------------------------
 -- One panel a session (the first registered keeps it): an Olympus-owned frame on the Board's page,
 -- under the Your group heading, built and refreshed by the companion's own functions (protected:
@@ -1740,7 +1740,7 @@ function Groups.OpenFlagComposer(kind)
 end
 
 ---------------------------------------------------------------------------
--- A flag for several places and roles (1.2: Board.lua carries them after the flag's note)
+-- A flag for several places and roles (1.4.0: Board.lua carries them after the flag's note)
 ---------------------------------------------------------------------------
 
 
@@ -1879,7 +1879,7 @@ end
 function Groups.Looking(kind)
 	local out = {}
 	if kind == "Q" then return out end
-	-- (Review of 1.2: whether each fits is worked out once, before the sort, not in its comparator.)
+	-- (Review of PR #62: whether each fits is worked out once, before the sort, not in its comparator.)
 	local fits = {}
 	for _, e in ipairs(ns.Board.List("flag")) do
 		if FlagPick(e, kind) then
@@ -1969,7 +1969,7 @@ end
 -- The dialogs: what goes out, and a note (optional)
 ---------------------------------------------------------------------------
 
--- (Review of 1.2: the dialog says what goes out, the zone among it when one does.)
+-- (Review of PR #62: the dialog says what goes out, the zone among it when one does.)
 function Groups.PromptList(note)
 	local c = compose
 	if not c or not c.target then return end
@@ -2085,7 +2085,7 @@ ns.Comm.Handle("GW", function(...) Groups.HandleWithdraw(...) end)
 ns.Comm.Handle("GR", function(...) Groups.HandleAnswer(...) end)
 
 -- Someone joined or left our group: our invites checked a second later (the event comes in bursts).
--- The Board is redrawn only when that changes what it shows (review of 1.2: not on every client
+-- The Board is redrawn only when that changes what it shows (review of PR #62: not on every client
 -- at every roster update, with its camps on the map): an invite joined or lapsed (CheckJoins says
 -- so itself), or our listed group's roster. GROUPS_ROSTER tells the API (its MY_GROUP_CHANGED,
 -- built only while an addon listens).

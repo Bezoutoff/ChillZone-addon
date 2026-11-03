@@ -485,7 +485,7 @@ that zone, never who; no popup or alert comes of it.
 Decrees tab (a click on its line, with the gamepad UI too) or with `/oly sound <kind> on|off`:
 `arms` (Call to Arms), `muster`, `royal` (Royal decrees and Tabard inspections), `court`, `vox`,
 `agenda`, `throne` (the roll call, the Royal Inspection, writs), `help` (help requests and bug
-reports), `hop`, `treasury`, `patrol` and `update` (1.2: also `groups`, someone applied to your
+reports), `hop`, `treasury`, `patrol` and `update` (1.4.0: also `groups`, someone applied to your
 group on the Board). Silence the chimes you don't want and keep
 the Call to Arms: `/oly sound` alone is still the switch for every sound, and each kind keeps its
 own switch under it. A softer chime never silences the Call to Arms that follows it. Only the
@@ -886,7 +886,7 @@ what each player chose to share, and the King's week.
   gets one badge beside its circle, with how many (mouse and keyboard only, like the decrees;
   `/oly camps off` or the map's Olympus menu hides them). A camp is also a place for Bones (1.1.6,
   below).
-- **Groups** (1.2, the Board's other sections: **Dungeons**, **Raids**, **PvP**, **Quests**, beside
+- **Groups** (1.4.0, the Board's other sections: **Dungeons**, **Raids**, **PvP**, **Quests**, beside
   **Flags**; `/oly group [dungeon|raid|pvp|quest]`): a flag says you are looking for a group; a
   listing says your group is looking for players. **List a group** asks where (a dungeon, a raid
   or a battleground or world PvP spot, each with the level it is usually run from; a quest from
@@ -925,17 +925,17 @@ what each player chose to share, and the King's week.
   **Lower your listing** or `/oly group off` takes it down for everyone at once. Five
   applications of yours wait at most; a click withdraws one. Listings for a quest in your own
   log come first, marked. Nothing joins a queue, and nothing invites anyone without the
-  leader's click. Clients before 1.2 never see listings (their Board is unchanged). Another
+  leader's click. Clients before 1.4.0 never see listings (their Board is unchanged). Another
   addon you allowed on the privacy page (the Olympus API, below) may show its own panel in place
   of **Your group**; the switch above it brings Olympus's own back, kept for your account.
-- **A flag for several places, with your roles** (1.2): under the one-click flags, **Raise a flag
+- **A flag for several places, with your roles** (1.4.0): under the one-click flags, **Raise a flag
   for several places, with your roles** picks the roles you play (any of Tank, Healer, Damage)
   and up to 8 dungeons, raids and PvP spots, or **Any** of a kind, in one flag. Its card says
   them all; each group section lists the players whose flag names it (**Players looking**), the
   ones that fit your listing first (its place, a role it still needs, its minimum level), filtered
   by **Fits my group** or a role, and a click whispers them or, with your group listed there,
   invites them **as** a role their flag names and your group still needs (it comes off the need
-  when they join). Clients before 1.2 show it
+  when they join). Clients before 1.4.0 show it
   as the plain flag of its first kind.
 
 ### Net-off (1.1): the moderators hide a character or take a guild off the network
@@ -2553,12 +2553,12 @@ alone (the Companion's rows below). Your name is on every message (the game adds
 | An answer to an ask for your layer (it tells the asker you are on it), including a direct sighting when an active asker is discovering the King's layer | the asker alone (a whisper; a direct sighting is never broadcast by itself) | only if you share your zone and layer and said yes to layer help (1.1: off until you answer, on the first-open page or with `/oly layerhelp on`; `/oly layerhelp off` stops it); direct sightings require two independent answers, last only for that request and are withdrawn on opt-out while it remains active |
 | [Olympus], [Captains] and [Lords] lines | everyone on the Olympus channel, all three | when you write one, only while the Olympus chats are on (1.1: off until you say yes, on the first-open page or with `/oly chat on`) |
 | A pinned line (1.1): its words, your guild and, as on every message, your name | the King's, his Stewards' and Hands': everyone on the Olympus channel. A guild master's, and a higher rank's takedown of it: his guild alone (over guild chat) | when you pin one (only while your Olympus chats are on, never while the moderators have you off), again every 5 minutes while it lasts (2 hours at most, a `/reload` included), and when you take it down (`/oly pin off` with nothing pinned on your screen too, once a minute at most: a `/reload` on the Forever beta forgets your pin); a pin you took down (its number and your guild), when you take it down and again when its setter's addon repeats it, once a minute at most, never while the moderators have you off |
-| A flag on the Board (1.1): your guild, level and class, the flag (dungeon, raid, PvP or layer), your note (with the logged API), and your zone only while you share it; 1.2: the roles you play and the places you picked, when you raise a flag for several places | everyone on the Olympus channel, and whispered to a player whose Board asked for the flags up | when you raise it, then every 10 to 30 minutes for an hour at most, until you lower it |
+| A flag on the Board (1.1): your guild, level and class, the flag (dungeon, raid, PvP or layer), your note (with the logged API), and your zone only while you share it; 1.4.0: the roles you play and the places you picked, when you raise a flag for several places | everyone on the Olympus channel, and whispered to a player whose Board asked for the flags up | when you raise it, then every 10 to 30 minutes for an hour at most, until you lower it |
 | The Board's ask (1.1): nothing but your name | everyone on the Olympus channel | once a session, the first time you open the Board |
-| A group listing on the Board (1.2): your guild, level and class, where (a place, a quest's number, title and zone from your log, or a name you typed, with the zone you are in only while you share it and never from an instance), the roles still needed, the minimum level, your group's size and your note (with the logged API when it has words) | everyone on the Olympus channel, and whispered to a player whose Board asked | when you list it, after a change (someone joined or left, you changed what it needs), then every 5 to 30 minutes for an hour at most (a quest's half an hour), until you lower it |
-| How many others are in your listed group (1.2): counts by class and role (the role when an application you invited said it or you set it), never their names | everyone on the Olympus channel, and whispered with your listing to a player whose Board asked | after your listing while anyone is in your group, and when someone joins or leaves |
-| An application to a group (1.2): your guild, level, class, the role you chose and your note (with the logged API); or that you withdraw it | that group's leader alone (a whisper) | only when you click Apply as, or withdraw |
-| A leader's answer to an application (1.2): invited, declined, or the listing closed | that applicant alone (a whisper) | when the leader clicks Invite or Decline, and when the listing closes (10 of those waiting at most) |
+| A group listing on the Board (1.4.0): your guild, level and class, where (a place, a quest's number, title and zone from your log, or a name you typed, with the zone you are in only while you share it and never from an instance), the roles still needed, the minimum level, your group's size and your note (with the logged API when it has words) | everyone on the Olympus channel, and whispered to a player whose Board asked | when you list it, after a change (someone joined or left, you changed what it needs), then every 5 to 30 minutes for an hour at most (a quest's half an hour), until you lower it |
+| How many others are in your listed group (1.4.0): counts by class and role (the role when an application you invited said it or you set it), never their names | everyone on the Olympus channel, and whispered with your listing to a player whose Board asked | after your listing while anyone is in your group, and when someone joins or leaves |
+| An application to a group (1.4.0): your guild, level, class, the role you chose and your note (with the logged API); or that you withdraw it | that group's leader alone (a whisper) | only when you click Apply as, or withdraw |
+| A leader's answer to an application (1.4.0): invited, declined, or the listing closed | that applicant alone (a whisper) | when the leader clicks Invite or Decline, and when the listing closes (10 of those waiting at most) |
 | A guild Agenda entry (1.2.4): its title, time, setter and guild | that guild alone (over guild chat), from its own master or verified Heraldry correspondent | when scheduled, then every 10 minutes while within a day, every 30 otherwise; the saved audience and current authority are checked again |
 | A voluntary campaign (1.2.4): purpose, goal, 14-day receipt window, aggregate gold/material progress and the King's closing purchase note; no giver or receipt identity | everyone on the Olympus channel, from the actual King's client only | when he creates, updates or closes it, then every 5 minutes for late logins |
 | A keeper's campaign report (1.2.4): campaign id, aggregate assigned voluntary gold and material counts, no giver names | the pinned King alone (a whisper) | after explicit assignment/correction and every 5 minutes while open; current keeper authority is checked again before sending |
@@ -3144,7 +3144,7 @@ Other limits:
   it holds 150, so the channel carries about the same whatever the crowd. The ask a player's
   Board sends once a session is answered by whisper, by about 40 flag holders at most, and
   nobody answers past the first 4 asks of a minute (`ch:G1`, `ch:GQ` in `/oly status`).
-- Group listings (1.2) repeat every 5 minutes while few are up and every 30 when 150 are (12
+- Group listings (1.4.0) repeat every 5 minutes while few are up and every 30 when 150 are (12
   seconds a listing, as the flags), a change sent at most once every 15 seconds, and answered with the flags to the Board's ask (`ch:GL` in
   `/oly status`); a group with anyone in it adds one message of names after its listing (`ch:GM`). Applications and answers are whispers.
 
@@ -3202,7 +3202,7 @@ Other limits:
 | `/oly discord certified` | the author: every certificate his client signed as the council authority (off as it ships) for a High Councillor's key (key id, character, end), for the bot's keeper |
 | `/oly hop` | ask for an invite to the King's layer (while he is online) |
 | `/oly lfg` · `/oly lfg dungeon\|raid\|pvp\|layer [note]` · `/oly lfg off` | the Board (1.1): who is looking for a group; raise your flag (a box with your note first) or lower it |
-| `/oly group` · `/oly group dungeon\|raid\|pvp\|quest` · `/oly group off` | the Board's groups (1.2): list your group, apply to one, answer applications; lower yours |
+| `/oly group` · `/oly group dungeon\|raid\|pvp\|quest` · `/oly group off` | the Board's groups (1.4.0): list your group, apply to one, answer applications; lower yours |
 | `/oly week` | the week on the Board and Decrees: army and own-guild Agenda entries for 7 days, alongside your guild's calendar; eligible schedulers see separate army and guild buttons ("Sat 20:00 Raid night") |
 | `/oly camp [note]` · `/oly camp off` · `/oly camps on\|off` | drop a camp in your zone (1.1: it needs `/oly location on`) or take yours down; the camps' badges on the world map |
 | `/oly vox off` · `/oly vox on` | Vox Populi questions in chat only, or in a window |

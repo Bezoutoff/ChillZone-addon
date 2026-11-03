@@ -1910,7 +1910,7 @@ L.BOARD_CAMPS_IN = "Camps in %s"
 L.BOARD_CAMP_MAP_TIP = "Whisper them from the Board (/oly lfg). /oly camps off hides these badges."
 L.BOARD_CAMPS_MAP_ON = "Camps show on the world map (/oly camps off hides them; the Board keeps them)."
 L.BOARD_CAMPS_MAP_OFF = "Camps are hidden on the world map (/oly camps on shows them; the Board keeps them)."
--- 1.2: group listings on the Board (Groups.lua)
+-- 1.4.0: group listings on the Board (Groups.lua)
 L.GROUPS_TAB_FLAGS = "Flags"
 L.GROUPS_TAB_D = "Dungeons"
 L.GROUPS_TAB_R = "Raids"
@@ -2050,7 +2050,7 @@ L.GROUPS_FILTER_ALL = "All"
 L.GROUPS_FILTER_JOIN = "I can join"
 L.GROUPS_FILTER_LOG = "In my log"
 L.GROUPS_FILTER_ZONE = "My zone"
-L.SOUND_GROUPS = "Board groups: someone applied to your group" -- (1.2)
+L.SOUND_GROUPS = "Board groups: someone applied to your group" -- (1.4.0)
 L.MAPOPT_CAMPS = "Camps"
 L.HELP_CAMP = "  /oly camp [note] | off - drop a camp in your zone (it needs /oly location on) or take yours down; /oly camps on | off - camps on the world map"
 -- 1.1: the King's week (Week.lua, Fern's #26).
@@ -5096,7 +5096,7 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.BOARD_CAMP_MAP_TIP = "Sussurre para eles pelo Mural (/oly lfg). /oly camps off esconde estes selos."
 	L.BOARD_CAMPS_MAP_ON = "Os acampamentos aparecem no mapa-múndi (/oly camps off esconde; o Mural continua com eles)."
 	L.BOARD_CAMPS_MAP_OFF = "Os acampamentos estão escondidos no mapa-múndi (/oly camps on mostra; o Mural continua com eles)."
-	-- 1.2: grupos no Mural (Groups.lua)
+	-- 1.4.0: grupos no Mural (Groups.lua)
 	L.GROUPS_TAB_FLAGS = "Bandeiras"
 	L.GROUPS_TAB_D = "Masmorras"
 	L.GROUPS_TAB_R = "Raides"

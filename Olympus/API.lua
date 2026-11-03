@@ -13,7 +13,7 @@ local L = ns.L
 --     the observer consent, short life, audience and last-seen semantics below; the bounded
 --     profile-presentation session is host-owned, self-only and fixed-style. A registered addon
 --     may also contribute one page to the Olympus window; Olympus still owns its lifecycle.
---     1.2 (the Board's groups, "groups.manage"): the player's own listing acted on as the Board's
+--     1.4.0 (the Board's groups, "groups.manage"): the player's own listing acted on as the Board's
 --     own buttons do (an applicant or a flag's player invited by the game's invite, an applicant
 --     declined, a member's role set, the listing lowered), and Olympus's own card, composer and
 --     flag dialog opened, where he posts and applies himself: never a listing posted, an
@@ -30,7 +30,7 @@ local L = ns.L
 --     a live unit token's guild, as the game gives it, and Olympus's own rule). Never the
 --     census, another player's private data, the Wanted page's victims or stored sightings, a
 --     movement history, a staff view or a secret (a key, sealed channel name, signature or private
---     list). The Board's groups (1.2, Groups.lua) as its sections show them: the listings (how many
+--     list). The Board's groups (1.4.0, Groups.lua) as its sections show them: the listings (how many
 --     are in a group by class and role, never their names; no time of anyone's), the players
 --     looking, and the player's own listing's applications and his own group; on the King's screen
 --     the words the Board hides stay out. The optional search returns only a fresh native
@@ -804,7 +804,7 @@ local function AreaMapAllowed(c, mapID, now)
 end
 
 ---------------------------------------------------------------------------
--- The Board's groups (1.2, Groups.lua): what its sections show this player, field by field
+-- The Board's groups (1.4.0, Groups.lua): what its sections show this player, field by field
 ---------------------------------------------------------------------------
 
 local KIND_NAME = { D = "dungeon", R = "raid", P = "pvp", Q = "quest" }
@@ -916,7 +916,7 @@ local function LookingRow(e, k)
 end
 
 -- The player's own flag in that kind, as the Board's flags page shows it (own = true, never fits his
--- own listing): his name, guild, class and level from the game. (1.2, Daniel's test of a companion:
+-- own listing): his name, guild, class and level from the game. (1.4.0, Daniel's test of a companion:
 -- its list of players looking had every flag but his own.)
 local function OwnLookingRow(k)
 	local mine = Call("Board", "Mine")
@@ -1210,7 +1210,7 @@ local function SetAnswer(c, on)
 	c.sightingTold = {}
 	if on then for _, event in ipairs(API.DATA_EVENTS) do Baseline(c, event) end end
 	ns.Log("api: %s %s", c.name, on and "granted" or "refused")
-	-- (1.2: its group panel shows only while it is Yes: the Board redrawn with it or without it.)
+	-- (1.4.0: its group panel shows only while it is Yes: the Board redrawn with it or without it.)
 	if c.panelRegistered and Has("UI", "Refresh") then pcall(ns.UI.Refresh) end
 	Tell(c, "PERMISSION_CHANGED", Status(c))
 end
@@ -1963,7 +1963,7 @@ function METHODS.OpenSurface(c) return RegisteredSurfaceCall(c, "OpenAPISurface"
 function METHODS.ToggleSurface(c) return RegisteredSurfaceCall(c, "ToggleAPISurface") end
 function METHODS.RefreshSurface(c) return RegisteredSurfaceCall(c, "RefreshAPISurface") end
 function METHODS.IsSurfaceOpen(c) return RegisteredSurfaceCall(c, "IsAPISurfaceOpen") end
--- 1.2, the Board's groups ("groups"): reads like GetWanted's (Yes, an Olympus guild, the rate).
+-- 1.4.0, the Board's groups ("groups"): reads like GetWanted's (Yes, an Olympus guild, the rate).
 local function GroupKind(kind)
 	if kind == nil then return true, nil end
 	if Secret(kind) or type(kind) ~= "string" or not API.GROUP_KINDS[kind] then return false end
@@ -1986,7 +1986,7 @@ function METHODS.GetMyGroup(c)
 	return Read(c, true, API.MyGroup)
 end
 
--- 1.2, the player's own group ("groups.manage"): each action is the Board's own (Groups.lua's
+-- 1.4.0, the player's own group ("groups.manage"): each action is the Board's own (Groups.lua's
 -- function its button runs, with its checks and the gamepad gate's roster-actions path for the
 -- game's invite: the companion's click is the player's), after the Yes, an Olympus guild, out of
 -- combat and within a small rate of its own. `true`, or `false` and why.
@@ -2119,7 +2119,7 @@ function METHODS.OpenFlagDialog(c, kind)
 	return Manage(c, function(G) return G.OpenFlagComposer(code) end)
 end
 
--- 1.2, the Board's group panel ("ui.board-groups"): one companion panel a session in place of Your
+-- 1.4.0, the Board's group panel ("ui.board-groups"): one companion panel a session in place of Your
 -- group, as RegisterSurface's page (no data by itself; registered while the answer is pending too,
 -- shown only while it is Yes). Groups.lua owns the frame, the switch and the player's choice.
 function METHODS.RegisterGroupPanel(c, spec) -- gp:board-panel

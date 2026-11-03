@@ -1181,7 +1181,7 @@ local function World(C, opts)
 	})
 	E.C_AddOns = Namespace("C_AddOns", {
 		IsAddOnLoaded = function(name) return C.loadedAddOns[name] == true end,
-		-- (1.2: another installed addon's TOC fields, as the API's Register reads its Title; the
+		-- (1.4.0: another installed addon's TOC fields, as the API's Register reads its Title; the
 		-- fixture's "api", AddOnsDocumentation.lua's GetAddOnMetadata(name, variable).)
 		GetAddOnMetadata = function(name, field) local t = C.addOnTitles[name] return field == "Title" and t or nil end,
 		LoadAddOn = Fn("C_AddOns.LoadAddOn", function(name)
@@ -3072,7 +3072,7 @@ test("gamepad: the Olympus Accord's quiet not-found line: no chat filter with th
 	NoErrors(A, "the Olympus Accord's quiet line")
 end)
 
--- 1.2, the Board's group listings (Groups.lua, the review of PR #62): its sections in Olympus's
+-- 1.4.0, the Board's group listings (Groups.lua, the review of PR #62): its sections in Olympus's
 -- own window, drawn and clicked by the player, with the gamepad UI on from the login and across a
 -- switch each way. The quest log's functions (GetNumQuestLogEntries, GetQuestLogTitle, C_QuestLog)
 -- are not in tests/fixtures/forever-api.lua yet: Groups.lua is the first to read them, and the
@@ -3149,7 +3149,7 @@ local function BoardGroupsFlow(C, mode)
 end
 
 for _, initialPad in ipairs({ false, true }) do
-	test("gamepad Board groups (1.2): " .. (initialPad and "gamepad" or "mouse") .. " login, every section drawn and clicked (Quests too), the game's invite from a click alone, a switch each way", function()
+	test("gamepad Board groups (1.4.0): " .. (initialPad and "gamepad" or "mouse") .. " login, every section drawn and clicked (Quests too), the game's invite from a click alone, a switch each way", function()
 		local C, ns = Session(initialPad)
 		for _, name in ipairs(QUEST_LOG) do C.Absent(name, "Groups.lua's quest log: not in the client fixture until it is regenerated (scripts/forever-api.lua)") end
 		GP.Covers("roster-actions")
@@ -3165,12 +3165,12 @@ for _, initialPad in ipairs({ false, true }) do
 	end)
 end
 
--- 1.2, a companion addon's group panel on the Board (API.lua's RegisterGroupPanel, the registry's
+-- 1.4.0, a companion addon's group panel on the Board (API.lua's RegisterGroupPanel, the registry's
 -- board-panel): an Olympus-owned frame in Olympus's own window, in place of Your group while the
 -- addon has the player's Yes; the player's switch on the Board brings Olympus's own back. With the
 -- gamepad UI on from the login and across a switch each way it stays Olympus's own window's.
 for _, initialPad in ipairs({ false, true }) do
-	test("gamepad Board group panel (1.2): " .. (initialPad and "gamepad" or "mouse") .. " login, a companion's panel in place of Your group, the switch back and forth, a switch of input each way", function()
+	test("gamepad Board group panel (1.4.0): " .. (initialPad and "gamepad" or "mouse") .. " login, a companion's panel in place of Your group, the switch back and forth, a switch of input each way", function()
 		local C, ns = Session(initialPad)
 		for _, name in ipairs(QUEST_LOG) do C.Absent(name, "Groups.lua's quest log: not in the client fixture until it is regenerated (scripts/forever-api.lua)") end
 		GP.Covers("board-panel")

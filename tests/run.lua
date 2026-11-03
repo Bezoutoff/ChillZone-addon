@@ -64001,7 +64001,7 @@ for _, name in ipairs(focused) do
 		or name:match("^church") and { WithGamepadUI = WithGamepadUI, WithUI = WithUI }
 		or (name == "court-calls" and { WithThrone = WithThrone, AsKing = AsKing, AsSoldier = AsSoldier,
 			WithGamepadUI = WithGamepadUI, WithUI = WithUI }) or (name == "hop-sightings" and WithHop or nil)
-	-- (1.2: the groups' tests run on the Board's harness.)
+	-- (1.4.0: the groups' tests run on the Board's harness.)
 	if name == "groups" then extra = { WithBoard = WithBoard, AsSoldier = AsSoldier, ADDON_DIR = ADDON_DIR } end
 	assert(loadfile(ROOT .. "tests/" .. name .. ".lua"))(ns, test, eq, extra)
 end

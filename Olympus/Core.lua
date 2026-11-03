@@ -557,7 +557,7 @@ end
 --   hop, treasury, patrol a layer hop, a donation, a patrol's player without the tabard
 --   update                the author's update notice
 --   arena, watch, craft   1.2's Blood Arena, private guild moderation notices, crafting requests
---   groups                1.2: someone applied to your group on the Board (Groups.lua)
+--   groups                1.4.0: someone applied to your group on the Board (Groups.lua)
 ns.SOUND_KINDS = { "arms", "muster", "royal", "court", "vox", "agenda", "throne", "help", "hop", "treasury", "patrol", "update", "arena", "watch", "craft", "groups" }
 local SOUND_KIND = {}
 for _, k in ipairs(ns.SOUND_KINDS) do SOUND_KIND[k] = true end
@@ -2212,7 +2212,7 @@ StandIn("ChatStrikes", {}) -- the chat warnings: three in 24 hours (ChatStrikes.
 StandIn("TagFollow", {}) -- a sanction that follows the BattleTag (TagFollow.lua)
 StandIn("Wanted", { "SightingsSlash", "Slash" }) -- 1.2: the Horde Most Wanted ledger and its sightings (1.2.3: /oly wanted)
 StandIn("Board", { "Slash" }) -- (1.1: the Board)
-StandIn("Groups", { "Slash" }) -- 1.2: the Board's group listings (Groups.lua)
+StandIn("Groups", { "Slash" }) -- 1.4.0: the Board's group listings (Groups.lua)
 StandIn("Week", {}) -- (1.1: the King's week)
 -- 1.1: net-off (Moderation.lua), alt links (Alts.lua), the King's key rotation (Keys.lua).
 StandIn("Moderation", { "Slash" })
