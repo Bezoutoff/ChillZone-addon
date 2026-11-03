@@ -72,7 +72,9 @@ local L = ns.L
 --   NR~1~p~<switch at36>~<a|m>~<rank>~<name>~<30 days*10>~<all*10>   public rows, CHANNEL
 --   NR~1~n~<switch at36>~<a|m>~<rows>   the end of one list's public rows (0: none shows now), CHANNEL
 --   NR~1~t~<at36>~<a1,a2,a3|->~<m1,m2,m3|->   the top 3 (last 30 days), CHANNEL and GUILD, taken from
---       the Head's, the King's or the author's client only; sent by the author's alone (SendTop)
+--       the Head's, the King's or the author's client, and (1.3.4) a signed High Councillor's; worked
+--       out by the author's alone (SendTop), said again as it is by the King's and the High Council's
+--       (Count.RelayTop), never by an Apostle's (Apostles rank Apostles)
 
 local Count = {}
 ns.ChurchCount = Count
@@ -127,6 +129,12 @@ Count.POINTS_JOIN, Count.POINTS_STAY = 10, 5
 Count.SHARES = { 0.25, 0.10, 0.05 }
 Count.RANK_ROWS, Count.PUBLIC_ROWS = 25, 10
 Count.PUBLIC_EVERY, Count.PUBLIC_FRESH, Count.TOP_EVERY = 1800, 7200, 1800
+-- (1.3.4) The top 3's relays (Count.RelayTop): the first say TOP_FIRST after the first tick of a session,
+-- then TOP_EVERY + TOP_GRACE after the last word heard (the same or a newer one) or said, TOP_JITTER at
+-- random more; the King's TOP_KING_AFTER more again, so his goes last. (TOP_GRACE: the author's client
+-- says its word every TOP_EVERY, a tick late at most: it speaks first, and no relay with it.) TOP_MAX_AGE:
+-- a word older than this names nobody (Honors.CHURCH_MAX_AGE's).
+Count.TOP_FIRST, Count.TOP_GRACE, Count.TOP_JITTER, Count.TOP_KING_AFTER, Count.TOP_MAX_AGE = 300, 120, 300, 480, 30 * 86400
 Count.ASK_GAP, Count.ANSWERS_PER, Count.ANSWER_WINDOW = 60, 12, 300
 Count.CATCHUP_EVERY, Count.CATCHUP_LINES = 1800, 150
 -- Until its first catch-up ended, a keeper asks the next keeper when nothing came for CATCHUP_RETRY from
@@ -162,6 +170,7 @@ local answersTo = {}        -- asker key -> { times }
 local incoming = {}         -- sender key|what|window|person -> rows being received
 local catch = { asked = {}, last = -math.huge, heard = -math.huge, settled = false } -- heard: a line from a keeper asked
 local lastPublic, lastTop, lastPublicAt = -math.huge, -math.huge, nil
+local topHeard, topRelayAt = nil, nil -- (1.3.4) when the last same-or-newer top 3 was heard; our next relay
 local outq = {}             -- line transfers waiting, one target each: { target, list, i }
 local credits                -- cached per ledger revision
 local ledRev = 0
@@ -2296,7 +2305,9 @@ end
 -- author's alone in fact. SendTop takes a root of H or W, but the Head is the King (Church.IsHead),
 -- whose root is K, and the King's client is no keeper (Count.Tick leaves him out): TakeTop still takes
 -- the King's word. So the top 3, and the missionaries' crooks, move only while the author's client
--- is online with the ranking open; 30 days after its last word no client shows a crook.)
+-- is online with the ranking open; 30 days after its last word no client shows a crook. 1.3.4: the
+-- King's and the High Council's clients say its last word again, Count.RelayTop, so it reaches the
+-- clients that never were online with the author's; still worked out by his alone.)
 -- (1.2.3: worked out again only when what it is made of may have changed: the ledger, the book, the
 -- hour (the last 30 days move on), the top 3 held; and when TOP_EVERY sends it anyway. It was every tick,
 -- every person's numbers, only to find it the same.)
@@ -2324,12 +2335,22 @@ function Count.SendTop(now)
 	return true
 end
 
+-- (1.3.4, the owner's ask before the launch: every ranking shows on every client.) Who says the top 3
+-- again, as it is: the King's character and the signed High Council, never the author (his client
+-- works it out, SendTop: it relays nobody's word) nor an Apostle who is not of the Council (Apostles
+-- rank Apostles: the cross). A client that never was online with the author's took no top 3 before,
+-- and showed nobody's cross or crook.
+function Count.IsTopRelay(name)
+	if type(name) ~= "string" or name == "" or Church.IsAuthor(name) then return false end
+	return Church.IsKing(name) or ns.IsHighCouncillor(ns.FullName(name)) == true
+end
+
 function Count.TakeTop(sender, text)
 	local at, a, m = tostring(text or ""):match("^NR~1~t~([0-9a-z]+)~([^~]+)~([^~]+)$")
 	at = UnB36(at)
 	if not at then return Drop("shape") end
 	local root = Church.RootCode(sender)
-	if root ~= "H" and root ~= "K" and root ~= "W" then return Drop("root") end
+	if root ~= "H" and root ~= "K" and root ~= "W" and not Count.IsTopRelay(sender) then return Drop("root") end
 	if at > Clock() + Church.DATE_AHEAD then return Drop("ahead") end
 	local function Names(s)
 		local out = {}
@@ -2345,9 +2366,46 @@ function Count.TakeTop(sender, text)
 	if not apostles or not missionaries then return Drop("shape") end
 	local c = Church.Store()
 	local held = c.top
-	if type(held) == "table" and (tonumber(held.at) or 0) >= at then return false, "older" end
-	c.top = { at = at, by = Church.Key(sender) and ns.ShortName(ns.FullName(sender)), apostles = apostles, missionaries = missionaries }
+	local heldAt = type(held) == "table" and (tonumber(held.at) or 0) or nil
+	-- (1.3.4) The same word or a newer one heard from another client: our relay waits again (RelayTop).
+	if Key(sender) ~= Key(ns.me) and (not heldAt or at >= heldAt) then topHeard, topRelayAt = ns.Now(), nil end
+	if heldAt and heldAt >= at then return false, "older" end
+	-- (1.3.4: the word itself kept too, for a relay to say it again as it came, its own time with it.)
+	c.top = { at = at, by = Church.Key(sender) and ns.ShortName(ns.FullName(sender)), apostles = apostles, missionaries = missionaries,
+		text = text }
 	ns.Fire("CHURCH_TOP_CHANGED")
+	return true
+end
+
+-- (1.3.4) A relay's client (Count.IsTopRelay): the newest top 3 it holds, as it came (its time, its
+-- names), on CHANNEL and GUILD, while the public ranking is open and the word is no older than
+-- TOP_MAX_AGE: TOP_EVERY + TOP_GRACE after the last word it heard (the same or a newer one) or said,
+-- TOP_JITTER at random more, the King's TOP_KING_AFTER later still. A word heard meanwhile starts its
+-- wait again: no relay speaks while the author's client says it, and the relays online say it about once
+-- a TOP_EVERY between them (the first of them; the others heard it), the King's only when none of the
+-- Council's did. A relay never makes a word newer: its time is the one it came with, and every client
+-- keeps the newest (TakeTop).
+function Count.RelayTop(now)
+	if not Count.IsTopRelay(ns.me) or Off() then return false end
+	local t = ns.Now()
+	local function Wait() return (Church.IsKing(ns.me) and Count.TOP_KING_AFTER or 0) + Count.random(0, Count.TOP_JITTER) end
+	if not topRelayAt then
+		topRelayAt = topHeard and (topHeard + Count.TOP_EVERY + Count.TOP_GRACE + Wait()) or (t + Count.TOP_FIRST + Wait())
+	end
+	if t < topRelayAt then return false end
+	topRelayAt = t + Count.TOP_EVERY + Count.TOP_GRACE + Wait()
+	local top = Count.Top3()
+	local at = top and tonumber(top.at)
+	if not at or Clock() - at > Count.TOP_MAX_AGE then return false, "none" end
+	local text = type(top.text) == "string" and top.text or nil
+	local ta = text and UnB36(text:match("^NR~1~t~([0-9a-z]+)~[^~]+~[^~]+$"))
+	if ta ~= at then
+		-- (A top 3 kept before 1.3.4 has no word: the same time and names.)
+		text = ("NR~1~t~%s~%s~%s"):format(B36(at), #top.apostles > 0 and table.concat(top.apostles, ",") or "-",
+			#top.missionaries > 0 and table.concat(top.missionaries, ",") or "-")
+	end
+	ns.Comm.Send("CHANNEL", text, "church-top", false, false)
+	if OwnGuild() then ns.Comm.Send("GUILD", text, "church-top-guild", false, false) end
 	return true
 end
 
@@ -2539,6 +2597,8 @@ function Count.Tick(now)
 		nextPruneCount = nextPruneCount or now + Count.random(Count.PRUNE_AFTER, Count.PRUNE_AFTER + Count.PRUNE_SPREAD)
 		if now >= nextPruneCount then nextPruneCount = now + 3600; Count.Prune() end
 	end
+	-- (1.3.4) The King's and the High Council's: the top 3 said again (a keeper of the Council's too).
+	Count.RelayTop(now)
 end
 
 function Count.Stats() return stats end
