@@ -55,6 +55,11 @@ local L = ns.L
 local Groups = {}
 ns.Groups = Groups
 
+-- A name as the Board's sections show it: a moderator's cover name where this player accepted
+-- moderator protection (Cover.lua, ns.CoverSwap), as on the flags (Board.Card); the whisper, the
+-- invite and the search keep the real one.
+local function Shown(name) return ns.CoverSwap(ns.DisplayName(name)) end
+
 Groups.KINDS = { "D", "R", "P", "Q" } -- in the order the page's strip shows them
 Groups.KIND = { D = true, R = true, P = true, Q = true }
 Groups.ROLES = { "T", "H", "D" }
@@ -880,7 +885,7 @@ function Groups.HandleApply(dist, sender, text)
 	-- The chat line for a new applicant, or one who changed role (review of 1.2: not again for the
 	-- same application repeated).
 	if not old or old.role ~= a.role then
-		ns.Print(L.GROUPS_APPLICANT:format(ns.DisplayName(sender) or sender, Groups.RoleLabel(a.role), Groups.Target(own.kind, own.target, own.title)))
+		ns.Print(L.GROUPS_APPLICANT:format(Shown(sender) or sender, Groups.RoleLabel(a.role), Groups.Target(own.kind, own.target, own.title)))
 	end
 	Changed()
 end
@@ -928,7 +933,7 @@ function Groups.Invite(name)
 	a.state = "invited"
 	pending[name] = { role = a.role, at = ns.Now() }
 	ns.Comm.Whisper(name, ("GR~%s~I"):format(own.id))
-	ns.Print(L.GROUPS_INVITED:format(ns.DisplayName(name) or name, Groups.RoleLabel(a.role)))
+	ns.Print(L.GROUPS_INVITED:format(Shown(name) or name, Groups.RoleLabel(a.role)))
 	opened = nil
 	Save()
 	Changed()
@@ -966,12 +971,12 @@ function Groups.CheckJoins(now)
 			applicants[name] = nil
 			TakeRole(p.role)
 			changed = true
-			ns.Print(L.GROUPS_JOINED:format(ns.DisplayName(name) or name, Groups.RoleLabel(p.role)))
+			ns.Print(L.GROUPS_JOINED:format(Shown(name) or name, Groups.RoleLabel(p.role)))
 		elseif now - p.at >= Groups.INVITE_WAIT then
 			pending[name] = nil
 			if applicants[name] then applicants[name].state = "new" end
 			changed = true
-			ns.Print(L.GROUPS_NOT_JOINED:format(ns.DisplayName(name) or name, Groups.RoleLabel(p.role)))
+			ns.Print(L.GROUPS_NOT_JOINED:format(Shown(name) or name, Groups.RoleLabel(p.role)))
 		end
 	end
 	if not changed then return false end
@@ -1056,7 +1061,7 @@ function Groups.Apply(leader, role, note)
 	note = ns.Board.CleanNote(note)
 	ns.Comm.Whisper(leader, Groups.EncodeApply(e.id, GetGuildInfo("player"), role, MyLevel(), MyClass(), note), nil, nil, note ~= "")
 	apps[leader] = { id = e.id, role = role, at = now, state = "sent", kind = e.kind, target = e.target, title = e.title }
-	ns.Print(L.GROUPS_APPLIED:format(Groups.RoleLabel(role), Groups.Target(e.kind, e.target, e.title), ns.DisplayName(leader) or leader))
+	ns.Print(L.GROUPS_APPLIED:format(Groups.RoleLabel(role), Groups.Target(e.kind, e.target, e.title), Shown(leader) or leader))
 	Changed()
 	return true
 end
@@ -1079,7 +1084,7 @@ function Groups.HandleAnswer(dist, sender, text)
 	sender = ns.FullName(sender)
 	local a = apps[sender]
 	if not a or a.id ~= id then return end
-	local where, who = Groups.Target(a.kind, a.target, a.title), ns.DisplayName(sender) or sender
+	local where, who = Groups.Target(a.kind, a.target, a.title), Shown(sender) or sender
 	if answer == "I" then
 		a.state = "invited"
 		ns.Print(L.GROUPS_YOU_INVITED:format(who, where))
@@ -1218,7 +1223,7 @@ function Groups.MembersTip(tt, e)
 			if m.role then bits[#bits + 1] = Groups.RoleLabel(m.role) end
 			if m.level then bits[#bits + 1] = L.LEVEL_N:format(m.level) end
 			if class then bits[#bits + 1] = class end
-			tt:AddLine(Colored(ns.DisplayName(m.name) or m.name, m.class) .. (#bits > 0 and ("  " .. Grey(table.concat(bits, ", "))) or ""), 1, 1, 1)
+			tt:AddLine(Colored(Shown(m.name) or m.name, m.class) .. (#bits > 0 and ("  " .. Grey(table.concat(bits, ", "))) or ""), 1, 1, 1)
 		end
 		return
 	end
@@ -1232,7 +1237,7 @@ end
 
 -- A listing in full, on hover: where, its leader, what it needs, its minimum, zone and note, who is in it.
 function Groups.ListingTip(tt, e)
-	local who = ns.DisplayName(e.sender) or "?"
+	local who = Shown(e.sender) or "?"
 	tt:AddLine(Groups.KindLabel(e.kind) .. ": " .. Groups.Target(e.kind, e.target, e.title), 1, 0.82, 0)
 	local class = ClassName(e.class)
 	tt:AddLine(("%s <%s>  %s"):format(who, ns.Codec.Plain(e.guild), L.LEVEL_N:format(e.level)) .. (class and ("  " .. class) or ""), 1, 1, 1)
@@ -1249,7 +1254,7 @@ end
 -- A listing's row: where and its leader; on the right what it needs, its minimum, size and age.
 -- A click opens its card under it; the mouse over it shows it in full.
 function Groups.Card(e)
-	local who = ns.DisplayName(e.sender) or "?"
+	local who = Shown(e.sender) or "?"
 	local where = Groups.Target(e.kind, e.target, e.title)
 	local key = e.mine and "own" or e.sender
 	local have = e.kind == "Q" and InLog(e.target) and ("  " .. Green(L.GROUPS_IN_LOG)) or ""
@@ -1284,7 +1289,7 @@ local function CardActions(lines, e)
 			end
 		end
 	end
-	lines[#lines + 1] = { indent = 2, text = Gold("> " .. L.GROUPS_WHISPER:format(ns.DisplayName(e.sender) or "?")),
+	lines[#lines + 1] = { indent = 2, text = Gold("> " .. L.GROUPS_WHISPER:format(Shown(e.sender) or "?")),
 		onClick = function() ns.Board.Whisper(e.sender) end }
 end
 
@@ -1294,14 +1299,14 @@ local function MemberRow(m, indent)
 	local bits = {}
 	if m.level then bits[#bits + 1] = L.LEVEL_N:format(m.level) end
 	if class then bits[#bits + 1] = class end
-	return { indent = indent, text = Colored(ns.DisplayName(m.name) or m.name, m.class) .. (#bits > 0 and ("  " .. Grey(table.concat(bits, ", "))) or ""),
+	return { indent = indent, text = Colored(Shown(m.name) or m.name, m.class) .. (#bits > 0 and ("  " .. Grey(table.concat(bits, ", "))) or ""),
 		right = m.role and Green(Groups.RoleLabel(m.role)) or Grey(L.GROUPS_ROLE_UNSET) }
 end
 
 -- The group card, under its opened row: its leader, needs, minimum, zone, note and members, then
 -- what we can do (ours: managed under Your group).
 local function CardLines(lines, e)
-	local who = ns.DisplayName(e.sender) or "?"
+	local who = Shown(e.sender) or "?"
 	local class = ClassName(e.class)
 	local function Add(text, right) lines[#lines + 1] = { indent = 2, text = text, right = right } end
 	Add(L.GROUPS_CARD_LEADER:format(Colored(who, e.class), ns.Codec.Plain(e.guild)), Grey(L.LEVEL_N:format(e.level) .. (class and ("  " .. class) or "")))
@@ -1329,7 +1334,7 @@ end
 
 -- An application in full, on hover: who, their guild, level and class, the role, the note, when.
 function Groups.ApplicantTip(tt, a)
-	local who = ns.DisplayName(a.name) or a.name
+	local who = Shown(a.name) or a.name
 	local class = ClassName(a.class)
 	tt:AddLine(L.GROUPS_APPLIED_AS:format(Colored(who, a.class), Groups.RoleLabel(a.role)), 1, 0.82, 0)
 	tt:AddLine(("<%s>  %s"):format(ns.Codec.Plain(a.guild), L.LEVEL_N:format(a.level)) .. (class and ("  " .. class) or ""), 1, 1, 1)
@@ -1341,7 +1346,7 @@ end
 -- An applicant to our listing: their role, name, level; a click opens their card (Invite as the
 -- role they applied for, Decline, Whisper).
 local function ApplicantLines(lines, a)
-	local who = ns.DisplayName(a.name) or a.name
+	local who = Shown(a.name) or a.name
 	local waiting = pending[a.name]
 	lines[#lines + 1] = { indent = 1,
 		text = Green(Groups.RoleLabel(a.role)) .. "  " .. Colored(who, a.class) .. "  " .. Grey(L.LEVEL_N:format(a.level)),
@@ -1387,12 +1392,12 @@ local function OwnLines(lines)
 			local row = MemberRow(m, 2)
 			local name = m.name
 			row.onClick = function() Groups.SetMemberRole(name) end
-			row.tooltip = function(tt) tt:AddLine(ns.DisplayName(name) or name, 1, 0.82, 0); tt:AddLine(L.GROUPS_SET_ROLE_TIP, 1, 1, 1, true) end
+			row.tooltip = function(tt) tt:AddLine(Shown(name) or name, 1, 0.82, 0); tt:AddLine(L.GROUPS_SET_ROLE_TIP, 1, 1, 1, true) end
 			lines[#lines + 1] = row
 		end
 	end
 	for name, p in pairs(pending) do
-		lines[#lines + 1] = { indent = 1, text = Grey(L.GROUPS_PENDING:format(ns.DisplayName(name) or name, Groups.RoleLabel(p.role))), right = Grey(ns.Ago(p.at)) }
+		lines[#lines + 1] = { indent = 1, text = Grey(L.GROUPS_PENDING:format(Shown(name) or name, Groups.RoleLabel(p.role))), right = Grey(ns.Ago(p.at)) }
 	end
 	lines[#lines + 1] = { indent = 1, text = Gold("> " .. L.GROUPS_LOWER), onClick = function() Groups.Close() end,
 		tooltip = function(tt) tt:AddLine(L.GROUPS_LOWER, 1, 0.82, 0); tt:AddLine(L.GROUPS_LOWER_TIP, 1, 1, 1, true) end }
@@ -1910,7 +1915,7 @@ function Groups.InviteFlag(name, role)
 	if not MayInvite() then return false, "leader" end
 	if not GameInvite(name) then ns.Print(L.GROUPS_INVITE_FAILED) return false, "invite" end
 	pending[name] = { role = role, at = ns.Now() }
-	ns.Print(L.GROUPS_INVITED:format(ns.DisplayName(name) or name, Groups.RoleLabel(role)))
+	ns.Print(L.GROUPS_INVITED:format(Shown(name) or name, Groups.RoleLabel(role)))
 	opened = nil
 	Redraw()
 	return true
@@ -1950,9 +1955,9 @@ function Groups.LookingLines(lines, kind, q)
 							onClick = function() Groups.InviteFlag(e.sender, role) end }
 					end
 				elseif pending[e.sender] then
-					lines[#lines + 1] = { indent = 2, text = Grey(L.GROUPS_PENDING:format(ns.DisplayName(e.sender) or "?", Groups.RoleLabel(pending[e.sender].role))) }
+					lines[#lines + 1] = { indent = 2, text = Grey(L.GROUPS_PENDING:format(Shown(e.sender) or "?", Groups.RoleLabel(pending[e.sender].role))) }
 				end
-				lines[#lines + 1] = { indent = 2, text = Gold("> " .. L.GROUPS_WHISPER:format(ns.DisplayName(e.sender) or "?")),
+				lines[#lines + 1] = { indent = 2, text = Gold("> " .. L.GROUPS_WHISPER:format(Shown(e.sender) or "?")),
 					onClick = function() ns.Board.Whisper(e.sender) end }
 			end
 		end
@@ -1984,7 +1989,7 @@ end
 function Groups.PromptApply(leader, role, note)
 	local e = posts[leader]
 	if not e then return ns.Print(L.GROUPS_GONE) end
-	local what = L.GROUPS_APPLY_WHAT:format(Groups.RoleLabel(role), Groups.Target(e.kind, e.target, e.title), ns.DisplayName(leader) or leader)
+	local what = L.GROUPS_APPLY_WHAT:format(Groups.RoleLabel(role), Groups.Target(e.kind, e.target, e.title), Shown(leader) or leader)
 	return ns.ShowDialog("OLYMPUS_GROUPS_APPLY", what, ns.Comm.Audience(), { leader = leader, role = role, note = ns.Board.CleanNote(note) })
 end
 

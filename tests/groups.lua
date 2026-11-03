@@ -1210,3 +1210,67 @@ test("1.2 groups review (13, 15): /oly status counts the groups (no name); playe
 		eq(list[4].sender, "Flag1-Realm")
 	end)
 end)
+
+-- 1.4.0 (the merge into 1.4.0): a moderator's cover name (Embrace Anonymity, Cover.lua) shows on
+-- the Board's group sections as on its flags (Board.Card): his listing's row, tooltip and card,
+-- the apply dialog, his application to our listing and the chat lines about it, for a player who
+-- said Yes to moderator protection. The whisper and the game's invite keep the real name.
+test("1.4.0 groups: a moderator's cover name on the group sections, as on the flags; the whisper and the invite keep the real name", function()
+	if not ns.Cover then
+		assert(loadfile(H.ADDON_DIR .. "Locales/CoverText.lua"))("Olympus", ns)
+		assert(loadfile(H.ADDON_DIR .. "Cover.lua"))("Olympus", ns)
+	end
+	WithGroups(function(w, G, B)
+		AsSoldier()
+		local saved = { council = ns.rdb.council, covers = ns.rdb.covers, consent = ns.db.coverConsent }
+		local ok, err = pcall(function()
+			ns.rdb.council = { at = 1, names = { ["watch keeper"] = "Watch Keeper" } }
+			ns.rdb.covers = {}
+			ns.db.coverConsent = true
+			ns.Cover.Handle("CHANNEL", "Watch Keeper-Realm", "MC~Corwin Ashdale")
+			eq(ns.CoverSwap("Watch Keeper"), "Corwin Ashdale", "the cover is held")
+			local function NoRealName(text, what) assert(not tostring(text):find("Watch Keeper", 1, true), what .. ": " .. tostring(text)) end
+			-- His listing: the row, its tooltip, its card and the apply dialog say the cover name.
+			G.HandlePost("CHANNEL", "Watch Keeper-Realm", Listing("m1", "Olympus Zeus", "D", "SFK", "103", 0))
+			G.Show("D", true)
+			local row = Line(B.Lines(), "[Shadowfang Keep]")
+			assert(row and row.text:find("Corwin Ashdale", 1, true), Texts(B.Lines()))
+			NoRealName(row.text, "the row")
+			local tip = Tip(row)
+			assert(tip:find("Corwin Ashdale", 1, true), tip)
+			NoRealName(tip, "the tooltip")
+			row.onClick()
+			local lines = B.Lines()
+			for _, l in ipairs(lines) do NoRealName(l.text, "the card") end
+			local whisper = assert(Line(lines, ns.L.GROUPS_WHISPER:format("Corwin Ashdale")), Texts(lines))
+			whisper.onClick()
+			eq(w.told[#w.told], "Watch Keeper", "the whisper goes to the real name")
+			Line(lines, ns.L.GROUPS_APPLY_AS:format(ns.L.GROUPS_ROLE_T)).onClick()
+			eq(w.popups[#w.popups].a, ns.L.GROUPS_APPLY_WHAT:format(ns.L.GROUPS_ROLE_T, "Shadowfang Keep", "Corwin Ashdale"))
+			G.Reset()
+			-- His application to our listing: the chat line, the applicant's row and tooltip, the
+			-- pending line; the game's invite goes to the real name.
+			assert(G.Post("D", "DM", nil, "112", ""))
+			local id = G.Mine().id
+			local printed = #w.printed
+			G.HandleApply("WHISPER", "Watch Keeper-Realm", G.EncodeApply(id, "Olympus Zeus", "T", 20, "WA", ""))
+			eq(#G.Applicants(), 1)
+			assert(#w.printed > printed and w.printed[#w.printed]:find("Corwin Ashdale", 1, true), tostring(w.printed[#w.printed]))
+			NoRealName(w.printed[#w.printed], "the chat line")
+			G.Show("D", true)
+			local applicant = assert(Line(B.Lines(), "Corwin Ashdale"), Texts(B.Lines()))
+			NoRealName(applicant.text, "the applicant's row")
+			NoRealName(Tip(applicant), "the applicant's tooltip")
+			applicant.onClick()
+			Line(B.Lines(), "> " .. ns.L.GROUPS_INVITE_AS:format(ns.L.GROUPS_ROLE_T)).onClick()
+			eq(w.invited[#w.invited], "Watch Keeper", "the game's invite takes the real name")
+			assert(w.printed[#w.printed]:find("Corwin Ashdale", 1, true), w.printed[#w.printed])
+			assert(Line(B.Lines(), ns.L.GROUPS_PENDING:format("Corwin Ashdale", ns.L.GROUPS_ROLE_T)), Texts(B.Lines()))
+			-- Without the player's Yes to moderator protection: the real name, as the Board's flags show it.
+			ns.db.coverConsent = false
+			assert(Line(B.Lines(), ns.L.GROUPS_PENDING:format("Watch Keeper", ns.L.GROUPS_ROLE_T)), Texts(B.Lines()))
+		end)
+		ns.rdb.council, ns.rdb.covers, ns.db.coverConsent = saved.council, saved.covers, saved.consent
+		if not ok then error(err, 0) end
+	end)
+end)
