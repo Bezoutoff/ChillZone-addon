@@ -2121,8 +2121,12 @@ shows no time.
 
 The signed **Slayers top three** is the publisher's own board, by verified GUID (a slayer his
 client knows by name only is left out and named on his Frames page). A trusted peer can relay that
-unchanged ranking only to a recipient who already independently pinned its original publisher's
-key. `/oly wanted status` shows, in a copy window, what your client captured, shared and heard this
+unchanged ranking; a recipient that pinned its original publisher's key from his own word takes no
+other key of his from a relay, and one that never heard the publisher takes the relayed key as his
+first (1.4.0), until the publisher's own word replaces it. A member's own kill or death that no
+reviewer was heard relaying (made while none was online) goes again, four at a time, when a reviewer's
+client asks for the catch-up at his login (1.4.0), so it reaches the boards the top three is signed
+from. `/oly wanted status` shows, in a copy window, what your client captured, shared and heard this
 session and why each kill or death was refused. See [Privacy](#privacy) for sightings' separate
 explicit consent and recipient limits.
 
@@ -2655,11 +2659,12 @@ position on the map).
 Slayers catch-up preserves the original publisher's signature, issuer, sequence and expiry;
 it never turns the relay's observations or census into a ranking. Both the original issuer
 and the relay must hold their real authority when the word is admitted, and queued replies
-check those roles again before each send. A relayed key is accepted only if this client
-independently pinned that same issuer key and epoch from an earlier directly verified WY;
-a relay cannot introduce or rotate it. An already anchored late client can therefore recover
-from a trusted peer while the original publisher is offline. A brand-new client without that
-anchor still needs a direct publisher word; this is not guaranteed offline bootstrapping.
+check those roles again before each send. A relayed key is accepted when this client
+independently pinned that same issuer key and epoch from an earlier directly verified WY, or
+(1.4.0) when it never pinned that issuer directly at all: the relay's key is then that issuer's
+first here, never saved as a direct pin, and the issuer's own word with another key replaces it.
+A relay cannot rotate a key pinned from the issuer himself. A late client, anchored or brand new,
+can therefore recover from a trusted peer while the original publisher is offline.
 WY, W4 and W5 use the Olympus channel's public or sealed audience described below, not a
 private staff lane. Older clients ignore W4/W5 and still accept original direct WY words.
 
