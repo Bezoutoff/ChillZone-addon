@@ -295,3 +295,68 @@ test("party guard: English and pt-BR user-facing copy have matching format contr
 		eq(Codes(br), Codes(en), key)
 	end
 end)
+
+-- 1.3.4 (a request from the Party Guard's users: people already invited are not invited again): a
+-- player invited from here, or already in our group, makes no new request for INVITED_TTL (no row, no
+-- notice); after it, his "inv" is a request again.
+test("party guard 1.3.4: a repeat request from a player already invited (or already in our group) is ignored within INVITED_TTL and taken after it", function()
+	local saved = { inGroup = IsInGroup, inRaid = IsInRaid, members = GetNumGroupMembers }
+	local ok, err = pcall(Scene, function(w)
+		w.rosterName, w.rosterAt = "Member-Realm", w.now
+		assert(G.OnWhisper("inv", "Member-Realm"))
+		assert(G.RequestInvite(assert(Candidate("Member-Realm")))); eq(#w.invited, 1)
+		eq(Candidate("Member-Realm"), nil, "the row goes with the invite")
+		local printed = #w.printed
+		w.now = w.now + 60
+		w.rosterAt = w.now
+		eq(G.OnWhisper("inv", "Member-Realm"), false, "invited already: no new request")
+		eq(G.OnWhisper("invite me please", "member-realm"), false, "nor in other words or another case")
+		eq(Candidate("Member-Realm"), nil); eq(#w.printed, printed, "no notice")
+		eq(#G.Lines(), 0, "nothing in the Census")
+		eq(#w.invited, 1, "never invited twice")
+		w.now = w.now + G.INVITED_TTL - 60
+		eq(G.OnWhisper("inv", "Member-Realm"), false, "still within INVITED_TTL")
+		w.now = w.now + 61
+		w.rosterAt = w.now
+		assert(G.OnWhisper("inv", "Member-Realm"), "after INVITED_TTL: a request again")
+		eq(#w.printed, printed + 1, "with its notice")
+		-- An outsider invited by the explicit override is remembered too.
+		G.ResetForTests(); w.rosterName, w.rosterAt = nil, nil
+		assert(G.OnWhisper("party invite", "Outsider-Realm"))
+		local outsider = assert(Candidate("Outsider-Realm"))
+		assert(G.Verify(outsider)); assert(G.OnWhoSeen(outsider.name, "Other Guild"))
+		assert(G.RequestInvite(outsider))
+		assert(G.ConfirmOutsider(w.dialog.data))
+		eq(G.OnWhisper("inv", "Outsider-Realm"), false, "invited already")
+		-- Dismissed, never invited: his next request comes back at once.
+		assert(G.OnWhisper("inv", "Dismissed-Realm"))
+		assert(G.Dismiss(assert(Candidate("Dismissed-Realm"))))
+		assert(G.OnWhisper("inv", "Dismissed-Realm"), "a dismissed request is not an invite")
+		-- Already in our group (a party member by name): no request, and his old row goes.
+		G.ResetForTests()
+		assert(G.OnWhisper("inv", "Grouped-Realm"))
+		IsInGroup, IsInRaid, GetNumGroupMembers = function() return true end, function() return false end, function() return 2 end
+		w.units.party1 = { name = "Grouped", realm = "Realm" }
+		eq(G.OnWhisper("inv", "Grouped-Realm"), false, "in our group already")
+		eq(Candidate("Grouped-Realm"), nil, "his row went")
+		-- Out of the group again: remembered as invited for INVITED_TTL, then a request again.
+		w.units.party1 = nil
+		w.now = w.now + 60
+		eq(G.OnWhisper("inv", "Grouped-Realm"), false, "seen in our group a minute ago")
+		w.now = w.now + G.INVITED_TTL
+		assert(G.OnWhisper("inv", "Grouped-Realm"), "a request again")
+		-- A secret group name is passed over, never compared.
+		G.ResetForTests()
+		w.units.party1 = { name = { secret = true }, realm = "Realm" }
+		assert(G.OnWhisper("inv", "Someone-Realm"))
+		-- Off: forgotten with the requests.
+		G.ResetForTests(); w.units.party1 = nil
+		w.rosterName, w.rosterAt = "Member-Realm", w.now
+		assert(G.OnWhisper("inv", "Member-Realm"))
+		assert(G.RequestInvite(assert(Candidate("Member-Realm"))))
+		assert(G.SetEnabled(false)); assert(G.SetEnabled(true))
+		assert(G.OnWhisper("inv", "Member-Realm"), "turned off and on: forgotten")
+	end)
+	IsInGroup, IsInRaid, GetNumGroupMembers = saved.inGroup, saved.inRaid, saved.members
+	if not ok then error(err, 0) end
+end)
