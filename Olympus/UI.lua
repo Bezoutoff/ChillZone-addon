@@ -1066,6 +1066,13 @@ local function CensusStatsReady()
 	return type(CS) == "table" and not CS.missing and type(CS.Open) == "function" and type(CS.Build) == "function"
 end
 local function CensusStatsShown() return CensusStatsReady() and ns.CensusStats.Shown() == true end
+-- (The author, 2026-10-20) The people as the header shows them (CensusStats.PeopleText): a member's
+-- plain count, or a moderation team client's "~" estimate; without the census page, the plain count.
+local function PeopleText(s)
+	local CS = ns.CensusStats
+	if CensusStatsReady() and type(CS.PeopleText) == "function" then return CS.PeopleText(s) end
+	return L.ARMY_PEOPLE:format(ns.FormatNumber(s.total))
+end
 
 -- The help button in the title bar, just left of the close button, where Blizzard puts a
 -- window's minimize button (0.9.9, asked for by Max of Asmongold's moderators). A plain button:
@@ -1294,11 +1301,17 @@ local function CreateMain(style)
 		GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
 		GameTooltip:AddLine(L.HEADER_TIP_TITLE, 1, 0.82, 0)
 		GameTooltip:AddLine(L.HEADER_TIP, 1, 1, 1, true)
-		-- 1.1: the characters their players linked as alts count once (Alts.lua).
+		-- 1.1: the characters their players linked as alts count once (Alts.lua). (2026-10-20: then
+		-- what "~" means while a team client's estimate shows, and the staff's line, CensusStats.lua.)
 		local s = ns.Data.Summary()
+		local notes = {}
 		if (s.alts or 0) > 0 then
-			GameTooltip:AddLine(L.HEADER_TIP_ALTS:format(ns.FormatNumber(s.characters or s.total), ns.FormatNumber(s.alts)), 0.8, 0.8, 0.8, true)
+			notes[1] = L.HEADER_TIP_ALTS:format(ns.FormatNumber(s.characters or s.total), ns.FormatNumber(s.alts))
 		end
+		if CensusStatsReady() and type(ns.CensusStats.PeopleNotes) == "function" then
+			for _, note in ipairs(ns.CensusStats.PeopleNotes(s)) do notes[#notes + 1] = note end
+		end
+		for _, note in ipairs(notes) do GameTooltip:AddLine(note, 0.8, 0.8, 0.8, true) end
 		GameTooltip:AddLine(" ")
 		GameTooltip:AddLine(L.HEADER_TIP_DIFFER, 0.8, 0.8, 0.8, true)
 		-- 1.1.2: why the list's columns don't add up to these totals (the answer bank's).
@@ -2383,9 +2396,10 @@ function UI.Refresh()
 		local s = ns.Data.Summary()
 		local F = ns.FormatNumber
 		-- CR-02 (the author's ask): the characters, and next to them, smaller and darker, the
-		-- people (each player once: Data.Summary's total, linked alts counted once).
+		-- people (each player once: Data.Summary's total, linked alts counted once; 2026-10-20: a
+		-- team client's "~" estimate, PeopleText).
 		main.total:SetText(L.ARMY_TOTAL:format(F(s.characters or s.total)))
-		main.peopleText = L.ARMY_PEOPLE:format(F(s.total))
+		main.peopleText = PeopleText(s)
 		main.sub:SetText(L.ARMY_SUB:format(F(s.online), #s.guilds, ns.Ago(s.newest)) .. "  ·  " .. UI.CensusName())
 		-- Right after login (1.1): the census is being rebuilt, and the header says so.
 		local heard = ns.Data.Rebuilding and ns.Data.Rebuilding()
@@ -3524,7 +3538,7 @@ local function CreateMinimapButton() -- gp:minimap
 		GameTooltip:SetOwner(self, "ANCHOR_LEFT")
 		GameTooltip:AddLine(L.TITLE, 1, 0.82, 0)
 		-- (CR-02: the characters, then the people, as the window's header has them.)
-		GameTooltip:AddLine(L.ARMY_TOTAL:format(ns.FormatNumber(s.characters or s.total)) .. "  " .. UI.PEOPLE_CODE .. L.ARMY_PEOPLE:format(ns.FormatNumber(s.total)) .. "|r", 1, 1, 1)
+		GameTooltip:AddLine(L.ARMY_TOTAL:format(ns.FormatNumber(s.characters or s.total)) .. "  " .. UI.PEOPLE_CODE .. PeopleText(s) .. "|r", 1, 1, 1)
 		GameTooltip:AddLine(L.ARMY_SUB:format(ns.FormatNumber(s.online), #s.guilds, ns.Ago(s.newest)), 0.8, 0.8, 0.8)
 		local heard = ns.Data.Rebuilding and ns.Data.Rebuilding()
 		if heard then GameTooltip:AddLine(L.REBUILDING_SUB:format(heard), 1, 0.82, 0) end

@@ -247,6 +247,22 @@ function Alts.Duplicates(counted)
 	return n
 end
 
+-- The players who linked alts, as a sample of the census (CensusStats.PeopleEstimate: a floor of a
+-- team client's estimate, never a rate, the author's 2026-10-20 decision): how many confirmed groups
+-- have a character in the guilds `counted` (as Duplicates), and how many of their characters are
+-- there. Counts only.
+function Alts.Sample(counted)
+	local characters, people = 0, 0
+	for _, g in ipairs(Groups().groups) do
+		local here = 0
+		for _, m in ipairs(g.members) do
+			if type(m.guild) == "string" and counted[m.guild:lower()] then here = here + 1 end
+		end
+		if here > 0 then characters, people = characters + here, people + 1 end
+	end
+	return characters, people
+end
+
 -- 1.2: other reasons to freeze the links, as net-off does: each fn(names), given these names and
 -- their groups', returns true to freeze (the Blood Arena's open debt marks, Debts.lua: a debtor
 -- never sheds an alt while a linked name owes). One that fails freezes nothing.

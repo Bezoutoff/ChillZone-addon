@@ -804,6 +804,22 @@ function Accord.Count()
 	return n
 end
 
+-- The validated sample of the census (CensusStats.PeopleEstimate): of the rows whose guild is one
+-- of `counted` ({ [guild lower case] = true }), how many characters and how many distinct
+-- BattleTags (accounts). Two numbers, never a tag or a name; nothing off the team's page.
+function Accord.Sample(counted)
+	local s, characters, accounts, seen = Store(false), 0, 0, {}
+	if not s or not Accord.TeamShown() or type(counted) ~= "table" then return 0, 0 end
+	for _, r in pairs(s.rows) do
+		if type(r) == "table" and type(r.tag) == "string" and type(r.guild) == "string" and counted[r.guild:lower()] then
+			characters = characters + 1
+			local k = ns.Fold(r.tag)
+			if not seen[k] then seen[k], accounts = true, accounts + 1 end
+		end
+	end
+	return characters, accounts
+end
+
 -- The rows grouped by tag (one player's characters), the most characters first, then the newest.
 function Accord.Groups()
 	local s, groups, byTag = Store(false), {}, {}
