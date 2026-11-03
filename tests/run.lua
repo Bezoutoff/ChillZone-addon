@@ -40692,7 +40692,8 @@ end)
 	-- The net-off's scene, this account's links and every claim heard cleared, and put back after.
 	local function WithAlts(fn)
 		WithNetoff(function(w, K)
-			local saved = { alts = ns.db.alts, claims = ns.rdb.altClaims, combat = InCombatLockdown, faction = ns.faction }
+			local saved = { alts = ns.db.alts, claims = ns.rdb.altClaims, combat = InCombatLockdown, faction = ns.faction,
+				group = ns.group, links = ns.db.links }
 			local ok, err = pcall(function()
 				ns.db.alts, ns.rdb.altClaims = nil, nil
 				A.Reset()
@@ -40700,6 +40701,7 @@ end)
 				fn(w, K)
 			end)
 			ns.db.alts, ns.rdb.altClaims, InCombatLockdown, ns.faction = saved.alts, saved.claims, saved.combat, saved.faction
+			ns.group, ns.db.links = saved.group, saved.links
 			A.Reset()
 			if not ok then error(err, 0) end
 		end)
@@ -40777,10 +40779,16 @@ end)
 			-- Both said it: linked. Names on the sender's realm travel short.
 			Pair("Main Two", "Alt Two", t)
 			eq(Names(A.Linked("Main Two-Realm")), "Alt Two")
-			-- A character of another realm keeps its realm.
+			-- A character of another realm keeps its realm. (1.4.0: a realm of our realm group, a connected
+			-- one; a character of another group is in another census and is linked to nobody here.)
+			ns.db.links = { Realm = "Other+Realm", Other = "Other+Realm" }
+			ns.group = "Other+Realm"
 			A.Handle("CHANNEL", "Main Three-Realm", AL(t, "M", "Olympus Zeus", "Alt Three-Other"))
 			A.Handle("CHANNEL", "Alt Three-Other", AL(t, "A", "Olympus Zeus", "Main Three-Realm"))
 			eq(A.Linked("Main Three-Realm")[1], "Alt Three-Other")
+			A.Handle("CHANNEL", "Main Four-Realm", AL(t, "M", "Olympus Zeus", "Alt Four-Faraway"))
+			A.Handle("CHANNEL", "Alt Four-Faraway", AL(t, "A", "Olympus Zeus", "Main Four-Realm"))
+			eq(#A.Linked("Main Four-Realm"), 0, "a realm of another group: not linked here")
 			-- The main takes it apart (a newer claim without it): unlinked; an older claim changes nothing.
 			A.Handle("CHANNEL", "Main Two-Realm", AL(t + 10, "-", "Olympus Zeus", ""))
 			eq(A.Group("Alt Two-Realm"), nil)
@@ -55802,7 +55810,7 @@ do
 		end
 	end)
 
-	test("1.1 key rotation review: the rotate question says a Lord or Captain who logs in during the grace gets nothing until the King's /who sees him in his guild (English and pt-BR; Spanish, French and German show the English)", function()
+	test("1.1 key rotation review: the rotate question says a Lord or Captain who logs in during the grace gets nothing until the King's /who sees him in his guild (English and pt-BR; since 1.4.0 Spanish, French and German in their own words)", function()
 		local en, pt = ns.L, Loaded("ptBR")
 		assert(type(pt.KEY_ROTATE_CONFIRM) == "string" and pt.KEY_ROTATE_CONFIRM ~= en.KEY_ROTATE_CONFIRM, "pt-BR")
 		eq(select(2, pt.KEY_ROTATE_CONFIRM:gsub("%%[sd]", "")), 1, "pt-BR: the minutes")
@@ -55811,11 +55819,15 @@ do
 		assert(not en.KEY_ROTATE_CONFIRM:find("get it too", 1, true), "no longer that those who log in meanwhile get it")
 		assert(pt.KEY_ROTATE_CONFIRM:find("Um Lorde ou Capitão que entrar nesse meio-tempo não recebe nada até o seu /who vê-lo na guilda dele", 1, true), pt.KEY_ROTATE_CONFIRM)
 		assert(not pt.KEY_ROTATE_CONFIRM:find("também receberem", 1, true), pt.KEY_ROTATE_CONFIRM)
+		-- (Changed on purpose, 1.4.0, the author's ask: every line of the addon in each language. Before,
+		-- these three carried no line of their own and showed the English.)
 		for code, file in pairs({ esES = "esES", frFR = "frFR", deDE = "deDE" }) do
 			local shown, given = Loaded(code, file)
 			assert(type(given) == "table" and next(given), file .. ": its lines")
-			eq(given.KEY_ROTATE_CONFIRM, nil, file .. ": no line of its own")
-			eq(shown.KEY_ROTATE_CONFIRM, en.KEY_ROTATE_CONFIRM, file .. ": the English shows")
+			local own = given.KEY_ROTATE_CONFIRM
+			assert(type(own) == "string" and own ~= en.KEY_ROTATE_CONFIRM, file .. ": a line of its own")
+			eq(select(2, own:gsub("%%[sd]", "")), 1, file .. ": the minutes")
+			eq(shown.KEY_ROTATE_CONFIRM, own, file .. ": its own line shows")
 		end
 		-- The pages said it already.
 		for _, path in ipairs({ "README.md", "docs/CURSEFORGE.md" }) do
@@ -57710,6 +57722,12 @@ do
 			0x03BF, 0x03B1, 0x03BD, 0x03B9, 0x03BA, 0x03C1, 0x03C4, 0x039F, 0x0391, 0x039D, 0x0399, 0x039A, 0x03A1, 0x03A4 }) do -- ο α ν ι κ ρ τ, capitals
 			ALLOWED["Olympus/ChatStrikes.lua"][cp] = true
 		end
+		-- 1.4.0, the languages: the Russian file loads on a ruRU client alone (its first line returns on any
+		-- other), whose game fonts are the Cyrillic ones; and the Agenda's Russian day words (Week.DAYS,
+		-- Week.SOON) are keys a typed line is matched against, never drawn. Cyrillic letters there alone:
+		-- every other mark in them keeps to the Western range, as everywhere else.
+		ALLOWED["Olympus/Locales/ruRU.lua"], ALLOWED["Olympus/Week.lua"] = {}, {}
+		for cp = 0x0400, 0x04FF do ALLOWED["Olympus/Locales/ruRU.lua"][cp], ALLOWED["Olympus/Week.lua"][cp] = true, true end
 		local ESC = { n = "\n", t = "\t", r = "\r", a = "\a", b = "\b", f = "\f", v = "\v" }
 		-- The string literals of a Lua source, escapes read, each with its line.
 		local function Literals(src)
@@ -57777,8 +57795,13 @@ do
 			h:close()
 			for _, l in ipairs(Literals(src)) do
 				scanned = scanned + 1
-				local cp = FontsLack(l.text)
-				if cp and not (ALLOWED[path] and ALLOWED[path][cp]) then found[#found + 1] = ("%s:%d U+%04X"):format(path, l.line, cp) end
+				-- Past an allowed character the rest of the string is read too: one allowed letter hides no mark after it.
+				local text, cp, at = l.text, FontsLack(l.text)
+				while cp and ALLOWED[path] and ALLOWED[path][cp] do
+					text = text:sub(at + (cp < 0x800 and 2 or cp < 0x10000 and 3 or 4))
+					cp, at = FontsLack(text)
+				end
+				if cp then found[#found + 1] = ("%s:%d U+%04X"):format(path, l.line, cp) end
 			end
 		end
 		assert(scanned > 20000, "the strings read: " .. scanned)

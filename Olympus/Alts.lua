@@ -162,11 +162,13 @@ end
 -- (ns.db.alts), so the beta's links came to the launch realms with it; matched by guild name alone
 -- (Duplicates), a beta pair in "Olympus" took people off a launch "Olympus". A character of another
 -- group is in another census anyway. A name without a realm is ours; no group known yet: every one.
+-- A character of our own realm is ours whatever the group's name: never one taken off for a group
+-- name GroupOf spells otherwise.
 local function OfOurGroup(name)
 	local group = ns.group
 	if type(group) ~= "string" or group == "" or type(name) ~= "string" then return true end
 	local realm = ns.RealmOf and ns.RealmOf(ns.FullName(name))
-	if not realm or realm == "" then return true end
+	if not realm or realm == "" or realm == ns.realm then return true end
 	return ns.GroupOf(realm) == group
 end
 
@@ -186,8 +188,8 @@ end
 
 -- Every confirmed group, rebuilt after any change (the census asks often).
 local function Groups()
-	if cache and cache.version == version and cache.rdb == ns.rdb and cache.db == ns.db and cache.group == ns.group then return cache end
-	cache = { version = version, rdb = ns.rdb, db = ns.db, group = ns.group, groups = {}, of = {} }
+	if cache and cache.version == version and cache.rdb == ns.rdb and cache.db == ns.db and cache.group == ns.group and cache.realm == ns.realm then return cache end
+	cache = { version = version, rdb = ns.rdb, db = ns.db, group = ns.group, realm = ns.realm, groups = {}, of = {} }
 	local mains = {}
 	for key, c in pairs(Claims()) do
 		if type(c) == "table" and c.role == "M" then mains[key] = true end

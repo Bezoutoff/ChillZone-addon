@@ -1535,17 +1535,27 @@ local function RealComm(fn)
 	if not ok then error(err, 0) end
 end
 
-test("1.2 the arena's foundation: Comm.Send passes done: results 3, 8, 11 and 12 fire done(false, result), success done(true); refused before the queue, at once with why", function()
+test("1.2 the arena's foundation: Comm.Send passes done: success done(true); a throttle or a lockdown (3, 8, 11) keeps the job until the game takes it, an offline target (12) is done(false, 12) at once; refused before the queue, at once with why", function()
 	RealComm(function(C, cns, results, sent)
+		-- (The pump's wait after a "not now" reads the game's clock: one the test moves.)
+		local savedGetTime, clock = GetTime, 5000
+		GetTime = function() return clock end
+		local okRun, errRun = pcall(function()
 		local done = {}
 		local function D(tag) return function(ok, why) done[#done + 1] = tag .. ":" .. tostring(ok) .. ":" .. tostring(why) end end
 		for i = 1, 3 do C.Send("GUILD", "ZZ~" .. i, nil, false, false, D("g" .. i)) end
 		C.Whisper("Nobody-Realm", "ZZ~w", nil, false, false, D("w"))
 		C.Send("GUILD", "ZZ~ok", "k", true, false, D("ok"))
-		-- The game's answers, in the order they leave (the urgent one first).
-		for _, r in ipairs({ 0, 3, 8, 11, 12 }) do results[#results + 1] = r end
-		for _ = 1, 6 do C.Pump() end
-		eq(table.concat(done, ","), "ok:true:nil,g1:false:3,g2:false:8,g3:false:11,w:false:12", "urgent first")
+		-- The game's answers, in the order they leave (the urgent one first). (Changed on purpose, 1.4.0,
+		-- the send queue's audit: "not now", a throttle (3, 8) or a lockdown (11), keeps the job in its
+		-- place and the pump waits 2, 4, 8 s; before, each ended its job at once. The arena still reads
+		-- the game's number in done once Comm gives up: tests/transport.lua, RETRY_MAX.)
+		for _, r in ipairs({ 0, 3, 8, 11, 0, 0, 0, 12 }) do results[#results + 1] = r end
+		for _ = 1, 30 do C.Pump(); clock = clock + 1 end
+		eq(table.concat(done, ","), "ok:true:nil,g1:true:nil,g2:true:nil,g3:true:nil,w:false:12", "urgent first; the first job held, then sent, in its place")
+		local tries = 0
+		for _, s in ipairs(sent) do if s.msg == "ZZ~1" then tries = tries + 1 end end
+		eq(tries, 4, "three answers of not now, then taken")
 		-- Refused before the queue: done at once.
 		done = {}
 		C.Whisper("", "ZZ~x", nil, false, false, D("target"))
@@ -1569,6 +1579,9 @@ test("1.2 the arena's foundation: Comm.Send passes done: results 3, 8, 11 and 12
 		C.Send("GUILD", "ZZ~c", "same")
 		C.Pump()
 		eq(sent[#sent].msg, "ZZ~c"); eq(table.concat(done, ","), "b:true:nil")
+		end)
+		GetTime = savedGetTime
+		if not okRun then error(errRun, 0) end
 	end)
 end)
 

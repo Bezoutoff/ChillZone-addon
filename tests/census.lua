@@ -773,7 +773,9 @@ test("alts (1.4.0): this account's links of another realm group (the beta's, on 
 		c.group = "Realm"
 		eq(c.Alts.Duplicates(counted), 1, "on its own group the pair is one person")
 		assert(c.Alts.Group("Alt Guy-Realm"), "and a group")
-		c.group = "Launchrealm"
+		-- (A character of the launch realm: its realm and its group are both the launch realm's. A
+		-- character of our own realm is always ours, so the realm moves with the group.)
+		c.realm, c.group = "Launchrealm", "Launchrealm"
 		eq(c.Alts.Duplicates(counted), 0, "on another realm group, nobody taken off")
 		eq(c.Alts.Group("Alt Guy-Realm"), nil, "and no group shown")
 		c.group = nil
