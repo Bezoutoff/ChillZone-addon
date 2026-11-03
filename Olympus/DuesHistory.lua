@@ -67,7 +67,7 @@ local function Books()
 	return out, pins
 end
 local function Complete(books, pins, week)
-	for i in ipairs(ns.TREASURER_CHARACTERS) do if not pins[i] then return false end end
+	for i in ipairs((ns.TreasurerPins())) do if not pins[i] then return false end end
 	for _, b in ipairs(books) do
 		local opened = tonumber(b.openedAt or b.opened)
 		if not opened or opened > D.WeekStart(week) then return false end
@@ -230,7 +230,7 @@ function History.Ask()
 	nextId = math.max(nextId + 1, Clock() * 1000)
 	local p = Identity(); p.id, p.week, p.at = nextId, D.Week(), Clock()
 	pending, lastAsk = p, ns.Now()
-	local ok = T.Private(ns.FullName(ns.TREASURER, ns.TREASURER_REALM), "DH", ("DH~1~Q~%.0f~%d"):format(p.id, p.week), "dues history ask")
+	local ok = T.Private(ns.TreasurerFull(), "DH", ("DH~1~Q~%.0f~%d"):format(p.id, p.week), "dues history ask")
 	if not ok then pending = nil end
 	return ok
 end

@@ -935,7 +935,9 @@ local function Mine(g) return g.mine.owner or g.mine.moderator end
 
 -- Players the channel must never lose, the way the server finds them: the Treasurer, and the
 -- King's character when our client knows it (our own roster in his guild, or a character
--- pinned in Core.lua).
+-- pinned in Core.lua). 1.3.4: the addon's author too (his characters, Core.lua's
+-- ns.AuthorCharacters: whom the channel's owner banned is let back in, the key's rotation his
+-- to hand out), and on a launch realm group whom the author's signed list names for each.
 local function Protected()
 	local out, seen = {}, {}
 	local function Add(name)
@@ -945,10 +947,20 @@ local function Protected()
 			out[#out + 1] = name
 		end
 	end
-	Add(ns.TREASURER)
-	local pinned = ns.KING_CHARACTER
-	if type(pinned) == "table" then pinned = pinned[ns.faction or "Alliance"] end
-	Add(pinned)
+	Add(ns.TreasurerFull())
+	-- The King where one is named here: the signed list's (1.3.4), else the code's pin (as this
+	-- namespace holds it), on its own realm group.
+	local king, signed = ns.KingFullName()
+	if king and not signed then
+		king = ns.KING_CHARACTER
+		if type(king) == "table" then king = king[ns.faction or "Alliance"] end
+	end
+	Add(king)
+	-- (His characters of our realm group alone: a namesake on another group is someone else.)
+	local here = ns.GroupOf(ns.realm or ns.CurrentRealm())
+	for _, author in ipairs((ns.AuthorCharacters())) do
+		if ns.GroupOf(ns.RealmOf(author) or "") == here then Add(author) end
+	end
 	if ns.IsKingGuild and ns.IsKingGuild(GetGuildInfo("player")) and ns.Roster and type(ns.Roster.byName) == "table" then
 		for name, rank in pairs(ns.Roster.byName) do
 			if rank == 0 then Add(name) break end

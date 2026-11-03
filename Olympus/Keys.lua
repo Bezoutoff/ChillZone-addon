@@ -51,6 +51,12 @@ local L = ns.L
 -- "Move now" sooner. Guilds with no officer online in that time stay on the old channel until one
 -- of theirs types the key by hand; the Throne says how many acknowledged. Older clients ignore
 -- K3, K4 and K5.
+-- 1.3.4 (the author's call, for the launch): the addon's author rotates and hands out the key too
+-- (his characters, Workshop.IsAuthorName: the code's on the beta, the signed list's on a launch
+-- realm group), King or not, Steward or not: he becomes neither. His Throne shows the rotation in
+-- his own view (King.lua); a preview of another role (Asmon's view, View as) starts none. A K3
+-- whispered by him is taken as the King's is; the same /who, guild picking and whispers to Lords and
+-- Captains alone, never the channel.
 
 local Keys = {}
 ns.Keys = Keys
@@ -215,11 +221,12 @@ function Keys.HandleKey(dist, sender, text)
 	sender = ns.FullName(sender)
 	local fromCrown
 	if dist == "WHISPER" then
-		-- The King by his pinned name, or his Steward by the signed list: the server stamps the
-		-- sender, nobody else carries it.
-		if not (ns.IsKingCharacter(sender) or (ns.KingCharacter() ~= nil and ns.King.IsStewardName(sender))) then
+		-- The King by his pinned name, or his Steward by the signed list, or (1.3.4) the addon's
+		-- author by his: the server stamps the sender, nobody else carries it.
+		if not (ns.IsKingCharacter(sender) or (ns.KingCharacter() ~= nil and ns.King.IsStewardName(sender))
+			or (ns.Workshop and ns.Workshop.IsAuthorName and ns.Workshop.IsAuthorName(sender))) then
 			stats.refused = stats.refused + 1
-			return ns.Log("realm key by whisper from %s ignored: not the King nor his Steward", sender)
+			return ns.Log("realm key by whisper from %s ignored: not the King, his Steward nor the author", sender)
 		end
 		fromCrown = true
 	elseif dist == "GUILD" then
@@ -404,9 +411,30 @@ function Keys.NewKey()
 	return table.concat(hex):sub(1, 20)
 end
 
+-- 1.3.4: the addon's author himself (his own character, Workshop.IsAuthor: never his test builds).
+function Keys.IsAuthor()
+	local W = ns.Workshop
+	return type(W) == "table" and type(W.IsAuthor) == "function" and W.IsAuthor() == true
+end
+-- ...and looking at his own view: not Asmon's view (King.Preview), nor another role's (View as).
+function Keys.AuthorHere()
+	if not Keys.IsAuthor() then return false end
+	if ns.King and ns.King.Preview and ns.King.Preview() then return false end
+	local V = ns.ViewAs
+	return not (type(V) == "table" and type(V.Previewing) == "function" and V.Previewing() == true)
+end
+-- A preview (Asmon's view, or another role's under View as) shows the rotation; it starts none.
+local function Previewing()
+	if ns.King and ns.King.Preview and ns.King.Preview() then return true end
+	local V = ns.ViewAs
+	return Keys.IsAuthor() and type(V) == "table" and type(V.Previewing) == "function" and V.Previewing() == true
+end
+
 -- The King, by his pinned character, or his Steward (the signed list), acting for him: never a
--- Hand or an officer. None where no King is pinned.
+-- Hand or an officer; none of them where no King is pinned. And (1.3.4) the addon's author, King
+-- pinned or not (Keys.IsAuthor): the King's power to seal the channel again, lent him alone.
 function Keys.CanRotate()
+	if Keys.IsAuthor() then return true end
 	if not (ns.King ~= nil and ns.KingCharacter() ~= nil) then return false end
 	return (ns.King.IsKing() and ns.IsKingCharacter(ns.me)) or ns.King.IsSteward()
 end
@@ -648,7 +676,7 @@ function Keys.Hand()
 end
 
 function Keys.Rotate()
-	if ns.King and ns.King.Preview and ns.King.Preview() then return ns.Print(L.THRONE_PREVIEW_NOTE) end
+	if Previewing() then return ns.Print(L.THRONE_PREVIEW_NOTE) end
 	if not Keys.CanRotate() then return ns.Print(L.KEY_ROTATE_ONLY_KING) end
 	local rot = Rotation()
 	if rot and not rot.moved then return ns.Print(L.KEY_ROTATE_BUSY) end
@@ -662,7 +690,7 @@ function Keys.Rotate()
 	rot.retires = #list > 0 and table.concat(list, ".") or nil
 	ns.rdb.keyRotation = rot
 	stats.rotated = stats.rotated + 1
-	ns.Log("realm key: the King rotates it (epoch %d): picking the guilds", at)
+	ns.Log("realm key: %s rotates it (epoch %d): picking the guilds", Keys.IsAuthor() and "the author" or "the King", at)
 	ns.Print(L.KEY_ROTATE_READY)
 	ns.King.Changed()
 	return true
@@ -730,7 +758,7 @@ end
 -- how far it got.
 function Keys.ThroneLines()
 	local K = ns.King
-	if not (K and (K.IsKing() or K.IsSteward() or (K.Preview and K.Preview()))) then return {} end
+	if not (K and (K.IsKing() or K.IsSteward() or (K.Preview and K.Preview()) or Keys.AuthorHere())) then return {} end
 	local Line, INK, TITLE = K.Line, K.INK, K.TITLE
 	local lines = { Line(L.KEY_ROTATE_TITLE, TITLE) }
 	local rot = Rotation()
@@ -790,7 +818,7 @@ function Keys.ThroneLines()
 end
 
 function Keys.RotatePrompt()
-	if ns.King and ns.King.Preview and ns.King.Preview() then return ns.Print(L.THRONE_PREVIEW_NOTE) end
+	if Previewing() then return ns.Print(L.THRONE_PREVIEW_NOTE) end
 	if not Keys.CanRotate() then return ns.Print(L.KEY_ROTATE_ONLY_KING) end
 	ns.ShowDialog("OLYMPUS_KEY_ROTATE", tostring(math.ceil(Keys.GRACE / 60)))
 end

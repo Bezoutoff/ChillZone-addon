@@ -374,3 +374,6 @@ luajit "$repo_root/tests/sign-roundtrip.lua" "$repo_root" "$OLYMPUS_COUNCIL_KEY"
 	"$scratch/list1.lua" "$scratch/list2.lua" "$scratch/list3.lua" "$scratch/council1.lua" "$scratch/council2.lua" \
 	"$scratch/council3.lua" "$scratch/council4.lua" "$scratch/council5.lua" "$scratch/council6.lua" \
 	"$scratch/council7.lua" "$scratch/council8.lua" "$scratch/council9.lua" "$scratch/council10.lua" "$scratch/council11.lua" "$scratch/council12.lua"
+
+# 1.3.4: the launch identities (king, treasurer, author, realm, --group), in a temporary folder of their own.
+bash "$repo_root/tests/launch-sign.sh"

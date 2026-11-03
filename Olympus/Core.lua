@@ -850,6 +850,8 @@ ns.CAPTAIN_RANK = 1
 ns.KING_NAME = "Asmon"
 -- The addon's author (Workshop.lua): his character on Forever. Names there are a first name
 -- and a surname, unique across the realm group; no Classic realm allows a space in a name.
+-- (1.3.4: the beta's, as the King's and the Treasurer's pins below. On any other realm group the
+-- author's signed titles list names them: ns.SignedPins, ns.AuthorCharacters.)
 ns.AUTHOR = "Faladoriel Skylance"
 ns.AUTHOR_REALM = "ClassicBetaPvP" -- his realm group, where only he carries that name
 -- A name of the realm group of `realm` (a name without a realm is ours). Forever's names are
@@ -858,15 +860,102 @@ local function OfGroup(name, realm)
 	local own = ns.RealmOf(ns.FullName(name)) or ns.realm or ns.CurrentRealm()
 	return ns.GroupOf(own) == ns.GroupOf(realm)
 end
+local NO_PINS = {}
+-- (1.3.4) The pins the author's signed titles list gives our side, where it names any:
+-- Signed("king" | "treasurer"), a list of "First Surname-Realm" (ns.SignedPins, below with the
+-- list it reads), or nil. Where it names one, the code's pin for that role no longer counts.
+local function Signed(kind)
+	local p = ns.SignedPins and ns.SignedPins()
+	return p and p[kind] and p[kind][ns.faction or "Alliance"] or nil
+end
+
+-- (1.3.4) The author's characters on our realm group, each "First Surname-Realm": those the signed
+-- list names (^author^, both sides' entries: a name is one per realm group whatever its side),
+-- where it names any; else the code's (ns.AUTHOR on ns.AUTHOR_REALM's group, the beta's). The
+-- second result: true when signed. They have the dev's privileges alone (Workshop.IsAuthorName):
+-- never the King's role, never the council's.
+local codeAuthor, signedAuthor
+function ns.AuthorCharacters()
+	local p = ns.SignedPins and ns.SignedPins()
+	local a = p and p.author
+	if a and (a.Alliance or a.Horde) then
+		local m = signedAuthor
+		if not m or m.a ~= a then
+			local out, seen = {}, {}
+			for _, side in ipairs({ "Alliance", "Horde" }) do
+				for _, n in ipairs(a[side] or NO_PINS) do
+					if not seen[n:lower()] then seen[n:lower()], out[#out + 1] = true, n end
+				end
+			end
+			m = { a = a, out = out }
+			signedAuthor = m
+		end
+		return m.out, true
+	end
+	if type(ns.AUTHOR) ~= "string" or ns.AUTHOR == "" or type(ns.AUTHOR_REALM) ~= "string" then return NO_PINS, false end
+	local m = codeAuthor
+	if not m or m.name ~= ns.AUTHOR or m.realm ~= ns.AUTHOR_REALM then
+		m = { name = ns.AUTHOR, realm = ns.AUTHOR_REALM, out = { ns.AUTHOR .. "-" .. ns.AUTHOR_REALM } }
+		codeAuthor = m
+	end
+	return m.out, false
+end
+-- One of them (a sender's name: the server sets it), by its name on its realm group.
+function ns.IsAuthorName(name)
+	if type(name) ~= "string" or name == "" then return false end
+	local realm = ns.RealmOf(ns.FullName(name))
+	if realm == nil then return false end
+	local short, group = ns.ShortName(name), nil
+	for _, a in ipairs((ns.AuthorCharacters())) do
+		if short == ns.ShortName(a) then
+			group = group or ns.GroupOf(realm)
+			if group == ns.GroupOf(ns.RealmOf(a)) then return true end
+		end
+	end
+	return false
+end
 -- The Treasurer of Olympus, chosen by Asmongold's chat on September 23, 2026: exactly this
 -- character, in the guild named Olympus. Look-alikes in other guilds exist: both must match,
 -- and his realm group (Forever's PvP realms), where only he carries that name.
 ns.TREASURER = "Pyralis Ashandar"
 ns.TREASURER_REALM = "ClassicBetaPvP"
 ns.COIN = "|TInterface\\MoneyFrame\\UI-GoldIcon:0|t "
+-- (1.3.4) Who the Treasurer is here: the signed titles list's ^treasurer^ entry for our side where
+-- it names one (the Treasurer first, then his mail characters, each with his realm), else the
+-- code's pins (ns.TREASURER, then the rest of ns.TREASURER_CHARACTERS, below, on ns.TREASURER_REALM's
+-- group: the beta's). Each "First Surname-Realm", [1] the Treasurer himself; the second result:
+-- true when signed. Every check and every name built for him goes through these.
+local codeTreasurer
+function ns.TreasurerPins()
+	local signed = Signed("treasurer")
+	if signed then return signed, true end
+	local chars = type(ns.TREASURER_CHARACTERS) == "table" and ns.TREASURER_CHARACTERS or NO_PINS
+	local m = codeTreasurer
+	if not m or m.primary ~= ns.TREASURER or m.realm ~= ns.TREASURER_REALM or m.chars ~= chars or m.n ~= #chars or m.here ~= ns.realm then
+		local out = {}
+		if type(ns.TREASURER) == "string" and ns.TREASURER ~= "" then out[1] = ns.FullName(ns.TREASURER, ns.TREASURER_REALM) end
+		for _, c in ipairs(chars) do
+			if type(c) == "string" and c ~= "" and c ~= ns.TREASURER then out[#out + 1] = ns.FullName(c, ns.TREASURER_REALM) end
+		end
+		m = { primary = ns.TREASURER, realm = ns.TREASURER_REALM, chars = chars, n = #chars, here = ns.realm, out = out }
+		codeTreasurer = m
+	end
+	return m.out, false
+end
+-- The Treasurer himself: his "First Surname-Realm", his name, his realm (nil: none).
+function ns.TreasurerFull() return (ns.TreasurerPins())[1] end
+function ns.TreasurerName()
+	local pin = ns.TreasurerFull()
+	return pin and ns.ShortName(pin) or nil
+end
+function ns.TreasurerRealm()
+	local pin = ns.TreasurerFull()
+	return pin and ns.RealmOf(pin) or nil
+end
 function ns.IsTreasurer(name, guild)
-	return type(name) == "string" and type(guild) == "string" and ns.ShortName(name) == ns.TREASURER and guild:lower() == "olympus"
-		and OfGroup(name, ns.TREASURER_REALM)
+	if type(name) ~= "string" or type(guild) ~= "string" or guild:lower() ~= "olympus" then return false end
+	local pin = ns.TreasurerFull()
+	return pin ~= nil and ns.ShortName(name) == ns.ShortName(pin) and OfGroup(name, ns.RealmOf(pin))
 end
 -- The Treasurer's characters that keep a book of the treasury (1.0, Treasury.lua): the Treasurer
 -- himself (ns.TREASURER, his name for display: he is the Treasurer only in the guild Olympus,
@@ -882,8 +971,9 @@ ns.TREASURER_CHARACTERS = { "Pyralis Ashandar", "Pyralis Andarai" }
 function ns.IsTreasurerMail(name)
 	if type(name) ~= "string" or name == "" then return false end
 	local short = ns.ShortName(name)
-	for _, pin in ipairs(ns.TREASURER_CHARACTERS) do
-		if pin ~= ns.TREASURER and short == pin then return OfGroup(name, ns.TREASURER_REALM) end
+	local pins = ns.TreasurerPins()
+	for i = 2, #pins do
+		if short == ns.ShortName(pins[i]) then return OfGroup(name, ns.RealmOf(pins[i])) end
 	end
 	return false
 end
@@ -894,8 +984,8 @@ end
 function ns.IsTreasurerCharacter(name)
 	if type(name) ~= "string" or name == "" then return false end
 	local short = ns.ShortName(name)
-	for _, pin in ipairs(ns.TREASURER_CHARACTERS or {}) do
-		if short == pin then return OfGroup(name, ns.TREASURER_REALM) end
+	for _, pin in ipairs((ns.TreasurerPins())) do
+		if short == ns.ShortName(pin) then return OfGroup(name, ns.RealmOf(pin)) end
 	end
 	return false
 end
@@ -932,25 +1022,60 @@ end
 ns.KING_CHARACTER = { Alliance = "Asmongold Asmongler", Horde = "Duskmonkey Boneback" }
 ns.KING_REALM = "ClassicBetaPvP"
 ns.KING_REALM_HORDE = nil
+-- (1.3.4) Where the author's signed titles list names our side's King (^king^, his name with his
+-- realm), he alone is the King, on his realm group, whatever the code says. Where it names none,
+-- the code's pins above count on their own realm group alone (ns.KING_REALM's, the beta's). The
+-- Horde's, his realm not known, still counts anywhere until the author's launch list reaches a
+-- realm group (as before 1.3.4: ns.LaunchListHeld); where it does, on the code's group alone, so a
+-- namesake on a launch realm is nobody's King there.
 -- Until it is set here, the Horde King's realm is learned from the first message of his that
 -- reaches us (his name is his alone), and from then on only that realm group counts: shown in
 -- /oly status so it can be written here.
 local function KingRealm()
+	local signed = Signed("king")
+	if signed then return ns.RealmOf(signed[1]) end
 	if ns.faction == "Horde" then return ns.KING_REALM_HORDE or (ns.rdb and ns.rdb.kingRealmHorde) end
 	return ns.KING_REALM
 end
 ns.KingRealm = KingRealm
-function ns.KingCharacter()
+-- The realm group whose King counts (nil: any), as above.
+local function KingHome()
 	local realm = KingRealm()
-	if realm and ns.GroupOf(ns.realm or ns.CurrentRealm()) ~= ns.GroupOf(realm) then return nil end
+	if realm == nil and ns.LaunchListHeld() then return ns.KING_REALM end
+	return realm
+end
+function ns.KingCharacter()
+	local signed = Signed("king")
+	local home = KingHome()
+	if home and ns.GroupOf(ns.realm or ns.CurrentRealm()) ~= ns.GroupOf(home) then return nil end
+	if signed then return ns.ShortName(signed[1]) end
 	return ns.KING_CHARACTER[ns.faction or "Alliance"]
 end
 function ns.IsKingCharacter(name)
 	local pin = ns.KingCharacter()
 	if pin == nil or type(name) ~= "string" or ns.ShortName(name) ~= pin then return false end
-	local realm = KingRealm()
+	local realm = KingHome()
 	return realm == nil or OfGroup(name, realm)
 end
+-- The King's "First Surname-Realm" where one is named here (ns.KingCharacter), or nil; the second
+-- result: true when the signed list names him.
+function ns.KingFullName()
+	local pin = ns.KingCharacter()
+	if not pin then return nil, false end
+	return ns.FullName(pin, KingRealm()), Signed("king") ~= nil
+end
+-- (1.3.4) The titles list we hold for this realm group is the author's launch list: it names a King,
+-- a Treasurer, the author's characters or the realms (ns.SignedPins), for either side.
+function ns.LaunchListHeld()
+	local p = ns.SignedPins and ns.SignedPins()
+	return p ~= nil and (next(p.king) ~= nil or next(p.treasurer) ~= nil or next(p.author) ~= nil or next(p.realms) ~= nil)
+end
+-- No King named here, and no launch list here either: only then does the guild master of the King's
+-- guild stand for him (King.IsKing, its soft word, Borders, Wanted: each asks
+-- `ns.KingCharacter() == nil and not ns.LaunchListHeld()`), as wherever no King was pinned before.
+-- Where the author's launch list reaches, the King is the character it names for our side, or nobody
+-- until it does: never whoever founds a guild of that name first.
+function ns.KingUnpinned() return ns.KingCharacter() == nil and not ns.LaunchListHeld() end
 -- Learned only from a message he sent (King.lua: the sender name is the server's), never from
 -- a name written inside a report, which anyone could forge to lock him out.
 function ns.LearnKingRealm(sender)
@@ -1191,6 +1316,115 @@ function ns.IsSignedAuditor(name)
 	return e ~= nil and e.audit == true
 end
 
+-- Launch identities (1.3.4, the author's: names get sniped on launch realms, so the code names
+-- nobody for them). The code's pins (ns.KING_CHARACTER, ns.TREASURER_CHARACTERS, ns.AUTHOR) are the
+-- beta's and count on its realm group alone. Anywhere else the King, the Treasurer and the author
+-- are whom the author's signed titles list names for that realm group, in entries of their own
+-- after the Apostles, three "^" each like the Steward's (clients before 1.3.4 leave them out
+-- unread, and still take, show and pass on the whole list; the signature covers them too):
+--   ^king^<Alliance|Horde>^<First Surname-Realm>                     that side's King
+--   ^treasurer^<Alliance|Horde>^<First Surname-Realm>,...            the Treasurer, then his mail characters
+--   ^author^<Alliance|Horde>^<First Surname-Realm>,...               the author's own characters (the dev's
+--                                                                    privileges: never the King's or the council's)
+--   ^realms^<NA|EU>^<Realm>=<pvp|pve|rp|rppvp|hardcore>,...          what each realm is (ns.RealmInfo)
+-- Every name carries its realm, as the server writes it: it counts on that realm's group alone, and
+-- a namesake on another group is someone else. A side the list names a King or a Treasurer for has
+-- that one alone; a side it names none for keeps the code's (on the beta's group alone). Nobody else
+-- ever is one: no census vote counts, and a newer signed list without him ends it at once.
+ns.PINS_MAX = { king = 1, treasurer = 4, author = 8 } -- names a side, each kind
+ns.REALM_KINDS = { pvp = true, pve = true, rp = true, rppvp = true, hardcore = true }
+ns.REALM_REGIONS = { NA = true, EU = true }
+ns.REALMS_MAX = 40 -- realms a region
+
+-- A realm as a name carries it ("Name-Realm": letters and digits, an apostrophe kept, no space or
+-- dash), 40 bytes at most; and an identity's name: "First Surname-Realm", its realm required (a name
+-- without one would count on every realm of the list's group). nil for anything else.
+local function PinRealm(s) return type(s) == "string" and #s <= 40 and s:match("^[%w'\128-\255]+$") ~= nil end
+local function PinName(s)
+	s = tostring(s or ""):gsub("^%s+", ""):gsub("%s+$", "")
+	local short, realm = s:match("^([^%-]+)%-([^%-]+)$")
+	if not short or #short > 48 or not short:match("^[%a\128-\255]+ ?[%a\128-\255]*$") or not PinRealm(realm) then return nil end
+	return short .. "-" .. realm
+end
+
+-- What a titles list's text names: { king = { Alliance = { "Name-Realm" } }, treasurer = { ... },
+-- author = { ... }, realms = { [realm, lower case] = { realm, kind, region } } }, a side left out
+-- where it names nobody valid. Anything PinName, ns.PINS_MAX, the kinds or the regions leave out is
+-- left out.
+function ns.ReadPins(text)
+	local out = { king = {}, treasurer = {}, author = {}, realms = {} }
+	local regions = {}
+	for entry in tostring(text or ""):gmatch("[^;]+") do
+		local kind, slot, list = entry:match("^%^(%l+)%^(%a+)%^([^%^]*)$")
+		local most = kind and ns.PINS_MAX[kind]
+		if most and STEWARD_FACTIONS[slot] then
+			local names, seen = out[kind][slot] or {}, {}
+			for _, n in ipairs(names) do seen[n:lower()] = true end
+			for n in list:gmatch("[^,]+") do
+				local name = PinName(n)
+				if name and not seen[name:lower()] and #names < most then
+					seen[name:lower()], names[#names + 1] = true, name
+				end
+			end
+			if #names > 0 then out[kind][slot] = names end
+		elseif kind == "realms" and ns.REALM_REGIONS[slot] then
+			for r in list:gmatch("[^,]+") do
+				local realm, what = r:match("^%s*([^%s=]+)%s*=%s*(%l+)%s*$")
+				local key = PinRealm(realm) and realm:lower()
+				if key and ns.REALM_KINDS[what] and not out.realms[key] and (regions[slot] or 0) < ns.REALMS_MAX then
+					regions[slot] = (regions[slot] or 0) + 1
+					out.realms[key] = { realm = realm, kind = what, region = slot }
+				end
+			end
+		end
+	end
+	return out
+end
+
+-- The pins of the titles list we hold (ours: ns.CouncilTitles), read from its signed text (checked
+-- when it was taken; never from what the SavedVariables keep beside it), or nil without one. Asked
+-- with every King's, Treasurer's or author's name heard: the answer is kept while the list, our
+-- character and our realm group are the same (a realm linked to ours since changes our group).
+local pinsMemo
+function ns.SignedPins()
+	local t = ns.rdb and ns.rdb.councilTitles
+	if type(t) ~= "table" or type(t.blob) ~= "string" then return nil end
+	local m = pinsMemo
+	local links = ns.db and ns.db.links
+	if m and m.t == t and m.blob == t.blob and m.realm == t.realm and m.me == ns.me and m.group == ns.group
+		and m.here == ns.realm and m.links == links then
+		return m.pins
+	end
+	local parsed = m and m.blob == t.blob and m.parsed or ns.ReadPins(t.blob:match("^HT1~%d+~[^~]*~[01]~([^~]*)~%x+$") or "")
+	pinsMemo = { t = t, blob = t.blob, realm = t.realm, me = ns.me, group = ns.group, here = ns.realm, links = links,
+		parsed = parsed, pins = ns.CouncilTitles() == t and parsed or nil }
+	return pinsMemo.pins
+end
+
+-- What a realm is, by the signed list we hold: { kind = "pvp" | "pve" | "rp" | "rppvp" | "hardcore",
+-- region = "NA" | "EU" }, or nil when it names none for it. A realm as a name carries it, or as the
+-- game shows it (spaces and dashes left out), whatever its case.
+function ns.RealmInfo(realm)
+	if type(realm) ~= "string" or realm == "" then return nil end
+	local p = ns.SignedPins()
+	local e = p and p.realms[(realm:gsub("[%s%-]", "")):lower()]
+	return e and { kind = e.kind, region = e.region } or nil
+end
+
+-- /oly status (1.3.4): where each identity comes from on this realm group, never a name: "signed"
+-- (the author's list), "code" (the beta's pins) or "none".
+function ns.PinsStatus()
+	local p = ns.SignedPins()
+	local king = ns.KingCharacter() and (Signed("king") and "signed" or "code") or (ns.KingUnpinned() and "none (its guild master)" or "none")
+	local treasurer, tSigned = ns.TreasurerPins()
+	local authors, aSigned = ns.AuthorCharacters()
+	local realms = 0
+	for _ in pairs(p and p.realms or NO_PINS) do realms = realms + 1 end
+	return ("King %s  |  Treasurer %s (%d)  |  author %s (%d, this character: %s)  |  realms %d  |  signed list: %s"):format(
+		king, tSigned and "signed" or "code", #treasurer, aSigned and "signed" or "code", #authors,
+		ns.IsAuthorName(ns.me) and "yes" or "no", realms, p and "held" or "none here")
+end
+
 -- The approved guilds (1.1, the author's): guilds of Asmon's Olympus whose names the name rule
 -- below leaves out (it leaves Olympian and Olympia out on purpose) count as Olympus guilds when
 -- the author's signed titles list names them, per faction, in an entry of its own after the
@@ -1215,6 +1449,7 @@ ns.APPROVED_BUILTIN = { Alliance = { "OLYMPIAN", "OLYMPIANS" } }
 -- moderator still gives and repeats it for them, Moderation.GuildName).
 -- One faction's list, on its realm group alone (realm: a realm of it; none: anywhere), like the
 -- King: a guild of that name on another realm group is another guild.
+-- (1.3.4: the code's King's realm as the file loads, the beta's: never the signed King's realm group.)
 ns.REMOVED_BUILTIN = { Alliance = { realm = ns.KING_REALM, "Olympus Defense Force" } }
 -- Asked with every IsFederation, like the approved list: each name's answer is kept while the
 -- faction's list, our realm group and our realm are the same (a faction with none answers at once).

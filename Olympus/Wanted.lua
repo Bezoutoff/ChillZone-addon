@@ -4957,7 +4957,9 @@ function Bounty.OfficeOf(name, guild)
 	end
 	local master = Bounty.GuildMaster(name, guild)
 	if Is(ns.IsKingCharacter, name) then return "K" end
-	if master and Is(ns.IsKingGuild, master) and type(ns.KingCharacter) == "function" and ns.KingCharacter() == nil then return "K" end
+	-- (1.3.4: its guild master stands for the King only where none is named, and no launch list reaches: ns.KingUnpinned.)
+	if master and Is(ns.IsKingGuild, master) and type(ns.KingCharacter) == "function" and ns.KingCharacter() == nil
+		and not Is(ns.LaunchListHeld) then return "K" end
 	if Is(ns.IsHighCouncillor, name) then return "H" end
 	if master then return "G" end
 	local N, K, W, role = ns.Nominees, ns.King, ns.Workshop, nil

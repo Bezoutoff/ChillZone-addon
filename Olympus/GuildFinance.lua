@@ -284,7 +284,7 @@ function F.Ask(scope)
 	if asked[scope] and now - asked[scope] < F.GAP then return false end
 	nextAsk = math.max(nextAsk + 1, now * 1000)
 	local p = Identity(); p.id, p.scope, p.at = nextAsk, scope, now
-	local names, seen = { ns.FullName(ns.TREASURER, ns.TREASURER_REALM), ns.FullName(ns.KingCharacter()) }, {}
+	local names, seen = { ns.TreasurerFull(), (ns.KingFullName()) }, {}
 	for _, name in ipairs(T.Keepers()) do names[#names + 1] = ns.FullName(name) end
 	local any = false
 	for _, name in ipairs(names) do

@@ -65452,6 +65452,11 @@ do
 	assert(loadfile(ROOT .. "tests/gamepad.lua"))({ test = test, eq = eq, ADDON_DIR = ADDON_DIR, ROOT = ROOT })
 end
 
+-- 1.3.4: the launch identities (tests/launch-identity.lua): the King, the Treasurer and the author a
+-- signed list names on a launch realm group, ns.RealmInfo, the author's key rotation, the channel's protected names.
+print("tests/launch-identity.lua")
+assert(loadfile(ROOT .. "tests/launch-identity.lua"))(ns, test, eq, { ADDON_DIR = ADDON_DIR, WithThrone = WithThrone, Vouched = Vouched })
+
 print(("\n%d passed, %d failed"):format(passed, failed))
 if passed + failed == 0 then
 	io.stderr:write("No tests matched or were selected. Check the test filter or selection.\n")
