@@ -63881,9 +63881,11 @@ end)()
 	end)
 
 	test("1.3.3: the version, the TOC's files in order, the new message types in Comm.lua's list", function()
-		eq(ns.VERSION, "1.3.3") -- the release has one identity in both folders
+		-- (1.4.0: the release's own identity, in both TOCs and its letter, is the 1.4.0 version
+		-- letters test's; here the TOC carries the version the addon says, whatever the release.)
 		local toc = assert(ReadFile(ADDON_DIR .. "Olympus.toc"))
-		assert(toc:find("## Version: 1.3.3", 1, true))
+		eq(toc:match("## Version:%s*(%S+)"), ns.VERSION, "the TOC's version is ns.VERSION")
+		eq(ns.Workshop.Newer(ns.VERSION, "1.3.3"), ns.VERSION ~= "1.3.3", "this release is 1.3.3 or newer")
 		eq(ns.Workshop.Newer("1.3.3", "1.3.2"), true, "the new patch is newer")
 		eq(ns.Workshop.Newer("1.3.2", "1.3.3"), false)
 		eq(ns.Workshop.Newer("1.3.4", "1.3.3"), true, "the next patch remains newer")
