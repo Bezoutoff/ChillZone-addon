@@ -28,6 +28,7 @@ Locales\ComplianceText.lua
 Locales\ChurchText.lua
 Locales\ChurchFullnessText.lua
 Locales\WeeklyBriefText.lua
+Locales\RoleBriefingsText.lua
 Locales\GuildCharterText.lua
 Locales\MainKeyText.lua
 Locales\WatchCouncilText.lua
@@ -125,6 +126,7 @@ KingArrow.lua
 Accord.lua
 Consent.lua
 Cover.lua
+PrivatePresence.lua
 WeeklyBrief.lua
 Carry.lua
 ChatRooms.lua
@@ -184,6 +186,7 @@ ArenaProfile.lua
 ProfileEdit.lua
 PlayerProfile.lua
 HonorsNet.lua
+RoleBriefings.lua
 ChatMarks.lua
 FarkleTable.lua
 InnkeeperGossip.lua

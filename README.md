@@ -2209,6 +2209,11 @@ the game is removed at login, with one line saying so.
   (the **i** left of the X) keeps every letter: **Version letters** on its page lists them,
   newest first, and a click opens one; `/oly letters` (or `/oly letters 1.1.4`) does too. Nothing
   is sent: which letters you saw is kept on your computer, for your account.
+- **Duty letters** (1.4.0, not sent yet): the King's letter for each office a character holds, the
+  first time it holds it; a guild master's has a live checklist of whom to name, reopened from his
+  Guild tab. The author turns them on at the launch; until then only he and the King preview them
+  (the Workshop, the Realm). Read ones stay under **My profile > Letters**, and `/oly duties`
+  reopens them. Nothing is sent.
 - **What this client saw** (1.1, the Decrees tab and `/oly log`): a log of the acts your addon
   took while you were online (decrees, the gates opening and closing, pardons, the King's
   visibility switches for the treasury and the untabarded list, and the shared block terms'
@@ -2346,6 +2351,13 @@ his guildmates build from the roster: a guild leader or officer still shows onli
 zone may show for up to 12 minutes. Olympus chat lines he types and what he posts himself still go
 out, reads go on working, and a `/reload` or logout ends it. A line on top of the Census and the
 Realm says so while it is on.
+
+Olympus's own **Private presence** switch (in **My profile** and `/oly privacy`, or
+`/oly presence on|off`) is the same quiet presence for the same three players, with three
+differences: it stays on across logins until he turns it off, it withdraws his shared location
+first, and it tells his own guild, and only that guild, so its members' Olympus clients count him
+offline in the census they send (a guildmate on an older Olympus may still count him online).
+Turning it off never turns location sharing back on.
 
 The same registered handle can ask to contribute a client-owned page to the Olympus window when
 this build reports `ui.surface`. The shared tab rail hosts one such page per session; the other
@@ -3108,6 +3120,8 @@ Other limits:
 | `/oly privacy` | the first-open page again: what the addon shares, and your Yes or No to each (1.1) |
 | `/oly profile [Name]` | a player's profile in the Olympus window, yours (**My profile**) with no name |
 | `/oly letters [version]` | the version letters (1.1.5): every one, newest first, a click opens one; with a version, that letter |
+| `/oly duties` | the King's letters for your offices (1.4.0, once they are out): every one, a click opens one |
+| `/oly presence on\|off` | King, signed High Council or the addon's author: Private presence on or off; on stays on across logins until you turn it off, withdraws your shared location and has your guild count you offline in its census; off never turns location sharing back on |
 | `/oly chat on\|off` | the Olympus chats on this client; off, nothing is sent or shown (1.1: off until you say yes) |
 | `/oly talk [olympus\|captains\|lords]` | open or close the Olympus window on its Chat tab, on that channel; also `/ol`, `/olc` or `/oll` with nothing after it, or Shift-click the minimap button (1.1.1) |
 | `/oly inspection on\|off` | take part in the King's Royal Inspection when sampled (a 2-minute patrol reported to him), or not (1.1: not until you say yes) |

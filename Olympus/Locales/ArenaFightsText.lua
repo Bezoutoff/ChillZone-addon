@@ -178,7 +178,7 @@ L.MYPROFILE_LOOK_KEPT = "Your frame, title, nickname and emblem don't go out on 
 L.MYPROFILE_FACTS_HEAD = "What your page shows"
 L.MYPROFILE_CHOICES_HEAD = "Your choices"
 L.MYPROFILE_PRIVACY_PAGE = "Open the privacy page"
-L.MYPROFILE_LETTERS_NONE = "No letter from the King yet."
+L.MYPROFILE_LETTERS_NONE = "No letters yet."
 L.MYPROFILE_GAMES_OFF = "Your frame, title and nickname go out with the Games, which are off on this character."
 L.MYPROFILE_GAMES_PROFILE = "Games profile"
 -- (1.2.4) A letter held in an instance or Busy: its chat line, and its words on the Decrees tab.
@@ -382,7 +382,7 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.MYPROFILE_FACTS_HEAD = "O que a sua página mostra"
 	L.MYPROFILE_CHOICES_HEAD = "As suas escolhas"
 	L.MYPROFILE_PRIVACY_PAGE = "Abrir a página de privacidade"
-	L.MYPROFILE_LETTERS_NONE = "Nenhuma carta do Rei ainda."
+	L.MYPROFILE_LETTERS_NONE = "Nenhuma carta ainda."
 	L.MYPROFILE_GAMES_OFF = "A sua moldura, título e apelido saem com os Jogos, que estão desligados neste personagem."
 	L.MYPROFILE_GAMES_PROFILE = "Perfil nos Jogos"
 	-- (1.2.6) Assistir ao duelo

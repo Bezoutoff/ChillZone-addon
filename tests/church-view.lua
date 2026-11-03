@@ -52,6 +52,27 @@ local function Build(w, cl, page)
 	return w:As(cl, cl.View.Build)
 end
 
+-- (1.4.0: the link is to the King's letter for that place, and only once it was made for him, which
+-- needs the letters out: RoleBriefings.Has. The cherry-picked link showed whenever the role held,
+-- and opened nothing while no letter existed.)
+test("Church Mine: an appointed Missionary can reopen his letter from the King, once it exists", function()
+	local w, c = Cast()
+	local opened, has = nil, true
+	c.m1.c.RoleBriefings = { Has = function(kind) return has and kind == "missionary" end, OpenKind = function(kind) opened = kind return true end }
+	local lines = Build(w, c.m1, "mine")
+	local link = Find(lines, L.RB_CHURCH_LETTER_LINK)
+	assert(link and link.onClick, Texts(lines))
+	w:As(c.m1, link.onClick)
+	eq(opened, "missionary")
+	-- No letter made (the letters not out yet): no link.
+	has = false
+	eq(Find(Build(w, c.m1, "mine"), L.RB_CHURCH_LETTER_LINK), nil)
+	-- An ordinary member has no appointment letter manufactured for them.
+	has = true
+	c.member.c.RoleBriefings = c.m1.c.RoleBriefings
+	eq(Find(Build(w, c.member, "mine"), L.RB_CHURCH_LETTER_LINK), nil)
+end)
+
 test("1.2.4 Church ranking rules: the highlighted in-window page preserves the exact list and time window on Back", function()
 	local w = World.New()
 	local c = w:Client(World.AUTHOR, { view = true })

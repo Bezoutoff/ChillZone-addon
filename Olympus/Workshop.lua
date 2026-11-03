@@ -1603,6 +1603,9 @@ function Workshop.Build(report)
 	BugLines(lines)
 	-- The elite borders' preview round his own portrait (Borders.lua, 1.0.0): not in the copy.
 	if not report then ns.Borders.PreviewLines(lines) end
+	-- (1.4.0) Every duty letter in preview (RoleBriefings.lua): not in the copy.
+	local RB = ns.RoleBriefings
+	if not report and type(RB) == "table" and not RB.missing and type(RB.WorkshopLines) == "function" then RB.WorkshopLines(lines) end
 	return lines, L.TAB_WORKSHOP, L.WORKSHOP_HINT
 end
 

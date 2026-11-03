@@ -308,6 +308,14 @@ local function Make()
 	f.all = Button(f, L.LETTERS_ALL, 130)
 	f.all:SetPoint("BOTTOMLEFT", 12, 10)
 	f.all:SetScript("OnClick", function() ns.SafeCall("letters", Letters.ShowHistory) end)
+	-- (1.4.0) A letter's link (L.LETTER_<version>_LINK: the launch letter's site), copied from a
+	-- copyable pop-up of Olympus's own (UI.ShowCopy), never a chat line.
+	f.link = Button(f, L.LETTERS_COPY_LINK, 150)
+	f.link:SetPoint("BOTTOM", 0, 10)
+	f.link:SetScript("OnClick", function(self)
+		if self.url then ns.SafeCall("letters", ns.UI.ShowCopy, f.title:GetText() or "", self.url) end
+	end)
+	f.link:Hide()
 	return f
 end
 
@@ -344,7 +352,12 @@ function Letters.Show(version, includePrevious)
 	f.sign:ClearAllPoints()
 	f.sign:SetPoint("TOPRIGHT", f.page, "TOPRIGHT", 0, y)
 	f.sign:SetWidth(width)
-	f.sign:SetText(L.LETTER_SIGNED)
+	-- (1.4.0) A letter signed by someone else than the dev (L.LETTER_<version>_SIGNED: the launch
+	-- letter is the King's), and its link to copy.
+	local sign, link = rawget(L, Key(version) .. "_SIGNED"), rawget(L, Key(version) .. "_LINK")
+	f.sign:SetText(type(sign) == "string" and sign ~= "" and sign or L.LETTER_SIGNED)
+	f.link.url = type(link) == "string" and link ~= "" and link or nil
+	f.link:SetShown(f.link.url ~= nil)
 	y = y - 20
 	for _, part in ipairs({ f.title, f.body, f.sign }) do part:Show() end
 	f.page:SetHeight(-y)
@@ -379,6 +392,7 @@ function Letters.ShowHistory()
 	f.head:SetText(L.LETTERS_INTRO)
 	f.mode, f.version = "list", nil
 	for _, part in ipairs({ f.title, f.body, f.sign }) do part:Hide() end
+	f.link:Hide()
 	local width, y = Letters.WIDTH - 70, 0
 	local list = Letters.Versions()
 	for i, v in ipairs(list) do

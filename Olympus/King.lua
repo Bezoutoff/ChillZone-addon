@@ -1177,7 +1177,10 @@ end
 -- Quiet presence turned off (Core.lua): his crown at once again, while he shares it.
 ns.On("QUIET_PRESENCE_CHANGED", function(on) if on == false then SendLocation(true) end end)
 
-function King.ToggleLocation()
+-- privateTransition is used only while Core is entering quiet presence. The crown and layer
+-- withdrawals still leave, but the ordinary final hello, donation refresh and public events wait
+-- until quiet presence is active, so hiding never renews an online lease on the way out.
+function King.ToggleLocation(privateTransition)
 	if King.Preview() then return ns.Print(L.THRONE_PREVIEW_NOTE) end
 	if not King.IsKing() then return end
 	ns.db.throneLocation = not King.SharingLocation()
@@ -1200,12 +1203,15 @@ function King.ToggleLocation()
 		end
 		-- His layer goes with it, at once, and his hello stops naming his zone (Layers.Sharing).
 		ns.Layers.Withdraw()
-		ns.Comm.Hello(true)
+		if privateTransition ~= true then ns.Comm.Hello(true) end
 	end
-	ns.Fire("KING_LOCATION_CHANGED", King.SharingLocation() and "show" or "hide", ns.FullName(ns.me), locationId)
+	if privateTransition ~= true then
+		ns.Fire("KING_LOCATION_CHANGED", King.SharingLocation() and "show" or "hide", ns.FullName(ns.me), locationId)
+	end
 	-- Taking donations (1.1): his zone in it follows his crown at once.
-	if ns.Treasury and ns.Treasury.DonationsMoved then ns.Treasury.DonationsMoved() end
+	if privateTransition ~= true and ns.Treasury and ns.Treasury.DonationsMoved then ns.Treasury.DonationsMoved() end
 	Changed()
+	return true, locationId
 end
 
 local function CrownTip(self)
@@ -1721,7 +1727,11 @@ function King.Build(s)
 		local N = ns.Nominees
 		local master, guild = King.GuildShown(), N and N.GuildAccess and select(2, N.GuildAccess())
 		local detail = N and N.IsMaster and N.IsMaster() and L.GUILD_TAB_DETAIL or L.GUILD_DEPARTMENT_SCOPE
-		return master and N.GuildLines() or {}, L.TAB_GUILD, master and detail:format(tostring(guild)) or nil
+		local lines = master and N.GuildLines() or {}
+		-- (1.4.0) His letter from the King and its checklist, reopened from here (RoleBriefings.lua).
+		local RB = ns.RoleBriefings
+		if master and type(RB) == "table" and not RB.missing and type(RB.GuildTabLine) == "function" then RB.GuildTabLine(lines) end
+		return lines, L.TAB_GUILD, master and detail:format(tostring(guild)) or nil
 	end
 	local lines, home
 	if not King.mode then King.mode = "home" end
