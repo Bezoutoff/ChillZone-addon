@@ -2808,13 +2808,19 @@ end
 -- The King's switch, or his Steward's in his name (the author's Asmon's view: its own switches,
 -- on his screen only).
 function Treasury.SetFlag(what, on)
-	if not IsKingView() then return ns.Print(L.THRONE_ONLY_KING) end
+	if not IsKingView() then
+		-- (1.4.0) The author sets the ranking's switch alone, in his own word (Treasury.SetAuthorRanking).
+		if what == "ranking" and Treasury.AuthorSetsRanking() then return Treasury.SetAuthorRanking(on) end
+		return ns.Print(L.THRONE_ONLY_KING)
+	end
 	local f = {}
 	for _, k in ipairs(FLAGS) do f[k] = Treasury.Shows(k) end
 	f[what] = on and true or false
-	-- Each word newer than the last, two clicks in one second too (the army takes the newest).
+	-- Each word newer than the last, two clicks in one second too (the army takes the newest), and
+	-- (1.4.0) newer than the author's ranking switch held, so the King's new word is the one that stands.
 	local prev = ns.King.Preview() and ns.db.previewTreasuryFlags or ns.rdb.treasuryFlags
-	f.t, f.at, f.from = ns.Now(), math.max(Clock(), (type(prev) == "table" and tonumber(prev.at) or 0) + 1), ns.me
+	local last = type(prev) == "table" and math.max(tonumber(prev.at) or 0, tonumber(prev.rankingAt) or 0) or 0
+	f.t, f.at, f.from = ns.Now(), math.max(Clock(), last + 1), ns.me
 	ns.Print(L["TREASURY_FLAG_" .. what:upper() .. (on and "_ON" or "_OFF")])
 	if ns.King.Preview() then
 		ns.db.previewTreasuryFlags = f
@@ -2860,6 +2866,10 @@ function Treasury.TakeFlags(digits, at, sender, relayed)
 	end
 	local was = type(kept) == "table" and FlagDigits(kept) or "000"
 	local f = { balance = b == "1", ranking = r == "1", book = k == "1", at = at, t = ns.Now(), from = ns.FullName(sender) }
+	-- (1.4.0) The author's ranking switch newer than this word stands: its part alone is his.
+	if type(kept) == "table" and (tonumber(kept.rankingAt) or 0) > at then
+		f.ranking, f.rankingAt, f.rankingFrom = kept.ranking == true, tonumber(kept.rankingAt), kept.rankingFrom
+	end
 	ns.rdb.treasuryFlags = f
 	-- 1.1 (#12): in this client's log of acts when what the army sees changes (the word is
 	-- repeated), with the name the server stamped, only when heard from whoever gave it: a word
@@ -2876,6 +2886,85 @@ function Treasury.TakeFlags(digits, at, sender, relayed)
 		ns.Fire("DATA_CHANGED") -- the tab appears or goes
 	end
 end
+-- (1.4.0, the owner's rule for the launch: the King does not work these switches.) The addon's author
+-- (one of his characters as Core.lua's signed list names them, ns.IsAuthorName; never the King, a
+-- Steward or a role he previews) sets the ranking's switch alone, never the balance's nor the book's:
+--   T1~r~<id>~<guild>~<0|1>~<time it was given>     on the channel (King.AUTHOR_MAY)
+-- It is kept in the King's word (ns.rdb.treasuryFlags) as its ranking part, with its own time
+-- (rankingAt) and giver (rankingFrom): the newest of his word and the King's ranking digit stands, the
+-- King's on the same second; a King's word older than it changes the balance and the book alone.
+-- His client repeats it, as the King's client repeats the King's (FLAGS_EVERY), while it stands.
+-- Clients before 1.4.0 leave the kind out.
+-- (Treasury.lua's main chunk is at Lua's 200 locals: these live on the table.)
+function Treasury.AuthorRanks(name)
+	if type(name) ~= "string" or name == "" or not ns.IsAuthorName(ns.FullName(name)) then return false end
+	local WC = ns.WatchChat
+	return not (type(WC) == "table" and not WC.missing and type(WC.PowersBarred) == "function" and WC.PowersBarred(ns.FullName(name)) ~= nil)
+end
+-- This client may set it: the author's own character, a member, not in the King's preview (that view
+-- keeps its own switches on his screen).
+function Treasury.AuthorSetsRanking()
+	return ns.IsMember() and not ns.King.Preview() and Treasury.AuthorRanks(ns.me)
+end
+-- The ranking part's time held here: the author's, else the King's word's.
+function Treasury.RankingAt(f)
+	if type(f) ~= "table" then return 0 end
+	return math.max(tonumber(f.rankingAt) or 0, tonumber(f.at) or 0)
+end
+Treasury.authorRankingSent = -math.huge
+function Treasury.SendAuthorRanking(force)
+	local f = ns.rdb and ns.rdb.treasuryFlags
+	if not Treasury.AuthorSetsRanking() or type(f) ~= "table" or not tonumber(f.rankingAt) or not SameChar(f.rankingFrom, ns.me) then return false end
+	local now = ns.Now()
+	if not force and now - Treasury.authorRankingSent < Treasury.FLAGS_EVERY then return false end
+	Treasury.authorRankingSent = now
+	return ns.Comm.Send("CHANNEL", ("T1~r~%d~%s~%s~%d"):format(ns.King.NewId(), GetGuildInfo("player") or "", f.ranking and "1" or "0",
+		math.floor(f.rankingAt)), "treasuryrank") == true
+end
+-- Taken from the author's character when newer than the ranking part held (the King's word wins the
+-- same second). True, or false and why.
+function Treasury.TakeAuthorRanking(sender, rest)
+	local on, at = tostring(rest or ""):match("^([01])~(%d+)$")
+	at = tonumber(at)
+	if not on or not at or at > Clock() + ns.King.DATE_AHEAD then return false, "shape" end
+	if not Treasury.AuthorRanks(sender) then return false, "author" end
+	local kept = ns.rdb.treasuryFlags
+	if at <= Treasury.RankingAt(kept) then return false, "older" end
+	local was = type(kept) == "table" and FlagDigits(kept) or "000"
+	local f = {}
+	for key, v in pairs(type(kept) == "table" and kept or {}) do f[key] = v end
+	f.ranking, f.rankingAt, f.rankingFrom = on == "1", at, ns.FullName(sender)
+	ns.rdb.treasuryFlags = f
+	Treasury.LogFlags(sender, f, Clock() - at >= Treasury.WORD_FRESH)
+	if FlagDigits(f) ~= was then
+		if CanSend() then ns.Print(Treasury.WhoSees()) end
+		Treasury.SwitchesChanged(was)
+		ns.Fire("TREASURY_CHANGED")
+		ns.Fire("DATA_CHANGED")
+	end
+	return true
+end
+-- The author's click (Treasury.SetFlag sends it here): his word, newer than the part held.
+function Treasury.SetAuthorRanking(on)
+	if not Treasury.AuthorSetsRanking() then return ns.Print(L.THRONE_ONLY_KING) end
+	local kept = ns.rdb.treasuryFlags
+	local was = type(kept) == "table" and FlagDigits(kept) or "000"
+	local f = {}
+	for key, v in pairs(type(kept) == "table" and kept or {}) do f[key] = v end
+	f.ranking = on and true or false
+	f.rankingAt = math.max(Clock(), Treasury.RankingAt(kept) + 1)
+	f.rankingFrom = ns.FullName(ns.me)
+	ns.rdb.treasuryFlags = f
+	ns.Print(L["TREASURY_FLAG_RANKING" .. (on and "_ON" or "_OFF")])
+	Treasury.SendAuthorRanking(true)
+	Treasury.LogFlags(ns.me, f)
+	Treasury.SwitchesChanged(was)
+	ns.Fire("TREASURY_CHANGED")
+	ns.Fire("DATA_CHANGED")
+	return true
+end
+ns.King.Register("r", function(sender, id, rest) Treasury.TakeAuthorRanking(sender, rest) end)
+
 -- What the army sees of the treasury, in this client's log of acts (1.1, #12): once each time it
 -- changes; nothing shown is where it starts. `quiet`: this client only caught up on it (noted,
 -- so the next change is compared with it, not written).
@@ -3323,6 +3412,7 @@ function Treasury.Tick()
 	if ns.Now() - lastShare >= Treasury.SHARE_EVERY then Treasury.Share(true) end
 	Treasury.FlushPrivate()
 	Treasury.SendFlags()
+	Treasury.SendAuthorRanking()
 	Treasury.SendKeepers()
 	Treasury.AskEarly()
 end
@@ -3385,6 +3475,7 @@ ns.On("LOGIN", function()
 	ns.After(30, "treasury share", function()
 		Treasury.Share(true)
 		Treasury.SendFlags(true)
+		Treasury.SendAuthorRanking(true)
 		Treasury.SendKeepers(true)
 		-- A keeper is told once who sees the treasury (and again when the King changes it).
 		if CanSend() and not ns.rdb.treasuryToldWho then

@@ -297,7 +297,11 @@ local function KingOrSteward() return ns.King.SetsLists() or ns.King.Preview() e
 local function TreasuryFlag(what)
 	local key = what:upper()
 	local function shown() return ns.Treasury.Shows(what) end
-	return { "TREASURY_FLAG_" .. key, function() ns.Treasury.SetFlag(what, not shown()) end, refresh = true, shown = KingOrSteward,
+	-- (1.4.0) The ranking's switch is the author's to set too (Treasury.SetAuthorRanking), the others not.
+	local mayShow = what == "ranking" and function()
+		return KingOrSteward() or (ns.Treasury.AuthorSetsRanking ~= nil and ns.Treasury.AuthorSetsRanking() == true)
+	end or KingOrSteward
+	return { "TREASURY_FLAG_" .. key, function() ns.Treasury.SetFlag(what, not shown()) end, refresh = true, shown = mayShow,
 		label = function() return L["TREASURY_FLAG_" .. key .. (shown() and "_SHOWN" or "_HIDDEN")] end,
 		tooltip = function(tt)
 			tt:AddLine(L["TREASURY_FLAG_" .. key .. (shown() and "_SHOWN" or "_HIDDEN")], 1, 0.82, 0)
