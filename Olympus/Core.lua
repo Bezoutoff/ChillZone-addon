@@ -1615,6 +1615,16 @@ function ns.AccordAccepted()
 	local a = ns.db and ns.db.accord
 	return type(a) == "table" and a.v == ns.ACCORD_VERSION and a.yes == true
 end
+-- Guild verification (Verify.lua): a guild master verifies his guild once with a verifier.
+-- VERIFY_GATE: would leave a whole guild whose verification is overdue out of the features that ask
+-- ns.GuildSanctioned. Off: no feature is gated, every guild is in.
+-- VERIFY_HOLD: an overdue guild's master's own powers wait for his verification (ns.MasterHeld:
+-- Data.AuthorizedRank, GuildCharter, Nominees, Decree, Bank). Nothing of the members is touched.
+-- These stand-ins answer while Verify.lua is not loaded (a client updated without a restart).
+ns.VERIFY_GATE = false
+ns.VERIFY_HOLD = true
+function ns.GuildSanctioned() return true end
+function ns.MasterHeld() return false end
 -- In an Olympus guild, Accord or not: where "not a member" meant "an outsider".
 function ns.InOlympusGuild()
 	return IsInGuild() and ns.IsFederation(GetGuildInfo("player"))
@@ -1904,6 +1914,8 @@ StandIn("Answers", { "Open" })
 StandIn("Nominees", { "Slash", "Prompt" })
 -- The self-test of test builds (SelfTest.lua, /oly selftest: the author alone).
 StandIn("SelfTest", { "Slash" })
+-- Guild verification (Verify.lua, /oly verify).
+StandIn("Verify", { "Slash" })
 
 -- Blizzard's gamepad UI (WoW: Forever's controller mode) is on.
 function ns.GamepadUI()
@@ -2108,7 +2120,7 @@ ns.RegisterEvent("PLAYER_LOGIN", function()
 	local missing = {}
 	-- (1.2: the file of a key named otherwise: the Blood Arena's core is ArenaNet.lua.)
 	local FILES = { Arena = "ArenaNet.lua" }
-	for _, key in ipairs({ "Who", "Channels", "King", "Hop", "Workshop", "Vox", "Court", "Treasury", "Dues", "Acts", "Dialog", "Bank", "Link", "Borders", "Nameplates", "Backup", "Loot", "War", "Crafters", "Board", "Week", "Accord", "Consent", "ViewAs", "TabardsV2", "Chronicle", "Filter", "Watch", "Judgment", "WatchChat", "Wanted", "Members", "Moderation", "Alts", "Keys", "ChatWindow", "Arena", "PlayerMenu", "Versions", "Answers", "Letters", "Nominees", "ChatStrikes", "Record", "TagFollow" }) do
+	for _, key in ipairs({ "Who", "Channels", "King", "Hop", "Workshop", "Vox", "Court", "Treasury", "Dues", "Acts", "Dialog", "Bank", "Link", "Borders", "Nameplates", "Backup", "Loot", "War", "Crafters", "Board", "Week", "Accord", "Consent", "ViewAs", "TabardsV2", "Chronicle", "Filter", "Watch", "Judgment", "WatchChat", "Wanted", "Members", "Moderation", "Alts", "Keys", "ChatWindow", "Arena", "PlayerMenu", "Versions", "Answers", "Letters", "Nominees", "ChatStrikes", "Record", "TagFollow", "Verify" }) do
 		if ns[key].missing then missing[#missing + 1] = FILES[key] or (key .. ".lua") end
 	end
 	if ns.Gate.missing then missing[#missing + 1] = "Gamepad.lua" end -- (1.1.5, the gamepad gate)
@@ -2199,6 +2211,7 @@ local function Help()
 	print(L.HELP_WANTED) -- (1.2.3)
 	print(L.HELP_ROLLCALL)
 	print(L.HELP_ACCORD) -- (1.2.5.1)
+	if rawget(L, "HELP_VERIFY") then print(L.HELP_VERIFY) end -- (guild verification, Verify.lua)
 	print(L.HELP_PRIVACY_PAGE)
 	print(L.HELP_PROFILE)
 	print(L.HELP_CHAT)
@@ -2455,6 +2468,9 @@ local function Slash(input)
 		elseif cmd == "log" then
 			-- 1.1 (Fern's #12): the acts this client saw (Chronicle.lua): [n], a word, copy, clear.
 			ns.Chronicle.Slash(rest)
+		elseif cmd == "verify" or cmd == "verificar" then
+			-- Guild verification (Verify.lua): a guild master's notice, a verifier's approvals.
+			ns.Verify.Slash(rest)
 		elseif cmd == "accord" or cmd == "acordo" then
 			-- 1.2.5.1: the Olympus Accord, Olympus's terms of use (Accord.lua), accepted or not.
 			ns.Accord.Slash(rest)

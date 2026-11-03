@@ -2500,9 +2500,17 @@ local function TagsShown()
 end
 Watch.TagsShown = TagsShown
 
+-- Guild verification (Verify.lua): the guilds still to verify, the verifiers' alone (the King, the
+-- High Council, the author).
+local function VerifyShown()
+	local V = ns.Verify
+	return type(V) == "table" and not V.missing and type(V.CouncilShown) == "function" and V.CouncilShown() == true
+end
+Watch.VerifyShown = VerifyShown
+
 -- The tab (UI.AddTab's visible).
 function Watch.TabVisible() return Watch.DeskShown() or Watch.JudgmentsShown() or ChatShown()
-	or (ns.JusticeTasks and ns.JusticeTasks.Visible()) or TagsShown() or false end
+	or (ns.JusticeTasks and ns.JusticeTasks.Visible()) or TagsShown() or VerifyShown() or false end
 
 -- The sections this player sees, and the one shown when he picked none (or one he no longer
 -- sees): the desk (with its Reports, Cases and a case's page), else the Judgments, else the Tabards.
@@ -2512,8 +2520,9 @@ local function Sections()
 		judgments = Watch.JudgmentsShown(), justice = ns.JusticeTasks and ns.JusticeTasks.Visible(), chat = ChatShown(), tabards = Watch.TabardsShown(), member = Watch.MemberShown() }
 	list.profile = Watch.CanRead()
 	list.tags = TagsShown()
+	list.verify = VerifyShown()
 	list.first = desk and "desk" or list.judgments and "judgments" or list.justice and "justice" or list.chat and "chat" or list.tabards and "tabards"
-		or list.member and "member" or list.tags and "tags" or "desk"
+		or list.member and "member" or list.tags and "tags" or list.verify and "verify" or "desk"
 	return list
 end
 
@@ -2534,7 +2543,7 @@ function Watch.ViewKey()
 	local section = Section()
 	if section == "tabards" then return "heraldry" end
 	if section == "chat" then return Watch.DeskShown() and "watch" or "judgments" end
-	return (section == "judgments" or section == "member" or section == "justice" or section == "tags") and "judgments" or "watch"
+	return (section == "judgments" or section == "member" or section == "justice" or section == "tags" or section == "verify") and "judgments" or "watch"
 end
 
 -- The page shown, for the window's place and its "?" (UI.PageId: "watch/cases").
@@ -2547,7 +2556,7 @@ end
 
 function Watch.Show(mode, key)
 	Watch.mode = (mode == "reports" or mode == "cases" or mode == "case" or mode == "tabards" or mode == "judgments"
-		or mode == "chat" or mode == "member" or mode == "justice" or mode == "profile" or mode == "tags") and mode or nil
+		or mode == "chat" or mode == "member" or mode == "justice" or mode == "profile" or mode == "tags" or mode == "verify") and mode or nil
 	Watch.caseKey = Watch.mode == "case" and key or nil
 	Watch.profileKey = Watch.mode == "profile" and key or nil
 	ns.Fire("WATCH_CHANGED")
@@ -2750,6 +2759,8 @@ local function Nav()
 	if Watch.MemberShown() then items[#items + 1] = { key = "member", text = L.WATCH_MEMBER_NAV } end
 	-- 1.2.5.1: the BattleTags, the moderation team's alone (Accord.lua).
 	if TagsShown() then items[#items + 1] = { key = "tags", text = L.ACCORD_TEAM_NAV:format(ns.Accord.Count()) } end
+	-- Guild verification (Verify.lua): the guilds still to verify.
+	if VerifyShown() then items[#items + 1] = { key = "verify", text = L.VERIFY_NAV:format(ns.Verify.Count()) } end
 	local nav = {}
 	for _, it in ipairs(items) do
 		local key = it.key
@@ -3337,6 +3348,12 @@ function Watch.Build()
 		return lines, L.TAB_WATCH, L.ACCORD_TEAM_DETAIL
 	end
 	if Section() == "member" then return MemberLines(), L.TAB_WATCH, L.WATCH_MEMBER_DETAIL end
+	-- Guild verification (Verify.lua's lines) under the same navigation.
+	if Section() == "verify" then
+		local lines = { Nav() }
+		for _, line in ipairs(ns.Verify.CouncilLines()) do lines[#lines + 1] = line end
+		return lines, L.TAB_WATCH, L.VERIFY_COUNCIL_DETAIL
+	end
 	if Section() == "justice" and ns.JusticeTasks and ns.JusticeTasks.Visible() then
 		local lines = { Nav() }
 		for _, row in ipairs(ns.JusticeTasks.Lines()) do lines[#lines + 1] = row end
@@ -3544,6 +3561,12 @@ function Watch.Slash(rest)
 	elseif verb == "filter" then
 		if not Watch.CanRead() then return ns.Print(L.WATCH_NO_ACCESS) end
 		return ns.Filter and ns.Filter.Status and ns.Filter.Status()
+	elseif verb == "guilds" or verb == "verify" then
+		-- Guild verification (Verify.lua): the guilds still to verify.
+		if not VerifyShown() then return ns.Print(L.WATCH_NO_ACCESS) end
+		Watch.Show("verify")
+		if ns.UI and ns.UI.SelectTab then ns.UI.SelectTab("watch") end
+		return true
 	elseif verb == "chat" then
 		-- 1.1.6: Chat moderation (WatchChat.lua).
 		if not ChatShown() then return ns.Print(L.WATCH_NO_ACCESS) end

@@ -732,7 +732,7 @@ end
 -- then on every other guild requires the signed, time-bounded leadership manifest and a missing,
 -- expired or revoked entry fails closed. The third result is the census support count in legacy
 -- mode (Recruit.lua preserves its old two-report rule).
-function Data.AuthorizedRank(sender, guild)
+local function AuthorizedRank(sender, guild)
 	if type(sender) ~= "string" or type(guild) ~= "string" or guild == "" then return nil end
 	local enforcing = ns.Authority and ns.Authority.Enforced and ns.Authority.Enforced()
 	-- Until an explicit author-signed marker activates the boundary, this is deliberately the
@@ -756,6 +756,16 @@ function Data.AuthorizedRank(sender, guild)
 	if ns.IsKingGuild(guild) and ns.IsKingCharacter(who) then return 0, "pinned" end
 	local rank = ns.Authority.Rank(who, guild)
 	return rank, rank ~= nil and "signed" or "enforced"
+end
+
+-- Guild verification (Verify.lua): while a guild's verification is overdue (GRACE past, no approval
+-- of its current guild master) and the hold is on (ns.VERIFY_HOLD, Core.lua), its guild master stands
+-- as an officer: every power that asks rank 0 here waits for his verification, an officer's stays.
+-- The King's guild is never held. Nothing about the guild's members changes.
+function Data.AuthorizedRank(sender, guild)
+	local rank, source, support = AuthorizedRank(sender, guild)
+	if rank == 0 and ns.MasterHeld ~= nil and ns.MasterHeld(guild) == true then rank = ns.CAPTAIN_RANK end
+	return rank, source, support
 end
 
 -- 1.2.4 (the author's ask: the average level shown and sorted everywhere guilds are listed, and

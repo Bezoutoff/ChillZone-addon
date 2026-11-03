@@ -416,6 +416,8 @@ end
 --   Cover MC (a moderator's cover name, from their own client, over the channel and GUILD).
 --   TagFollow TF (a sanction that follows a BattleTag: a code of it, the character, the kind; logged,
 --   on the Olympus channel).
+--   Verify GV (guild verification: a verifier's approval or revocation of a guild and its master,
+--   logged; any member's ask; a verifier's client's answer with the words and the guilds' starts).
 local handlers = {}
 -- 1.1 (Moderation.lua): a client the moderators took off (net-off) sends none of what they hide.
 local function Held(msg)

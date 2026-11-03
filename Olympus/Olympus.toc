@@ -51,6 +51,7 @@ Locales\PlayerSightingsText.lua
 Locales\AccordText.lua
 Locales\RecordText.lua
 Locales\CensusStatsText.lua
+Locales\VerifyText.lua
 Locales\SelfTestText.lua
 Core.lua
 GamepadRegistry.lua
@@ -123,6 +124,7 @@ KingArrow.lua
 Accord.lua
 Consent.lua
 Cover.lua
+Verify.lua
 WeeklyBrief.lua
 Carry.lua
 ChatRooms.lua

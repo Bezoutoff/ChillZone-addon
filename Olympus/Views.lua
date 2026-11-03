@@ -1275,6 +1275,16 @@ local function DisputeTooltip(tt, d)
 	tt:AddLine(L.DISPUTE_TIP, 0.6, 0.6, 0.6, true)
 end
 
+-- Guild verification (Verify.lua): its mark before a guild's name ("" for none), and its tooltip line.
+local function VerifyModule()
+	local V = ns.Verify
+	return type(V) == "table" and not V.missing and type(V.Mark) == "function" and V or nil
+end
+local function VerifyMark(name)
+	local V = VerifyModule()
+	return V and V.Mark(name) or ""
+end
+
 ---------------------------------------------------------------------------
 -- Shared tooltips
 ---------------------------------------------------------------------------
@@ -1317,6 +1327,8 @@ local function GuildTooltip(e)
 		tt:AddLine(L.REPORTED_BY:format(g.reporter or "?", ns.Ago(g.t)), 0.6, 0.6, 0.6)
 		if not e.fresh then tt:AddLine(L.STALE, 1, 0.4, 0.4) end
 		DisputeTooltip(tt, ns.Data.Dispute(g))
+		local V = VerifyModule()
+		if V then V.Tooltip(tt, e.name) end
 		-- (Ours is live from our roster; another guild's is its last report, 1.1.2's review.)
 		Why(tt, not e.fresh and "count-grey-rows" or (g.mine and "count-own-guild-live" or "count-other-guild-report"))
 	end
@@ -1470,7 +1482,7 @@ local function CensusRow(e)
 	local g = e.g
 	local leader = g.leader and ((g.leaderOnline and "|cff40ff40" or "|cff9d9d9d") .. Plain(g.leader) .. "|r") or Grey("?")
 	return {
-		cols = { Views.DisputeMark(g) .. Plain(e.name), ns.FormatNumber(g.total), Green(ns.FormatNumber(g.online)), AvgCell(g), leader },
+		cols = { Views.DisputeMark(g) .. VerifyMark(e.name) .. Plain(e.name), ns.FormatNumber(g.total), Green(ns.FormatNumber(g.online)), AvgCell(g), leader },
 		dim = not e.fresh,
 		tooltip = GuildTooltip(e),
 		onClick = function()
@@ -1740,6 +1752,10 @@ local function CensusLines(s, q)
 		return lines
 	end
 	QuietLine(lines)
+	-- Our guild's verification (Verify.lua): its guild master's "GM verification pending", or its
+	-- members' notice once it is overdue; a click opens it.
+	local V = VerifyModule()
+	for _, l in ipairs(V and V.Lines and V.Lines() or {}) do lines[#lines + 1] = l end
 	-- Recruits asking to join our guild (1.1, Recruit.lua): an officer's Invite and Decline.
 	for _, l in ipairs(ns.Recruit and ns.Recruit.RequestLines and ns.Recruit.RequestLines() or {}) do lines[#lines + 1] = l end
 	-- Clear party-invite whispers while the King is online (1.2.5.1): local, short-lived and
