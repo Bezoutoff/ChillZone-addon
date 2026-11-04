@@ -116,16 +116,19 @@ test("languages (1.4.0): the lists (places, weekdays, months, class and race nam
 end)
 
 -- 1.4.0 (the Board's groups and IsOlympusMember join the API): what another addon's Yes gives grew
--- (API.CONSENT_VERSION 10), and the two privacy lines say so in English and Portuguese. A line
--- translated from the earlier English would ask again without naming them, so each language shows
--- these lines in English until they are translated from the current words; whoever translates them
--- takes them off this list.
-local HELD_ENGLISH = { "API_CONSENT_TEXT", "API_CONSENT_TEXT_BASIC" }
-test("languages (1.4.0): the API's privacy lines stay English in every language until translated from contract 10's words", function()
+-- (API.CONSENT_VERSION 10), and the two privacy lines say so. (Changed on purpose: they were held in
+-- English until translated from contract 10's words; translated now, each language names the groups
+-- and the unit check in its own words, never the earlier English's.)
+local CONTRACT_10 = { "API_CONSENT_TEXT", "API_CONSENT_TEXT_BASIC" }
+test("languages (1.4.0): the API's privacy lines, translated from contract 10's words, in every language", function()
 	assert(english.L.API_CONSENT_TEXT:find("Board's group listings", 1, true), "the English line names the groups")
 	assert(english.L.API_CONSENT_TEXT:find("is in an Olympus guild", 1, true), "and the unit check")
 	for code, file in pairs(LANGS) do
 		local L = Load(code).L
-		for _, k in ipairs(HELD_ENGLISH) do eq(L[k], english.L[k], file .. " " .. k) end
+		for _, k in ipairs(CONTRACT_10) do
+			assert(type(L[k]) == "string" and L[k] ~= english.L[k], file .. " " .. k .. ": its own words")
+			eq(ns.LocaleCodes(L[k]), ns.LocaleCodes(english.L[k]), file .. " " .. k .. " codes")
+			assert(#L[k] > #english.L[k] * 0.6, file .. " " .. k .. ": the whole of contract 10, not the earlier shorter line")
+		end
 	end
 end)
