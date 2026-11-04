@@ -555,7 +555,9 @@ test("1.2.3 Bones ranking: members away when a game ended rank it at the players
 	-- catch-up now reaches these members sooner; records.lua covers that new path separately.
 	local function Legacy(client)
 		local R = client.ns.Records
-		if R then R.RELAYS = 0 R.SendKey = function() return false end end
+		-- (Changed on purpose, 1.4.0: no relay is drawn any more, so RELAYS = 0 no longer kept these
+		-- clients from relaying; a relay bar does, as it did: no digest, answer or validation.)
+		if R then R.Bar = function() return "never" end R.SendKey = function() return false end end
 		client.ns.Records = nil
 	end
 	for _, client in ipairs(w.clients) do Legacy(client) end

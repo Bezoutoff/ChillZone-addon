@@ -2846,16 +2846,22 @@ test("wanted relay: a late independently anchored peer recovers an unchanged wor
 		eq(world:As(late, late.W.GlobalSnapshot).seq, old.seq + 1)
 		local accepted, why = world:As(late, late.W.HandleGlobalRelay, "CHANNEL", council.name, "W5~2~" .. held)
 		eq(accepted, false); eq(why, "replay")
+		-- (1.4.0, Wanted.RelayAnchored: a client that never heard the issuer directly takes a current
+		-- reviewer's relay as the issuer's first key; before, it refused it as "unanchored" and showed no
+		-- Slayers top three until the publisher was online with it. The relay still makes no direct pin.)
 		local fresh = world:Client("Fresh-Realm", "Player-1-0A000004")
 		accepted, why = world:As(fresh, fresh.W.HandleGlobalRelay, "CHANNEL", council.name, "W5~2~" .. held)
-		eq(accepted, false); eq(why, "unanchored", "a relay cannot introduce the original key")
-		eq(fresh.rdb.wanted and fresh.rdb.wanted.globalDirectPins, nil)
+		eq(accepted, true); eq(why, "pending", "a relay may give the first key of an issuer never heard directly")
+		world:Deliver()
+		eq(fresh.rdb.wanted.global.text, held); eq(fresh.rdb.wanted.global.relay, council.name)
+		eq(fresh.rdb.wanted.globalDirectPins, nil, "a relayed key is never a direct pin")
 		world:Load(late); world:Deliver()
 		eq(late.rdb.wanted.global.text, held, "persisted relayed word verifies again after reload")
 		eq(late.rdb.wanted.global.relay, council.name)
 		late.rdb.wanted.globalDirectPins = nil
 		world:Load(late); world:Deliver()
-		eq(world:As(late, late.W.GlobalSnapshot), nil, "a relayed saved word cannot reconstruct a missing independent pin")
+		eq(world:As(late, late.W.GlobalSnapshot).seq, old.seq + 1, "with no direct pin left, the relayed saved word is the issuer's first key again")
+		eq(late.rdb.wanted.globalDirectPins, nil, "a relayed saved word never reconstructs an independent pin")
 	end)
 end)
 
@@ -3262,8 +3268,14 @@ test("wanted world: a word replaced by a newer one is not repeated by its publis
 		local before = #world.log + 1
 		world:Run(king.W.GLOBAL_BURST * king.W.GLOBAL_BURST_GAP + king.W.GLOBAL_REPEAT_EVERY + 1)
 		eq(KingSent(before), false, "the King repeats no replaced word")
-		eq(world:As(gamma, gamma.W.GlobalSnapshot), nil, "a later client never takes the older word")
-		eq(world:Border(gamma, alpha.guid), nil)
+		-- (1.4.0: a client never online with an issuer takes his word from a reviewer's relay,
+		-- Wanted.RelayAnchored; before, gamma held no word at all. What this test guards stays: the
+		-- older, replaced word reaches nobody; the King's catch-up answer relays the newer one.)
+		local held = world:As(gamma, gamma.W.GlobalSnapshot)
+		eq(held and held.issuer, council.name, "a later client takes the newer word, never the older one")
+		eq(gamma.rdb.wanted.global.relay, king.name, "relayed by the King's client")
+		eq(world:Border(gamma, alpha.guid), world:Border(beta, alpha.guid), "the newer word's frames, as where it was heard")
+		eq(world:Border(gamma, beta.guid), "wanted-slayer-1")
 		eq(world:Border(beta, beta.guid), "wanted-slayer-1", "the newer word holds where it was heard")
 
 		king = world:Load(king)
@@ -3272,7 +3284,8 @@ test("wanted world: a word replaced by a newer one is not repeated by its publis
 		before = #world.log + 1
 		world:Run(king.W.GLOBAL_LOGIN_REPEAT + king.W.GLOBAL_REPEAT_EVERY + 1)
 		eq(KingSent(before), false, "nor after his login")
-		eq(world:As(delta, delta.W.GlobalSnapshot), nil)
+		held = world:As(delta, delta.W.GlobalSnapshot)
+		eq(held and held.issuer, council.name, "nor the older word after his login: the newer one, relayed")
 
 		-- A word of his own published later is repeated as before.
 		assert(world:As(king, king.W.RevokeGlobal))
@@ -5803,4 +5816,102 @@ test("Most Wanted: no Olympus file registers a restricted combat log event (Fore
 		p:close()
 	end
 	eq(#found, 0, table.concat(found, "\n"))
+end)
+
+-- 1.4.0 (the owner's rule before the launch: every ranking and every frame reaches every client). Both
+-- tests fail on 1.4.0's candidate, where a relayed word needed a key the client had pinned from the
+-- issuer himself, and a member's own row went out once, reaching only the reviewers online then.
+test("wanted 1.4.0 relay: a client never online with the publisher takes the signed top three from a reviewer's relay and shows the skeletal horse; the issuer's own word replaces a relayed copy made with another key, and a relay never moves that pin", function()
+	WithWorld(function(world)
+		local king = world:Client("Varrick-Realm", "Player-1-0A000901", "king")
+		local council = world:Client("Council-Realm", "Player-1-0A000902", "council")
+		local alpha = world:Client("Alpha-Realm", "Player-1-0A000903")
+		local beta = world:Client("Beta-Realm", "Player-1-0A000904")
+		world:Hunt(alpha, king, "Hordeling-Realm", "Player-1-0B000901", beta, alpha)
+		assert(world:As(king, king.W.PublishGlobal)); world:Deliver()
+		local word = council.rdb.wanted.global.text
+		eq(world:Border(council, alpha.guid), "wanted-slayer-1")
+		world:Offline(king)
+		-- Never online with the King: his catch-up ask, answered by the councillor's relay.
+		local fresh = world:Client("Fresh-Realm", "Player-1-0A000905")
+		world:Run(fresh.W.GLOBAL_ASK_FIRST + 60)
+		local held = world:As(fresh, fresh.W.GlobalSnapshot)
+		eq(held and held.issuer, king.name, "the King's word, from a relay")
+		eq(fresh.rdb.wanted.global.text, word, "as he signed it")
+		eq(fresh.rdb.wanted.global.relay, council.name)
+		eq(world:Border(fresh, alpha.guid), "wanted-slayer-1", "and the skeletal horse")
+		eq(fresh.rdb.wanted.globalDirectPins, nil, "a relay's key is no direct pin")
+
+		-- A councillor's copy in the King's name, signed with the councillor's own key (a newer seq):
+		-- a client that never heard the King takes it, until the King's own word comes.
+		local fields = {}
+		for part in (word .. "~"):gmatch("([^~]*)~") do fields[#fields + 1] = part end
+		fields[6] = tostring(tonumber(fields[6]) + 1)
+		local signed = table.concat({ "OLYW2", fields[3], fields[4], fields[5], fields[6], fields[7], fields[8], fields[9] }, "|")
+		fields[10] = ns.Ed25519.ToB64(council.pk)
+		fields[11] = ns.Ed25519.ToB64(ns.Ed25519.Sign(council.seed, signed, council.pk))
+		local forged = table.concat(fields, "~")
+		local other = world:Client("Other-Realm", "Player-1-0A000906")
+		world:Run(1)
+		assert(world:As(other, other.W.HandleGlobalRelay, "CHANNEL", council.name, "W5~2~" .. forged)); world:Deliver()
+		eq(other.rdb.wanted.global.text, forged)
+		-- The King's own word (older, his own key) replaces it, and pins his key.
+		king = world:Load(king)
+		assert(world:As(king, king.W.RepeatGlobal)); world:Deliver()
+		eq(other.rdb.wanted.global.text, word, "the issuer's own word replaces the copy made with another key")
+		eq(other.rdb.wanted.global.relay, nil)
+		assert(other.rdb.wanted.globalDirectPins and other.rdb.wanted.globalDirectPins[ns.Fold(king.name)], "pinned from his own word")
+		eq(world:Border(other, alpha.guid), "wanted-slayer-1")
+		-- From then on no relay moves that pin: the copy with another key is refused.
+		local accepted, why = world:As(other, other.W.HandleGlobalRelay, "CHANNEL", council.name, "W5~2~" .. forged)
+		eq(accepted, false); eq(why, "unanchored")
+		eq(other.rdb.wanted.global.text, word)
+		-- A plain member's relay is no reviewer's: refused whatever the client holds.
+		local stranger = world:Client("Stranger-Realm", "Player-1-0A000907")
+		accepted, why = world:As(stranger, stranger.W.HandleGlobalRelay, "CHANNEL", beta.name, "W5~2~" .. word)
+		eq(accepted, false); eq(why, "authority")
+	end)
+end)
+
+test("wanted 1.4.0 rows: a kill made while no reviewer is online reaches the King's board and a later login once he asks for the catch-up; a row a reviewer relayed goes no more", function()
+	WithWorld(function(world)
+		local king = world:Client("Varrick-Realm", "Player-1-0A000911", "king")
+		local alpha = world:Client("Alpha-Realm", "Player-1-0A000912")
+		local beta = world:Client("Beta-Realm", "Player-1-0A000913")
+		world:Offline(king)
+		world:Hunt(alpha, nil, "Hordeling-Realm", "Player-1-0B000911", beta, alpha)
+		eq(world:As(alpha, alpha.W.Rankings).all[1].name, alpha.name, "online members hold the kill")
+		local function Own(cl)
+			local out = {}
+			for _, e in ipairs(cl.rdb.wanted.evidence) do if e.own then out[#out + 1] = e end end
+			return out
+		end
+		eq(Own(alpha)[1].shared, true); eq(Own(alpha)[1].reviewed, nil, "no reviewer relayed it")
+		world:Run(600)
+		king = world:Load(king)
+		world:Run(king.W.GLOBAL_ASK_FIRST + 30)
+		eq(#world:As(king, king.W.SignableRankings), 1, "the King's signable board holds the kill")
+		eq(world:As(king, king.W.Rankings).all[1].name, alpha.name)
+		eq(Own(alpha)[1].reviewed, true, "his relay of it marked it reviewed")
+		eq(Own(beta)[1].reviewed, true)
+		-- Nothing more on his later asks: every row reached him.
+		local function Resent(from, since)
+			local n = 0
+			for i = since, #world.log do
+				local m = world.log[i]
+				if (m.from == alpha or m.from == beta) and m.dist == "CHANNEL" and m.text:find("^WK~[12]~") then n = n + 1 end
+			end
+			return n
+		end
+		local before = #world.log + 1
+		world:Run(2 * king.W.GLOBAL_ASK_GAP + 60)
+		eq(Resent(nil, before), 0, "a reviewed row goes no more")
+		-- (reviewed is kept through a reload)
+		alpha = world:Load(alpha); world:Deliver()
+		eq(Own(alpha)[1].reviewed, true)
+		-- A later login catches up from the King.
+		local late = world:Client("Late-Realm", "Player-1-0A000914")
+		world:Run(late.W.GLOBAL_ASK_FIRST + 60)
+		eq(world:As(late, late.W.Rankings).all[1].name, alpha.name, "a later login gets it from the King's catch-up")
+	end)
 end)

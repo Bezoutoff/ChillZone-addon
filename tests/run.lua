@@ -770,7 +770,9 @@ end)
 
 test("demo data is gone and old installs forget the setting", function()
 	eq(ns.Data.BuildDemo, nil); eq(ns.Data.SetDemo, nil); eq(ns.Inspect.BuildDemo, nil); eq(ns.Layers.BuildDemo, nil)
-	local savedDB, savedR, savedRealm = ns.db, ns.rdb, ns.realm
+	-- (Its ADDON_LOADED sets the account's store and this realm group as the game would: both go back
+	-- with the rest, or every later census page read the leftover realm group as its own server.)
+	local savedDB, savedR, savedRealm, savedGroup, savedGlobal = ns.db, ns.rdb, ns.realm, ns.group, OlympusDB
 	for _, old in ipairs({ { demo = true }, { demo = true, configVersion = 2 }, { demo = true, configVersion = 3, throneLetterRead = true } }) do
 		OlympusDB = old
 		for _, fn in ipairs(EVENT_SCRIPTS) do fn(nil, "ADDON_LOADED", "Olympus") end
@@ -778,11 +780,13 @@ test("demo data is gone and old installs forget the setting", function()
 		eq(OlympusDB.configVersion, 3)
 		eq(OlympusDB.throneLetterRead, nil, "1.0.0: the letter's flag goes with it")
 	end
-	ns.db, ns.rdb, ns.realm = savedDB, savedR, savedRealm
+	ns.db, ns.rdb, ns.realm, ns.group, OlympusDB = savedDB, savedR, savedRealm, savedGroup, savedGlobal
 end)
 
 test("upgrade from account-wide data: block list, old census and key, inspections", function()
-	local savedDB, savedR, savedRealm = ns.db, ns.rdb, ns.realm
+	-- (Its ADDON_LOADED sets the account's store and this realm group as the game would: both go back
+	-- with the rest, or every later census page read the leftover realm group as its own server.)
+	local savedDB, savedR, savedRealm, savedGroup, savedGlobal = ns.db, ns.rdb, ns.realm, ns.group, OlympusDB
 	local blocked = {}
 	for i = 1, 40 do blocked["troll" .. i] = true end
 	blocked["far-other"] = true
@@ -805,7 +809,7 @@ test("upgrade from account-wide data: block list, old census and key, inspection
 	eq(OlympusDB.realms.Realm.guilds["Olympus Far"], nil, "not moved into this realm")
 	eq(OlympusDB.inspect, nil)
 	eq(OlympusDB.realms.Realm.inspect.players.Naked.status, "NONE", "inspections kept on this realm")
-	ns.db, ns.rdb, ns.realm = savedDB, savedR, savedRealm
+	ns.db, ns.rdb, ns.realm, ns.group, OlympusDB = savedDB, savedR, savedRealm, savedGroup, savedGlobal
 end)
 
 test("an old saved report does not grant rank", function()

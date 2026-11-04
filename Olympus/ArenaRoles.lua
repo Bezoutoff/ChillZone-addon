@@ -754,10 +754,14 @@ function Roles.Councillors()
 	return out
 end
 -- Whether name may publish game's ranking: the King's character, or a High Councillor named for
--- that game (the owner's answer, 2026-10-04: not "the King and his Stewards").
+-- that game (the owner's answer, 2026-10-04: not "the King and his Stewards"). (1.4.0, the owner's
+-- rule for the launch: the King does not work these switches, so the addon's own maker may too, as
+-- King.AuthorMay("rankings") says, never a role he previews or holds. His word is taken, kept, told by
+-- holders and repeated by his client as the King's is, and gives him nothing else of the King's.)
 function Roles.MayPublish(name, game, realm)
 	if type(name) ~= "string" or name == "" or not Roles.GAME_LETTER[game] then return false end
 	if Roles.IsKing(name) then return true end
+	if ns.King.AuthorMay("rankings", name) then return not Barred(name) end
 	if not ns.IsHighCouncillor(ns.FullName(name)) or Barred(name) then return false end
 	local short = ns.ShortName(ns.FullName(name)):lower()
 	for _, e in ipairs(PublishersOf(realm)) do

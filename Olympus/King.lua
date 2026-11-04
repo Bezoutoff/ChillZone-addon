@@ -331,7 +331,17 @@ end
 -- The King may send it; a Steward what STEWARD_MAY lends him (his own list of Hands among it:
 -- never a list of the King's); one of their Hands what is theirs to use too (soft: his
 -- position).
+-- (1.4.0, the owner's rule for the launch: the King does not work these switches) What the addon's
+-- author may do though he is never the King nor a Steward: the Treasury ranking's switch alone among
+-- the Throne's words (T1~r, Treasury.lua), and the Games tab's rankings' publish word (ArenaRoles,
+-- "rankings": the arena's files name no author, so they ask here). One of his characters as Core.lua's
+-- signed list names them (ns.IsAuthorName), never a role he previews.
+King.AUTHOR_MAY = { r = true, rankings = true }
+function King.AuthorMay(what, name)
+	return King.AUTHOR_MAY[what] == true and type(name) == "string" and name ~= "" and ns.IsAuthorName(ns.FullName(name)) == true
+end
 function King.Authorized(kind, sender, guild)
+	if King.AUTHOR_MAY[kind] == true then return King.AuthorMay(kind, sender) end
 	if KingSender(sender, guild, kind == "P" or kind == "Q") then return true end
 	if King.STEWARD_MAY[kind] == true and King.IsStewardName(sender) then return true end
 	return King.HAND_MAY[kind] == true and Hand(sender)

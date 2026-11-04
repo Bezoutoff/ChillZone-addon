@@ -1442,6 +1442,14 @@ screen tells him when his Steward changed one of them; the name is cut short the
 council's names are hidden on his stream). The King's client and the Steward's take the newest
 word as theirs and repeat it, and each answers an older word it hears with the newer one. A word
 dated more than a minute ahead of the server's clock is not taken.
+**The ranking's switch, the author's too (1.4.0).** The King does not work these switches, so the
+addon's author (one of his characters as the signed titles list names them; never the King, a
+Steward or a role he previews) may set the ranking's switch alone, from the Treasury tab, never the
+balance's nor the book's (`T1~r`, which clients before 1.4.0 leave out). Every client keeps his word
+as the ranking part of the King's, with its own time: the newest of the two stands, the King's on
+the same second, and a word of the King's older than the author's changes only the balance and the
+book. His client repeats his word every 5 minutes while it stands, as the King's client repeats the
+King's.
 
 **Who he is.** Only the author names a Steward, with the same key that signs the council (see
 [The High Council's signed lists](#the-high-councils-signed-lists-the-author)): no name is
@@ -2114,8 +2122,12 @@ shows no time.
 
 The signed **Slayers top three** is the publisher's own board, by verified GUID (a slayer his
 client knows by name only is left out and named on his Frames page). A trusted peer can relay that
-unchanged ranking only to a recipient who already independently pinned its original publisher's
-key. `/oly wanted status` shows, in a copy window, what your client captured, shared and heard this
+unchanged ranking; a recipient that pinned its original publisher's key from his own word takes no
+other key of his from a relay, and one that never heard the publisher takes the relayed key as his
+first (1.4.0), until the publisher's own word replaces it. A member's own kill or death that no
+reviewer was heard relaying (made while none was online) goes again, four at a time, when a reviewer's
+client asks for the catch-up at his login (1.4.0), so it reaches the boards the top three is signed
+from. `/oly wanted status` shows, in a copy window, what your client captured, shared and heard this
 session and why each kill or death was refused. See [Privacy](#privacy) for sightings' separate
 explicit consent and recipient limits.
 
@@ -2509,7 +2521,7 @@ players' links, and its own documentation says what then goes where. Your name i
 | The signed Slayers top three (WY): GUIDs, scores, claims and tie times, with the issuer, signature and expiry | everyone on the Olympus channel | from the King's, a High Councillor's or the author's client, from his own Slayers board (1.2.3: no review); an unchanged verified word may also be relayed by one of these roles (W5) |
 | Slayers catch-up (W4): a request for the current signed ranking | everyone on the Olympus channel | up to three login attempts, starting after 45 seconds and then 5 minutes apart; a role holder answers at most once every 5 minutes, with the signed ranking and (1.2.3) the newest shared rows |
 | The games' rankings ask (AU, 1.2.4): the letters of the games whose publish word your addon lacks, nothing else | everyone on the Olympus channel, and your guild when it spans the realm group's realms | once a session, when you open the Games tab without one of them (never the King's, the High Council's or the author's, who see the rankings anyway) |
-| A games' rankings publish word you hold (AU, 1.2.4): the game, shown or hidden, when, and who gave it (the King or a councillor he named) | the lane the ask came on: the Olympus channel, or your guild | only in answer to an ask, a few seconds after it, from about three holders whatever the army's size, unless the same word went out meanwhile; once every 30 seconds at most |
+| A games' rankings publish word you hold (AU, 1.2.4): the game, shown or hidden, when, and who gave it (the King, a councillor he named, or since 1.4.0 the addon's author) | the lane the ask came on: the Olympus channel, or your guild | only in answer to an ask, a few seconds after it, from about three holders whatever the army's size, unless the same word went out meanwhile; once every 30 seconds at most |
 | A Bones game's ask for its other half (KN, 1.2.4): the game's id, its two players and its target, nothing else; and the answer, your own signed half of that game (the one your addon said on the channel when it ended) | the ask: the game's other player, alone (a whisper); the answer: the player who asked, alone (a whisper) | the ask only when your client holds your own half of a counted game of this month or the last and never got his: at a later login, an hour apart at least, 8 times at most; the answer only to that game's other player's ask, once a session per game |
 | What your duel view reads (1.2.6, **Watch duel**): the two fighters' health, power and casts while they are in sight, and their gear and talents from your own inspection | nobody: shown on your screen only, never sent or saved | while the view is open; an inspection only within inspect range and out of combat, with no tabard record, chat line, sound or report |
 | The Royal Writs' ask (T7, 1.2.4): nothing but your name | everyone on the Olympus channel | once a login, a minute and a half after it; only the King's addon answers, with his writs of the last seven days, once every 5 minutes at most |
@@ -2543,11 +2555,12 @@ position on the map).
 Slayers catch-up preserves the original publisher's signature, issuer, sequence and expiry;
 it never turns the relay's observations or census into a ranking. Both the original issuer
 and the relay must hold their real authority when the word is admitted, and queued replies
-check those roles again before each send. A relayed key is accepted only if this client
-independently pinned that same issuer key and epoch from an earlier directly verified WY;
-a relay cannot introduce or rotate it. An already anchored late client can therefore recover
-from a trusted peer while the original publisher is offline. A brand-new client without that
-anchor still needs a direct publisher word; this is not guaranteed offline bootstrapping.
+check those roles again before each send. A relayed key is accepted when this client
+independently pinned that same issuer key and epoch from an earlier directly verified WY, or
+(1.4.0) when it never pinned that issuer directly at all: the relay's key is then that issuer's
+first here, never saved as a direct pin, and the issuer's own word with another key replaces it.
+A relay cannot rotate a key pinned from the issuer himself. A late client, anchored or brand new,
+can therefore recover from a trusted peer while the original publisher is offline.
 WY, W4 and W5 use the Olympus channel's public or sealed audience described below, not a
 private staff lane. Older clients ignore W4/W5 and still accept original direct WY words.
 
@@ -3247,7 +3260,9 @@ again for the other's when his ledger lost the duel; and the clerk's carousel ca
 eight weeks of duels (it was the last two weeks with duels). The ledger the companion kept before
 is taken in when it loads (`tests/arena/duels-keep.lua`).
 **The games' rankings stay shown** (1.2.4, `Olympus/ArenaRoles.lua`): the King's word that shows
-a game's ranking to everyone on the Games tab (or a councillor's he named for that game) is kept
+a game's ranking to everyone on the Games tab (or a councillor's he named for that game, or since
+1.4.0 the addon's author's, one of his characters as the signed list names them: the King does not
+work these switches, and the author gets nothing else of his) is kept
 for the whole realm group, not under its giver's realm, so a member on another realm of the group
 sees it too. Any client that holds a word tells it: a member who opens the Games tab holding no
 word for a game asks once a session, and about three holders answer with the word and its
