@@ -21,6 +21,7 @@ ns.Sign.WithKey(n, mu, k, function()
     end }
   ns.Comm = { Handle = function(kind, fn) handlers[kind] = fn end }
   ns.On, ns.Every, ns.Fire = function() end, function() return {} end, function() end
+  ns.After = function() end -- (1.4.0: the records' digest rounds wait their turn with ns.After, as the game's Core.lua gives it)
   ns.SafeCall = function(_, fn, ...) return fn(...) end
   StaticPopupDialogs, date = {}, os.date
   assert(loadfile(root .. "/Olympus/Records.lua"))("Olympus", ns)
