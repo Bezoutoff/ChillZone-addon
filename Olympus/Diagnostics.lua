@@ -508,6 +508,9 @@ function ns.StatusText()
 		add("discord link: %s", ns.LinkLoader and ns.LinkLoader.StatusLine and ns.LinkLoader.StatusLine() or "not loaded")
 		-- The Board (1.1): what this client holds and sends (the ch:G1, ch:G0, ch:GQ counts above).
 		add("board: %s", ns.Board and ns.Board.StatusLine and ns.Board.StatusLine() or "not loaded")
+		-- (1.4.0: the Board's group listings, counts only: ch:GL, ch:GM... above.)
+		local G = ns.Groups
+		add("board groups: %s", G and not G.missing and G.StatusLine and G.StatusLine() or "not loaded")
 		add("the King's week: %s", ns.Week and ns.Week.StatusLine and ns.Week.StatusLine() or "not loaded")
 	end
 	local n = 0

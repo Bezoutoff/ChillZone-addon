@@ -197,7 +197,9 @@ versions before 1.1 just get the whisper, as before.
   explanation once per appointment. They can edit their own group's list, not another leader's;
   existing authorized officers retain oversight. Old oversized saved groups stay read-only until
   an authorized, confirmed replacement archives the original membership privately. No guild
-  invitations, removals or native promotions happen automatically.
+  invitations, removals or native promotions happen automatically. An online member of the group
+  has **Invite online member to raid** (1.4.0): one party invite on the Legate's click, only while
+  the guild roster still lists that member.
 - **Level race**: the highest level players of the realm.
 - **Recruiting**: the guilds that still have free slots, so new players go where there is room
   (the five with the most, then every one on a click, 1.1).
@@ -685,7 +687,8 @@ does and what it sends.
 Another addon can read, with your permission, what Olympus already shows you: the Wanted list
 and its bounties, the public rankings (the Slayers, the Church's top three, the games the King
 made public, the donors' top three while he shows the Treasury's ranking), your own frame and
-title, your Olympus guild, rank and role, and the King's presence as his lines and the Realm tab
+title, your Olympus guild, rank and role, whether a player your game shows you now is in an
+Olympus guild, and the King's presence as his lines and the Realm tab
 show it (online, the zone they name, his crown while he shares it, whether you are on his layer,
 and his zone's layers with their "~N with Olympus" counts while you are there). The King's
 presence, the player-sighting searches and the profile presentation below are reserved for addons
@@ -869,8 +872,7 @@ code.
   (the King's alone every minute, while his crown shows: one client, one message a minute).
 - A layer request goes out once; only about 6 players answer it, each by a whisper to the asker.
 - Messages are spaced 1.2 s apart, below Blizzard's addon message limits, and alert sounds
-  play at most once every 15 seconds (1.1: a softer one never silences the Call to Arms or a
-  louder alert after it).
+  play at most once every 15 seconds.
 - Chat has its own short lane: a line goes out within about a second, and while reports are
   waiting it never takes more than every other message slot.
 - The Board (1.1): a flag is repeated every 10 to 30 minutes (less often the fuller the Board),
@@ -929,8 +931,9 @@ also saved in `WTF/Account/<ACCOUNT>/SavedVariables/Olympus.lua`.
 - **Code and ideas:** RoyLeviGit (Olympus chats in their own chat window), Artz (hiding the
   Issue Reporter), bjess9 (CI and the shared checks), hypertectonic (Chattynator's tabs),
   Bernardo Costa / Costafitness (exact layer-hop confirmation and stale-request regressions,
-  adapted from PR #51), and Rick-laboratory (bounded transport, cancellation and admission
-  regressions, adapted from PR #52).
+  adapted from PR #51), Rick-laboratory (bounded transport, cancellation and admission
+  regressions, adapted from PR #52), and HTX (the Board's group listings, applications and
+  invites, adapted from PR #62).
 - **Feature requests:** Fernmelder, whose 39 posts became 1.1 (the Fernmelder release);
   shenanigans_ (the nameplate marks), Valdericht (`<OLYMPIAN>`), Pyralis Ashandar (taking
   donations) and Zeal (what the King hides stays off the channel).

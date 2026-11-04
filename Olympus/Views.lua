@@ -1016,6 +1016,15 @@ function Views.Render(content, lines, layout)
 			r.right:Hide()
 			for c = 1, #r.cols do r.cols[c]:Hide() end
 			height = Views.DrawGraph(r, line.graph, width) or height
+		elseif line.panel then
+			-- 1.4.0: a host-owned frame in the row (the Board's Your group, Groups.DrawPanel): its
+			-- function anchors it here and gives its height and the frame.
+			r.left:Hide()
+			r.right:Hide()
+			for c = 1, #r.cols do r.cols[c]:Hide() end
+			local ok, h, frame = pcall(line.panel, r, width) -- gp:board-panel
+			height = ok and tonumber(h) or 0
+			r.panelFrame = ok and frame or nil
 		elseif line.cols then
 			r.left:Hide()
 			r.right:Hide()
@@ -1052,6 +1061,11 @@ function Views.Render(content, lines, layout)
 		if not line.nav then for k = 1, #(r.nav or {}) do r.nav[k]:Hide() end end
 		if not line.filters then for k = 1, #(r.filters or {}) do r.filters[k]:Hide() end end
 		if not line.graph and r.graph then r.graph:Hide() end
+		-- (A panel's frame this row hosted before, now another line's: hidden, unless another row took it.)
+		if not line.panel and r.panelFrame then
+			if r.panelFrame:GetParent() == r then r.panelFrame:Hide() end
+			r.panelFrame = nil
+		end
 		r:SetHeight(height)
 		r:EnableMouse(line.onClick ~= nil or line.tooltip ~= nil)
 		if hd then
@@ -1072,7 +1086,7 @@ end
 -- above the first row and below the last included, measured without drawing: a page that fits its
 -- window ("My profile"'s Icons, ProfileEdit.lua) asks it. An items row is measured as the game's
 -- buttons (ITEM_GAME) unless line.gap gives its cells (line.slot). nil for a row of filters (its
--- buttons' height is theirs).
+-- buttons' height is theirs) or a panel (its frame's, 1.4.0).
 function Views.LinesHeight(lines, hd, width)
 	local rowH = hd and ROW_H_HD or ROW_H
 	local y, input = 2, false
@@ -1081,7 +1095,7 @@ function Views.LinesHeight(lines, hd, width)
 		if line.items then
 			local slot, step, columns, gap = ItemGrid(line, ITEM_GAME, tonumber(width) or 0)
 			height = GridHeight(math.ceil(math.max(1, line.slots or #line.items) / columns), slot, step, gap)
-		elseif line.filters then
+		elseif line.filters or line.panel then
 			return nil
 		elseif line.nav then
 			height = ROW_H_NAV

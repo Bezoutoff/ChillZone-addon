@@ -282,6 +282,7 @@ test("party guard: English and pt-BR user-facing copy have matching format contr
 		"PARTY_GUARD_REVIEW", "PARTY_GUARD_DISMISS", "PARTY_GUARD_MORE", "PARTY_GUARD_LESS", "PARTY_GUARD_TURN_OFF",
 		"PARTY_GUARD_ON", "PARTY_GUARD_OFF", "PARTY_GUARD_CANNOT_INVITE", "PARTY_GUARD_RECHECK",
 		"PARTY_GUARD_OUTSIDER_PROMPT", "PARTY_GUARD_INVITE_ANYWAY",
+		"SQUAD_INVITE_GONE", "SQUAD_INVITE_CANNOT", -- (1.4.0: the Legate's invite, Guard.InviteGuildmate)
 	}
 	local function Codes(s)
 		local out = {}
@@ -359,4 +360,70 @@ test("party guard 1.3.4: a repeat request from a player already invited (or alre
 	end)
 	IsInGroup, IsInRaid, GetNumGroupMembers = saved.inGroup, saved.inRaid, saved.members
 	if not ok then error(err, 0) end
+end)
+
+-- 1.4.0: a Legate's "Invite online member to raid" (WarSquads.lua) through Guard.InviteGuildmate. The
+-- click is the only trigger and a fresh roster of the player's own Olympus guild the only evidence:
+-- it is not the whisper inbox, so neither the King's presence nor Party Guard's switch gates it.
+test("party guard: a Legate's raid invite takes only a fresh own-guild roster, inside the click, whoever else is online", function()
+	Scene(function(w)
+		w.rosterName, w.rosterAt = "Squad-Realm", w.now
+		-- Neither the King online nor Party Guard on is needed: a Legate forms his raid any time.
+		w.kingAt, w.localKing = false, false
+		ns.db.partyGuardOff = true
+		eq(G.InviteGuildmate("Squad-Realm"), true)
+		eq(w.invited[#w.invited], "Squad", "the game's own invite, by the name it takes")
+		eq(#G.Candidates(), 0, "the whisper inbox is untouched")
+		eq(#w.searches, 0, "no /who")
+		eq(#w.printed, 0, "nothing to say when it worked")
+		local invited = #w.invited
+
+		-- Nothing else is evidence: a stale roster, a name it does not list, a direct observation
+		-- or a /who answer of an Olympus guild, a whisper.
+		w.rosterAt = nil
+		eq(G.InviteGuildmate("Squad-Realm"), false, "a stale roster cannot authorize it")
+		eq(w.printed[#w.printed], ns.L.SQUAD_INVITE_GONE:format(ns.DisplayName("Squad-Realm") or "Squad-Realm"))
+		w.rosterAt = w.now
+		w.seen["Other-Realm"] = { guild = w.ownGuild, age = 0 }
+		w.units.target = { name = "Other", realm = "Realm", guild = w.ownGuild }
+		eq(G.InviteGuildmate("Other-Realm"), false, "not on the roster: not a guildmate, whatever was seen")
+		eq(#w.searches, 0, "and no /who is started for it")
+		eq(#w.invited, invited)
+
+		-- Only a member of an Olympus guild, in his own guild's roster.
+		w.member = false
+		eq(G.InviteGuildmate("Squad-Realm"), false, "not a member (or before the Accord)")
+		w.member = true
+		w.ownGuild = "Other Guild"
+		eq(G.InviteGuildmate("Squad-Realm"), false, "not an Olympus guild")
+		w.ownGuild = "Olympus Test"
+		eq(#w.invited, invited)
+
+		-- The game's rules for an invite: out of combat, room in the group, the client's function.
+		w.combat = true
+		eq(G.InviteGuildmate("Squad-Realm"), false)
+		eq(w.printed[#w.printed], ns.L.SQUAD_INVITE_CANNOT:format(ns.DisplayName("Squad-Realm") or "Squad-Realm"))
+		w.combat = false
+		w.room = false
+		eq(G.InviteGuildmate("Squad-Realm"), false, "a full party, or not its leader or an assistant")
+		w.room = true
+		local party = C_PartyInfo
+		C_PartyInfo, InviteUnit = { InviteUnit = function() error("refused") end }, nil
+		eq(G.InviteGuildmate("Squad-Realm"), false, "a refused call is said, never raised")
+		C_PartyInfo = nil
+		eq(G.InviteGuildmate("Squad-Realm"), false, "a client without the function")
+		C_PartyInfo = party
+		eq(#w.invited, invited)
+
+		-- A secret or malformed name is refused before anything compares it.
+		local ok, done = pcall(G.InviteGuildmate, { secret = true })
+		assert(ok); eq(done, false)
+		eq(G.InviteGuildmate(nil), false); eq(G.InviteGuildmate(""), false)
+
+		-- With the gamepad UI the click's invite is the same (the gate's "click" guard: the
+		-- player's own click on Olympus's button), and still no /who.
+		w.gamepad = true
+		eq(G.InviteGuildmate("Squad-Realm"), true)
+		eq(#w.invited, invited + 1); eq(#w.searches, 0)
+	end)
 end)

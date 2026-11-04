@@ -302,8 +302,9 @@ function Guard.Verify(candidate)
 	return true
 end
 
-local function CanInvite(candidate)
-	if not Active() or not Current(candidate) then return false end
+-- The game's party invite while the player may send one: out of combat, with room in his group
+-- (Hop.GroupState: no group, or its leader or a raid assistant under 5 or 40), on a client that has it.
+local function GroupInvite()
 	if InCombatLockdown and InCombatLockdown() then return false end
 	local groupSize, room
 	if ns.Hop and ns.Hop.GroupState then groupSize, room = ns.Hop.GroupState() end
@@ -311,6 +312,11 @@ local function CanInvite(candidate)
 	local invite = C_PartyInfo and C_PartyInfo.InviteUnit or InviteUnit -- gp:roster-actions
 	if type(invite) ~= "function" then return false end
 	return invite
+end
+
+local function CanInvite(candidate)
+	if not Active() or not Current(candidate) then return false end
+	return GroupInvite()
 end
 
 local function InviteNow(candidate, expected)
@@ -331,6 +337,31 @@ local function InviteNow(candidate, expected)
 	end
 	Remember(candidate.key, ns.Now())
 	Drop(candidate)
+	return true
+end
+
+-- (1.4.0) A Legate's "Invite online member to raid" (WarSquads.lua): the player's click on a
+-- soldier's row of his squad. A guildmate is own-guild data, so only a fresh local roster of the
+-- player's own Olympus guild that lists the name may authorize it: no census, /who, whisper or
+-- sighting is evidence here, nothing is sent, kept or relayed, and nothing invites by itself when
+-- the roster changes. It is not this file's inbox: neither the King's presence nor Party Guard's
+-- switch gates it (a Legate forms his raid whether or not the King is online). One invite, the game's own, inside
+-- that click; a line says why when there is none.
+function Guard.InviteGuildmate(name)
+	local key, full = Key(name)
+	local shown = full and (ns.DisplayName and ns.DisplayName(full) or full) or "?"
+	local guild = type(GetGuildInfo) == "function" and GetGuildInfo("player") or nil
+	local roster = ns.Roster and ns.Roster.Fresh and ns.Roster.Fresh()
+	if not key or not (ns.IsMember and ns.IsMember()) or Secret(guild) or type(guild) ~= "string" or guild == ""
+		or not ns.IsFederation(guild) or not roster or not (ns.Roster.RankOf and ns.Roster.RankOf(full) ~= nil) then
+		ns.Print(L.SQUAD_INVITE_GONE:format(shown))
+		return false
+	end
+	local invite = GroupInvite()
+	if not invite or not pcall(invite, ns.TellName(full)) then -- gp:roster-actions
+		ns.Print(L.SQUAD_INVITE_CANNOT:format(shown))
+		return false
+	end
 	return true
 end
 

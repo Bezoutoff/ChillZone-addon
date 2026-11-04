@@ -184,7 +184,9 @@ versions before 1.1 just get the whisper, as before.
   explanation once per appointment. They can edit their own group's list, not another leader's;
   existing authorized officers retain oversight. Old oversized saved groups stay read-only until
   an authorized, confirmed replacement archives the original membership privately. No guild
-  invitations, removals or native promotions happen automatically.
+  invitations, removals or native promotions happen automatically. An online member of the group
+  has **Invite online member to raid** (1.4.0): one party invite on the Legate's click, only while
+  the guild roster still lists that member.
 - **Level race**: the highest level players of the realm.
 - **Recruiting**: the guilds that still have free slots, so new players go where there is room
   (the five with the most, then every one on a click, 1.1).
@@ -1656,7 +1658,8 @@ does and what it sends.
 Another addon can read, with your permission, what Olympus already shows you: the Wanted list
 and its bounties, the public rankings (the Slayers, the Church's top three, the games the King
 made public, the donors' top three while he shows the Treasury's ranking), your own frame and
-title, your Olympus guild, rank and role, and the King's presence as his lines and the Realm tab
+title, your Olympus guild, rank and role, whether a player your game shows you now is in an
+Olympus guild, and the King's presence as his lines and the Realm tab
 show it (online, the zone they name, his crown while he shares it, whether you are on his layer,
 and his zone's layers with their "~N with Olympus" counts while you are there). The King's
 presence, the player-sighting searches and the profile presentation below are reserved for addons
@@ -1709,6 +1712,15 @@ differences: it stays on across logins until he turns it off, it withdraws his s
 first, and it tells his own guild, and only that guild, so its members' Olympus clients count him
 offline in the census they send (a guildmate on an older Olympus may still count him online).
 Turning it off never turns location sharing back on.
+
+Any addon you say **Yes** to, not only an authorized one, can also read the Board's groups (1.4.0)
+as its sections show them: the group listings (how many are in a group by class and role, never
+their names), the players looking, and your own listing's applications and group. It can act on
+your own group as the Board's buttons do (invite with the game's own invite, decline, set roles,
+lower your listing) and open Olympus's own group card, listing composer or flag dialog: it never
+lists a group, raises a flag, applies or writes words for you. It may show one panel of its own in
+place of the Board's **Your group**, and the switch above it brings Olympus's own back. A group
+finder builds on this instead of a network of its own.
 
 The same registered handle can ask to contribute a client-owned page to the Olympus window when
 this build reports `ui.surface`. The shared tab rail hosts one such page per session; the other
@@ -1815,8 +1827,12 @@ players' links, and its own documentation says what then goes where. Your name i
 | An answer to an ask for your layer (it tells the asker you are on it), including a direct sighting when an active asker is discovering the King's layer | the asker alone (a whisper; a direct sighting is never broadcast by itself) | only if you share your zone and layer and said yes to layer help (1.1: off until you answer, on the first-open page or with `/oly layerhelp on`; `/oly layerhelp off` stops it); direct sightings require two independent answers, last only for that request and are withdrawn on opt-out while it remains active |
 | [Olympus], [Captains] and [Lords] lines | everyone on the Olympus channel, all three | when you write one, only while the Olympus chats are on (1.1: off until you say yes, on the first-open page or with `/oly chat on`) |
 | A pinned line (1.1): its words, your guild and, as on every message, your name | the King's, his Stewards' and Hands': everyone on the Olympus channel. A guild master's, and a higher rank's takedown of it: his guild alone (over guild chat) | when you pin one (only while your Olympus chats are on, never while the moderators have you off), again every 5 minutes while it lasts (2 hours at most, a `/reload` included), and when you take it down (`/oly pin off` with nothing pinned on your screen too, once a minute at most: a `/reload` on the Forever beta forgets your pin); a pin you took down (its number and your guild), when you take it down and again when its setter's addon repeats it, once a minute at most, never while the moderators have you off |
-| A flag on the Board (1.1): your guild, level and class, the flag (dungeon, raid, PvP or layer), your note (with the logged API), and your zone only while you share it | everyone on the Olympus channel, and whispered to a player whose Board asked for the flags up | when you raise it, then every 10 to 30 minutes for an hour at most, until you lower it |
+| A flag on the Board (1.1): your guild, level and class, the flag (dungeon, raid, PvP or layer), your note (with the logged API), and your zone only while you share it; 1.4.0: the roles you play and the places you picked, when you raise a flag for several places | everyone on the Olympus channel, and whispered to a player whose Board asked for the flags up | when you raise it, then every 10 to 30 minutes for an hour at most, until you lower it |
 | The Board's ask (1.1): nothing but your name | everyone on the Olympus channel | once a session, the first time you open the Board |
+| A group listing on the Board (1.4.0): your guild, level and class, where (a place, a quest's number, title and zone from your log, or a name you typed, with the zone you are in only while you share it and never from an instance), the roles still needed, the minimum level, your group's size and your note (with the logged API when it has words) | everyone on the Olympus channel, and whispered to a player whose Board asked | when you list it, after a change (someone joined or left, you changed what it needs), then every 5 to 30 minutes for an hour at most (a quest's half an hour), until you lower it |
+| How many others are in your listed group (1.4.0): counts by class and role (the role when an application you invited said it or you set it), never their names | everyone on the Olympus channel, and whispered with your listing to a player whose Board asked | after your listing while anyone is in your group, and when someone joins or leaves |
+| An application to a group (1.4.0): your guild, level, class, the role you chose and your note (with the logged API); or that you withdraw it | that group's leader alone (a whisper) | only when you click Apply as, or withdraw |
+| A leader's answer to an application (1.4.0): invited, declined, or the listing closed | that applicant alone (a whisper) | when the leader clicks Invite or Decline, and when the listing closes (10 of those waiting at most) |
 | A guild Agenda entry (1.2.4): its title, time, setter and guild | that guild alone (over guild chat), from its own master or verified Heraldry correspondent | when scheduled, then every 10 minutes while within a day, every 30 otherwise; the saved audience and current authority are checked again |
 | A voluntary campaign (1.2.4): purpose, goal, 14-day receipt window, aggregate gold/material progress and the King's closing purchase note; no giver or receipt identity | everyone on the Olympus channel, from the actual King's client only | when he creates, updates or closes it, then every 5 minutes for late logins |
 | A keeper's campaign report (1.2.4): campaign id, aggregate assigned voluntary gold and material counts, no giver names | the pinned King alone (a whisper) | after explicit assignment/correction and every 5 minutes while open; current keeper authority is checked again before sending |
@@ -2269,8 +2285,7 @@ Other limits:
   (the King's alone every minute, while his crown shows: one client, one message a minute).
 - A layer request goes out once; only about 6 players answer it, each by a whisper to the asker.
 - Messages are spaced 1.2 s apart, below Blizzard's addon message limits, and alert sounds
-  play at most once every 15 seconds (1.1: a softer one never silences the Call to Arms or a
-  louder alert after it).
+  play at most once every 15 seconds.
 - Chat has its own short lane: a line goes out within about a second, and while reports are
   waiting it never takes more than every other message slot.
 - The Board (1.1): a flag is repeated every 10 to 30 minutes (less often the fuller the Board),
@@ -2371,8 +2386,9 @@ also saved in `WTF/Account/<ACCOUNT>/SavedVariables/Olympus.lua`.
 - **Code and ideas:** RoyLeviGit (Olympus chats in their own chat window), Artz (hiding the
   Issue Reporter), bjess9 (CI and the shared checks), hypertectonic (Chattynator's tabs),
   Bernardo Costa / Costafitness (exact layer-hop confirmation and stale-request regressions,
-  adapted from PR #51), and Rick-laboratory (bounded transport, cancellation and admission
-  regressions, adapted from PR #52).
+  adapted from PR #51), Rick-laboratory (bounded transport, cancellation and admission
+  regressions, adapted from PR #52), and HTX (the Board's group listings, applications and
+  invites, adapted from PR #62).
 - **Feature requests:** Fernmelder, whose 39 posts became 1.1 (the Fernmelder release);
   shenanigans_ (the nameplate marks), Valdericht (`<OLYMPIAN>`), Pyralis Ashandar (taking
   donations) and Zeal (what the King hides stays off the channel).
