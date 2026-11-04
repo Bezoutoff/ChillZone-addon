@@ -2,6 +2,10 @@
 # Builds dist/Olympus-<version>.zip with Olympus, Olympus_Arena and OlympusSiteAggregate (the
 # deliberate, no-upload site reporter); unzip it into World of Warcraft/<flavor>/Interface/AddOns.
 # Every zip also gets a sorted .files.txt manifest and a .sha256 checksum.
+# 1.4.0: OLY_LINK_REPO=<path to the private olympus-network checkout> adds its committed
+#   addon/Olympus_Link folder (Olympus Link, a separate load-on-demand addon) to a release zip, from
+#   that repository's HEAD and only while it is clean and versioned as this release. The public
+#   repository never holds it; without the variable the zip is the three public folders as before.
 #   scripts/package.sh            the release; refused while Olympus/TestBuild.lua exists
 #   scripts/package.sh --test N   arena test build N (1-999) of the TOC's version, into dist/testN/
 #                                 and dist/Olympus-<version>-testN.zip; the repository is not touched
@@ -213,6 +217,26 @@ cleanup() { if [ -n "${RELEASE_STAGE:-}" ] && [ -d "$RELEASE_STAGE" ]; then rm -
 trap cleanup EXIT
 stage_source "$RELEASE_STAGE"
 leave_out_bets "$RELEASE_STAGE"
+if [ -n "${OLY_LINK_REPO:-}" ]; then
+	git -C "$OLY_LINK_REPO" rev-parse --git-dir >/dev/null 2>&1 || fail "OLY_LINK_REPO is not a git checkout: $OLY_LINK_REPO"
+	if ! git -C "$OLY_LINK_REPO" diff --quiet -- addon/Olympus_Link || ! git -C "$OLY_LINK_REPO" diff --cached --quiet -- addon/Olympus_Link; then
+		fail "OLY_LINK_REPO has uncommitted changes in addon/Olympus_Link"
+	fi
+	LINK_VERSION=$(git -C "$OLY_LINK_REPO" show HEAD:addon/Olympus_Link/Olympus_Link.toc | awk '/^## Version:/ { sub(/\r$/, "", $3); print $3; exit }')
+	[ "$LINK_VERSION" = "$VERSION" ] || fail "package.sh requires Olympus_Link $VERSION, OLY_LINK_REPO has ${LINK_VERSION:-none}"
+	LINK_TMP=$(mktemp -d "${TMPDIR:-/tmp}/olympus-link.XXXXXX")
+	git -C "$OLY_LINK_REPO" archive --format=tar HEAD -- addon/Olympus_Link | tar -xf - -C "$LINK_TMP"
+	mv "$LINK_TMP/addon/Olympus_Link" "$RELEASE_STAGE/Olympus_Link"
+	rm -rf "$LINK_TMP"
+	find "$RELEASE_STAGE/Olympus_Link" \( -name '.DS_Store' -o -name '.gitignore' \) -delete
+	while IFS= read -r entry; do
+		entry=${entry%$'\r'}
+		entry=$(printf '%s' "$entry" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+		case "$entry" in ''|'#'*) continue ;; esac
+		[ -f "$RELEASE_STAGE/Olympus_Link/${entry//\\//}" ] || fail "package.sh: Olympus_Link.toc lists $entry, which is not in the package"
+	done < "$RELEASE_STAGE/Olympus_Link/Olympus_Link.toc"
+	FOLDERS+=(Olympus_Link)
+fi
 
 if [ "$MODE" = release116 ]; then
 	mkdir -p dist/release116
