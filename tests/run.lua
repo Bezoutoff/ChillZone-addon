@@ -27833,9 +27833,14 @@ test("the public package ships Olympus, Olympus_Arena and OlympusSiteAggregate; 
 	eq(Read("Olympus_Link/Olympus_Link.toc"), nil, "nor the Link")
 	local package = assert(Read("scripts/package.sh"))
 	assert(package:find("FOLDERS=(Olympus Olympus_Arena OlympusSiteAggregate)", 1, true), "the public package always includes the complete Olympus bundle")
-	for _, other in ipairs({ "OlympusCompanionBridge", "Olympus_Link" }) do
-		assert(not package:find(other, 1, true), other .. " is not in the public package")
-	end
+	assert(not package:find("OlympusCompanionBridge", 1, true), "the bridge addon is not in the package")
+	-- (1.4.0, the owner's call at launch: the release zip carries Olympus Link as its own folder, so
+	-- Discord verification works for everyone from day one) It comes only from the private repository
+	-- OLY_LINK_REPO names, at its committed HEAD; without it the package is Olympus's own three folders.
+	local block = package:match('\nif %[ %-n "%${OLY_LINK_REPO:%-}" %]; then\n(.-)\nfi\n')
+	assert(block and block:find('archive --format=tar HEAD -- addon/Olympus_Link', 1, true), "the Link comes from OLY_LINK_REPO's HEAD")
+	local rest = package:gsub('\nif %[ %-n "%${OLY_LINK_REPO:%-}" %]; then\n.-\nfi\n', "\n"):gsub("\n#[^\n]*", "")
+	assert(not rest:find("Olympus_Link", 1, true), "Olympus_Link only through OLY_LINK_REPO")
 end)
 
 -- 1.1: what the King hides no longer goes on the channel (Zeal's promise): the reminder says the

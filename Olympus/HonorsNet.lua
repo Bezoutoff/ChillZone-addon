@@ -1207,6 +1207,8 @@ function H.RunRace()
 		stats.places = stats.places + 1
 		Changed(p.name)
 	end
+	-- (1.4.0) The author's client says a new place at once: the one book every client keeps.
+	if fresh[1] and H.AuthorSays then H.AuthorSays(true) end
 	-- A vouched claim waits CONFIRM_AFTER: looked at again once the first of them is old enough.
 	local due
 	for _, list in pairs(pending or {}) do
@@ -1270,6 +1272,9 @@ ns.Comm.Handle("IL", ns.Arena.Handle("IL", OnLevel))
 ns.On("DATA_CHANGED", function()
 	if not H.LevelRaceActive() then return end
 	if not levelHooked then H.WatchLevels() end
+	-- (1.4.0) The author's client says its places again each AUTHOR_RESEND while online: a client
+	-- that logged in after a crossing (and could never see it) gets the network's one winner.
+	if H.AuthorHere and H.AuthorHere() then ns.SafeCall("arena level author", H.AuthorSays) end
 	local s = H.Store(Now() >= H.RACE_START)
 	local touched = s and Sightings(s)
 	local nowLocal = ns.Now()
@@ -1308,32 +1313,61 @@ function H.SendRecords()
 	local body = H.RecordsBody()
 	if body then Arena.Send("AB", "L", body, { key = "ab h", low = true }) end
 end
-function H.TakeRecords(sender, mode, rest)
+-- (1.4.0, the owner's ask: the level race runs once, and the whole network keeps one winner) The
+-- author's client is the race's authority. Each client still works the race out itself (RunRace), but
+-- what each of them saw differs (who was online, which census reports reached it), so its places
+-- could differ from another's forever. The author's records (author: ArenaLedger's OnBook has checked
+-- that the server's sender is one of his signed characters; checked here again) replace a place this
+-- client worked out itself, and every client ends with his. A clerk's records still only fill a
+-- milestone with no place here.
+function H.TakeRecords(sender, mode, rest, author)
 	if not H.LevelRaceActive() then return false, "level-race-off" end
 	if mode ~= "L" then return end
+	author = author == true and ns.IsAuthorName ~= nil and ns.IsAuthorName(ns.FullName(sender)) == true
 	local s = H.Store(true)
 	local any = false
 	for part in tostring(rest):gmatch("[^,]+") do
 		local m, gk, name, t = part:match("^([0-9a-z]+):([^:]+):([^:]+):([0-9a-z]+)$")
 		m, t = N(m, 1, 60), N(t, 0, 4294967295)
+		local placed = m ~= nil and Placed(m)
 		-- (1.4.0) A place timed before the race's start (a pre-launch book a clerk kept) or ahead of
 		-- the clock is never a launch place.
-		if m and ns.Honors.LEVEL_METAL[m] and Gk(gk) and not Placed(m) and t and t >= H.RACE_START and t <= Now() + ns.Honors.SKEW then
+		if m and ns.Honors.LEVEL_METAL[m] and Gk(gk) and (author or not placed) and t and t >= H.RACE_START and t <= Now() + ns.Honors.SKEW then
 			local full = ns.ArenaFights.Unwire(name, sender)
-			if full and not Struck(s, m, gk, full) then
+			local held = placed and s.levels[m][1] or nil
+			if full and not Struck(s, m, gk, full) and not (held and Arena.GK(held.guid) == gk) then
 				s.levels[m] = { { guid = Arena.GuidOf(gk), name = full, t = t, place = 1 } }
 				any = true
+				if held and type(held.name) == "string" then Changed(held.name) end
 				Changed(full)
 			end
 		end
 	end
 	return any
 end
--- AQ~H: the clerk says the places; a claimant says his claim again.
+-- The author's own client (his signed character, never a preview of another's view): it says its
+-- places when it records one (RunRace), when asked (AQ~H), and again each AUTHOR_RESEND while online.
+H.AUTHOR_RESEND = 900
+local authorSent
+local function AuthorHere()
+	if not (ns.IsAuthorName and ns.IsAuthorName(ns.me) == true) then return false end
+	if ns.King and ns.King.Preview and ns.King.Preview() then return false end
+	local V = ns.ViewAs
+	return not (type(V) == "table" and type(V.Previewing) == "function" and V.Previewing() == true)
+end
+H.AuthorHere = AuthorHere
+function H.AuthorSays(force)
+	if not H.LevelRaceActive() or not AuthorHere() then return false end
+	local now = Now()
+	if not force and authorSent and now - authorSent < H.AUTHOR_RESEND then return false end
+	authorSent = now
+	return H.SendRecords() ~= false
+end
+-- AQ~H: the clerk (or the author) says the places; a claimant says his claim again.
 function H.Answer(sender)
 	if not H.LevelRaceActive() then return false end
 	local LG = ns.ArenaLedger
-	if LG and LG.IsClerk and LG.IsClerk() then H.SendRecords() return true end
+	if (LG and LG.IsClerk and LG.IsClerk()) or AuthorHere() then H.SendRecords() return true end
 	for level in pairs(claimed) do if not Placed(level) then H.SendClaim(level) return true end end
 	return false
 end

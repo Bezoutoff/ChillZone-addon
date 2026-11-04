@@ -1731,6 +1731,14 @@ end
 local function OnBook(dist, sender, mode, body)
 	local kind, rest = Arena.Fields(body, 2)
 	if not rest then return Count("shape") end
+	-- (1.4.0, the owner's ask: the level race runs once, and the whole network keeps one winner) The
+	-- author's level race record goes to HonorsNet's own checks (H.TakeRecords: the book every client
+	-- keeps). He is no clerk, and this word never makes him one (no clerks[] entry).
+	if kind == "H" and ns.IsAuthorName and ns.IsAuthorName(ns.FullName(sender)) then
+		local H = ns.HonorsNet
+		if H and H.TakeRecords then H.TakeRecords(sender, mode, rest, true) end
+		return
+	end
 	local R = ns.ArenaRoles
 	if not R.IsPublicArbiter(sender, mode) and not ns.IsHighCouncillor(ns.FullName(sender)) then return Count("sender") end
 	if R.IsKing(sender) then return Count("king") end
