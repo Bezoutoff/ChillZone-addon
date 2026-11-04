@@ -106,13 +106,14 @@ end
 
 -- 1.4.0, the launch (the author's ask: the letter Asmon reads on stream; the dev's, to the King and the army).
 L.LETTER_1_4_0_TITLE = "Hear ye, hear ye: the gates are open"
+L.LETTER_1_4_0_HEAD = "The Launch Proclamation"
 L.LETTER_1_4_0 = [==[Your Majesty. Soldiers of Olympus. Lords, Captains, Councillors, and that one guy who still hasn't put on the tabard.
 
 Hear ye: today the true realm opens.
 
 In the beta you did the impossible. More than a hundred thousand characters in the census, PvE included, and close to a hundred thousand downloads of this humble contraption. The scribes counted twice and asked for a raise.
 
-But the beta is a memory now. Today everyone starts at level one: no gold, no gear, no excuses. Only the banner and the people beside you. So march together. Lift up the new recruits, fill every dungeon, guard the King, and make sure every realm out there knows exactly whose army just arrived.
+But the beta is a memory now. Today everyone starts at level one: no gold, no gear, no excuses. Only the banner and the people beside you. So march together. Lift up the new recruits, fill every dungeon, guard the King, and make sure every realm out there knows exactly whose army just arrived. Be cool in chat, and bring your friends.
 
 I came to this realm a stranger, and you made me one of the court. The funniest people I have ever played with, and a King's team that treated me like family. Thank you. I am proud to march with you.
 
@@ -120,16 +121,21 @@ Long live the King. Long live Olympus.
 
 What's new in version 1.4.0, for the march:
 
-- The census shows every realm of the army on one page, PvP and PvE, NA and EU: click the number for the totals. Every addon now agrees on the count, and no beta numbers sneak in.
-- The King, the Treasurer and the High Council are recognized on the new realms from the signed list.
-- The Church's top three and the donors now reach everyone, not only whoever was online at the right moment, and the frames follow.
-- Every office receives a letter from the King, and every guild master a checklist of what to name.
-- Olympus now speaks English, Portuguese, Spanish, German, French, Italian and Russian.
-- An addon older than 1.4.0 no longer finds the army's channel. If a friend sees an empty census, tell them to update.
-- Built for a crowd: messages wait out the game's limits instead of getting lost, and logins no longer flood the Treasurer.
-- Fern has raised a guild hall for us. The button below copies its address.
+- {guild} The census shows every realm of the army on one page, PvP and PvE, NA and EU: click the number for the totals. Every addon now agrees on the count, and no beta numbers sneak in.
+- {crown} The King, the Treasurer and the High Council are recognized on the new realms from the signed list.
+- {church} The Church's top three and the donors now reach everyone, not only whoever was online at the right moment, and the frames follow.
+- {news} Every office receives a letter from the King, and every guild master a checklist of what to name.
+- {crown} Every guild master has 48 hours to verify with the High Council.
+- {gold} The level race is on: the first to reach 20, 40 and 60 earns the comet frame, for good.
+- {star} Olympus now finds groups: list yours, apply to one, see who is looking.
+- {team} Olympus now speaks English, Portuguese, Spanish, German, French, Italian and Russian.
+- {watch} An addon older than 1.4.0 no longer finds the army's channel. If a friend sees an empty census, tell them to update.
+- {star} Built for a crowd: messages wait out the game's limits instead of getting lost, and logins no longer flood the Treasurer.
+- {guild} Fern has raised a guild hall for us. The button below copies its address.
 
-The gates are open.]==]
+The gates are open.
+
+P.S. In the beta I was Faladoriel Skylance, a noble elf. Tonight I am Developus Olympus, a human warlock. Same dev, more demons.]==]
 L.LETTER_1_4_0_SIGNED = "Your humble artificer, the Olympus dev"
 L.LETTER_1_4_0_LINK = "https://olympus.roachcouncil.com/"
 L.LETTER_1_3_3_TITLE = "Your guild on the website"
@@ -166,13 +172,14 @@ This is a large release and therefore starts the 1.3 line. Offline tests cover t
 
 if GetLocale() == "ptBR" then
 	L.LETTER_1_4_0_TITLE = "Ouçam, ouçam: os portões estão abertos"
+	L.LETTER_1_4_0_HEAD = "A Proclamação do Lançamento"
 	L.LETTER_1_4_0 = [==[Vossa Majestade. Soldados de Olympus. Lordes, Capitães, Conselheiros, e aquele cara que ainda não vestiu o tabardo.
 
 Ouçam: hoje o reino de verdade se abre.
 
 No beta vocês fizeram o impossível. Mais de cem mil personagens no censo, PvE incluído, e quase cem mil downloads desta humilde engenhoca. Os escribas contaram duas vezes e pediram aumento.
 
-Mas o beta agora é lembrança. Hoje todo mundo começa no nível um: sem ouro, sem equipamento, sem desculpa. Só o estandarte e as pessoas ao seu lado. Então marchem juntos. Ergam os novos recrutas, lotem cada masmorra, guardem o Rei, e garantam que cada reino por aí saiba exatamente de quem é o exército que acabou de chegar.
+Mas o beta agora é lembrança. Hoje todo mundo começa no nível um: sem ouro, sem equipamento, sem desculpa. Só o estandarte e as pessoas ao seu lado. Então marchem juntos. Ergam os novos recrutas, lotem cada masmorra, guardem o Rei, e garantam que cada reino por aí saiba exatamente de quem é o exército que acabou de chegar. Na moral no chat, e tragam os amigos.
 
 Cheguei a este reino um estrangeiro, e vocês me fizeram parte da corte. As pessoas mais engraçadas com quem já joguei, e uma equipe do Rei que me tratou como família. Obrigado. Tenho orgulho de marchar com vocês.
 
@@ -180,16 +187,21 @@ Vida longa ao Rei. Vida longa a Olympus.
 
 O que há de novo na versão 1.4.0, para a marcha:
 
-- O censo mostra cada reino do exército numa página só, PvP e PvE, NA e EU: clique no número para ver os totais. Todos os addons agora concordam na contagem, e nenhum número do beta entra escondido.
-- O Rei, o Tesoureiro e o Alto Conselho são reconhecidos nos reinos novos pela lista assinada.
-- O top três da Igreja e os doadores agora chegam a todos, não só a quem estava online na hora certa, e as molduras acompanham.
-- Cada cargo recebe uma carta do Rei, e cada mestre de guilda uma lista do que nomear.
-- Olympus agora fala inglês, português, espanhol, alemão, francês, italiano e russo.
-- Um addon anterior à 1.4.0 não encontra mais o canal do exército. Se um amigo vir o censo vazio, diga para ele atualizar.
-- Feito para multidão: as mensagens esperam os limites do jogo em vez de se perder, e os logins não inundam mais o Tesoureiro.
-- Fern ergueu um salão da guilda para nós. O botão abaixo copia o endereço.
+- {guild} O censo mostra cada reino do exército numa página só, PvP e PvE, NA e EU: clique no número para ver os totais. Todos os addons agora concordam na contagem, e nenhum número do beta entra escondido.
+- {crown} O Rei, o Tesoureiro e o Alto Conselho são reconhecidos nos reinos novos pela lista assinada.
+- {church} O top três da Igreja e os doadores agora chegam a todos, não só a quem estava online na hora certa, e as molduras acompanham.
+- {news} Cada cargo recebe uma carta do Rei, e cada mestre de guilda uma lista do que nomear.
+- {crown} Todo mestre de guilda tem 48 horas para se verificar com o Alto Conselho.
+- {gold} A corrida de level está valendo: o primeiro a chegar ao 20, ao 40 e ao 60 ganha a moldura do cometa, para sempre.
+- {star} O Olympus agora encontra grupos: anuncie o seu, candidate-se a um, veja quem está procurando.
+- {team} Olympus agora fala inglês, português, espanhol, alemão, francês, italiano e russo.
+- {watch} Um addon anterior à 1.4.0 não encontra mais o canal do exército. Se um amigo vir o censo vazio, diga para ele atualizar.
+- {star} Feito para multidão: as mensagens esperam os limites do jogo em vez de se perder, e os logins não inundam mais o Tesoureiro.
+- {guild} Fern ergueu um salão da guilda para nós. O botão abaixo copia o endereço.
 
-Os portões estão abertos.]==]
+Os portões estão abertos.
+
+P.S. Na beta eu era Faladoriel Skylance, um nobre elfo. Hoje à noite sou Developus Olympus, um bruxo humano. Mesmo dev, mais demônios.]==]
 	L.LETTER_1_4_0_SIGNED = "Seu humilde artífice, o dev do Olympus"
 	L.LETTER_1_3_3_TITLE = "Sua guilda no site"
 	L.LETTER_1_3_3 = [==[Versão 1.3.3.

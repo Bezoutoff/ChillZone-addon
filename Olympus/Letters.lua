@@ -336,7 +336,10 @@ function Letters.Show(version, includePrevious)
 	local f = Frame()
 	HideRows(f)
 	local width = Letters.WIDTH - 70
-	SetTitle(f, L.LETTER_TITLE:format(version))
+	-- (1.4.0, the author's ask: the launch letter has a name of its own, not the release's) A letter
+	-- with an L.LETTER_<v>_HEAD names its window with it; every other, "Olympus <version>".
+	local head = rawget(L, Key(version) .. "_HEAD")
+	SetTitle(f, type(head) == "string" and head ~= "" and head or L.LETTER_TITLE:format(version))
 	f.head:SetText(L.LETTERS_TITLE)
 	f.mode, f.version = "letter", version
 	f.title:ClearAllPoints()

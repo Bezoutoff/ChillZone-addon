@@ -32053,6 +32053,36 @@ test("1.1 languages: a language's file is taken key by key over English; a line 
 	eq(lns.LocaleCodes("|cffe6c35c[%s] x|r %d%% |Tpath:0|t %02dm"), "|c %s |r %d %% |T %02d")
 end)
 
+-- (1.4.0, the author's ask before the launch: the letter Asmon reads on stream, in every language) Its
+-- own name, an icon on every news line (the three launch lines too), the King's word for the chat and
+-- the dev's short P.S.; drawn, no {mark} is left as a code.
+test("1.4.0 the launch letter in every language: its own name, an icon on each of its eleven news lines, the chat line and the dev's P.S.; drawn, no {mark} left as written", function()
+	local files = { enUS = {}, ptBR = {}, deDE = { "deDE" }, esES = { "esES" }, frFR = { "frFR" }, itIT = { "itIT" }, ruRU = { "ruRU" } }
+	local english = LoadLocale("enUS").L
+	for code, list in pairs(files) do
+		local lns = LoadLocale(code, list)
+		local head, body = lns.L.LETTER_1_4_0_HEAD, lns.L.LETTER_1_4_0
+		assert(type(head) == "string" and head ~= "", code .. ": the letter's own name")
+		assert(type(body) == "string", code .. ": the letter")
+		if code ~= "enUS" then
+			assert(head ~= english.LETTER_1_4_0_HEAD, code .. ": its name translated")
+			assert(body ~= english.LETTER_1_4_0, code .. ": the letter translated")
+		end
+		local n = 0
+		for line in body:gmatch("[^\n]+") do
+			if line:sub(1, 2) == "- " then
+				n = n + 1
+				assert(line:find("^%- {%a+} "), code .. ": an icon on " .. line)
+			end
+		end
+		eq(n, 11, code .. ": the news lines")
+		assert(body:find("Developus Olympus", 1, true) and body:find("Faladoriel Skylance", 1, true), code .. ": the dev's P.S.")
+		local ln = setmetatable({ L = lns.L, On = function() end }, { __index = ns })
+		assert(loadfile(ADDON_DIR .. "Letters.lua"))("Olympus", ln)
+		eq(ln.Letters.DrawMarks(body):find("{%a+}"), nil, code .. ": every mark drawn")
+	end
+end)
+
 test("1.1 languages: the Spanish, French and German files (1.4.0: and Italian and Russian): every line an English one, its codes the English line's, all taken; each language's own lines on the screens", function()
 	local files = { deDE = "deDE", esES = "esES", esMX = "esES", frFR = "frFR", itIT = "itIT", ruRU = "ruRU" }
 	local english = LoadLocale("enUS").L
@@ -61786,10 +61816,12 @@ end)()
 			w.run()
 			local f = OlympusLetterFrame
 			assert(f and f:IsShown(), "shown")
-			Harness.Win.Metal(f, L.LETTER_TITLE:format(ns.VERSION), "the letter")
+			-- (1.4.0: a letter with a name of its own, L.LETTER_<v>_HEAD, bears it; else "Olympus <version>")
+			local named = rawget(L, "LETTER_" .. ns.VERSION:gsub("%.", "_") .. "_HEAD") or L.LETTER_TITLE:format(ns.VERSION)
+			Harness.Win.Metal(f, named, "the letter")
 			eq(f.Inset, nil, "no inset box of the window's: the letter's compartment is its inside")
 			Harness.Win.UnderBar(f, { head = f.head, box = f.box }, "the letter")
-			eq(f.titleText, L.LETTER_TITLE:format(ns.VERSION))
+			eq(f.titleText, named)
 			eq(f.head:GetText(), L.LETTERS_TITLE)
 			-- (1.4.0: a letter may carry its own signature, the launch letter the dev's own words; else the dev's.)
 			eq(f.title:GetText(), title); eq(f.body:GetText(), body)
