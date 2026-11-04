@@ -747,6 +747,9 @@ local function Load(w, c)
 		cns.Comm = FakeComm(w, c)
 		for _, f in ipairs(World.OWN) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("Olympus", cns) end
 		for _, f in ipairs(World.MODULES) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("Olympus", cns) end
+		-- (1.4.0) A new duty letter opens the Olympus window by itself (RoleBriefings.Arrived); this world
+		-- builds no Olympus window (its frames are stand-ins), so its letters wait in the list instead.
+		if type(cns.RoleBriefings) == "table" then cns.RoleBriefings.Arrived = function() return false end end
 		for _, f in ipairs(World.LOCALES) do assert(loadfile(H.ADDON_DIR .. "Locales/" .. f .. ".lua"))("Olympus", cns) end
 		-- (opts.arenaFiles: another list of the core's arena files, a package profile's TOC.)
 		for _, f in ipairs(w.arenaFiles or World.ARENA_FILES) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("Olympus", cns) end

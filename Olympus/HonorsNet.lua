@@ -1324,7 +1324,8 @@ end
 local function Authority(name)
 	if type(name) ~= "string" or name == "" then return 0 end
 	local full = ns.FullName(name)
-	if ns.IsAuthorName and ns.IsAuthorName(full) == true then return 3 end
+	local B = ns.Borders -- (the dev, as the core says it: Borders.IsDevName, never naming him here)
+	if type(B) == "table" and type(B.IsDevName) == "function" and B.IsDevName(full) == true then return 3 end
 	local R = ns.ArenaRoles
 	if type(R) == "table" and type(R.IsKing) == "function" and R.IsKing(full) == true then return 2 end
 	if ns.IsHighCouncillor and ns.IsHighCouncillor(full) == true then return 1 end

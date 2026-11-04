@@ -213,6 +213,12 @@ test("1.4.0 the launch's realms: the level race's one winner: an authority's rec
 	local w = W3.LevelRaceWorld({ clock = START + 2 * 86400 })
 	local viewer, first, second = w:Role("bettor1"), w:Role("fighterA"), w:Role("fighterB")
 	local councillor, arbiter, king, author = w:Role("councillor"), w:Role("arbiter"), w:Role("king"), w:Role("author")
+	-- Borders.IsDevName, as Borders.lua answers it in the game (the core's signed author list); this
+	-- world loads no Borders.lua.
+	for _, c in ipairs({ viewer, author, first }) do
+		c.ns.Borders = c.ns.Borders or {}
+		c.ns.Borders.IsDevName = function(n) return c.ns.IsAuthorName(n) == true end
+	end
 	local net = Net(w, viewer)
 	eq(net.LevelRaceActive(), true)
 	eq(net.Authority(author.name), 3, "the author"); eq(net.Authority(king.name), 2, "the King")
