@@ -1187,6 +1187,7 @@ local function ApplyPortrait(f, asset)
 	f.portraitAsset = asset
 	if not f.hasPortrait then return end
 	local portrait = f.portrait or f.Portrait or (f.PortraitContainer and f.PortraitContainer.portrait)
+	if type(portrait) ~= "table" or type(portrait.SetTexture) ~= "function" then portrait = nil end -- (a texture only)
 	if portrait then
 		portrait:SetTexture(asset)
 		if not portrait.olympusMasked then portrait:SetTexCoord(0, 1, 0, 1) end
