@@ -107,17 +107,17 @@ end
 -- 1.4.0, the launch (the author's ask: the letter Asmon reads on stream; the dev's, to the King and the army).
 L.LETTER_1_4_0_TITLE = "Hear ye, hear ye: the gates are open"
 L.LETTER_1_4_0_HEAD = "The Launch Proclamation"
-L.LETTER_1_4_0 = [==[Your Majesty. Soldiers of Olympus. Lords, Captains, Councillors, and that one guy who still hasn't put on the tabard.
+L.LETTER_1_4_0 = [==[Hear ye, hear ye. Okay. Listen up, all of you.
 
-Hear ye: today the true realm opens.
+The beta is over. It's done. Today the true realm opens, and everyone starts at level one: no gold, no gear, no excuses. Whatever you had in the beta, nobody cares.
 
-In the beta you did the impossible. More than a hundred thousand characters in the census, PvE included, and close to a hundred thousand downloads of this humble contraption. The scribes counted twice and asked for a raise.
+And in the beta you were insane. More than a hundred thousand characters in the census, PvE included, and close to a hundred thousand downloads. The scribes counted twice and asked for a raise. Denied.
 
-But the beta is a memory now. Today everyone starts at level one: no gold, no gear, no excuses. Only the banner and the people beside you. So march together. Lift up the new recruits, fill every dungeon, guard the King, and make sure every realm out there knows exactly whose army just arrived. Be cool in chat, and bring your friends.
+So here's the deal. We march together. Help the new recruits, fill every dungeon, guard the banner, and make sure every realm out there knows exactly whose army just showed up.
 
-I came to this realm a stranger, and you made me one of the court. The funniest people I have ever played with, and a King's team that treated me like family. Thank you. I am proud to march with you.
+Our artificer, Developus Olympicus, swears this whole contraption works. If it doesn't, you know where to find him.
 
-Long live the King. Long live Olympus.
+Long live Olympus.
 
 What's new in version 1.4.0, for the march:
 
@@ -133,10 +133,8 @@ What's new in version 1.4.0, for the march:
 - {star} Built for a crowd: messages wait out the game's limits instead of getting lost, and logins no longer flood the Treasurer.
 - {guild} Fern has raised a guild hall for us. The button below copies its address.
 
-The gates are open.
-
-P.S. In the beta I was Faladoriel Skylance, a noble elf. Tonight I am Developus Olympus, a human warlock. Same dev, more demons.]==]
-L.LETTER_1_4_0_SIGNED = "Your humble artificer, the Olympus dev"
+The gates are open. Let's go.]==]
+L.LETTER_1_4_0_SIGNED = "- The King"
 L.LETTER_1_4_0_LINK = "https://olympus.roachcouncil.com/"
 L.LETTER_1_3_3_TITLE = "Your guild on the website"
 L.LETTER_1_3_3 = [==[Version 1.3.3.
@@ -173,17 +171,17 @@ This is a large release and therefore starts the 1.3 line. Offline tests cover t
 if GetLocale() == "ptBR" then
 	L.LETTER_1_4_0_TITLE = "Ouçam, ouçam: os portões estão abertos"
 	L.LETTER_1_4_0_HEAD = "A Proclamação do Lançamento"
-	L.LETTER_1_4_0 = [==[Vossa Majestade. Soldados de Olympus. Lordes, Capitães, Conselheiros, e aquele cara que ainda não vestiu o tabardo.
+	L.LETTER_1_4_0 = [==[Ouçam, ouçam. Beleza. Prestem atenção, todos vocês.
 
-Ouçam: hoje o reino de verdade se abre.
+O beta acabou. Já era. Hoje o reino de verdade abre as portas, e todo mundo começa do nível um: sem ouro, sem equipamento, sem desculpa. O que você tinha no beta, ninguém liga.
 
-No beta vocês fizeram o impossível. Mais de cem mil personagens no censo, PvE incluído, e quase cem mil downloads desta humilde engenhoca. Os escribas contaram duas vezes e pediram aumento.
+E no beta vocês foram insanos. Mais de cem mil personagens no censo, contando o PvE, e quase cem mil downloads. Os escribas contaram duas vezes e pediram aumento. Negado.
 
-Mas o beta agora é lembrança. Hoje todo mundo começa no nível um: sem ouro, sem equipamento, sem desculpa. Só o estandarte e as pessoas ao seu lado. Então marchem juntos. Ergam os novos recrutas, lotem cada masmorra, guardem o Rei, e garantam que cada reino por aí saiba exatamente de quem é o exército que acabou de chegar. Na moral no chat, e tragam os amigos.
+Então é o seguinte. A gente marcha junto. Ajudem os recrutas novos, encham cada masmorra, protejam o estandarte, e façam cada reino lá fora saber exatamente de quem é o exército que acabou de chegar.
 
-Cheguei a este reino um estrangeiro, e vocês me fizeram parte da corte. As pessoas mais engraçadas com quem já joguei, e uma equipe do Rei que me tratou como família. Obrigado. Tenho orgulho de marchar com vocês.
+Nosso artífice, Developus Olympicus, jura que essa geringonça toda funciona. Se não funcionar, vocês sabem onde encontrar ele.
 
-Vida longa ao Rei. Vida longa a Olympus.
+Vida longa ao Olympus.
 
 O que há de novo na versão 1.4.0, para a marcha:
 
@@ -199,10 +197,8 @@ O que há de novo na versão 1.4.0, para a marcha:
 - {star} Feito para multidão: as mensagens esperam os limites do jogo em vez de se perder, e os logins não inundam mais o Tesoureiro.
 - {guild} Fern ergueu um salão da guilda para nós. O botão abaixo copia o endereço.
 
-Os portões estão abertos.
-
-P.S. Na beta eu era Faladoriel Skylance, um nobre elfo. Hoje à noite sou Developus Olympus, um bruxo humano. Mesmo dev, mais demônios.]==]
-	L.LETTER_1_4_0_SIGNED = "Seu humilde artífice, o dev do Olympus"
+Os portões estão abertos. Bora.]==]
+	L.LETTER_1_4_0_SIGNED = "- O Rei"
 	L.LETTER_1_3_3_TITLE = "Sua guilda no site"
 	L.LETTER_1_3_3 = [==[Versão 1.3.3.
 

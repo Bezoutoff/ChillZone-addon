@@ -438,6 +438,15 @@ function Letters.Ask(reason)
 	return Letters.Show(v, true)
 end
 
+-- (1.4.0) For the duty letters (RoleBriefings.OpenWhenFree): whether this version's own letter still
+-- holds the screen: shown, still to show (unread, due here), or the privacy page or combat first.
+function Letters.Holds()
+	if frame and frame:IsShown() then return true end
+	if Busy() or PageFirst() then return true end
+	local v = ns.VERSION
+	return Letters.Has(v) and not Letters.IsRead(v) and AutoEligible() and ns.IsMember() == true
+end
+
 -- A retained upgrade's unread letter, from LOGIN_WAIT after login, then every RETRY until it
 -- could (never before LOGIN_WAIT). A first/unknown login creates no deferred callbacks or polling
 -- timer.

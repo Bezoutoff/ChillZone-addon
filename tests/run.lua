@@ -32055,8 +32055,8 @@ end)
 
 -- (1.4.0, the author's ask before the launch: the letter Asmon reads on stream, in every language) Its
 -- own name, an icon on every news line (the three launch lines too), the King's word for the chat and
--- the dev's short P.S.; drawn, no {mark} is left as a code.
-test("1.4.0 the launch letter in every language: its own name, an icon on each of its eleven news lines, the chat line and the dev's P.S.; drawn, no {mark} left as written", function()
+-- the King's own voice (the author's call: medieval Asmon) and his signature; drawn, no {mark} is left as a code.
+test("1.4.0 the launch letter in every language: its own name, an icon on each of its eleven news lines, the King's voice and signature; drawn, no {mark} left as written", function()
 	local files = { enUS = {}, ptBR = {}, deDE = { "deDE" }, esES = { "esES" }, frFR = { "frFR" }, itIT = { "itIT" }, ruRU = { "ruRU" } }
 	local english = LoadLocale("enUS").L
 	for code, list in pairs(files) do
@@ -32076,7 +32076,9 @@ test("1.4.0 the launch letter in every language: its own name, an icon on each o
 			end
 		end
 		eq(n, 11, code .. ": the news lines")
-		assert(body:find("Developus Olympus", 1, true) and body:find("Faladoriel Skylance", 1, true), code .. ": the dev's P.S.")
+		assert(body:find("Developus Olympicus", 1, true), code .. ": the King names his artificer")
+		eq(body:find("Faladoriel", 1, true), nil, code .. ": no P.S. (the author's call)")
+		eq(lns.L.LETTER_1_4_0_SIGNED, lns.L.HONOR_LETTER_SIGN, code .. ": signed by the King, in his own words")
 		local ln = setmetatable({ L = lns.L, On = function() end }, { __index = ns })
 		assert(loadfile(ADDON_DIR .. "Letters.lua"))("Olympus", ln)
 		eq(ln.Letters.DrawMarks(body):find("{%a+}"), nil, code .. ": every mark drawn")

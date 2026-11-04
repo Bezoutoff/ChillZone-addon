@@ -1313,17 +1313,28 @@ function H.SendRecords()
 	local body = H.RecordsBody()
 	if body then Arena.Send("AB", "L", body, { key = "ab h", low = true }) end
 end
--- (1.4.0, the owner's ask: the level race runs once, and the whole network keeps one winner) The
--- author's client is the race's authority. Each client still works the race out itself (RunRace), but
--- what each of them saw differs (who was online, which census reports reached it), so its places
--- could differ from another's forever. The author's records (author: ArenaLedger's OnBook has checked
--- that the server's sender is one of his signed characters; checked here again) replace a place this
--- client worked out itself, and every client ends with his. A clerk's records still only fill a
--- milestone with no place here.
-function H.TakeRecords(sender, mode, rest, author)
+-- (1.4.0, the owner's ask: the level race runs once, and the whole network keeps one winner, decided
+-- by the author's client, the King's or a High Councillor's: "se eu nao tiver logado o tempo todo")
+-- Each client still works the race out itself (RunRace), but what each of them saw differs (who was
+-- online, which census reports reached it), so its places could differ from another's forever. A
+-- record from an authority replaces a place this client worked out itself; a higher authority's
+-- replaces a lower one's (the author 3, the King 2, a High Councillor 1); between two of the same,
+-- the earlier crossing stays. The server stamps every sender, so nobody else can speak as them. Any
+-- other clerk's record (an arbiter's) still only fills a milestone with no place here.
+local function Authority(name)
+	if type(name) ~= "string" or name == "" then return 0 end
+	local full = ns.FullName(name)
+	if ns.IsAuthorName and ns.IsAuthorName(full) == true then return 3 end
+	local R = ns.ArenaRoles
+	if type(R) == "table" and type(R.IsKing) == "function" and R.IsKing(full) == true then return 2 end
+	if ns.IsHighCouncillor and ns.IsHighCouncillor(full) == true then return 1 end
+	return 0
+end
+H.Authority = Authority
+function H.TakeRecords(sender, mode, rest)
 	if not H.LevelRaceActive() then return false, "level-race-off" end
 	if mode ~= "L" then return end
-	author = author == true and ns.IsAuthorName ~= nil and ns.IsAuthorName(ns.FullName(sender)) == true
+	local rank = Authority(sender)
 	local s = H.Store(true)
 	local any = false
 	for part in tostring(rest):gmatch("[^,]+") do
@@ -1332,11 +1343,15 @@ function H.TakeRecords(sender, mode, rest, author)
 		local placed = m ~= nil and Placed(m)
 		-- (1.4.0) A place timed before the race's start (a pre-launch book a clerk kept) or ahead of
 		-- the clock is never a launch place.
-		if m and ns.Honors.LEVEL_METAL[m] and Gk(gk) and (author or not placed) and t and t >= H.RACE_START and t <= Now() + ns.Honors.SKEW then
+		if m and ns.Honors.LEVEL_METAL[m] and Gk(gk) and (rank > 0 or not placed) and t and t >= H.RACE_START and t <= Now() + ns.Honors.SKEW then
 			local full = ns.ArenaFights.Unwire(name, sender)
 			local held = placed and s.levels[m][1] or nil
-			if full and not Struck(s, m, gk, full) and not (held and Arena.GK(held.guid) == gk) then
-				s.levels[m] = { { guid = Arena.GuidOf(gk), name = full, t = t, place = 1 } }
+			local heldBy = held and tonumber(held.by) or 0
+			if held and Arena.GK(held.guid) == gk then
+				if rank > heldBy then held.by = rank end -- (the same winner, now an authority's)
+			elseif full and not Struck(s, m, gk, full) and (not held or rank > heldBy
+				or (rank == heldBy and t < (tonumber(held.t) or math.huge))) then
+				s.levels[m] = { { guid = Arena.GuidOf(gk), name = full, t = t, place = 1, by = rank > 0 and rank or nil } }
 				any = true
 				if held and type(held.name) == "string" then Changed(held.name) end
 				Changed(full)
@@ -1345,12 +1360,12 @@ function H.TakeRecords(sender, mode, rest, author)
 	end
 	return any
 end
--- The author's own client (his signed character, never a preview of another's view): it says its
--- places when it records one (RunRace), when asked (AQ~H), and again each AUTHOR_RESEND while online.
+-- An authority's own client (never a preview of another's view): it says its places when it records
+-- one (RunRace), when asked (AQ~H), and again each AUTHOR_RESEND while online.
 H.AUTHOR_RESEND = 900
 local authorSent
 local function AuthorHere()
-	if not (ns.IsAuthorName and ns.IsAuthorName(ns.me) == true) then return false end
+	if Authority(ns.me) <= 0 then return false end
 	if ns.King and ns.King.Preview and ns.King.Preview() then return false end
 	local V = ns.ViewAs
 	return not (type(V) == "table" and type(V.Previewing) == "function" and V.Previewing() == true)
@@ -1363,7 +1378,7 @@ function H.AuthorSays(force)
 	authorSent = now
 	return H.SendRecords() ~= false
 end
--- AQ~H: the clerk (or the author) says the places; a claimant says his claim again.
+-- AQ~H: the clerk (or an authority) says the places; a claimant says his claim again.
 function H.Answer(sender)
 	if not H.LevelRaceActive() then return false end
 	local LG = ns.ArenaLedger

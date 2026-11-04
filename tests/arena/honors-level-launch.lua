@@ -202,46 +202,62 @@ test("1.4.0 the launch's realms: RACE_START is 2026-11-04 00:00 UTC; a saved boo
 	W3.NoErrors(w)
 end)
 
--- (1.4.0, the owner's ask: the level race runs once, and the whole network keeps one winner,
--- decided on the author's client.) Each client works the race out from what it saw, and what each saw
--- differs (who was online at the crossing, which census reports reached it), so two clients could keep
--- different winners forever. The author's record is the one book: it replaces a place worked out here,
--- it reaches HonorsNet through the AB gate he would not pass as a clerk, and his client says it.
-test("1.4.0 the launch's realms: the author's level race record is the network's one winner: it replaces a place this client worked out itself; a clerk's fills an empty milestone only, anyone else's is refused; his client says its places when asked", function()
+-- (1.4.0, the owner's ask: the level race runs once, and the whole network keeps one winner, decided
+-- by the author's client, the King's or a High Councillor's, so it holds while the author is offline.)
+-- Each client works the race out from what it saw, and what each saw differs (who was online at the
+-- crossing, which census reports reached it), so two clients could keep different winners forever. An
+-- authority's record replaces a place worked out here; a higher authority's replaces a lower one's (the
+-- author, the King, a councillor); between two of the same, the earlier crossing stays.
+test("1.4.0 the launch's realms: the level race's one winner: an authority's record (the author, the King, a High Councillor, in that order) replaces a place worked out here, the earlier of two equals stays; an arbiter's fills an empty milestone only, anyone else's is refused; an authority's client says its places when asked", function()
 	local START = 1793750400
 	local w = W3.LevelRaceWorld({ clock = START + 2 * 86400 })
 	local viewer, first, second = w:Role("bettor1"), w:Role("fighterA"), w:Role("fighterB")
-	local clerk, author = w:Role("councillor"), w:Role("author")
+	local councillor, arbiter, king, author = w:Role("councillor"), w:Role("arbiter"), w:Role("king"), w:Role("author")
 	local net = Net(w, viewer)
 	eq(net.LevelRaceActive(), true)
-	eq(w:As(viewer, viewer.ns.IsAuthorName, author.name), true, "the sender is the author")
-	eq(w:As(viewer, viewer.ns.IsHighCouncillor, author.name), false, "and no councillor: the clerks' gate alone would refuse him")
+	eq(net.Authority(author.name), 3, "the author"); eq(net.Authority(king.name), 2, "the King")
+	eq(net.Authority(councillor.name), 1, "a High Councillor"); eq(net.Authority(arbiter.name), 0, "an arbiter")
+	eq(net.Authority(first.name), 0, "a player")
 	local s = net.Store(true)
-	-- This client saw only the second crossing, and placed him.
+	local function Say(who, c, level, t) viewer.comm.handlers.AB("CHANNEL", who.name, "AB~L1~H~" .. Record(c, level, t)) end
+	local function Holder(level) return s.levels[level] and s.levels[level][1] and s.levels[level][1].name end
+	-- This client saw only the second crossing, and placed him itself.
 	s.levels[20] = { { guid = second.guid, name = second.name, t = START + 7300, place = 1 } }
-	viewer.comm.handlers.AB("CHANNEL", clerk.name, "AB~L1~H~" .. Record(first, 20, START + 7200))
-	eq(s.levels[20][1].name, second.name, "a clerk's record fills an empty milestone only")
-	viewer.comm.handlers.AB("CHANNEL", first.name, "AB~L1~H~" .. Record(first, 20, START + 7200))
-	eq(s.levels[20][1].name, second.name, "a player's own word is no record")
-	eq(net.TakeRecords(clerk.name, "L", Record(first, 20, START + 7200), true), false, "a direct call naming a non-author as the author changes nothing")
-	eq(s.levels[20][1].name, second.name)
-	viewer.comm.handlers.AB("CHANNEL", author.name, "AB~L1~H~" .. Record(first, 20, START + 7200))
-	eq(s.levels[20][1].name, first.name, "the author's place replaces the one worked out here")
-	viewer.comm.handlers.AB("CHANNEL", author.name, "AB~L1~H~" .. Record(second, 20, START - 1))
-	eq(s.levels[20][1].name, first.name, "a record of his from before the race's start is refused as anyone's")
-	viewer.comm.handlers.AB("CHANNEL", author.name, "AB~L1~H~" .. Record(second, 20, w.clock + 3600))
-	eq(s.levels[20][1].name, first.name, "and one ahead of the clock")
+	Say(arbiter, first, 20, START + 7200)
+	eq(Holder(20), second.name, "an arbiter's record fills an empty milestone only")
+	Say(first, first, 20, START + 7200)
+	eq(Holder(20), second.name, "a player's own word is no record")
+	Say(councillor, first, 20, START + 7200)
+	eq(Holder(20), first.name, "a councillor's record replaces the place worked out here")
+	Say(councillor, second, 20, START + 7300)
+	eq(Holder(20), first.name, "between two of the same rank, the earlier crossing stays")
+	Say(king, second, 20, START + 7300)
+	eq(Holder(20), second.name, "the King's replaces a councillor's")
+	Say(councillor, first, 20, START + 7200)
+	eq(Holder(20), second.name, "a councillor's never replaces the King's")
+	Say(author, first, 20, START + 7200)
+	eq(Holder(20), first.name, "the author's replaces the King's")
+	Say(king, second, 20, START + 7300)
+	eq(Holder(20), first.name, "the King's never replaces the author's")
+	Say(author, second, 20, START - 1)
+	eq(Holder(20), first.name, "an authority's record from before the race's start is refused as anyone's")
+	Say(author, second, 20, w.clock + 3600)
+	eq(Holder(20), first.name, "and one ahead of the clock")
 	net.RunRace()
-	eq(s.levels[20][1].name, first.name, "a later race here keeps his place")
-	viewer.comm.handlers.AB("CHANNEL", author.name, "AB~L1~H~" .. Record(second, 40, START + 90000))
-	eq(s.levels[40][1].name, second.name, "an empty milestone: his record fills it")
-	-- The author's client says its book when asked (AQ~H), and only his or a clerk's does.
-	local anet, vnet = Net(w, author), Net(w, first)
+	eq(Holder(20), first.name, "a later race here keeps it")
+	eq(s.levels[20][1].by, 3, "and who decided it")
+	Say(king, second, 20, START + 7300)
+	eq(Holder(20), first.name, "the King's still never replaces it after the race")
+	Say(councillor, second, 40, START + 90000)
+	eq(Holder(40), second.name, "an empty milestone: an authority's record fills it")
+	-- An authority's client says its book when asked (AQ~H); a player's who holds no claim says nothing.
+	local anet, pnet = Net(w, author), Net(w, first)
 	local as = anet.Store(true)
 	as.levels[20] = { { guid = first.guid, name = first.name, t = START + 7200, place = 1 } }
 	eq(anet.LevelRaceActive(), true, "the race runs on his client")
-	eq(anet.AuthorHere(), true, "his client knows it is his")
-	eq(vnet.Answer(viewer.name), false, "a player who holds no claim says nothing")
+	eq(anet.AuthorHere(), true, "his client knows it decides")
+	eq(pnet.AuthorHere(), false, "a player's does not")
+	eq(pnet.Answer(viewer.name), false, "a player who holds no claim says nothing")
 	eq(anet.Answer(viewer.name), true, "the author answers AQ~H with his places")
 	w:Run(10) -- (a low-priority send: the queue's next turn)
 	local said = false

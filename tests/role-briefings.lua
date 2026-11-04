@@ -645,6 +645,7 @@ test("role briefings: the 1.4.0 release writes its own launch letter (the dev's,
 			eq(Lt.Show("1.4.0"), true)
 			local f = Lt.Frame()
 			eq(f.title:GetText(), L.LETTER_1_4_0_TITLE)
+			eq(Lt.Holds(), true, "shown, the version letter holds the screen (a duty letter waits)")
 			-- (1.4.0, the author's ask: the launch letter's window has its own name, not "Olympus 1.4.0")
 			eq(f.titleText, L.LETTER_1_4_0_HEAD, "the launch letter's own name on its window")
 			eq(f.sign:GetText(), L.LETTER_1_4_0_SIGNED, "the dev's own signature")
@@ -657,6 +658,41 @@ test("role briefings: the 1.4.0 release writes its own launch letter (the dev's,
 			Lt.Hide()
 		end)
 		ns.db.lettersRead = saved.read
+		if not ok then error(err, 0) end
+	end)
+end)
+
+-- (1.4.0, the author's ask before the launch: "uma carta de cargo deve abrir, mas ela so deve esperar a
+-- outra") A new duty letter opens by itself, never over the version letter: it waits while that letter
+-- holds the screen, or the game is in combat, then the newest unread one opens, once.
+test("role briefings: a new duty letter opens by itself once the version letter no longer holds the screen, never over it nor in combat; the newest unread opens once", function()
+	WithRoles({ steward = true }, function(RB, c, w)
+		local holds, timers, savedCombat = true, {}, InCombatLockdown
+		c.Letters = { Holds = function() return holds end }
+		c.After = function(_, _, fn) timers[#timers + 1] = fn end
+		local function Run() local list = timers timers = {} for _, fn in ipairs(list) do fn() end end
+		local function Opened() for _, o in ipairs(w.opened) do if o == "page:rolebriefings" then return true end end return false end
+		local ok, err = pcall(function()
+			eq(RB.Arrived(RB.Scan(false)), true, "a new letter: its opening waits")
+			eq(RB.Arrived(1), false, "one waiting at a time")
+			eq(#timers, 1)
+			Run()
+			eq(Opened(), false, "the version letter holds the screen: not over it")
+			eq(#timers, 1, "it looks again a moment later")
+			holds = false
+			InCombatLockdown = function() return true end
+			Run()
+			eq(Opened(), false, "nor in combat")
+			InCombatLockdown = function() return false end
+			Run()
+			eq(Opened(), true, "free: the duty letter opens")
+			eq(RB.Letters()[#RB.Letters()].read, true, "and is read")
+			eq(#timers, 0, "nothing more waits")
+			w.opened[#w.opened + 1] = "-"
+			eq(RB.OpenWhenFree(0), false, "a read one never reopens by itself")
+			eq(RB.Arrived(0), false, "no new letter: nothing waits")
+		end)
+		InCombatLockdown = savedCombat
 		if not ok then error(err, 0) end
 	end)
 end)

@@ -634,17 +634,55 @@ local function Soon()
 	waiting = true
 	ns.After(Brief.SCAN_WAIT, "duty letters", function()
 		waiting = false
-		Brief.Scan(false)
+		Brief.Arrived(Brief.Scan(false))
 	end)
+end
+-- (1.4.0, the author's ask before the launch: "uma carta de cargo deve abrir, mas ela so deve esperar a
+-- outra") A new duty letter opens by itself, never over the version letter: it waits while that letter
+-- holds the screen (shown, still to show, its privacy page first) or the game is in combat, a few
+-- seconds at a time and OPEN_TRIES at most (its line in chat was said anyway). The newest unread one
+-- opens; a read one never reopens by itself.
+Brief.OPEN_WAIT = 15 -- after the scan that made it (the version letter's LOGIN_WAIT goes first)
+Brief.OPEN_EVERY = 5
+Brief.OPEN_TRIES = 120
+local opening = false
+function Brief.OpenWhenFree(tries)
+	tries = tonumber(tries) or 0
+	if Brief.LIVE ~= true then opening = false return false end
+	local Lt = ns.Letters
+	local held = type(Lt) == "table" and not Lt.missing and type(Lt.Holds) == "function" and Lt.Holds() == true
+	if held or (InCombatLockdown and InCombatLockdown()) then
+		if tries < Brief.OPEN_TRIES then
+			opening = true
+			ns.After(Brief.OPEN_EVERY, "duty letter open", function() Brief.OpenWhenFree(tries + 1) end)
+		else
+			opening = false
+		end
+		return false
+	end
+	opening = false
+	local letters = Brief.Letters()
+	for i = #letters, 1, -1 do
+		local e = letters[i]
+		if e.read ~= true then return Brief.Open(e.id) end
+	end
+	return false
+end
+-- A scan made new letters: the newest opens once it may.
+function Brief.Arrived(made)
+	if Brief.LIVE ~= true or (tonumber(made) or 0) <= 0 or opening then return false end
+	opening = true
+	ns.After(Brief.OPEN_WAIT, "duty letter open", function() Brief.OpenWhenFree(0) end)
+	return true
 end
 ns.On("LOGIN", function()
 	-- The role sources have already loaded when LOGIN is fired.  Scan once now, then rely on their
 	-- change events below; an idle client must not keep a polling timer merely to maintain letters.
-	Brief.Scan(false)
+	Brief.Arrived(Brief.Scan(false))
 end)
 for _, event in ipairs({ "DATA_CHANGED", "CHURCH_CHANGED", "TREASURY_CHANGED", "WATCH_CHANGED", "THRONE_CHANGED" }) do
 	ns.On(event, Soon)
 end
 
 -- Test-only state reset; saved letters are reset by replacing ns.db.roleBriefings.
-function Brief.Reset() current, previewing, waiting = nil, nil, false end
+function Brief.Reset() current, previewing, waiting, opening = nil, nil, false, false end

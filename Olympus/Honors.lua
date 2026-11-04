@@ -743,7 +743,8 @@ function Honors.LevelRace(book, claims, now, opts)
 			local guid = type(p) == "table" and Guid(p.guid)
 			if guid and not taken[GuidKey(guid)] and #places < Honors.PLACES then
 				taken[GuidKey(guid)] = true
-				places[#places + 1] = { guid = guid, name = Name(p.name) or guid, t = Time(p.t), place = #places + 1 }
+				places[#places + 1] = { guid = guid, name = Name(p.name) or guid, t = Time(p.t), place = #places + 1,
+					by = tonumber(p.by) } -- (1.4.0: who decided it, HonorsNet.Authority's rank, kept)
 			end
 		end
 		-- Each other player's best claim to it.
