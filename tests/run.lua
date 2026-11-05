@@ -7299,6 +7299,34 @@ test("1.4.6 Forever's realm family is the group: every CAMWOW sub-realm of one r
 	if not ok then error(err, 0) end
 end)
 
+-- 1.4.6 (the dev's ask): the yellow "No player named X" for the relay's own whispers, out of the
+-- chat for good. Fails before: no filter of the relay's.
+test("1.4.6 the relay: the server's no-player line for a relay or a registered reporter is kept out of the chat, any other left alone; installed at login where the gate allows, once", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild, err = ERR_CHAT_PLAYER_NOT_FOUND_S, add = rawget(_G, "ChatFrame_AddMessageEventFilter") }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "Olympus II", "Member", 3 end
+		ERR_CHAT_PLAYER_NOT_FOUND_S = "No player named '%s' is currently playing."
+		local O, odeliver = RelayWorld("Hildryn Payne-Realm", "Olympus II")
+		O.Treasury = ns.Treasury
+		eq(O.Relay.QuietLine(nil, nil, "No player named 'Max Ran' is currently playing."), true, "a relay")
+		eq(O.Relay.QuietLine(nil, nil, "No player named 'Some One' is currently playing."), false, "anyone else")
+		odeliver("WHISPER", "Zed Far-Realm", "RL~P~RR~Olympus Zeus")
+		eq(O.Relay.QuietLine(nil, nil, "No player named 'Zed Far' is currently playing."), true, "a registered reporter")
+		eq(O.Relay.QuietLine(nil, nil, "Some other system line."), false)
+		local added = {}
+		ChatFrame_AddMessageEventFilter = function(event, fn) added[#added + 1] = { event = event, fn = fn } end
+		O.Relay.QuietLines(); O.Relay.QuietLines()
+		eq(#added, 1, "installed once"); eq(added[1].event, "CHAT_MSG_SYSTEM"); eq(added[1].fn, O.Relay.QuietLine)
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild, ERR_CHAT_PLAYER_NOT_FOUND_S = saved.channel, saved.member, saved.guild, saved.inGuild, saved.err
+	ChatFrame_AddMessageEventFilter = saved.add
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
 test("1.4.3 the relay: the election counts only guildmates whose hello carries the relay (R); on Forever a whisper goes by the plain name", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, split = ns.splitNames }
 	local ok, err = pcall(function()

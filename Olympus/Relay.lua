@@ -467,9 +467,45 @@ ns.Comm.Handle("RY", function(...) Relay.HandleAck(...) end)
 ns.Comm.Handle("RX", function(...) Relay.HandleAcross(...) end)
 ns.Comm.RelayPieces({ RL = true, RM = true, RG = true, RX = true })
 
+-- (1.4.6, the dev's ask) The server's "No player named X is currently playing" for a relay or a
+-- reporter the relay whispered: out of the chat for good, not for a window (Accord.Quiet's ten
+-- seconds left the login's first sweep in sight). Read all the same (NotFound, the event).
+local function NotFoundName(text)
+	local T = ns.Treasury
+	local pattern = type(T) == "table" and type(T.NotFoundPattern) == "function" and T.NotFoundPattern()
+	local who = type(pattern) == "string" and type(text) == "string" and text:match(pattern)
+	if type(who) ~= "string" then return nil end
+	return (who:gsub("^'", ""):gsub("'$", ""))
+end
+function Relay.QuietLine(_, _, text) -- gp:system-filters
+	if not ns.Gate.Allowed("system-filters") or not Relay.On() then return false end
+	local who = NotFoundName(text)
+	if not who then return false end
+	if Relay.IsRelay(who) then return true end
+	local key = ns.ShortName(who):lower()
+	for _, r in pairs(reporters) do
+		if ns.ShortName(r.name or ""):lower() == key then return true end
+	end
+	return false
+end
+local filtering
+local function QuietLines() -- gp:system-filters!hook
+	if filtering or not ns.Gate.Allowed("system-filters") then return end
+	local add = rawget(_G, "ChatFrame_AddMessageEventFilter") -- gp:system-filters
+	if type(add) ~= "function" then
+		local U = rawget(_G, "ChatFrameUtil") -- gp:system-filters
+		add = type(U) == "table" and rawget(U, "AddMessageEventFilter") or nil -- gp:system-filters
+	end
+	if type(add) ~= "function" then return end
+	filtering = true
+	pcall(add, "CHAT_MSG_SYSTEM", Relay.QuietLine) -- gp:system-filters
+end
+Relay.QuietLines = QuietLines
+
 ns.On("LOGIN", function()
 	if not Relay.On() then return end
 	pcall(ns.RegisterEvent, "CHAT_MSG_SYSTEM", function(text) ns.SafeCall("relay not found", Relay.NotFound, text) end)
+	QuietLines()
 end)
 
 -- Tests: a clean slate.
