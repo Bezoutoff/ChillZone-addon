@@ -29,7 +29,7 @@ master and the officers of the Horde guild named exactly "Olympus", if there is 
 
 ## Recent versions
 
-- **1.4.5**: The guild keeps one reporter where the relay carries the channel (the never-heard guard is off there), a chat line reaches the sender's own guild at once over GUILD, and the signed King wears his crown on The Realm whatever his rank.
+- **1.4.6**: Forever's sub-realms of one ruleset are one realm group (every guild sees the same census, the signed lists reach every sub-realm), the Council's relays pass each word to one another (no more islands), a client without the lists finds the launch's relays by code, and the first talk at the innkeeper opens the Bones lesson.
 - **1.3.3**: Deliberate site export: an optional Site Aggregate folder writes a masked own-guild count for the
   Olympus website on /oly site export and /reload, never uploads, and empties at the next logout or reload.
 - **1.3.2**: Correction: explicitly approximate Census people counts, preserve accepted Treasury rows,
