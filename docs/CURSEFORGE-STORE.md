@@ -29,7 +29,7 @@ master and the officers of the Horde guild named exactly "Olympus", if there is 
 
 ## Recent versions
 
-- **1.4.4**: The morning after: a guild finds a live High Council relay at once (every relay pinged together, the message held for the first answer, the ones that answered preferred), the relay's whispers to offline councillors leave no line in the chat, the duty letters open in a window of their own as plain missives, and the party portraits' borders draw over the game's ring.
+- **1.4.5**: The guild keeps one reporter where the relay carries the channel (the never-heard guard is off there), a chat line reaches the sender's own guild at once over GUILD, and the signed King wears his crown on The Realm whatever his rank.
 - **1.3.3**: Deliberate site export: an optional Site Aggregate folder writes a masked own-guild count for the
   Olympus website on /oly site export and /reload, never uploads, and empties at the next logout or reload.
 - **1.3.2**: Correction: explicitly approximate Census people counts, preserve accepted Treasury rows,

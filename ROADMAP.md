@@ -56,6 +56,7 @@
   fix full-suite ordering regressions and export consented Companion identity evidence.
 - v1.3.3 Deliberate site export: an optional Site Aggregate folder writes a masked own-guild count for the
   Olympus website on /oly site export and /reload, never uploads, and empties at the next logout or reload.
+- v1.4.5 The guild keeps one reporter where the relay carries the channel (the never-heard guard is off there), a chat line reaches the sender's own guild at once over GUILD, and the signed King wears his crown on The Realm whatever his rank.
 - v1.4.4 The morning after: a guild finds a live High Council relay at once (every relay pinged together, the message held for the first answer, the ones that answered preferred), the relay's whispers to offline councillors leave no line in the chat, the duty letters open in a window of their own as plain missives, and the party portraits' borders draw over the game's ring.
 - v1.4.3 Launch night: WoW: Forever delivers nothing an addon says on a chat channel, so everything between guilds (the census, the signed lists, the key, the rankings' words, the chat) travels by addon whispers relayed through the High Council's clients, with no module changed; whispers reach every sub-realm by the plain name.
 - v1.4.2 Launch night: the author's own character may take the army's key back (/oly key off) and his client answers key asks with the clear, so a guild sealed by mistake returns to the public lanes as its members log in.

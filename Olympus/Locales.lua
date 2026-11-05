@@ -154,6 +154,10 @@ L.LETTER_1_4_3 = (L.LETTER_1_4_1:gsub("version 1%.4%.1 %(and 1%.4%.0%)", "versio
 L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK = L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK
 L.LETTER_1_4_4 = (L.LETTER_1_4_3:gsub("version 1%.4%.3 %(and 1%.4%.0%)", "version 1.4.4 (and 1.4.0)", 1)
 	:gsub("(%- {team} Launch night:[^\n]*)", "%1 In 1.4.4 a guild finds the Council at once, and nothing of it shows in your chat.", 1))
+-- 1.4.5 (the guild's reporter stays, the King's crown on The Realm, a chat line to the guild at once).
+L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK = L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK
+L.LETTER_1_4_5 = (L.LETTER_1_4_4:gsub("version 1%.4%.4 %(and 1%.4%.0%)", "version 1.4.5 (and 1.4.0)", 1)
+	:gsub("(%- {team} Launch night:[^\n]*)", "%1 In 1.4.5 your guild keeps one reporter, your words reach your guild at once, and the King wears his crown on The Realm.", 1))
 L.LETTER_1_3_3_TITLE = "Your guild on the website"
 L.LETTER_1_3_3 = [==[Version 1.3.3.
 
@@ -228,6 +232,9 @@ Os portões estão abertos.]==]
 	L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK = L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK
 	L.LETTER_1_4_4 = (L.LETTER_1_4_3:gsub("versão 1%.4%.3 %(e na 1%.4%.0%)", "versão 1.4.4 (e na 1.4.0)", 1)
 		:gsub("(%- {team} Noite do lançamento:[^\n]*)", "%1 Na 1.4.4 a guilda encontra o Conselho na hora, e nada disso aparece no seu chat.", 1))
+	L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK = L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK
+	L.LETTER_1_4_5 = (L.LETTER_1_4_4:gsub("versão 1%.4%.4 %(e na 1%.4%.0%)", "versão 1.4.5 (e na 1.4.0)", 1)
+		:gsub("(%- {team} Noite do lançamento:[^\n]*)", "%1 Na 1.4.5 a sua guilda mantém um só repórter, as suas palavras chegam à sua guilda na hora, e o Rei usa a coroa no Reino.", 1))
 	L.LETTER_1_3_3_TITLE = "Sua guilda no site"
 	L.LETTER_1_3_3 = [==[Versão 1.3.3.
 
