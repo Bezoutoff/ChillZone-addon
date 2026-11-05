@@ -7299,6 +7299,35 @@ test("1.4.6 Forever's realm family is the group: every CAMWOW sub-realm of one r
 	if not ok then error(err, 0) end
 end)
 
+-- 1.5.1 (the dev on his PvP character, 2026-11-05: the census page summed PvE and PvP but told
+-- neither apart, "by ruleset" waiting on every server): a Forever family's ruleset is its name.
+-- Fails before: Data.GroupInfo("ForeverPvE") was nil, nil (no realm of the signed table is named so).
+test("1.5.1 a Forever family's ruleset is its name and its region its realms' (met, or the signed table's); an unknown family's region waits; a plain group reads the signed table as before", function()
+	local savedRealm, savedGroup, savedDb, savedInfo, savedPins = ns.realm, ns.group, ns.db, ns.RealmInfo, ns.SignedPins
+	local ok, err = pcall(function()
+		ns.db = { links = { CAMWOWUS2Realm5PvE = "x", CAMWOWUS1Realm8PvP = "y" } }
+		ns.realm, ns.group = "CAMWOWUS2Realm1PvE", "ForeverPvE"
+		ns.RealmInfo = function(realm)
+			return ({ CAMWOWUS2Realm1PvE = { kind = "pve", region = "NA" }, Whitemane = { kind = "pvp", region = "NA" } })[realm]
+		end
+		ns.SignedPins = function() return { realms = { camwowus2realm1pve = { kind = "pve", region = "NA" } } } end
+		local D = ns.Data
+		eq(table.concat({ D.GroupInfo("ForeverPvE") }, "/"), "pve/NA", "ours: the met realm's region")
+		eq(table.concat({ D.GroupInfo("ForeverPvP") }, "/"), "pvp/NA", "a met PvP sub-realm the table does not name: its region by its code")
+		eq(select(1, D.GroupInfo("ForeverRP")), "rp"); eq(select(2, D.GroupInfo("ForeverRP")), nil, "no realm of that family met: the region waits")
+		eq(table.concat({ D.GroupInfo("Whitemane") }, "/"), "pvp/NA", "a plain group as before")
+		-- Nothing met of a family but the signed table names one of its realms (another character's group).
+		ns.db = { links = {} }
+		ns.realm, ns.group = "CAMWOWUS1Realm8PvP", "ForeverPvP"
+		ns.SignedPins = function() return { realms = { camwoweu1realm1pve = { kind = "pve", region = "EU" } } } end
+		eq(table.concat({ D.GroupInfo("ForeverPvE") }, "/"), "pve/EU", "the signed table's realm of the family")
+		ns.RealmInfo = nil
+		eq(select(1, D.GroupInfo("ForeverPvE")), "pve", "the ruleset needs no table")
+	end)
+	ns.realm, ns.group, ns.db, ns.RealmInfo, ns.SignedPins = savedRealm, savedGroup, savedDb, savedInfo, savedPins
+	if not ok then error(err, 0) end
+end)
+
 -- 1.4.6 (the dev's ask): the yellow "No player named X" for the relay's own whispers, out of the
 -- chat for good. Fails before: no filter of the relay's.
 test("1.4.6 the relay: the server's no-player line for a relay or a registered reporter is kept out of the chat, any other left alone; installed at login where the gate allows, once", function()
