@@ -7328,19 +7328,19 @@ test("1.4.6 the relay: the server's no-player line for a relay or a registered r
 end)
 
 -- 1.5.0 (the dev's ask, 2026-11-05): the Olympus chat as the player's own text in the hidden
--- channel, which Forever delivers across every sub-realm; the hidden way when no echo comes back.
-test("1.5.0 the chat hall: on Forever a chat line leaves as the player's own text in the joined channel; its echo settles it and is taken as the hidden line, once; no echo within ECHO_WAIT sends it the hidden way; another channel's or other text is ignored; off with the gamepad UI, off the channel, or off Forever", function()
+-- channel too, which Forever delivers across every sub-realm to everyone in that channel; the
+-- hidden way by the relay goes on beside it (another lane, another guild), each line taken once.
+test("1.5.0 the chat hall: on Forever a tier's chat line leaves as the player's own text in the joined channel beside the hidden way; the channel's lines are taken as the hidden one; another channel's, plain text and other kinds are ignored; off under the chat box gate, off the channel, or off Forever", function()
 	local savedSend = rawget(_G, "SendChatMessage")
 	local ok, err = pcall(function()
-		local said, hidden, received, timers = {}, {}, {}, {}
+		local said, received = {}, {}
 		local cns = setmetatable({
 			splitNames = true, me = "Me-Realm", clock = 5000,
 			Comm = { ChannelIndex = function() return 6 end, ChannelName = function() return "OlympusNet1" end,
-				SendChat = function(msg, done, line, guard, hid) hidden[#hidden + 1] = { msg = msg, done = done, line = line, guard = guard, hid = hid } return true end,
 				Inject = function(dist, sender, text, logged) received[#received + 1] = { dist = dist, sender = sender, text = text, logged = logged } end },
 			Gate = { Allowed = function() return true end },
 			On = function() end, RegisterEvent = function() end,
-			After = function(_, _, fn) timers[#timers + 1] = fn end,
+			After = function() end,
 			SafeCall = function(_, fn, ...) return fn(...) end,
 		}, { __index = ns })
 		cns.Now = function() return cns.clock end
@@ -7348,31 +7348,20 @@ test("1.5.0 the chat hall: on Forever a chat line leaves as the player's own tex
 		assert(loadfile(ADDON_DIR .. "ChatHall.lua"))("Olympus", cns)
 		local H = cns.ChatHall
 		eq(H.On(), true)
-		local dones = {}
-		eq(H.Send("M1~A~Olympus II~7~WL~hello", function(v) dones[#dones + 1] = v end, "hello", "g"), true)
+		eq(H.Send("M1~A~Olympus II~7~WL~hello"), true)
 		eq(#said, 1); eq(said[1].text, "M1~A~Olympus II~7~WL~hello"); eq(said[1].kind, "CHANNEL"); eq(said[1].target, 6, "the joined channel's number")
-		eq(#hidden, 0, "not the hidden way"); eq(#timers, 1)
-		-- The echo: taken as the hidden line, the send settled; another channel's or other text: ignored.
+		eq(H.Send("EC~room~1~hey"), false, "another kind: the hidden way alone"); eq(#said, 1)
+		-- The channel's lines: ours counted as the echo, anyone's taken as the hidden line.
 		eq(H.OnChannel("M1~A~Olympus II~7~WL~hello", "Me-Realm", "", "6. OlympusNet1", "", "", 0, 6, "OlympusNet1"), true)
 		eq(#received, 1); eq(received[1].dist, "CHANNEL"); eq(received[1].sender, "Me-Realm"); eq(received[1].text, "M1~A~Olympus II~7~WL~hello"); eq(received[1].logged, true)
-		eq(#dones, 1); eq(dones[1], true)
+		eq(H.Stats().echoed, 1)
+		eq(H.OnChannel("M1~A~Olympus V~3~~hi all", "Far Away-Realm", "", "", "", "", 0, 6, "olympusnet1"), true)
+		eq(#received, 2); eq(received[2].sender, "Far Away-Realm")
 		eq(H.OnChannel("M1~A~Olympus II~8~WL~other", "Other-Realm", "", "", "", "", 0, 2, "Trade"), false, "another channel")
 		eq(H.OnChannel("hello there", "Other-Realm", "", "", "", "", 0, 6, "OlympusNet1"), false, "plain text in it")
-		eq(#received, 1)
-		timers[1]()
-		eq(#hidden, 0, "settled: nothing more"); eq(H.Stats().echoed, 1)
-		-- No echo: the hidden way, with the same callback.
-		eq(H.Send("M1~A~Olympus II~9~WL~again", function(v) dones[#dones + 1] = v end, "again", "g"), true)
-		timers[2]()
-		eq(#hidden, 1); eq(hidden[1].msg, "M1~A~Olympus II~9~WL~again"); eq(hidden[1].line, "again"); eq(hidden[1].hid, true, "hidden: never back to the hall"); eq(H.Stats().fallen, 1)
-		-- Another chat kind (a role room's, the arena's): carried and taken by its type too.
-		eq(H.OnChannel("EC~room~1~hey", "Far Away-Realm", "", "", "", "", 0, 6, "OlympusNet1"), true)
-		eq(received[#received].text, "EC~room~1~hey")
-		-- A line of someone else's from the channel: taken.
-		eq(H.OnChannel("M1~A~Olympus V~3~~hi all", "Far Away-Realm", "", "", "", "", 0, 6, "olympusnet1"), true)
-		eq(#received, 3); eq(received[3].sender, "Far Away-Realm")
-		-- Off: the gamepad UI, no channel, off Forever.
-		-- (The gamepad UI: the chat box gate refuses, and so does the hall.)
+		eq(H.OnChannel("EC~room~1~hey", "Other-Realm", "", "", "", "", 0, 6, "OlympusNet1"), false, "another kind")
+		eq(#received, 2)
+		-- Off: the chat box gate (the gamepad UI), no channel, off Forever.
 		cns.Gate = { Allowed = function() return false end }
 		eq(H.On(), false); eq(H.Send("M1~A~Olympus II~1~~x"), false)
 		cns.Gate = { Allowed = function() return true end }

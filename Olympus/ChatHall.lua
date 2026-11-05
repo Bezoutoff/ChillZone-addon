@@ -15,10 +15,9 @@ local ADDON, ns = ...
 -- gamepad UI nothing here runs (the chat box gate): the hidden way as before.
 local Hall = {}
 ns.ChatHall = Hall
-Hall.ECHO_WAIT = 3
-local pending = {} -- msg -> { at, done, line, guard }: sent as text, its echo awaited
-local stats = { sent = 0, echoed = 0, fallen = 0, heard = 0 }
-function Hall.Stats() return { sent = stats.sent, echoed = stats.echoed, fallen = stats.fallen, heard = stats.heard, on = Hall.On() } end
+local pending = {} -- msg -> when: sent as text, its echo counted
+local stats = { sent = 0, echoed = 0, heard = 0 }
+function Hall.Stats() return { sent = stats.sent, echoed = stats.echoed, heard = stats.heard, on = Hall.On() } end
 
 function Hall.On() -- gp:chat-box
 	if not ns.Gate.Allowed("chat-box") then return false end
@@ -28,24 +27,21 @@ function Hall.On() -- gp:chat-box
 	return type(SendChatMessage) == "function" -- gp:chat-box
 end
 
--- A chat line (the hidden message's text) as the player's own text in the channel. True when
--- handed to the game; its echo settles it (OnChannel), and no echo within ECHO_WAIT sends it the
--- hidden way with the same callback.
-function Hall.Send(msg, done, line, guard) -- gp:chat-box
+-- A tier's chat line (M1, the hidden message's text) as the player's own text in the channel,
+-- BESIDE the hidden way (Comm.SendChat sends both): clients on another lane of the channel (a
+-- client moves lanes when the game refuses one: the dev's cousin sat on OlympusNet2, the dev on
+-- OlympusNet1) hear the hidden copy by the relay, clients in the same channel hear the text at
+-- once, and each takes the line once (Channels' sender#id#text within DEDUPE_WINDOW). True when
+-- handed to the game. The role rooms' and the arena's kinds keep the hidden way alone (their
+-- own dedupe is theirs).
+function Hall.Send(msg) -- gp:chat-box
 	if not ns.Gate.Allowed("chat-box") then return false end
-	if not Hall.On() or type(msg) ~= "string" or msg == "" or #msg > 255 then return false end
+	if not Hall.On() or type(msg) ~= "string" or msg:sub(1, 3) ~= "M1~" or #msg > 255 then return false end
 	local index = ns.Comm.ChannelIndex()
-	pending[msg] = { at = ns.Now(), done = done, line = line, guard = guard }
+	pending[msg] = ns.Now()
 	local ok = pcall(SendChatMessage, msg, "CHANNEL", nil, index) -- gp:chat-box
 	if not ok then pending[msg] = nil return false end
 	stats.sent = stats.sent + 1
-	ns.After(Hall.ECHO_WAIT, "chat hall echo", function()
-		local p = pending[msg]
-		if not p then return end
-		pending[msg] = nil
-		stats.fallen = stats.fallen + 1
-		ns.Comm.SendChat(msg, p.done, p.line, p.guard, true) -- (hidden: never back here)
-	end)
 	return true
 end
 
@@ -54,14 +50,10 @@ end
 function Hall.OnChannel(text, sender, _, _, _, _, _, _, baseName)
 	local joined = ns.Comm and ns.Comm.ChannelName and ns.Comm.ChannelName()
 	if type(joined) ~= "string" or type(baseName) ~= "string" or baseName:lower() ~= joined:lower() then return false end
-	-- (Any chat kind: the Olympus tiers' M1, the role rooms', the arena's: whatever Comm.SendChat
-	-- carries, by its type, to its own handler as Comm.Inject hands a relayed line.)
-	if type(text) ~= "string" or not text:match("^%u%w~") or #text > 255 then return false end
-	local p = pending[text]
-	if p then
+	if type(text) ~= "string" or text:sub(1, 3) ~= "M1~" or #text > 255 then return false end
+	if pending[text] then
 		pending[text] = nil
 		stats.echoed = stats.echoed + 1
-		if p.done then ns.SafeCall("chat hall done", p.done, true) end
 	end
 	stats.heard = stats.heard + 1
 	if type(ns.Comm.Inject) == "function" then ns.SafeCall("chat hall line", ns.Comm.Inject, "CHANNEL", sender, text, true) end
