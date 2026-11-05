@@ -7459,6 +7459,45 @@ test("1.5.0 the relay: a client's own-clock words (H3, Q1, HQ, P1, W4, GV) are h
 	if not ok then error(err, 0) end
 end)
 
+-- 1.5.0 (the dev's relay: 51 reporters, every guild's three-piece report to each, 2,700 pieces a
+-- minute against 200 sent). Fails before: every word to every reporter, no snapshot of the relay's.
+test("1.5.0 the relay: another client's words that are not chat lines reach a reporter within his trickle (REPORTER_RATE pieces a minute), the rest not; chat lines and the relay's own words always; others' global census words are not fanned out; the relay's own snapshot goes every GLOBAL_EVERY", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "Olympus II", "Member", 3 end
+		local R, rdeliver, rsent, _, rpump, rsentOf = RelayWorld("Hildryn Payne-Realm", "Olympus II")
+		rdeliver("WHISPER", "Zed Far-Realm", "RL~P~RR~Olympus Zeus")
+		for i = 1, 6 do rdeliver("WHISPER", ("Guild Rep%d-Realm"):format(i), "RL~P~C" .. i .. "~report " .. i) end
+		rpump()
+		eq(#rsentOf("RM~P~"), R.Relay.REPORTER_RATE, "the trickle: four pieces this minute"); eq(R.Relay.Stats().trickled, 2)
+		rdeliver("WHISPER", "Guild Rep7-Realm", "RL~L~M1~A~Olympus VII~1~~hi")
+		R.Relay.HandleIn("WHISPER", R.me, "RL~P~HS~the lists") -- (the relay's own word: Relay.Out's own path)
+		rdeliver("WHISPER", "Some One-Realm", "RL~P~CG~1~Q~5~1~1")
+		rpump()
+		eq(#rsentOf("RM~L~"), 1, "a chat line always"); eq(#rsentOf("RM~P~Hildryn Payne-Realm~HS"), 1, "the relay's own word always")
+		eq(#rsentOf("RM~P~Some One-Realm~CG"), 0, "another client's global census word: not fanned out")
+		R.clock = R.clock + 60
+		rdeliver("WHISPER", "Guild Rep8-Realm", "RL~P~C8~report 8")
+		rpump()
+		eq(#rsentOf("RM~P~Guild Rep8-Realm~C8"), 1, "the next minute's trickle")
+		-- The relay's own snapshot: every GLOBAL_EVERY, by Data.SendGlobalCensus.
+		local sentGlobal = 0
+		R.Data = { SendGlobalCensus = function() sentGlobal = sentGlobal + 1 return true end }
+		eq(R.Relay.SendGlobal(), true); eq(R.Relay.SendGlobal(), false, "not again yet")
+		R.clock = R.clock + R.Relay.GLOBAL_EVERY
+		eq(R.Relay.SendGlobal(), true); eq(sentGlobal, 2)
+		local O = RelayWorld("Orig Inal-Realm", "Olympus II")
+		O.Data = { SendGlobalCensus = function() error("not a relay") end }
+		eq(O.Relay.SendGlobal(true), false, "a client that is no relay sends none")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
 test("1.4.3 the relay: the election counts only guildmates whose hello carries the relay (R); on Forever a whisper goes by the plain name", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, split = ns.splitNames }
 	local ok, err = pcall(function()

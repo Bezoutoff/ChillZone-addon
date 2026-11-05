@@ -59,7 +59,24 @@ Relay.LAUNCH_PINS = { ForeverPvE = { "Developus Olympicus", "Asmongold Thereal" 
 -- (the dev's log, 2026-11-05) each such word became 46 whispers, and the reports and the lists
 -- waited behind them. A guild's census reports, the chats, the signed lists and every other word
 -- go on to every reporter.
-Relay.NO_FORWARD = { H3 = true, Q1 = true, HQ = true, P1 = true, W4 = true, GV = true }
+Relay.NO_FORWARD = { H3 = true, Q1 = true, HQ = true, P1 = true, W4 = true, GV = true, CG = true }
+-- (1.5.0) What one reporter can be sent of other clients' words that are not chat lines: pieces
+-- a minute (REPORTER_RATE). 51 guilds reporting every three minutes, three pieces each, to 51
+-- reporters is 2,700 pieces a minute; a relay sends 200. So each reporter gets a trickle of the
+-- guilds' own reports, and the whole picture from the relay's own global census snapshot (CG,
+-- Data.SendGlobalCensus: every guild's counts, trusted as the relay's signed name), sent every
+-- GLOBAL_EVERY and exempt from the trickle, as the relay's own words all are.
+Relay.REPORTER_RATE = 4
+Relay.GLOBAL_EVERY = 120
+local budget = {} -- reporter name (lower) -> { at = when refilled, left = pieces }
+local function Afford(name, pieces, now)
+	local key = name:lower()
+	local b = budget[key]
+	if not b or now - b.at >= 60 then b = { at = now, left = Relay.REPORTER_RATE }; budget[key] = b end
+	if b.left < pieces then return false end
+	b.left = b.left - pieces
+	return true
+end
 
 local offline = {}   -- relay name (lower) -> until (ns.Now())
 local verified = {}  -- relay name (lower) -> when its RA last came
@@ -76,7 +93,8 @@ function Relay.Stats()
 	for _, r in pairs(reporters) do n = n + 1 end
 	local relay, sure = Relay.Pick()
 	return { out = stats.out, forwarded = stats.forwarded, delivered = stats.delivered, dropped = stats.dropped,
-		dead = stats.dead, reporters = n, relay = relay, sure = sure == true, pending = #pending, on = Relay.On() }
+		dead = stats.dead, reporters = n, relay = relay, sure = sure == true, pending = #pending, on = Relay.On(),
+		across = stats.across or 0, kept = stats.kept or 0, trickled = stats.trickled or 0 }
 end
 
 local function Now() return ns.Now() end
@@ -340,6 +358,7 @@ end
 -- guild), and heard here (a relay in a guild whose reporter is elsewhere, or none).
 local function ToReporters(flag, origin, body, sender)
 	local now = Now()
+	local own = ns.FullName(origin) == ns.me
 	local pieces
 	for g, r in pairs(reporters) do
 		if now - r.t > Relay.REPORTER_FOR then
@@ -348,14 +367,20 @@ local function ToReporters(flag, origin, body, sender)
 			if Deliver(origin, body, flag == "L") then ToGuild(flag, origin, body) end
 		else
 			pieces = pieces or Envelope("RM", "RM~" .. flag .. "~" .. origin .. "~" .. body)
-			stats.forwarded = stats.forwarded + 1
-			Quiet(r.name) -- (a reporter gone offline since: the server's line out of the chat)
-			-- (1.5.0) A word that is not a chat line is keyed by its origin, kind and reporter:
-			-- a newer census of the same guild takes the waiting one's place in the queue
-			-- (Comm's keyed jobs), so a busy relay sends the latest, never a backlog.
-			local key = flag ~= "L" and ("relay " .. r.name .. " " .. Lower(origin) .. " " .. body:sub(1, 2)) or nil
-			if #pieces == 1 then ns.Comm.Whisper(r.name, pieces[1], key, false, false)
-			else ns.Comm.SendBatch("WHISPER", pieces, key, r.name, false) end
+			-- (1.5.0) Another client's word that is not a chat line: within the reporter's trickle
+			-- (REPORTER_RATE) or not sent to him; the relay's own words and chat lines always.
+			if flag == "L" or own or Afford(r.name, #pieces, now) then
+				stats.forwarded = stats.forwarded + 1
+				Quiet(r.name) -- (a reporter gone offline since: the server's line out of the chat)
+				-- A word that is not a chat line is keyed by its origin, kind and reporter: a newer
+				-- census of the same guild takes the waiting one's place in the queue (Comm's keyed
+				-- jobs), so a busy relay sends the latest, never a backlog.
+				local key = flag ~= "L" and ("relay " .. r.name .. " " .. Lower(origin) .. " " .. body:sub(1, 2)) or nil
+				if #pieces == 1 then ns.Comm.Whisper(r.name, pieces[1], key, false, false)
+				else ns.Comm.SendBatch("WHISPER", pieces, key, r.name, false) end
+			else
+				stats.trickled = (stats.trickled or 0) + 1
+			end
 		end
 	end
 	local n = 0
@@ -405,7 +430,7 @@ function Relay.HandleIn(dist, sender, text)
 	end
 	local origin = ns.FullName(sender)
 	local fresh = not seen[Lower(origin) .. "|" .. body]
-	if Relay.NO_FORWARD[body:sub(1, 2)] then
+	if Relay.NO_FORWARD[body:sub(1, 2)] and origin ~= ns.me then
 		stats.kept = (stats.kept or 0) + 1
 		Deliver(origin, body, flag == "L") -- (heard and answered here, fanned out to nobody)
 		return true
@@ -519,15 +544,30 @@ local function QuietLines() -- gp:system-filters!hook
 end
 Relay.QuietLines = QuietLines
 
+-- (1.5.0) A relay's own global census snapshot to its reporters every GLOBAL_EVERY (it hears every
+-- guild's report; Data.SendGlobalCensus sends it "on the channel", so by this relay to every
+-- reporter, keyed: the latest alone waits in the queue).
+local lastGlobal = -math.huge
+function Relay.SendGlobal(force)
+	if not Relay.On() or not Relay.IsRelay(ns.me) then return false end
+	local now = Now()
+	if not force and now - lastGlobal < Relay.GLOBAL_EVERY then return false end
+	local D = ns.Data
+	if type(D) ~= "table" or type(D.SendGlobalCensus) ~= "function" then return false end
+	lastGlobal = now
+	return D.SendGlobalCensus() == true
+end
+
 ns.On("LOGIN", function()
 	if not Relay.On() then return end
 	pcall(ns.RegisterEvent, "CHAT_MSG_SYSTEM", function(text) ns.SafeCall("relay not found", Relay.NotFound, text) end)
 	QuietLines()
+	if ns.Every then ns.Every(Relay.GLOBAL_EVERY, "relay global census", function() ns.SafeCall("relay global", Relay.SendGlobal) end) end
 end)
 
 -- Tests: a clean slate.
 function Relay.Reset()
-	wipe(offline); wipe(verified); wipe(pinged); wipe(reporters); wipe(seen); wipe(pending)
-	seenCount, lastRegister, holding, flushing = 0, -math.huge, false, false
+	wipe(offline); wipe(verified); wipe(pinged); wipe(reporters); wipe(seen); wipe(pending); wipe(budget)
+	seenCount, lastRegister, holding, flushing, lastGlobal = 0, -math.huge, false, false, -math.huge
 	for k in pairs(stats) do stats[k] = 0 end
 end
