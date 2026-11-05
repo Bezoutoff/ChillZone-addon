@@ -2254,11 +2254,27 @@ local function RealmLines(s, q)
 	-- fresh, each Lord and Captain in the tree carries a ready-check mark.
 	for _, l in ipairs(not q and ns.King and ns.King.RollCallLines and ns.King.RollCallLines() or {}) do lines[#lines + 1] = l end
 	local king = not q and King(s.guilds)
+	-- (1.4.5, the dev's ask: the signed King wears the crown whatever his rank; on Forever the King
+	-- guild's master is not the King.) His name from the signed list; his presence when seen now
+	-- (the King guild's /who, or our own guild's), else unknown.
+	local signed = not q and type(ns.KingCharacter) == "function" and ns.KingCharacter() or nil
+	-- (The built-in pin, unsigned, only names the King guild's master as ever: no line of its own.)
+	if signed and not king and type(ns.KING_CHARACTER) == "table" and signed == ns.KING_CHARACTER[ns.faction or "Alliance"] then signed = nil end
+	local function SignedPresence()
+		local seen = (king and Views.SeenNow(king.name, signed)) or Views.SeenNow(GetGuildInfo("player") or "", signed)
+		if seen then return true, 0, false end
+		return nil, nil, false
+	end
+	if signed and not king then
+		lines[#lines + 1] = { header = true, text = CROWN .. L.KING .. ": " .. Gold(Plain(signed)), right = Presence(SignedPresence()) }
+	end
 	if king then
+		local name, on, days, dim, at = king.g.leader, Views.PresenceNow(king, king.g.leader, king.g.leaderOnline, king.g.leaderDays)
+		if signed and ns.ShortName(king.g.leader or "") ~= signed then name = signed; on, days, dim, at = SignedPresence() end
 		lines[#lines + 1] = {
 			header = true,
-			text = CROWN .. L.KING .. ": " .. Gold(Plain(king.g.leader or "?")),
-			right = Presence(Views.PresenceNow(king, king.g.leader, king.g.leaderOnline, king.g.leaderDays)),
+			text = CROWN .. L.KING .. ": " .. Gold(Plain(name or "?")),
+			right = Presence(on, days, dim, at),
 			tooltip = GuildTooltip(king),
 		}
 		-- The Treasurer of Olympus, under the King: when that guild's report has him (the

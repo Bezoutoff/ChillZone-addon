@@ -1665,7 +1665,10 @@ function Comm.MaybeBroadcast(report)
 			lastKeyAsk = now
 			Comm.RequestKey()
 		end
-	elseif best ~= ns.me and channelIndex > 0 then
+	-- (1.4.5) Where the relay carries the channel (Forever), the channel itself delivers nothing, so
+	-- a reporter is never "heard" there: every client benched its guild's reporter in turn and
+	-- elected itself (the dev's log, 2026-11-05: a new reporter every minute). No guard there.
+	elseif best ~= ns.me and channelIndex > 0 and not RelayOn() then
 		if not watch or watch.name ~= best then watch = { name = best, since = now } end
 		if now - math.max(watch.since, heardOwn[ns.ShortName(best)] or 0) >= GUARD_AFTER then
 			benched[best] = now + GUARD_FOR

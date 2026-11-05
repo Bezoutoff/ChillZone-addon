@@ -7191,6 +7191,36 @@ test("1.4.5 the relay: a chat line goes to the sender's own guild at once over G
 	if not ok then error(err, 0) end
 end)
 
+-- 1.4.5 (the dev's log, 2026-11-05: a guild's reporter changed every minute). Fails before: on the
+-- channel 400 s without hearing the reporter, the client benched it and elected itself.
+test("1.4.5 the relay: where the relay carries the channel, a reporter never heard on the channel is not left out (the channel delivers nothing there): the election stays", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 5 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "Olympus II", "Member", 3 end
+		local O, odeliver, _, _, opump = RelayWorld("Tester-Realm", "Olympus II")
+		local C = O.Comm
+		C.JoinChannel()
+		C.loginAt = O.clock - 1000
+		local ours = { guild = "Olympus II", total = 1000, online = 300, zones = {} }
+		local function Tick(seconds)
+			O.clock = O.clock + seconds
+			odeliver("GUILD", "Abe-Realm", "H1~1.4.3~Realm~p~~~~R")
+			C.MaybeBroadcast(ours)
+		end
+		Tick(0)
+		eq(C.reporterName, "Abe", "Abe sorts first")
+		for _ = 1, 12 do Tick(60) end
+		eq(C.reporterName, "Abe", "never heard on the channel in 720 s, and still the reporter"); eq(C.isReporter, false)
+		eq(#C.Stats().benched, 0)
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
 test("1.4.3 the relay: the election counts only guildmates whose hello carries the relay (R); on Forever a whisper goes by the plain name", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, split = ns.splitNames }
 	local ok, err = pcall(function()
