@@ -369,7 +369,7 @@ def read_stewards(v, realm):
         name = steward_name(name)
         if faction not in FACTIONS: sys.exit("a Steward's faction is Alliance or Horde, not %r" % (faction,))
         home = name.partition("-")[2]
-        if home and realm and home not in realm.split("+"):
+        if home and not in_group(home, realm):
             sys.exit("%r is not of the list's realm group (%s)" % (name, realm))
         if name.lower() in seen: sys.exit("a Steward twice: %r" % name)
         seen.add(name.lower())
@@ -425,7 +425,7 @@ def read_arbiters(v, realm):
         if faction not in FACTIONS: sys.exit("an arbiter's faction is Alliance or Horde, not %r" % (faction,))
         if not isinstance(audit, bool): sys.exit("audit is true or false, not %r" % (audit,))
         home = name.partition("-")[2]
-        if home and realm and home not in realm.split("+"):
+        if home and not in_group(home, realm):
             sys.exit("%r is not of the list's realm group (%s)" % (name, realm))
         if name.lower() in seen: sys.exit("an arbiter twice: %r" % name)
         seen.add(name.lower())
@@ -454,7 +454,7 @@ def read_apostles(v, realm):
         if len(name.partition("-")[0].encode()) > 30: sys.exit("an apostle's name is 30 bytes at most: %r" % name)
         if faction not in FACTIONS: sys.exit("an apostle's faction is Alliance or Horde, not %r" % (faction,))
         home = name.partition("-")[2]
-        if home and realm and home not in realm.split("+"):
+        if home and not in_group(home, realm):
             sys.exit("%r is not of the list's realm group (%s)" % (name, realm))
         if name.partition("-")[0].lower() in seen: sys.exit("an apostle twice: %r" % name)
         seen.add(name.partition("-")[0].lower())
@@ -502,7 +502,7 @@ def read_leadership(v, realm):
             name = steward_name(value)
             home = name.partition("-")[2]
             if not home: sys.exit("a signed leader needs an exact realm: %r" % name)
-            if home not in realms: sys.exit("%r is not of the list's realm group (%s)" % (name, realm))
+            if not in_group(home, realm): sys.exit("%r is not of the list's realm group (%s)" % (name, realm))
             pkey = (faction, name.casefold())
             if pkey in people_seen: sys.exit("a signed leader twice: %r" % name)
             people_seen.add(pkey)
@@ -529,7 +529,7 @@ def pin_name(v, what, realm):
     good = plain(v, "^;=,") and 1 <= len(words) <= 2 and all(w and all(c.isalpha() for c in w) for w in words)
     good = good and len(short.encode()) <= MAX_NAME and bool(dash) and realm_ok(home)
     if not good: sys.exit("not a name the addon takes for %s (First Surname-Realm, with its realm): %r" % (what, v))
-    if realm and home not in realm.split("+"):
+    if not in_group(home, realm):
         sys.exit("%r (%s) is not of the list's realm group (%s)" % (v, what, realm))
     return v
 
@@ -603,6 +603,14 @@ def read_realms(v):
         if len(out[r["region"]]) > MAX_REALMS_EACH: sys.exit("more than %d realms in %s" % (MAX_REALMS_EACH, r["region"]))
     return out
 
+# (1.4.6) A realm belongs to the list's group when the group names it, or when the group is a
+# WoW: Forever family ("ForeverPvE", "ForeverPvP": every CAMWOW sub-realm of that ruleset).
+def forever_family(realm):
+    m = re.match(r"^CAMWOW[A-Z]{2}\d+Realm\d+([A-Za-z]+)$", realm or "")
+    return "Forever" + m.group(1) if m else None
+def in_group(home, realm):
+    return (not realm) or home in realm.split("+") or forever_family(home) == realm
+
 # Moving the list to another realm group (--group): every name that carries a realm of another
 # group, listed at once (each would be refused one by one below), with what takes it off.
 def group_conflicts(data, realm):
@@ -615,7 +623,7 @@ def group_conflicts(data, realm):
         if isinstance(name, dict): name = name.get("name")
         if isinstance(name, str):
             home = name.strip().partition("-")[2]
-            if home and home not in realms and family(home) != realm: bad.append("%s (%s)" % (name.strip(), how))
+            if home and not in_group(home, realm): bad.append("%s (%s)" % (name.strip(), how))
     def items(v): return v if isinstance(v, list) else []
     for what in ("steward", "arbiter", "apostle", "author"):
         for n in items(data.get(what + ("s" if what != "author" else ""))): look(n, "%s --remove" % what)
