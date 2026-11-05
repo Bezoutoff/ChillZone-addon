@@ -29,7 +29,7 @@ master and the officers of the Horde guild named exactly "Olympus", if there is 
 
 ## Recent versions
 
-- **1.4.3**: Launch night: WoW: Forever delivers nothing an addon says on a chat channel, so everything between guilds (the census, the signed lists, the key, the rankings' words, the chat) travels by addon whispers relayed through the High Council's clients, with no module changed; whispers reach every sub-realm by the plain name.
+- **1.4.4**: Launch night: the relay's answer to a ping took a type of its own (1.4.3's was the Records' ask, so no relay was ever heard answering).
 - **1.3.3**: Deliberate site export: an optional Site Aggregate folder writes a masked own-guild count for the
   Olympus website on /oly site export and /reload, never uploads, and empties at the next logout or reload.
 - **1.3.2**: Correction: explicitly approximate Census people counts, preserve accepted Treasury rows,

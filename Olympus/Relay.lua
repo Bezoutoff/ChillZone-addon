@@ -18,7 +18,7 @@ ns.Relay = Relay
 -- names every client holds from the signed list, so a guild that just arrived knows whom to
 -- whisper. A client picks one relay (its guild's name decides which, changing every PICK_WINDOW so
 -- the load spreads), pings it once (RP) and expects an answer (RA): a relay that does not answer
--- (offline, or an older version that cannot) is left out for DEAD_FOR and the next one is picked;
+-- (offline, or an older version that cannot; the answer is RY: RA is the Records' ask) is left out for DEAD_FOR and the next one is picked;
 -- the server's "No player named X" names an offline one at once. The relays know each guild's
 -- reporter from its registration (RR, sent every REGISTER_EVERY while elected: Comm.MaybeBroadcast)
 -- and forward to those alone; a reporter hands each message to its guild over GUILD once, where
@@ -233,7 +233,7 @@ function Relay.HandleIn(dist, sender, text)
 	if not Relay.IsRelay(ns.me) then return false end -- (only a relay's client answers hop 1)
 	local now = Now()
 	if body == "RP~" then
-		if ns.FullName(sender) ~= ns.me then ns.Comm.Whisper(sender, "RA~", "relay ack:" .. sender, true) end
+		if ns.FullName(sender) ~= ns.me then ns.Comm.Whisper(sender, "RY~", "relay ack:" .. sender, true) end
 		return true
 	end
 	local guild = body:match("^RR~(.+)$")
@@ -283,7 +283,7 @@ end
 
 -- The relay's answer to our ping.
 function Relay.HandleAck(dist, sender, text)
-	if dist ~= "WHISPER" or tostring(text) ~= "RA~" then return false end
+	if dist ~= "WHISPER" or tostring(text) ~= "RY~" then return false end
 	local key = ns.ShortName(sender):lower()
 	verified[key] = Now()
 	pinged[key] = nil
@@ -306,7 +306,7 @@ end
 ns.Comm.Handle("RL", function(...) Relay.HandleIn(...) end)
 ns.Comm.Handle("RM", function(...) Relay.HandleRelayed(...) end)
 ns.Comm.Handle("RG", function(...) Relay.HandleGuild(...) end)
-ns.Comm.Handle("RA", function(...) Relay.HandleAck(...) end)
+ns.Comm.Handle("RY", function(...) Relay.HandleAck(...) end)
 ns.Comm.RelayPieces({ RL = true, RM = true, RG = true })
 
 ns.On("LOGIN", function()

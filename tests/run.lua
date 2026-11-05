@@ -6962,7 +6962,7 @@ test("1.4.3 the relay: where names split, a channel message goes to the picked s
 		local R, rdeliver, rsent, rheard, rpump, rsentOf = RelayWorld("Hildryn Payne-Realm", "Olympus II")
 		rdeliver("WHISPER", "Orig Inal-Realm", "RL~P~RP~")
 		rpump()
-		eq(rsentOf("RA~")[1].target, "Orig Inal", "the ping answered, by the plain name")
+		eq(rsentOf("RY~")[1].target, "Orig Inal", "the ping answered, by the plain name")
 		rdeliver("WHISPER", "Orig Inal-Realm", "RL~P~RR~Olympus II")
 		rdeliver("WHISPER", "Zed Far-Realm", "RL~P~RR~Olympus Zeus")
 		eq(R.Relay.Stats().reporters, 2, "two guilds' reporters registered")
@@ -7032,7 +7032,7 @@ test("1.4.3 the relay: a relay that is offline (the server's word) or never answ
 		local picked = O.Relay.Pick()
 		timers[1]()
 		assert(O.Relay.Pick() ~= picked, "the one that never answered is left out")
-		odeliver("WHISPER", O.Relay.Pick() .. "-Realm", "RA~")
+		odeliver("WHISPER", O.Relay.Pick() .. "-Realm", "RY~")
 		eq(O.Relay.Stats().dead, 1)
 		-- Both out: the channel as before.
 		O.Relay.NotFound(("No player named '%s' is currently playing."):format(O.Relay.Pick()))
@@ -61578,9 +61578,9 @@ end)()
 	end)
 
 	test("1.4.0: the version, the TOC's files in order, the new message types in Comm.lua's list", function()
-		eq(ns.VERSION, "1.4.3") -- the release has one identity in both folders
+		eq(ns.VERSION, "1.4.4") -- the release has one identity in both folders
 		local toc = assert(ReadFile(ADDON_DIR .. "Olympus.toc"))
-		assert(toc:find("## Version: 1.4.3", 1, true))
+		assert(toc:find("## Version: 1.4.4", 1, true))
 		eq(ns.Workshop.Newer("1.4.0", "1.3.3"), true, "the launch release is newer")
 		eq(ns.Workshop.Newer("1.3.3", "1.4.0"), false)
 		eq(ns.Workshop.Newer("1.4.1", "1.4.0"), true, "the next patch remains newer")
@@ -62027,7 +62027,7 @@ end)()
 	end
 
 	test("1.4.0 version letters: release identity agrees across both TOCs and localized letters; reading the old release does not hide the new letter", function()
-		eq(ns.VERSION, "1.4.3")
+		eq(ns.VERSION, "1.4.4")
 		for _, path in ipairs({ "Olympus/Olympus.toc", "Olympus_Arena/Olympus_Arena.toc" }) do
 			local toc = assert(ReadFile(ROOT .. path))
 			eq(toc:match("## Version:%s*(%S+)"), ns.VERSION, path)
@@ -62501,7 +62501,7 @@ end)()
 			eq(f.title:IsShown(), false); eq(f.body:IsShown(), false); eq(f.all:IsShown(), false)
 			local versions = Lt.Versions()
 			eq(#versions, #Lt.LIST, "a letter for every version listed")
-			eq(table.concat(versions, " "), "1.4.3 1.4.2 1.4.1 1.4.0 1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
+			eq(table.concat(versions, " "), "1.4.4 1.4.3 1.4.2 1.4.1 1.4.0 1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
 			for i, v in ipairs(versions) do
 				local r = f.rows[i]
 				eq(r:IsShown(), true); eq(r.version, v)
