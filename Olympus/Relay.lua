@@ -238,8 +238,10 @@ function Relay.HandleIn(dist, sender, text)
 	end
 	local guild = body:match("^RR~(.+)$")
 	if guild then
+		local had = reporters[guild:lower()]
 		reporters[guild:lower()] = { name = ns.FullName(sender), t = now, guild = guild }
 		stats.registered = stats.registered + 1
+		if not had or had.name ~= ns.FullName(sender) then ns.Log("relay: %s's reporter is %s", guild, tostring(sender)) end
 		return true
 	end
 	local origin = ns.FullName(sender)
@@ -257,6 +259,9 @@ function Relay.HandleIn(dist, sender, text)
 		end
 	end
 	-- A relay in a guild whose reporter is elsewhere, or none: it hears the message itself too.
+	local n = 0
+	for _ in pairs(reporters) do n = n + 1 end
+	if not seen[Lower(origin) .. "|" .. body] then ns.Log("relay: %s's word (%s) to %d reporters", tostring(sender), body:sub(1, 2), n) end
 	Deliver(origin, body, flag == "L")
 	return true
 end
@@ -268,6 +273,7 @@ function Relay.HandleRelayed(dist, sender, text)
 	if not flag then return false end
 	if not Relay.IsRelay(sender) then stats.dropped = stats.dropped + 1 return false end
 	verified[ns.ShortName(sender):lower()] = Now()
+	if not seen[Lower(origin) .. "|" .. body] then ns.Log("relay: %s's word (%s) by %s", tostring(origin), body:sub(1, 2), tostring(sender)) end
 	if Deliver(origin, body, flag == "L") then ToGuild(flag, origin, body) end
 	return true
 end
@@ -285,6 +291,7 @@ end
 function Relay.HandleAck(dist, sender, text)
 	if dist ~= "WHISPER" or tostring(text) ~= "RY~" then return false end
 	local key = ns.ShortName(sender):lower()
+	if not verified[key] then ns.Log("relay: %s answers", tostring(sender)) end
 	verified[key] = Now()
 	pinged[key] = nil
 	offline[key] = nil
