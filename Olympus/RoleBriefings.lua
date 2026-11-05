@@ -323,10 +323,29 @@ function Brief.ShowPage()
 	if ns.Views and ns.Views.ShowPage then ns.Views.ShowPage("rolebriefings") end
 end
 
+-- (1.4.4, the author's ask) The letter as the window shows it: the version letter's parchment
+-- (Letters.ShowText), its own title, its words, the King's signature, and a button to the page
+-- of every duty letter (where a guild master's checklist and the letters' buttons live).
+function Brief.Window(e)
+	local parts = {}
+	if e.kind == "guildmaster" then
+		for _, key in ipairs({ "RB_GM_OPEN", "RB_GM_GET", "RB_GM_CLOSE" }) do
+			if type(L[key]) == "string" then parts[#parts + 1] = L[key] end
+		end
+	else
+		for _, text in ipairs(Body(e)) do parts[#parts + 1] = text end
+	end
+	return { head = L.RB_PAGE_TITLE, title = Brief.Title(e), body = table.concat(parts, "\n\n"), sign = L.HONOR_LETTER_SIGN,
+		button = L.RB_BACK, onButton = Brief.ShowPage }
+end
+
 function Brief.Open(id)
 	local e = Find(id)
 	if not e then return false, "missing" end
 	e.read, current, previewing = true, e.id, nil
+	-- (1.4.4) In a window of its own, like the version letter; the page keeps every letter.
+	local Lt = ns.Letters
+	if type(Lt) == "table" and type(Lt.ShowText) == "function" and Lt.ShowText(Brief.Window(e)) == true then return true end
 	Brief.ShowPage()
 	return true
 end

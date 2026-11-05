@@ -6938,18 +6938,25 @@ test("1.4.3 the relay: where names split, a channel message goes to the picked s
 		IsInGuild = function() return true end
 		GetGuildInfo = function() return "Olympus II", "Member", 3 end
 		-- The origin: a member whose module speaks on the channel.
-		local O, _, osent, _, opump, osentOf = RelayWorld("Orig Inal-Realm", "Olympus II")
+		local O, odeliver, osent, _, opump, osentOf = RelayWorld("Orig Inal-Realm", "Olympus II")
 		eq(O.Relay.On(), true)
-		local first = O.Relay.Pick()
+		local first, sure = O.Relay.Pick()
 		assert(first == "Hildryn Payne" or first == "Max Ran", "the pick: one of the signed relays: " .. tostring(first))
+		eq(sure, false, "(1.4.4) no relay answered yet")
 		local other = first == "Hildryn Payne" and "Max Ran" or "Hildryn Payne"
 		eq(O.Comm.ChannelReady(), true, "ready by the relay, no channel joined")
 		eq(O.Comm.Send("CHANNEL", "X1~hello"), true)
 		opump()
 		local rl = osentOf("RL~")
-		eq(#rl, 2, "the ping and the message")
-		eq(rl[1].msg, "RL~P~RP~"); eq(rl[1].dist, "WHISPER"); eq(rl[1].target, first, "the plain name")
-		eq(rl[2].msg, "RL~P~X1~hello"); eq(rl[2].target, first)
+		eq(#rl, 2, "(1.4.4) every relay pinged at once, the message held")
+		eq(rl[1].msg, "RL~P~RP~"); eq(rl[1].dist, "WHISPER"); eq(rl[1].target, "Hildryn Payne", "the plain name")
+		eq(rl[2].msg, "RL~P~RP~"); eq(rl[2].target, "Max Ran")
+		eq(O.Relay.Stats().pending, 1)
+		odeliver("WHISPER", first .. "-Realm", "RY~")
+		opump()
+		rl = osentOf("RL~P~X1~")
+		eq(#rl, 1, "the first answer takes it"); eq(rl[1].msg, "RL~P~X1~hello"); eq(rl[1].target, first)
+		eq(O.Relay.Stats().pending, 0)
 		eq(#osentOf("X1~"), 0, "nothing on the channel")
 		-- A chat line: logged at hop 1 (the origin's own words on the server's log).
 		eq(O.Comm.SendChat("M1~A~Olympus II~1~~hi"), true)
@@ -7021,6 +7028,10 @@ test("1.4.3 the relay: a relay that is offline (the server's word) or never answ
 		O.Comm.JoinChannel()
 		eq(O.Comm.Send("CHANNEL", "X1~a"), true)
 		opump()
+		eq(#osentOf("RL~P~X1~a"), 0, "(1.4.4) held until a relay answers")
+		eq(osentOf("RL~P~RP~")[1].target, other, "the one left pinged")
+		odeliver("WHISPER", other .. "-Realm", "RY~")
+		opump()
 		eq(osentOf("RL~P~X1~a")[1].target, other)
 		-- The ping unanswered: left out (the timer runs at once here).
 		local timers = {}
@@ -7028,12 +7039,15 @@ test("1.4.3 the relay: a relay that is offline (the server's word) or never answ
 		O.Relay.Reset()
 		eq(O.Comm.Send("CHANNEL", "X1~b"), true)
 		opump()
-		eq(#timers, 1, "the ping's wait")
-		local picked = O.Relay.Pick()
-		timers[1]()
-		assert(O.Relay.Pick() ~= picked, "the one that never answered is left out")
-		odeliver("WHISPER", O.Relay.Pick() .. "-Realm", "RY~")
+		eq(#timers, 3, "(1.4.4) the two pings' waits and the hold")
+		timers[1]() -- (Hildryn's ping, the first by name, unanswered)
+		eq(O.Relay.Pick(), "Max Ran", "the one that never answered is left out")
 		eq(O.Relay.Stats().dead, 1)
+		timers[3]() -- PING_WAIT past with no answer: to the pick anyway, as 1.4.3 did
+		opump()
+		eq(osentOf("RL~P~X1~b")[1].target, "Max Ran")
+		odeliver("WHISPER", "Max Ran-Realm", "RY~")
+		eq(select(2, O.Relay.Pick()), true, "answered: sure")
 		-- Both out: the channel as before.
 		O.Relay.NotFound(("No player named '%s' is currently playing."):format(O.Relay.Pick()))
 		eq(O.Relay.Pick(), nil)
@@ -7045,9 +7059,10 @@ test("1.4.3 the relay: a relay that is offline (the server's word) or never answ
 		-- The reporter registers with its relay (MaybeBroadcast calls it) every REGISTER_EVERY.
 		O.Relay.Reset()
 		wipe(osent)
+		odeliver("WHISPER", "Max Ran-Realm", "RY~") -- (a relay known to answer: nothing held)
 		eq(O.Relay.Register(), true)
 		opump()
-		assert(osentOf("RL~P~RR~Olympus II")[1].target ~= nil, "registered with a relay")
+		eq(osentOf("RL~P~RR~Olympus II")[1].target, "Max Ran", "registered with the relay that answered")
 		eq(O.Relay.Register(), false, "not again yet")
 		O.clock = O.clock + O.Relay.REGISTER_EVERY
 		eq(O.Relay.Register(), true)
@@ -7063,6 +7078,80 @@ test("1.4.3 the relay: a relay that is offline (the server's word) or never answ
 		eq(O.Relay.Stats().delivered, 0, "a relayed message is not taken off Forever")
 	end)
 	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild, ERR_CHAT_PLAYER_NOT_FOUND_S = saved.channel, saved.member, saved.guild, saved.inGuild, saved.nf
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
+test("1.4.4 the relay: the first message with no relay answered pings every relay at once and waits, each ping's no-player line kept out of the chat; the first answer takes what waits, to that relay; a keyed message held takes the waiting one's place; past PENDING_MAX the oldest is dropped, its callback told; past PING_WAIT with no answer it goes to the pick anyway; an answered relay is preferred until VERIFIED_FOR; a reporter's hop 2 is quieted too; Reset clears what waits", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "Olympus II", "Member", 3 end
+		local O, odeliver, osent, _, opump, osentOf = RelayWorld("Orig Inal-Realm", "Olympus II")
+		local quieted, timers, dones = {}, {}, {}
+		O.Accord = { Quiet = function(n) quieted[#quieted + 1] = n end }
+		O.After = function(_, _, fn) timers[#timers + 1] = fn end
+		-- Held, every relay pinged at once, each ping's name quieted.
+		eq(O.Comm.Send("CHANNEL", "X1~one", "k1", false, false, function(sent) dones[#dones + 1] = sent end), true)
+		opump()
+		local pings = osentOf("RL~P~RP~")
+		eq(#pings, 2); eq(pings[1].target, "Hildryn Payne"); eq(pings[2].target, "Max Ran")
+		eq(table.concat(quieted, ","), "Hildryn Payne,Max Ran", "the server's no-player line for each ping out of the chat")
+		eq(#osentOf("RL~P~X1~"), 0, "held"); eq(O.Relay.Stats().pending, 1); eq(O.Relay.Stats().sure, false)
+		eq(#timers, 3, "the two pings' waits and the hold")
+		-- The same key again takes the first's place; another waits behind it; no second ping meanwhile.
+		eq(O.Comm.Send("CHANNEL", "X1~one again", "k1"), true)
+		eq(O.Comm.Send("CHANNEL", "X1~two"), true)
+		opump()
+		eq(O.Relay.Stats().pending, 2); eq(#osentOf("RL~P~RP~"), 2, "no second ping while the first waits"); eq(#timers, 3)
+		-- Past PENDING_MAX: the oldest dropped, its callback told false.
+		O.Relay.PENDING_MAX = 2
+		eq(O.Comm.Send("CHANNEL", "X1~three"), true)
+		eq(O.Relay.Stats().pending, 2); eq(#dones, 1); eq(dones[1], false, "the dropped one's callback")
+		O.Relay.PENDING_MAX = 40
+		-- The first answer: what waits goes to that relay, in order, quieted too.
+		wipe(quieted)
+		odeliver("WHISPER", "Max Ran-Realm", "RY~")
+		opump()
+		local out = osentOf("RL~P~X1~")
+		eq(#out, 2); eq(out[1].msg, "RL~P~X1~two"); eq(out[1].target, "Max Ran"); eq(out[2].msg, "RL~P~X1~three"); eq(out[2].target, "Max Ran")
+		eq(table.concat(quieted, ","), "Max Ran,Max Ran")
+		eq(O.Relay.Stats().pending, 0); eq(O.Relay.Stats().sure, true); eq(O.Relay.Pick(), "Max Ran", "the one that answered, while any did")
+		-- The next message goes straight out, no new ping (it answered within DEAD_FOR).
+		eq(O.Comm.Send("CHANNEL", "X1~four"), true)
+		opump()
+		eq(#osentOf("RL~P~RP~"), 2); eq(osentOf("RL~P~X1~four")[1].target, "Max Ran")
+		-- Hildryn's ping unanswered: left out; the hold's timer with nothing waiting: nothing sent.
+		timers[1](); eq(O.Relay.Stats().dead, 1)
+		timers[3](); opump()
+		eq(#osentOf("RL~P~X1~"), 3)
+		-- VERIFIED_FOR past (and DEAD_FOR, so Hildryn is tried again): not sure, the next message held
+		-- and both pinged again; PING_WAIT past with no answer: to the pick anyway, as 1.4.3 did.
+		O.clock = O.clock + O.Relay.VERIFIED_FOR
+		eq(O.Relay.Stats().sure, false)
+		wipe(osent); wipe(timers)
+		eq(O.Comm.Send("CHANNEL", "X1~five"), true)
+		opump()
+		eq(#osentOf("RL~P~RP~"), 2, "both pinged again"); eq(#osentOf("RL~P~X1~"), 0, "held"); eq(#timers, 3)
+		local pick = O.Relay.Pick()
+		timers[3](); opump()
+		eq(osentOf("RL~P~X1~five")[1].target, pick)
+		-- Reset clears what waits.
+		eq(O.Comm.Send("CHANNEL", "X1~six"), true)
+		eq(O.Relay.Stats().pending, 1)
+		O.Relay.Reset()
+		eq(O.Relay.Stats().pending, 0)
+		-- The relay's hop 2 to a reporter is quieted too (a reporter gone offline since).
+		local R, rdeliver = RelayWorld("Hildryn Payne-Realm", "Olympus II")
+		local rquiet = {}
+		R.Accord = { Quiet = function(n) rquiet[#rquiet + 1] = n end }
+		rdeliver("WHISPER", "Zed Far-Realm", "RL~P~RR~Olympus Zeus")
+		rdeliver("WHISPER", "Orig Inal-Realm", "RL~P~X1~hello")
+		eq(table.concat(rquiet, ","), "Zed Far-Realm", "the reporter's name quieted before hop 2")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
 	C_ChatInfo = nil
 	if not ok then error(err, 0) end
 end)
@@ -22743,8 +22832,10 @@ end
 --   layoutIndex and the key MemberFrame<i> on PartyFrame. A member frame keeps its own label
 --   (PartyMember#k) whatever place it shows; its CreateTexture makes textures as a container's.
 --   Its own regions, as Mainline/PartyFrameTemplates.xml lays them out (w.partyRegions): the
---   Portrait (BACKGROUND, 37 x 37 at 7, -6), its ring Texture and the member's Name (both ARTWORK,
---   sublevel 0; the Name 57 x 12 at 46, -6, UpdateNameTextAnchors), as plain data.
+--   Portrait (BACKGROUND, 37 x 37 at 7, -6), its ring Texture, its Flash (the threat indicator
+--   UnitFrame_Initialize gets, Mainline/PartyMemberFrame.lua: the in-combat glow, tinted by the
+--   client's GetThreatStatusColor) and the member's Name (all ARTWORK, sublevel 0; the Name 55 x 12
+--   at 48, -7 and the Flash at 1, -1 as Camelot's own PartyMemberFrame.lua lays them out), as plain data.
 local BORDER_GLOBALS = { "TargetFrame", "FocusFrame", "PlayerFrame", "hooksecurefunc", "UnitExists", "UnitIsPlayer", "UnitGUID",
 	"UnitFactionGroup", "UnitFullName", "GetUnitName", "GetGuildInfo", "IsInGuild", "InCombatLockdown", "issecretvalue", "C_Texture",
 	"C_InputInterfaceStyle", "PartyFrame" }
@@ -22842,7 +22933,8 @@ local function WithBorders(fn, setup)
 		w.partyRegions = {
 			Portrait = { layer = "BACKGROUND", sub = 0, x = 7, y = -6, width = 37, height = 37 },
 			Texture = { layer = "ARTWORK", sub = 0, x = 1, y = -2 },
-			Name = { layer = "ARTWORK", sub = 0, x = 46, y = -6, width = 57, height = 12, fontString = true },
+			Flash = { layer = "ARTWORK", sub = 0, x = 1, y = -1 },
+			Name = { layer = "ARTWORK", sub = 0, x = 48, y = -7, width = 55, height = 12, fontString = true },
 		}
 		-- (shown false: PartyFrame not shown yet, so no member frame handed out.)
 		w.party = function(shown)
@@ -22855,6 +22947,8 @@ local function WithBorders(fn, setup)
 				for key, region in pairs(w.partyRegions) do
 					local copy = {}
 					for field, v in pairs(region) do copy[field] = v end
+					-- (1.4.4: a region's draw layer can be moved, as the game's regions' can.)
+					copy.SetDrawLayer = function(self, layer, sub) self.layer, self.sub = layer, sub or 0 end
 					rawset(f, key, copy)
 				end
 				rawset(f, "CreateTexture", function(_, _, layer, _, sub)
@@ -24435,12 +24529,26 @@ do
 			-- three, then the two without wings).
 			eq(#w.textures, 45, "six borders (1.1.6: the Treasurer's dragon too) (1.1.5: three, then the two without wings) on the target, the focus, your own and the four party frames, and the metal underlay on the first three (1.2)")
 			local seen = {}
-			local regions = w.partyRegions
+			local regions = w.partyRegions -- (the template: the sizes and places below)
+			-- (1.4.4, the dev's ask: the dragons over the game's ring on the party portraits too.) Each
+			-- member frame's own regions, as the rig left them: the ring where it was (ARTWORK 0), the
+			-- name and the threat glow moved up (ARTWORK 2), the border between (ARTWORK 1).
+			for k = 1, 4 do
+				local f = w.partyFrames[k]
+				eq(f.Texture.layer .. f.Texture.sub, "ARTWORK0", "the ring stays")
+				eq(f.Name.layer .. f.Name.sub, "ARTWORK2", "the name moved up, over the border")
+				eq(f.Flash.layer .. f.Flash.sub, "ARTWORK2", "the threat glow moved up, over the border")
+				eq(f.Portrait.layer, "BACKGROUND")
+			end
 			for _, tex in ipairs(w.textures) do
 				if tex.owner:find("^PartyMember#") then
+					local regions = w.partyFrames[tonumber(tex.owner:match("#(%d)"))]
 					assert(DrawOrder(tex) > DrawOrder(regions.Portrait), tex.owner .. ": over the portrait")
+					assert(DrawOrder(tex) > DrawOrder(regions.Texture), tex.owner .. ": over the frame's ring (1.4.4)")
 					assert(DrawOrder(tex) < DrawOrder(regions.Name), tex.owner .. ": under the member's name, not over its first letters")
-					assert(DrawOrder(tex) < DrawOrder(regions.Texture), tex.owner .. ": so under the frame's ring too (the name's layer and sublevel)")
+					-- (1.4.3: and under its threat glow, the game's aggro warning, red while he holds a mob's
+					-- threat: it must stay in sight, so it may cover the border; see the 1.4.3 test below.)
+					assert(DrawOrder(tex) < DrawOrder(regions.Flash), tex.owner .. ": under the frame's in-combat glow (the game's threat indicator)")
 					eq(tex.color, nil, "no tint"); eq(tex.desaturated, nil, "no desaturation")
 					local key = tex.owner .. " " .. w.tierOf(tex)
 					assert(not seen[key], "one texture per border and frame: " .. key)
@@ -24491,6 +24599,85 @@ do
 			for k = 1, 4 do eq(made["PartyMember#" .. k .. ":CreateTexture"], 6) end
 			eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification PartyFrame.InitializePartyMemberFrames")
 			assert(w.B.StatusLine():find("player -, party1 gold-elite, party2 silver-elite, party3 bronze-elite, party4 -", 1, true), w.B.StatusLine())
+		end)
+	end)
+
+	-- 1.4.3 (the dev's report from the launch night: a party member's ring "fully red", a tier
+	-- Olympus has not). Nothing of Olympus's: a tier's art gets no vertex colour (Dress), and what is
+	-- tinted elsewhere (an honour's metal underlay, an Apostle's black own look, the Wanted skeletal
+	-- horse) never reaches a member frame (ShowHonor: the rank's borders alone there, the honour on
+	-- the target frame). The red is the game's own: the member frame's Flash, its threat indicator
+	-- (Mainline/PartyMemberFrame.lua, UnitFrame_Initialize), the in-combat glow the client tints by
+	-- GetThreatStatusColor (red while he holds a mob's threat) at ARTWORK 0, over the border (the
+	-- test above); under a fifth of his health the portrait itself (:794). Both stay with the
+	-- borders off, which is how to tell them apart in game.
+	test("1.4.3 party borders: no texture of Olympus's on a member frame is ever tinted or desaturated, whatever the member holds (a Most Wanted frame, an honour, no frame by his own choice): the rank's border alone there, the honour on his target frame; /oly borders off leaves the frame to the game", function()
+		WithBorders(function(w)
+			ns.Borders = w.B -- (the slash command's: the stand-in otherwise)
+			local HONORS = "Interface\\AddOns\\Olympus\\media\\honors\\"
+			local picks = {}
+			rawset(w.ns, "HonorsNet", {
+				FrameTexture = function(key)
+					if key == "arena-champion" then return HONORS .. "gryphon-gold", "winged" end
+					if key == "wanted-slayer" then return HONORS .. "skeletal-horse-black", "plain" end
+				end,
+				Verified = function(who) return picks[who] end })
+			rawset(w.ns, "Honors", { ArtOf = function() return "gryphon-gold", "winged", "gold" end })
+			rawset(w.ns, "Wanted", { GlobalBorder = function(who) if who == "Sage Owl-Realm" then return "wanted-slayer" end end })
+			picks["Zeusy-Realm"] = { frame = "arena-champion" }
+			w.party()
+			Party(w, PARTY_KING, PARTY_COUNCILLOR, PARTY_MASTER, PARTY_PLAIN)
+			w.internal("LOGIN")
+			-- The stubs live: on the target frame the councillor wears the Wanted frame and the guild
+			-- master his honour, each a texture of its file on the target's container...
+			local function OnTarget(file)
+				for _, tex in ipairs(w.textures) do
+					if tex.owner == CONTAINER_OF.target and tex.file == file and tex.shown then return tex end
+				end
+				return nil
+			end
+			w.target(PARTY_COUNCILLOR)
+			assert(OnTarget(HONORS .. "skeletal-horse-black"), "the Wanted frame round the councillor on the target frame")
+			w.target(PARTY_MASTER)
+			assert(OnTarget(HONORS .. "gryphon-gold"), "the guild master's honour on the target frame")
+			-- ...and on their party frames the rank's border alone, as on everyone's.
+			eq(PartyLine(w), "gold-elite silver-elite bronze-elite -", "the ranks' borders, never an honour or the Wanted frame")
+			-- One who chose no frame (HonorsNet.Verified: none): none on his party frame either, as on the target.
+			picks["Zeusy-Realm"] = { frame = "none" }
+			w.B.Refresh("party3", true)
+			eq(PartyLine(w), "gold-elite silver-elite - -", "no frame by his own choice")
+			w.target(PARTY_MASTER)
+			eq(w.shownTexture("target"), nil, "none on the target frame either")
+			picks["Zeusy-Realm"] = nil
+			w.B.Refresh("party3", true)
+			eq(PartyLine(w), "gold-elite silver-elite bronze-elite -")
+			-- Six textures on each member frame, every one a tier's art, never tinted, blended or
+			-- desaturated since it was made: no red of Olympus's.
+			local made = {}
+			for _, entry in ipairs(w.log) do made[entry] = (made[entry] or 0) + 1 end
+			for k = 1, 4 do eq(made["PartyMember#" .. k .. ":CreateTexture"], 6, "no honour texture on a member frame") end
+			local n = 0
+			for _, tex in ipairs(w.textures) do
+				if tex.owner:find("^PartyMember#") then
+					n = n + 1
+					assert(w.tierOf(tex) ~= "?", tex.owner .. ": a tier's art")
+					eq(tex.color, nil, tex.owner .. ": no tint"); eq(tex.desaturated, nil, tex.owner .. ": no desaturation")
+					for _, m in ipairs(tex.calls) do
+						assert(m ~= "SetVertexColor" and m ~= "SetDesaturated" and m ~= "SetBlendMode" and m ~= "SetAlpha", tex.owner .. ": " .. m)
+					end
+				end
+			end
+			eq(n, 24)
+			-- /oly borders off: every texture of Olympus's hidden; what a party frame shows then (a red
+			-- ring, a red portrait) is the game's.
+			SlashCmdList.OLYMPUS("borders off")
+			eq(PartyLine(w), "- - - -")
+			for _, tex in ipairs(w.textures) do
+				if tex.owner:find("^PartyMember#") then eq(tex.shown, false, tex.owner .. ": hidden with the borders off") end
+			end
+			SlashCmdList.OLYMPUS("borders on")
+			eq(PartyLine(w), "gold-elite silver-elite bronze-elite -")
+			OnlyCreateTexture(w)
 		end)
 	end)
 
@@ -61578,9 +61765,9 @@ end)()
 	end)
 
 	test("1.4.0: the version, the TOC's files in order, the new message types in Comm.lua's list", function()
-		eq(ns.VERSION, "1.4.3") -- the release has one identity in both folders
+		eq(ns.VERSION, "1.4.4") -- the release has one identity in both folders
 		local toc = assert(ReadFile(ADDON_DIR .. "Olympus.toc"))
-		assert(toc:find("## Version: 1.4.3", 1, true))
+		assert(toc:find("## Version: 1.4.4", 1, true))
 		eq(ns.Workshop.Newer("1.4.0", "1.3.3"), true, "the launch release is newer")
 		eq(ns.Workshop.Newer("1.3.3", "1.4.0"), false)
 		eq(ns.Workshop.Newer("1.4.1", "1.4.0"), true, "the next patch remains newer")
@@ -62027,7 +62214,7 @@ end)()
 	end
 
 	test("1.4.0 version letters: release identity agrees across both TOCs and localized letters; reading the old release does not hide the new letter", function()
-		eq(ns.VERSION, "1.4.3")
+		eq(ns.VERSION, "1.4.4")
 		for _, path in ipairs({ "Olympus/Olympus.toc", "Olympus_Arena/Olympus_Arena.toc" }) do
 			local toc = assert(ReadFile(ROOT .. path))
 			eq(toc:match("## Version:%s*(%S+)"), ns.VERSION, path)
@@ -62492,6 +62679,31 @@ end)()
 		end)
 	end)
 
+	test("1.4.4 version letters: another letter on the same window (ShowText, a duty letter's): its own window title, words, signature and button, nothing marked read; the version letter after it takes the window back with its All letters button", function()
+		WithLetters(function(w)
+			local Lt = w.Letters
+			local went = 0
+			eq(Lt.ShowText({}), false, "a title and words are needed")
+			eq(Lt.ShowText({ head = "Letters for your offices", title = "To the Guild Master", body = "First words.\n\n- an item", sign = "- The King", button = "< All duty letters", onButton = function() went = went + 1 end }), true)
+			local f = Lt.Frame()
+			eq(f:IsShown(), true); eq(f.titleText, "Letters for your offices"); eq(f.mode, "text"); eq(f.version, nil)
+			eq(f.title:GetText(), "To the Guild Master"); eq(f.body:GetText(), "First words.\n\n- an item"); eq(f.sign:GetText(), "- The King")
+			eq(f.title:IsShown(), true); eq(f.body:IsShown(), true); eq(f.link:IsShown(), false)
+			eq(f.all:IsShown(), true); assert(f.all.onText ~= nil, "the caller's button")
+			f.all:GetScript("OnClick")(f.all)
+			eq(went, 1, "the caller's button clicked")
+			eq(Lt.IsRead(ns.VERSION), false, "nothing marked read")
+			-- Without a button of its own: none.
+			eq(Lt.ShowText({ title = "A note", body = "Words." }), true)
+			eq(f.all:IsShown(), false); eq(f.titleText, L.LETTERS_TITLE); eq(f.sign:GetText(), L.LETTER_SIGNED)
+			-- The version letter takes the window back, with its own button.
+			eq(Lt.Show(ns.VERSION), true)
+			eq(f.mode, "letter"); eq(f.all.onText, nil); eq(f.all:IsShown(), true)
+			f.all:GetScript("OnClick")(f.all)
+			eq(f.title:IsShown(), false, "All letters again")
+		end)
+	end)
+
 	test("1.1.5 version letters: the list, newest first, a click opens that version's letter, All letters goes back; its X and Close hide it in combat too; with the gamepad UI it stays off the escape list", function()
 		WithLetters(function(w)
 			local Lt = w.Letters
@@ -62501,7 +62713,7 @@ end)()
 			eq(f.title:IsShown(), false); eq(f.body:IsShown(), false); eq(f.all:IsShown(), false)
 			local versions = Lt.Versions()
 			eq(#versions, #Lt.LIST, "a letter for every version listed")
-			eq(table.concat(versions, " "), "1.4.3 1.4.2 1.4.1 1.4.0 1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
+			eq(table.concat(versions, " "), "1.4.4 1.4.3 1.4.2 1.4.1 1.4.0 1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
 			for i, v in ipairs(versions) do
 				local r = f.rows[i]
 				eq(r:IsShown(), true); eq(r.version, v)

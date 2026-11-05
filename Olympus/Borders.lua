@@ -32,14 +32,15 @@ local L = ns.L
 --
 -- The party's frames (1.1.5, the author's ask: in a group the portraits under your own had none):
 -- Forever's PartyFrame (Blizzard_UnitFrame's Shared/PartyFrame.lua and Mainline/
--- PartyFrameTemplates.xml; Camelot overrides neither) takes its four PartyMemberFrameTemplate
+-- PartyFrameTemplates.xml; Camelot overrides neither file, its own PartyMemberFrame.lua only moves
+-- the name to 48, -7 and the glows a pixel or two) takes its four PartyMemberFrameTemplate
 -- buttons from a frame pool. Each has a 37 x 37 portrait (BACKGROUND) 7 px from its left and 6 px
--- from its top, and no container: Olympus's textures go on the member frame itself. Not over its
--- own art as on the target: the member's name is on that same frame, in the layer and sublevel of
--- its ring (both ARTWORK 0, its Name from 46 px in), where the target's is on a frame of its own
--- far from the art, and the art's top tip (the dragon's head) reaches some 5 px into the name. So
--- at ARTWORK sublevel -1: over the portrait, under the frame's ring, its name and the rest of its
--- art (the game's ring then over the border's inner edge). A border is the
+-- from its top, and no container: Olympus's textures go on the member frame itself, over its ring
+-- as on the target (1.4.4; 1.1.5 to 1.4.3 had them under it, since the member's name is on that
+-- same frame, in the layer and sublevel of its ring, both ARTWORK 0, its Name from 46 px in, and
+-- the art's top tip, the dragon's head, reaches some 5 px into the name: now the name and the
+-- threat glow are moved one sublevel up by PartyRig, over the border, as the target's are on a
+-- frame of their own above the art; see PARTY_SUBLEVEL). A border is the
 -- target's art and offsets scaled by 37/58 (the target's portrait is 58 x 58, 26 px from its
 -- container's right and 19 px from its top, Mainline/TargetFrame.xml) about the portrait's top
 -- corner, and turned round as on your own frame (the portrait on the left): an atlas at the
@@ -243,7 +244,25 @@ local IN_PARTY = { party1 = true, party2 = true, party3 = true, party4 = true }
 local TARGET_PORTRAIT, TARGET_RIGHT, TARGET_TOP = 58, 26, 19 -- (from its container's top right)
 local PARTY_PORTRAIT, PARTY_LEFT, PARTY_TOP = 37, 7, 6       -- (from its frame's top left)
 local PARTY_SCALE = PARTY_PORTRAIT / TARGET_PORTRAIT
-local PARTY_SUBLEVEL = -1 -- (ARTWORK: under the member frame's ring and name, ARTWORK 0)
+-- The member frame's own regions round a party border (1.4.3, the dev's report from the launch
+-- night: a member's ring "fully red", a tier Olympus has not; the dragons under the frame): its
+-- Portrait (BACKGROUND); its ring Texture, its Name and its Flash, all ARTWORK 0 (the Flash is the
+-- in-combat glow, the frame's threat indicator since UnitFrame_Initialize, Mainline/
+-- PartyMemberFrame.lua, tinted by the client's GetThreatStatusColor: yellow, orange, red while he
+-- holds a mob's threat); and every child frame (the overlay's leader, role, PvP and offline icons,
+-- the ready check), always above. Under a fifth of his health the game turns the portrait itself
+-- red (:794). Olympus tints nothing here: a tier's art gets no vertex colour (Dress), and an
+-- honour, a Most Wanted frame or an own look never shows on a party frame (ShowHonor). A solid
+-- red ring round a party portrait is the game's aggro warning, and stays with /oly borders off.
+-- No party member frame has a raid target icon: the game's is on the target and focus frames
+-- alone (TargetFrameContentContextual, a frame above the container Olympus draws on: Mainline/
+-- TargetFrame.xml).
+-- 1.4.4 (the dev's ask: the dragons over the game's ring on the party portraits, as on the
+-- target): the border draws at ARTWORK 1, over the ring (0), and PartyRig moves the frame's Name
+-- and Flash up to ARTWORK 2, so the name's first letters (the wings' tip reaches past them, the
+-- 1.1.5 review) and the aggro warning stay in sight over the border, as both do over the game's
+-- own elite art on the target frame, where they are on a frame above.
+local PARTY_SUBLEVEL = 1 -- (ARTWORK: over the member frame's ring, under its name and threat glow once raised)
 local TRACKED = { target = true, focus = true, player = true, party1 = true, party2 = true, party3 = true, party4 = true }
 
 local rigs = {}  -- [unit] = { tex = { [tier name] = texture }, honor = { [shape or sized family] = texture } (not the party's), shown = key or nil }
@@ -698,6 +717,13 @@ end
 -- portrait as is. (An honour's frame never shows here: ShowHonor, the rank's borders alone.)
 local function PartyRig(frame)
 	local s = PARTY_SCALE
+	-- (1.4.4) The frame's name and threat glow one sublevel over the border (see PARTY_SUBLEVEL).
+	for _, key in ipairs({ "Name", "Flash" }) do
+		local region = frame[key] -- gp:borders
+		if type(region) == "table" and type(region.SetDrawLayer) == "function" then
+			pcall(region.SetDrawLayer, region, "ARTWORK", PARTY_SUBLEVEL + 1) -- gp:borders
+		end
+	end
 	local rig = MakeRig(frame, true, s, function(tex, t)
 		local p = type(t.party) == "table" and t.party or t
 		tex:SetPoint("TOPLEFT", frame, "TOPLEFT", PARTY_LEFT - ((p.x or t.x) + TARGET_RIGHT) * s, ((p.y or t.y) + TARGET_TOP) * s - PARTY_TOP)

@@ -34,9 +34,19 @@ ns.Relay = Relay
 -- lets a stranger speak as the King: his words still reach the guilds only through those clients.
 -- Off Forever (the beta, Era, Anniversary) nothing here runs and the channel works as before.
 
+--
+-- 1.4.4 (the morning after): with one live relay among twenty signed names, a guild took up to an
+-- hour to find it, picking one name at a time and waiting PING_WAIT for each. Now the first message
+-- with no relay answered yet pings every relay at once (Sweep), is held for the first answer
+-- (Flush, from HandleAck) and goes to whoever answered; the pick is made among the relays that
+-- answered (VERIFIED_FOR) while any did. The server's "No player named X" for each ping to an
+-- offline relay is kept out of the chat (Accord.Quiet) and still read (NotFound).
+
 Relay.PICK_WINDOW = 600      -- seconds one relay serves a guild before the pick moves on
 Relay.DEAD_FOR = 600         -- a relay that did not answer, or is offline, is left out this long
 Relay.PING_WAIT = 30         -- an answer to the ping is due within this
+Relay.VERIFIED_FOR = 900     -- a relay that answered is preferred this long (pinged again after DEAD_FOR)
+Relay.PENDING_MAX = 40       -- messages held while no relay has answered yet
 Relay.REGISTER_EVERY = 170   -- a reporter tells its relay it is the reporter this often
 Relay.REPORTER_FOR = 600     -- a relay keeps a reporter this long past its last registration
 Relay.SEEN_FOR = 300         -- a message taken is remembered this long (a second copy counts once)
@@ -49,12 +59,16 @@ local pinged = {}    -- relay name (lower) -> when we pinged it, while an answer
 local reporters = {} -- (on a relay) guild name (lower) -> { name = "First Surname-Realm", t = when }
 local seen = {}      -- origin .. "|" .. text -> when
 local seenCount = 0
+local pending = {}   -- (1.4.4) what waits for the first relay to answer: { parts, logged, done, key, urgent, options }
+local holding = false -- a timer runs to send what waits anyway after PING_WAIT
+local flushing = false
 local stats = { out = 0, forwarded = 0, delivered = 0, dropped = 0, dead = 0, registered = 0 }
 function Relay.Stats()
 	local n = 0
 	for _, r in pairs(reporters) do n = n + 1 end
+	local relay, sure = Relay.Pick()
 	return { out = stats.out, forwarded = stats.forwarded, delivered = stats.delivered, dropped = stats.dropped,
-		dead = stats.dead, reporters = n, relay = Relay.Pick(), on = Relay.On() }
+		dead = stats.dead, reporters = n, relay = relay, sure = sure == true, pending = #pending, on = Relay.On() }
 end
 
 local function Now() return ns.Now() end
@@ -104,19 +118,27 @@ local function Hash(text)
 	for i = 1, #text do h = (h * 33 + text:byte(i)) % 2147483647 end
 	return h
 end
--- The relay this client whispers to now: among those not left out, the one our guild's name and
--- the window pick; nil without any (then the channel, as before).
+-- The relay this client whispers to now, and whether it is sure: among the relays that answered
+-- a ping within VERIFIED_FOR (our own client counts, when it is a relay: no whisper needed), the
+-- one our guild's name and the window pick, sure; with none answered yet, the same among those
+-- not left out, not sure (Out then holds the message and pings them all); nil without any (then
+-- the channel, as before).
 function Relay.Pick()
 	if not Relay.On() then return nil end
 	local now = Now()
-	local names = Relay.Names(true) -- (our own client too, when it is a relay: no whisper needed)
-	local live = {}
-	for _, n in ipairs(names) do
-		if (offline[n:lower()] or 0) <= now then live[#live + 1] = n end
+	local mine = ns.ShortName(ns.me or ""):lower()
+	local live, answered = {}, {}
+	for _, n in ipairs(Relay.Names(true)) do
+		local key = n:lower()
+		if (offline[key] or 0) <= now then
+			live[#live + 1] = n
+			if key == mine or now - (verified[key] or -math.huge) < Relay.VERIFIED_FOR then answered[#answered + 1] = n end
+		end
 	end
-	if #live == 0 then return nil end
+	local pool = #answered > 0 and answered or live
+	if #pool == 0 then return nil end
 	local seed = Lower(GetGuildInfo and GetGuildInfo("player") or ns.me or "") .. "#" .. tostring(math.floor(now / Relay.PICK_WINDOW))
-	return live[(Hash(seed) % #live) + 1]
+	return pool[(Hash(seed) % #pool) + 1], #answered > 0
 end
 
 local function LeaveOut(name, why)
@@ -138,13 +160,22 @@ local function Envelope(kind, text)
 end
 
 -- A relay not answered lately is pinged once; no answer in PING_WAIT leaves it out.
+-- The server's "No player named X" for a whisper to someone offline: kept out of the chat for the
+-- Accord's quiet window (Accord.Quiet, gated there); NotFound still reads the event.
+local function Quiet(name)
+	local A = ns.Accord
+	if type(A) == "table" and type(A.Quiet) == "function" then ns.SafeCall("relay quiet", A.Quiet, name) end
+end
+Relay.Quiet = Quiet
+
 local function Ping(relay)
 	local key = relay:lower()
 	local now = Now()
 	if now - (verified[key] or -math.huge) < Relay.DEAD_FOR then return end
 	if pinged[key] then return end
 	pinged[key] = now
-	ns.Comm.Whisper(relay, "RL~P~RP~", "relay ping", true)
+	Quiet(relay)
+	ns.Comm.Whisper(relay, "RL~P~RP~", "relay ping:" .. key, true)
 	ns.After(Relay.PING_WAIT, "relay ping", function()
 		if pinged[key] == now and now - (verified[key] or -math.huge) >= Relay.DEAD_FOR then
 			pinged[key] = nil
@@ -152,12 +183,72 @@ local function Ping(relay)
 		end
 	end)
 end
+-- (1.4.4) Every relay not answered yet, pinged at once (one short whisper each): the first answer
+-- takes what waits (HandleAck -> Flush); the offline ones the server names at once (NotFound), the
+-- rest fall out after PING_WAIT, and each stays out for DEAD_FOR before it is pinged again.
+local function Sweep()
+	local now = Now()
+	for _, n in ipairs(Relay.Names(false)) do
+		if (offline[n:lower()] or 0) <= now then Ping(n) end
+	end
+end
+Relay.Sweep = Sweep
+
+-- Held for the first relay to answer. A keyed message takes a waiting one's place, as in Comm's
+-- queue (the newest payload, a supplied callback replaces the old one); past PENDING_MAX the
+-- oldest is dropped (its callback told).
+local function Hold(parts, logged, done, key, urgent, options)
+	if key then
+		for _, p in ipairs(pending) do
+			if p.key == key then
+				p.parts, p.logged, p.urgent, p.options = parts, logged, urgent, options
+				p.done = done or p.done
+				return
+			end
+		end
+	end
+	if #pending >= Relay.PENDING_MAX then
+		local old = table.remove(pending, 1)
+		if old.done then ns.SafeCall("relay done", old.done, false) end
+	end
+	pending[#pending + 1] = { parts = parts, logged = logged, done = done, key = key, urgent = urgent, options = options }
+end
+-- What waited goes out to the relay picked now: once one answered, or anyway after PING_WAIT (to
+-- the pick as 1.4.3 did; an older relay may not hear it, and registrations and the census repeat).
+local function Flush(anyway)
+	if flushing or #pending == 0 then return end
+	local _, sure = Relay.Pick()
+	if not sure and not anyway then return end
+	flushing = true
+	local list = pending
+	pending = {}
+	for _, p in ipairs(list) do
+		if not Relay.Out(p.parts, p.logged, p.done, p.key, p.urgent, p.options, true) and p.done then
+			ns.SafeCall("relay done", p.done, false)
+		end
+	end
+	flushing = false
+end
+Relay.Flush = Flush
 
 -- Hop 1: what a module said "on the channel" goes to our relay. parts: the message's pieces as the
 -- channel would carry them (each one whisper). Returns true when handed to the queue.
-function Relay.Out(parts, logged, done, key, urgent, options)
-	local relay = Relay.Pick()
+function Relay.Out(parts, logged, done, key, urgent, options, anyway)
+	local relay, sure = Relay.Pick()
 	if not relay then return false end
+	if not sure and not anyway then
+		-- (1.4.4) No relay answered yet: all pinged at once, the message held for the first answer.
+		Sweep()
+		Hold(parts, logged, done, key, urgent, options)
+		if not holding then
+			holding = true
+			ns.After(Relay.PING_WAIT + 1, "relay hold", function()
+				holding = false
+				Flush(true)
+			end)
+		end
+		return true
+	end
 	local flag = logged and "L" or "P"
 	-- Our own client the relay: handed to it here, whole (a whisper to oneself is never delivered).
 	if relay:lower() == ns.ShortName(ns.me or ""):lower() then
@@ -172,6 +263,7 @@ function Relay.Out(parts, logged, done, key, urgent, options)
 	end
 	if #pieces == 0 or #pieces > ns.Codec.MAX_CHUNKS then return false end
 	Ping(relay)
+	Quiet(relay)
 	stats.out = stats.out + 1
 	local pass = options and { owner = options.owner, guard = options.guard, guardKey = options.guardKey, permit = options.permit } or nil
 	if #pieces == 1 then
@@ -254,6 +346,7 @@ function Relay.HandleIn(dist, sender, text)
 		else
 			pieces = pieces or Envelope("RM", "RM~" .. flag .. "~" .. origin .. "~" .. body)
 			stats.forwarded = stats.forwarded + 1
+			Quiet(r.name) -- (a reporter gone offline since: the server's line out of the chat)
 			if #pieces == 1 then ns.Comm.Whisper(r.name, pieces[1], nil, false, false)
 			else ns.Comm.SendBatch("WHISPER", pieces, nil, r.name, false) end
 		end
@@ -295,6 +388,7 @@ function Relay.HandleAck(dist, sender, text)
 	verified[key] = Now()
 	pinged[key] = nil
 	offline[key] = nil
+	Flush() -- (1.4.4) what waited for an answer goes out now
 	return true
 end
 
@@ -323,7 +417,7 @@ end)
 
 -- Tests: a clean slate.
 function Relay.Reset()
-	wipe(offline); wipe(verified); wipe(pinged); wipe(reporters); wipe(seen)
-	seenCount, lastRegister = 0, -math.huge
+	wipe(offline); wipe(verified); wipe(pinged); wipe(reporters); wipe(seen); wipe(pending)
+	seenCount, lastRegister, holding, flushing = 0, -math.huge, false, false
 	for k in pairs(stats) do stats[k] = 0 end
 end

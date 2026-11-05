@@ -149,6 +149,11 @@ L.LETTER_1_4_2 = (L.LETTER_1_4_1:gsub("version 1%.4%.1 %(and 1%.4%.0%)", "versio
 L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
 L.LETTER_1_4_3 = (L.LETTER_1_4_1:gsub("version 1%.4%.1 %(and 1%.4%.0%)", "version 1.4.3 (and 1.4.0)", 1)
 	:gsub("%- {team} Launch night fix:[^\n]*", "- {team} Launch night: we hit technical problems, since the live Forever client differs from the beta's, and part of the network had to be rebuilt. Between guilds, Olympus now travels by addon whispers relayed through the High Council: silent, invisible to you. The census of every guild, the rankings and the Olympus chat come back as people update. Hopefully all good now. Update, then close and reopen the game.", 1))
+-- 1.4.4 (the morning after: a guild finds a live relay at once, and the relay's whispers leave no
+-- line in the chat): the same letter, its version, a word on the fix.
+L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK = L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK
+L.LETTER_1_4_4 = (L.LETTER_1_4_3:gsub("version 1%.4%.3 %(and 1%.4%.0%)", "version 1.4.4 (and 1.4.0)", 1)
+	:gsub("(%- {team} Launch night:[^\n]*)", "%1 In 1.4.4 a guild finds the Council at once, and nothing of it shows in your chat.", 1))
 L.LETTER_1_3_3_TITLE = "Your guild on the website"
 L.LETTER_1_3_3 = [==[Version 1.3.3.
 
@@ -220,6 +225,9 @@ Os portões estão abertos.]==]
 	L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
 	L.LETTER_1_4_3 = (L.LETTER_1_4_1:gsub("versão 1%.4%.1 %(e na 1%.4%.0%)", "versão 1.4.3 (e na 1.4.0)", 1)
 		:gsub("%- {team} Correção da noite do lançamento:[^\n]*", "- {team} Noite do lançamento: tivemos problemas técnicos, porque o cliente do Forever ao vivo é diferente do da beta, e parte da rede teve que ser refeita. Entre guildas, o Olympus agora viaja por sussurros de addon repassados pelo Alto Conselho: silenciosos, invisíveis para você. O censo de todas as guildas, os rankings e o chat do Olympus voltam conforme o pessoal atualiza. Espero que agora esteja tudo bem. Atualize, feche e abra o jogo.", 1))
+	L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK = L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK
+	L.LETTER_1_4_4 = (L.LETTER_1_4_3:gsub("versão 1%.4%.3 %(e na 1%.4%.0%)", "versão 1.4.4 (e na 1.4.0)", 1)
+		:gsub("(%- {team} Noite do lançamento:[^\n]*)", "%1 Na 1.4.4 a guilda encontra o Conselho na hora, e nada disso aparece no seu chat.", 1))
 	L.LETTER_1_3_3_TITLE = "Sua guilda no site"
 	L.LETTER_1_3_3 = [==[Versão 1.3.3.
 

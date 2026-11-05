@@ -72,6 +72,8 @@ local function WithRoles(options, fn)
 			UI = { SelectTab = function(tab) opened[#opened + 1] = "tab:" .. tostring(tab) return true end, Refresh = function() end,
 				ShowCopy = function(title, text) opened[#opened + 1] = "copy:" .. tostring(text) end },
 			Views = { ShowPage = function(page) opened[#opened + 1] = "page:" .. tostring(page) end },
+			-- (1.4.4: the version letter's window takes a duty letter; see Brief.Window.)
+			Letters = { ShowText = function(o) opened[#opened + 1] = "letter:" .. tostring(o and o.title) return true end },
 			Now = function() clock = clock + 1 return clock end,
 			Print = function(m) printed[#printed + 1] = tostring(m) end,
 		})
@@ -157,7 +159,28 @@ end)
 -- The letters themselves: the King's voice, from the drafted texts
 ---------------------------------------------------------------------------
 
-test("role briefings: every letter is the King's, in his plain voice, signed - The King; the old neutral briefings and the Legate's design note are gone", function()
+-- (The author's call of 2026-11-05: the first letters tried the streamer's voice and read as cheap.
+-- Every letter is now a sober missive on parchment, medieval and objective: a salutation, the
+-- charge, the mark, the rights, one rule; no jokes, no slang, no exclamation marks. Fails before:
+-- "Okay, listen." and "Let's go!" opened and closed them.)
+local CASUAL = { "Okay", "Hey,", "Let's go", "huge", "big deal", "No pressure", "Yeah", "Honestly", "cry wolf", "Nice.", "n't" }
+-- The letter's first paragraph, "To ...," (the page wraps a long one over more than one row).
+local function Salutation(page)
+	local rows
+	for _, line in ipairs(page) do
+		local t = Plain(line.text or "")
+		if not rows and t:match("^To ") then rows = {} end
+		if rows then
+			rows[#rows + 1] = t
+			if line.gapAfter then
+				local s = table.concat(rows, " ")
+				return s:match(",$") and s or nil
+			end
+		end
+	end
+	return nil
+end
+test("role briefings: every letter is the King's, a sober missive signed - The King: a salutation, no exclamation marks, never the streamer's voice; the old neutral briefings and the Legate's design note are gone", function()
 	WithRoles({ author = true, redCross = true }, function(RB)
 		for _, x in ipairs(RB.PreviewList()) do
 			RB.Preview(x.kind, x.dept)
@@ -167,17 +190,19 @@ test("role briefings: every letter is the King's, in his plain voice, signed - T
 			eq(text:lower():find("briefing", 1, true), nil, x.label .. ": no neutral briefing voice")
 			eq(text:lower():find("centurion", 1, true), nil, x.label .. ": the wire's old name is never taught")
 			eq(text:find("wingless", 1, true), nil, x.label .. ": no internal design note")
-			assert(text:find("Okay", 1, true) or text:find("Hey", 1, true), x.label .. ": opens as he talks")
+			assert(Salutation(page), x.label .. ": opens as a missive, with its salutation")
+			eq(text:find("!", 1, true), nil, x.label .. ": no exclamation marks")
+			for _, words in ipairs(CASUAL) do eq(text:find(words, 1, true), nil, x.label .. ": never the streamer's voice: " .. words) end
 		end
 		RB.Preview("legate")
 		local legate = Flat(Text(RB.Page()))
-		for _, words in ipairs({ "You're a Legate of <", "up to 39 guildmates who agreed, 40 in all", "Nothing is automatic: no guild invite, kick or promotion",
-			"One rule: only list people who said yes." }) do
+		for _, words in ipairs({ "To a Legate of <", "up to 39 guildmates who agreed, 40 in all", "Nothing is done by itself: no guild invite, kick or promotion",
+			"One rule: list only those who said yes." }) do
 			assert(legate:find(words, 1, true), "the Legate's letter: " .. words)
 		end
 		RB.Preview("launch")
 		local launch = Flat(Text(RB.Page()))
-		assert(launch:find("The beta is over. This is it. Olympus is live.", 1, true), launch)
+		assert(launch:find("The beta is ended. Olympus is live.", 1, true), launch)
 		assert(launch:find("olympus.roachcouncil.com", 1, true), "the site in the words")
 	end)
 end)
@@ -281,11 +306,37 @@ test("role briefings: once LIVE a new letter is said in one chat line and kept f
 		eq(Plain(link.text):find(L.RB_LINK, 1, true) ~= nil, true)
 		eq(RB.Letters()[1].read, false)
 		eq(RB.OpenKind("steward"), true)
+		eq(w.opened[#w.opened], "letter:" .. L.RB_STEWARD_TITLE, "(1.4.4) opened in the version letter's window")
 		eq(RB.Letters()[1].read, true, "read once opened")
 		local page = RB.Page()
 		eq(Plain(page[1].text), L.RB_BACK)
 		page[1].onClick()
 		assert(Row(RB.Page(), "> " .. L.RB_STEWARD_TITLE), "the list again, with the letter")
+	end)
+end)
+
+-- 1.4.4 (the author's ask: a duty letter in a window of its own, like the version letter, not on
+-- the Olympus window's page). Fails before: Open led to the Realm page alone.
+test("role briefings: a letter opens in the version letter's window (Letters.ShowText): the page's title as the window's, the letter's title, its paragraphs, the King's signature and a button back to the page; a guild master's window carries his opening, grant and closing words; without that window, the page as before", function()
+	WithRoles({ steward = true }, function(RB, c, w)
+		eq(RB.Scan(false), 1)
+		local shown
+		c.Letters = { ShowText = function(o) shown = o return true end }
+		eq(RB.OpenKind("steward"), true)
+		assert(type(shown) == "table", "the window")
+		eq(shown.head, L.RB_PAGE_TITLE); eq(shown.title, L.RB_STEWARD_TITLE); eq(shown.sign, L.HONOR_LETTER_SIGN)
+		eq(shown.button, L.RB_BACK); eq(shown.onButton, RB.ShowPage, "its button: the page of every duty letter")
+		local e = RB.Letters()[1]
+		eq(shown.body, table.concat(RB.Body(e), "\n\n"), "the letter's paragraphs")
+		assert(w.opened[#w.opened] ~= "page:rolebriefings", "not the page")
+		eq(e.read, true)
+		-- A guild master's window: the words round his checklist (the checklist stays on the page).
+		local gm = RB.Window({ kind = "guildmaster", id = "gm" })
+		eq(gm.title, L.RB_GM_TITLE); eq(gm.body, L.RB_GM_OPEN .. "\n\n" .. L.RB_GM_GET .. "\n\n" .. L.RB_GM_CLOSE)
+		-- Without the window (an older Letters module): the page, as before.
+		c.Letters = false
+		eq(RB.Open(e.id), true)
+		eq(w.opened[#w.opened], "page:rolebriefings", "the page")
 	end)
 end)
 
@@ -412,6 +463,7 @@ local function GuildMaster(fn)
 		c.ShowDialog = Call("dialog")
 		c.UI = { SelectTab = Call("tab"), Refresh = function() end }
 		c.Views = { ShowPage = Call("page") }
+		c.Letters = { ShowText = function(o) w.calls[#w.calls + 1] = "letter:" .. tostring(o and o.title) return true end }
 		assert(loadfile(ADDON .. "Nominees.lua"))("Olympus", c)
 		c.Nominees.Prompt = function(role, dept) w.calls[#w.calls + 1] = "prompt:" .. role .. (dept and (":" .. dept) or "") end
 		assert(loadfile(ADDON .. "RoleBriefings.lua"))("Olympus", c)
@@ -496,7 +548,7 @@ test("role briefings: a Legate and a correspondent named by the real guild maste
 		c.Nominees.Handle("CHANNEL", "Boss-Realm", ("NM~1~%s~%d~1~1~%s"):format(w.guild, w.now + 1, "c=Adept;c=Peer"))
 		eq(RB.Scan(true), 0, "another nominee's revision: no second letter")
 		RB.OpenKind("legate")
-		assert(Flat(Text(RB.Page())):find("You're a Legate of <" .. w.guild .. "> now.", 1, true))
+		assert(Flat(Text(RB.Page())):find("To a Legate of <" .. w.guild .. ">,", 1, true))
 		c.Nominees.Handle("CHANNEL", "Boss-Realm", ("NM~1~%s~%d~1~1~%s"):format(w.guild, w.now + 2, "d=Department of Heraldry=Adept"))
 		eq(RB.Scan(true), 1, "his new office: its letter")
 		eq(RB.Letters()[2].kind, "correspondent"); eq(RB.Letters()[2].dept, "Department of Heraldry")
@@ -594,7 +646,7 @@ end)
 -- pt-BR
 ---------------------------------------------------------------------------
 
-test("role briefings: every letter's words in pt-BR too, in the same casual voice, with the same placeholders", function()
+test("role briefings: every letter's words in pt-BR too, in the same sober voice, with the same placeholders", function()
 	local pt, saved = { L = {} }, GetLocale
 	GetLocale = function() return "ptBR" end
 	local ok, err = pcall(function() assert(loadfile(ADDON .. "Locales/RoleBriefingsText.lua"))("Olympus", pt) end)
@@ -615,8 +667,26 @@ test("role briefings: every letter's words in pt-BR too, in the same casual voic
 		eq(b, a, "the same placeholders: " .. key)
 	end
 	assert(n > 100, "the words: " .. n)
-	for _, key in ipairs({ "RB_LAUNCH", "RB_COUNCIL", "RB_APOSTLE_LAUNCH", "RB_LEGATE" }) do
-		assert(pt.L[key]:find("Olha", 1, true) or pt.L[key]:find("E aí", 1, true), "pt-BR opens casually: " .. key)
+	-- (2026-11-05: the same sober missive in pt-BR: a salutation, no exclamation marks, no slang.)
+	for _, key in ipairs({ "RB_LAUNCH", "RB_COUNCIL", "RB_APOSTLE_LAUNCH", "RB_LEGATE", "RB_STEWARD", "RB_MISSIONARY" }) do
+		assert(pt.L[key]:match("^A[os]* [^\n]*,\n\n"), "pt-BR opens as a missive: " .. key)
+	end
+	for key, text in pairs(pt.L) do
+		eq(text:find("!", 1, true), nil, "pt-BR: no exclamation marks: " .. key)
+		for _, words in ipairs({ "Olha", "E aí", "Bora", "Sério" }) do
+			eq(text:find(words, 1, true), nil, "pt-BR: never the streamer's voice: " .. key .. ": " .. words)
+		end
+		-- (whole words, in any case: "compra entra" is no slang. A frontier cannot close after an accented
+		-- letter, whose last byte is no %w, so "tá" and "tô" are matched by their own spacing.)
+		local t = text:lower()
+		for _, word in ipairs({ "pra", "pro" }) do
+			eq(t:find("%f[%w]" .. word .. "%f[%W]"), nil, "pt-BR: never the streamer's voice: " .. key .. ": " .. word)
+		end
+		for _, word in ipairs({ "tá", "tô" }) do
+			local hit = t:find(" " .. word .. " ", 1, true) or t:match("^" .. word .. " ") or t:find("\n" .. word .. " ", 1, true)
+				or t:find(" " .. word .. "[.,\n]") or t:match("^" .. word .. "[.,]")
+			eq(hit, nil, "pt-BR: never the streamer's voice: " .. key .. ": " .. word)
+		end
 	end
 	assert(pt.L.RB_LAUNCH:find("olympus.roachcouncil.com", 1, true))
 end)
@@ -634,13 +704,13 @@ test("role briefings: the 1.4.0 release writes its own launch letter (the dev's,
 			assert(loadfile(ADDON .. "Letters.lua"))("Olympus", lns)
 			local Lt = lns.Letters
 			local RB = Fresh({ Letters = Lt, L = own })
-			eq(Lt.LIST[1], "1.4.3"); eq(Lt.LIST[4], "1.4.0"); eq(Lt.Has("1.4.0"), true) -- (1.4.1: the launch letter stays listed after the fix)
+			eq(Lt.LIST[1], "1.4.4"); eq(Lt.LIST[5], "1.4.0"); eq(Lt.Has("1.4.0"), true) -- (1.4.1: the launch letter stays listed after the fix)
 			RB.LIVE = false
 			eq(RB.RegisterLaunch(), false, "not LIVE")
 			RB.LIVE = true
 			eq(RB.RegisterLaunch(), false, "LIVE: the release's own letter is kept")
 			eq(own.LETTER_1_4_0_TITLE, L.LETTER_1_4_0_TITLE); eq(own.LETTER_1_4_0, L.LETTER_1_4_0)
-			eq(Lt.LIST[4], "1.4.0"); eq(Lt.LIST[5] ~= "1.4.0", true, "listed once")
+			eq(Lt.LIST[5], "1.4.0"); eq(Lt.LIST[6] ~= "1.4.0", true, "listed once")
 			ns.db.lettersRead = {}
 			eq(Lt.Show("1.4.0"), true)
 			local f = Lt.Frame()

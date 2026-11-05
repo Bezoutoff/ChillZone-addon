@@ -39,7 +39,7 @@ local Letters = {}
 ns.Letters = Letters
 
 -- Every version with a letter, newest first.
-Letters.LIST = { "1.4.3", "1.4.2", "1.4.1", "1.4.0", "1.3.3", "1.3.2", "1.3.0", "1.2.5.1", "1.2.5", "1.2.4", "1.2.3", "1.2.2", "1.2.1", "1.2.0", "1.1.5", "1.1.4", "1.1.3", "1.1.2", "1.1.1", "1.1.0" }
+Letters.LIST = { "1.4.4", "1.4.3", "1.4.2", "1.4.1", "1.4.0", "1.3.3", "1.3.2", "1.3.0", "1.2.5.1", "1.2.5", "1.2.4", "1.2.3", "1.2.2", "1.2.1", "1.2.0", "1.1.5", "1.1.4", "1.1.3", "1.1.2", "1.1.1", "1.1.0" }
 -- 1.2.3 (the author's ask: "why a minute later? why not when opening the game?"): a few seconds
 -- after login, once the loading screen is gone; a privacy question still to ask comes first
 -- (PageFirst: the letter waits for the page, then HANDOFF after it closes).
@@ -307,7 +307,10 @@ local function Make()
 	f.done:SetScript("OnClick", function() f:Hide() end)
 	f.all = Button(f, L.LETTERS_ALL, 130)
 	f.all:SetPoint("BOTTOMLEFT", 12, 10)
-	f.all:SetScript("OnClick", function() ns.SafeCall("letters", Letters.ShowHistory) end)
+	-- (1.4.4) Another letter's button (ShowText) in place of All letters while it shows.
+	f.all:SetScript("OnClick", function(self)
+		if type(self.onText) == "function" then ns.SafeCall("letters", self.onText) else ns.SafeCall("letters", Letters.ShowHistory) end
+	end)
 	-- (1.4.0) A letter's link (L.LETTER_<version>_LINK: the launch letter's site), copied from a
 	-- copyable pop-up of Olympus's own (UI.ShowCopy), never a chat line.
 	f.link = Button(f, L.LETTERS_COPY_LINK, 150)
@@ -365,9 +368,50 @@ function Letters.Show(version, includePrevious)
 	for _, part in ipairs({ f.title, f.body, f.sign }) do part:Show() end
 	f.page:SetHeight(-y)
 	if f.scroll.SetVerticalScroll then f.scroll:SetVerticalScroll(0) end
+	f.all.onText = nil
+	f.all:SetText(L.LETTERS_ALL)
 	f.all:Show()
 	Letters.MarkRead(version)
 	for _, v in ipairs(carried or {}) do Letters.MarkRead(v) end
+	f:Show()
+	return true
+end
+
+-- (1.4.4, the author's ask) Another letter on the same parchment window: a duty letter when its
+-- office arrives (RoleBriefings.lua), with its own window title (head), words, signature and link,
+-- and in place of All letters a button of the caller's (button, onButton: the duty letters' page).
+-- Nothing is marked read here; the version letter shown after it takes the window back.
+function Letters.ShowText(opts)
+	if type(opts) ~= "table" or type(opts.title) ~= "string" or type(opts.body) ~= "string" then return false end
+	local f = Frame()
+	HideRows(f)
+	local width = Letters.WIDTH - 70
+	SetTitle(f, type(opts.head) == "string" and opts.head ~= "" and opts.head or L.LETTERS_TITLE)
+	f.head:SetText(L.LETTERS_TITLE)
+	f.mode, f.version = "text", nil
+	f.title:ClearAllPoints()
+	f.title:SetPoint("TOPLEFT", f.page, "TOPLEFT", 0, 0)
+	f.title:SetWidth(width)
+	f.title:SetText(opts.title)
+	local y = -Height(f.title, width) - 10
+	f.body:ClearAllPoints()
+	f.body:SetPoint("TOPLEFT", f.page, "TOPLEFT", 0, y)
+	f.body:SetWidth(width)
+	f.body:SetText(Letters.DrawMarks(opts.body))
+	y = y - Height(f.body, width) - 12
+	f.sign:ClearAllPoints()
+	f.sign:SetPoint("TOPRIGHT", f.page, "TOPRIGHT", 0, y)
+	f.sign:SetWidth(width)
+	f.sign:SetText(type(opts.sign) == "string" and opts.sign ~= "" and opts.sign or L.LETTER_SIGNED)
+	f.link.url = type(opts.link) == "string" and opts.link ~= "" and opts.link or nil
+	f.link:SetShown(f.link.url ~= nil)
+	y = y - 20
+	for _, part in ipairs({ f.title, f.body, f.sign }) do part:Show() end
+	f.page:SetHeight(-y)
+	if f.scroll.SetVerticalScroll then f.scroll:SetVerticalScroll(0) end
+	f.all.onText = type(opts.onButton) == "function" and opts.onButton or nil
+	f.all:SetText(f.all.onText and type(opts.button) == "string" and opts.button or L.LETTERS_ALL)
+	f.all:SetShown(f.all.onText ~= nil)
 	f:Show()
 	return true
 end
