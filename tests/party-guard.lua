@@ -282,6 +282,7 @@ test("party guard: English and pt-BR user-facing copy have matching format contr
 		"PARTY_GUARD_REVIEW", "PARTY_GUARD_DISMISS", "PARTY_GUARD_MORE", "PARTY_GUARD_LESS", "PARTY_GUARD_TURN_OFF",
 		"PARTY_GUARD_ON", "PARTY_GUARD_OFF", "PARTY_GUARD_CANNOT_INVITE", "PARTY_GUARD_RECHECK",
 		"PARTY_GUARD_OUTSIDER_PROMPT", "PARTY_GUARD_INVITE_ANYWAY",
+		"SQUAD_INVITE_GONE", "SQUAD_INVITE_CANNOT", -- (1.4.0: the Legate's invite, Guard.InviteGuildmate)
 	}
 	local function Codes(s)
 		local out = {}
@@ -294,4 +295,135 @@ test("party guard: English and pt-BR user-facing copy have matching format contr
 		assert(type(br) == "string" and br ~= "" and (key == "PARTY_GUARD_DETAIL" or br ~= en), "pt-BR " .. key)
 		eq(Codes(br), Codes(en), key)
 	end
+end)
+
+-- 1.3.4 (a request from the Party Guard's users: people already invited are not invited again): a
+-- player invited from here, or already in our group, makes no new request for INVITED_TTL (no row, no
+-- notice); after it, his "inv" is a request again.
+test("party guard 1.3.4: a repeat request from a player already invited (or already in our group) is ignored within INVITED_TTL and taken after it", function()
+	local saved = { inGroup = IsInGroup, inRaid = IsInRaid, members = GetNumGroupMembers }
+	local ok, err = pcall(Scene, function(w)
+		w.rosterName, w.rosterAt = "Member-Realm", w.now
+		assert(G.OnWhisper("inv", "Member-Realm"))
+		assert(G.RequestInvite(assert(Candidate("Member-Realm")))); eq(#w.invited, 1)
+		eq(Candidate("Member-Realm"), nil, "the row goes with the invite")
+		local printed = #w.printed
+		w.now = w.now + 60
+		w.rosterAt = w.now
+		eq(G.OnWhisper("inv", "Member-Realm"), false, "invited already: no new request")
+		eq(G.OnWhisper("invite me please", "member-realm"), false, "nor in other words or another case")
+		eq(Candidate("Member-Realm"), nil); eq(#w.printed, printed, "no notice")
+		eq(#G.Lines(), 0, "nothing in the Census")
+		eq(#w.invited, 1, "never invited twice")
+		w.now = w.now + G.INVITED_TTL - 60
+		eq(G.OnWhisper("inv", "Member-Realm"), false, "still within INVITED_TTL")
+		w.now = w.now + 61
+		w.rosterAt = w.now
+		assert(G.OnWhisper("inv", "Member-Realm"), "after INVITED_TTL: a request again")
+		eq(#w.printed, printed + 1, "with its notice")
+		-- An outsider invited by the explicit override is remembered too.
+		G.ResetForTests(); w.rosterName, w.rosterAt = nil, nil
+		assert(G.OnWhisper("party invite", "Outsider-Realm"))
+		local outsider = assert(Candidate("Outsider-Realm"))
+		assert(G.Verify(outsider)); assert(G.OnWhoSeen(outsider.name, "Other Guild"))
+		assert(G.RequestInvite(outsider))
+		assert(G.ConfirmOutsider(w.dialog.data))
+		eq(G.OnWhisper("inv", "Outsider-Realm"), false, "invited already")
+		-- Dismissed, never invited: his next request comes back at once.
+		assert(G.OnWhisper("inv", "Dismissed-Realm"))
+		assert(G.Dismiss(assert(Candidate("Dismissed-Realm"))))
+		assert(G.OnWhisper("inv", "Dismissed-Realm"), "a dismissed request is not an invite")
+		-- Already in our group (a party member by name): no request, and his old row goes.
+		G.ResetForTests()
+		assert(G.OnWhisper("inv", "Grouped-Realm"))
+		IsInGroup, IsInRaid, GetNumGroupMembers = function() return true end, function() return false end, function() return 2 end
+		w.units.party1 = { name = "Grouped", realm = "Realm" }
+		eq(G.OnWhisper("inv", "Grouped-Realm"), false, "in our group already")
+		eq(Candidate("Grouped-Realm"), nil, "his row went")
+		-- Out of the group again: remembered as invited for INVITED_TTL, then a request again.
+		w.units.party1 = nil
+		w.now = w.now + 60
+		eq(G.OnWhisper("inv", "Grouped-Realm"), false, "seen in our group a minute ago")
+		w.now = w.now + G.INVITED_TTL
+		assert(G.OnWhisper("inv", "Grouped-Realm"), "a request again")
+		-- A secret group name is passed over, never compared.
+		G.ResetForTests()
+		w.units.party1 = { name = { secret = true }, realm = "Realm" }
+		assert(G.OnWhisper("inv", "Someone-Realm"))
+		-- Off: forgotten with the requests.
+		G.ResetForTests(); w.units.party1 = nil
+		w.rosterName, w.rosterAt = "Member-Realm", w.now
+		assert(G.OnWhisper("inv", "Member-Realm"))
+		assert(G.RequestInvite(assert(Candidate("Member-Realm"))))
+		assert(G.SetEnabled(false)); assert(G.SetEnabled(true))
+		assert(G.OnWhisper("inv", "Member-Realm"), "turned off and on: forgotten")
+	end)
+	IsInGroup, IsInRaid, GetNumGroupMembers = saved.inGroup, saved.inRaid, saved.members
+	if not ok then error(err, 0) end
+end)
+
+-- 1.4.0: a Legate's "Invite online member to raid" (WarSquads.lua) through Guard.InviteGuildmate. The
+-- click is the only trigger and a fresh roster of the player's own Olympus guild the only evidence:
+-- it is not the whisper inbox, so neither the King's presence nor Party Guard's switch gates it.
+test("party guard: a Legate's raid invite takes only a fresh own-guild roster, inside the click, whoever else is online", function()
+	Scene(function(w)
+		w.rosterName, w.rosterAt = "Squad-Realm", w.now
+		-- Neither the King online nor Party Guard on is needed: a Legate forms his raid any time.
+		w.kingAt, w.localKing = false, false
+		ns.db.partyGuardOff = true
+		eq(G.InviteGuildmate("Squad-Realm"), true)
+		eq(w.invited[#w.invited], "Squad", "the game's own invite, by the name it takes")
+		eq(#G.Candidates(), 0, "the whisper inbox is untouched")
+		eq(#w.searches, 0, "no /who")
+		eq(#w.printed, 0, "nothing to say when it worked")
+		local invited = #w.invited
+
+		-- Nothing else is evidence: a stale roster, a name it does not list, a direct observation
+		-- or a /who answer of an Olympus guild, a whisper.
+		w.rosterAt = nil
+		eq(G.InviteGuildmate("Squad-Realm"), false, "a stale roster cannot authorize it")
+		eq(w.printed[#w.printed], ns.L.SQUAD_INVITE_GONE:format(ns.DisplayName("Squad-Realm") or "Squad-Realm"))
+		w.rosterAt = w.now
+		w.seen["Other-Realm"] = { guild = w.ownGuild, age = 0 }
+		w.units.target = { name = "Other", realm = "Realm", guild = w.ownGuild }
+		eq(G.InviteGuildmate("Other-Realm"), false, "not on the roster: not a guildmate, whatever was seen")
+		eq(#w.searches, 0, "and no /who is started for it")
+		eq(#w.invited, invited)
+
+		-- Only a member of an Olympus guild, in his own guild's roster.
+		w.member = false
+		eq(G.InviteGuildmate("Squad-Realm"), false, "not a member (or before the Accord)")
+		w.member = true
+		w.ownGuild = "Other Guild"
+		eq(G.InviteGuildmate("Squad-Realm"), false, "not an Olympus guild")
+		w.ownGuild = "Olympus Test"
+		eq(#w.invited, invited)
+
+		-- The game's rules for an invite: out of combat, room in the group, the client's function.
+		w.combat = true
+		eq(G.InviteGuildmate("Squad-Realm"), false)
+		eq(w.printed[#w.printed], ns.L.SQUAD_INVITE_CANNOT:format(ns.DisplayName("Squad-Realm") or "Squad-Realm"))
+		w.combat = false
+		w.room = false
+		eq(G.InviteGuildmate("Squad-Realm"), false, "a full party, or not its leader or an assistant")
+		w.room = true
+		local party = C_PartyInfo
+		C_PartyInfo, InviteUnit = { InviteUnit = function() error("refused") end }, nil
+		eq(G.InviteGuildmate("Squad-Realm"), false, "a refused call is said, never raised")
+		C_PartyInfo = nil
+		eq(G.InviteGuildmate("Squad-Realm"), false, "a client without the function")
+		C_PartyInfo = party
+		eq(#w.invited, invited)
+
+		-- A secret or malformed name is refused before anything compares it.
+		local ok, done = pcall(G.InviteGuildmate, { secret = true })
+		assert(ok); eq(done, false)
+		eq(G.InviteGuildmate(nil), false); eq(G.InviteGuildmate(""), false)
+
+		-- With the gamepad UI the click's invite is the same (the gate's "click" guard: the
+		-- player's own click on Olympus's button), and still no /who.
+		w.gamepad = true
+		eq(G.InviteGuildmate("Squad-Realm"), true)
+		eq(#w.invited, invited + 1); eq(#w.searches, 0)
+	end)
 end)

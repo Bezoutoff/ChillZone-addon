@@ -416,6 +416,14 @@ end
 function View.MineLines()
 	local lines = { Nav("mine"), Filters() }
 	lines[#lines + 1] = { header = true, text = L.CHURCH_MY_PLACE, right = PlaceText(ns.me) }
+	-- (1.4.0) The King's letter for this place (RoleBriefings.lua), once it was made for him.
+	local myRole, RB = Church.Role(ns.me), ns.RoleBriefings
+	local kind = myRole == "A" and "apostle" or myRole == "M" and "missionary" or myRole == "C" and "churchcorr" or nil
+	if kind and type(RB) == "table" and not RB.missing and type(RB.Has) == "function" and RB.Has(kind) then
+		lines[#lines + 1] = { indent = 1, text = Gold("> " .. L.RB_CHURCH_LETTER_LINK),
+			onClick = function() RB.OpenKind(kind) end,
+			tooltip = Tip(L.RB_CHURCH_LETTER_LINK, L.RB_CHURCH_LETTER_TIP) }
+	end
 	DetailLinesFor(ns.me, lines, true)
 	local loc = Count.Local()
 	lines[#lines + 1] = { indent = 1, text = L.CHURCH_INVITES_LINE:format(loc.invWeek, loc.invAll), tooltip = Tip(L.CHURCH_INVITES_TITLE, L.CHURCH_INVITES_TIP) }

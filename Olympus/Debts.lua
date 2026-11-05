@@ -191,8 +191,7 @@ end
 local function Entropy()
 	local parts = {}
 	for _ = 1, 8 do
-		local Link = ns.Link
-		parts[#parts + 1] = type(Link) == "table" and type(Link.EntropySample) == "function" and Link.EntropySample() or ""
+		parts[#parts + 1] = ns.Sign.EntropySample()
 		parts[#parts + 1] = tostring(math.random()) .. tostring({}) .. tostring(Now())
 	end
 	return Debts.SHA(table.concat(parts, "|"))

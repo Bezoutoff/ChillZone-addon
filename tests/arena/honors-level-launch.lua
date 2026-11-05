@@ -1,5 +1,9 @@
--- 1.2.4 is pre-launch. These exercise the real shipped policy, not the future race fixture.
--- Historical records stay intact; a later launch/date/UI/protocol is deliberately not supplied.
+-- 1.2.4 was pre-launch: the level race shipped switched off. (1.4.0, the launch) It ships switched on
+-- and runs only on the launch's realms: where the author's signed list names this realm and it is none
+-- of the beta's (ns.LaunchRealm). The first three tests keep 1.2.4's cases on a realm the list does not
+-- name (the foundation World holds no list; W3.New with levelRace = false is that World), where the
+-- release still collects, sends, relays and awards nothing and keeps old records intact; the last ones
+-- are the launch's realms. The signed list's own path: tests/launch-identity.lua.
 local H = ...
 local test, eq = H.test, H.eq
 local World = H.World
@@ -18,11 +22,13 @@ local function NoLevel(held)
 	for _, h in ipairs(held) do assert(not h.key:match("^level%-race%-"), "a pre-launch level award: " .. h.key) end
 end
 
-test("1.2.4 pre-launch level race: shipped level-ups collect and send nothing, even after the old date and with independent game lives on", function()
-	local w, cast = W3.New({ world = { compliance = "shipped", clock = 2000000000 },
+-- (1.4.0: levelRace = false, a realm the launch list does not name: W3.New's world is a launch realm
+-- now, and a shipped client there runs the race; the clock is after the race's start too.)
+test("1.2.4 pre-launch level race (1.4.0: a realm the launch list does not name): shipped level-ups collect and send nothing, even after the race's start and with independent game lives on", function()
+	local w, cast = W3.New({ levelRace = false, world = { compliance = "shipped", clock = 2000000000 },
 		more = { { "young", "Brisa Vale", { level = 19 } } } })
 	local c, net = cast.young, Net(w, cast.young)
-	eq(w:Events(c, true).PLAYER_LEVEL_UP, nil, "no collection hook before launch")
+	eq(w:Events(c, true).PLAYER_LEVEL_UP, nil, "no collection hook off the launch's realms")
 	eq(c.Roles.Live(), true, "unrelated games remain live")
 	w:Fire(c, "PLAYER_LEVEL_UP", 20)
 	w:As(c, c.ns.HonorsNet.OnLevelUp, 40) -- a direct/manual caller must not schedule claims either
@@ -41,7 +47,7 @@ test("1.2.4 pre-launch level race: shipped level-ups collect and send nothing, e
 	W3.NoErrors(w)
 end)
 
-test("1.2.4 pre-launch level race: native IL and an authenticated clerk's AB H from an older peer allocate no claims or levels; no clerk records or answers go out", function()
+test("1.2.4 pre-launch level race (1.4.0: a realm the launch list does not name): native IL and an authenticated clerk's AB H from an older peer allocate no claims or levels; no clerk records or answers go out", function()
 	local w = World.New({ compliance = "shipped", clock = 2000000000 })
 	local viewer, peer, clerk = w:Role("bettor1"), w:Role("fighterA"), w:Role("councillor")
 	local net = Net(w, viewer)
@@ -62,7 +68,7 @@ test("1.2.4 pre-launch level race: native IL and an authenticated clerk's AB H f
 	W3.NoErrors(w)
 end)
 
-test("1.2.4 pre-launch level race: old saved places and claims survive census checks, refresh and reload without awarded titles or letters", function()
+test("1.2.4 pre-launch level race (1.4.0: a realm the launch list does not name): old saved places and claims survive census checks, refresh and reload without awarded titles or letters", function()
 	local w = World.New({ compliance = "shipped", clock = 2000000000 })
 	local c = w:Client("Brisa Vale", { level = 19 })
 	local net = Net(w, c)
@@ -108,29 +114,162 @@ test("1.2.4 pre-launch level race: old saved places and claims survive census ch
 	W3.NoErrors(w)
 end)
 
-test("1.2.4 pre-launch level race: future fixture opt-in is explicit and strict; base and shipped worlds stay off, and cached verification respects the boundary", function()
-	local w = World.New()
+-- (1.4.0) Was "future fixture opt-in is explicit and strict; base and shipped worlds stay off": the
+-- race was the future's then, and even the fixture left a shipped client off. It is the release's now:
+-- a shipped client on a launch realm runs it; what stays is that nothing but the signed list and a
+-- switch that is exactly true opens it, the beta's realm group never, and verification follows at once.
+test("1.4.0 the launch's realms: a shipped client on a realm the signed list names watches its level-ups and claims; the foundation world (no list), the beta's realm group (whatever a list says) and a switch that is not exactly true stay off; cached verification follows", function()
+	local w = World.New({ compliance = "shipped", clock = 2000000000 })
 	local c = w:Client("Brisa Vale", { level = 19 })
-	eq(w:Events(c, true).PLAYER_LEVEL_UP, nil, "foundation world does not silently opt in")
-	local future = W3.LevelRaceWorld()
-	local f = future:Client("Corin Ash", { level = 19 })
-	eq(w:Events(c, true).PLAYER_LEVEL_UP, nil)
-	eq(future:Events(f, true).PLAYER_LEVEL_UP, true, "future design fixture composes the launch policy")
-	local net = Net(future, f)
+	eq(w:Events(c, true).PLAYER_LEVEL_UP, nil, "no list held: off")
+	eq(Net(w, c).LevelRaceActive(), false)
+	local launch = W3.LevelRaceWorld({ compliance = "shipped", clock = 2000000000 })
+	local f = launch:Client("Corin Ash", { level = 19 })
+	local net = Net(launch, f)
+	eq(net.LEVEL_RACE_LAUNCHED, true, "the release's switch")
+	eq(net.LevelRaceActive(), true, "a launch realm")
+	eq(launch:Events(f, true).PLAYER_LEVEL_UP, true, "its level-ups watched")
+	W3.Rules(launch, f)
+	launch:Fire(f, "PLAYER_LEVEL_UP", 20)
+	launch:Run(61)
+	eq(#launch:Sent{ from = f, type = "IL" }, 1, "his claim, 60 s after")
+	-- Verification as the switch says, at once (a cached award never outlives it).
 	local s = net.Store(true)
-	s.levels[60] = { { guid = f.guid, name = f.name, t = future.clock, place = 1 } }
-	local m = future:As(f, f.ns.ArenaProfile.Mine, true)
+	s.levels[60] = { { guid = f.guid, name = f.name, t = launch.clock, place = 1 } }
+	local m = launch:As(f, f.ns.ArenaProfile.Mine, true)
 	m.frame, m.title = "rank", "level-race-60"
 	eq(net.Verified(f.name, f.guid).title, "level-race-60")
-	f.ns.HonorsNet.LEVEL_RACE_LAUNCHED = 1 -- truthy is not an explicit launch
+	f.ns.HonorsNet.LEVEL_RACE_LAUNCHED = 1 -- truthy is not a launch
 	eq(net.LevelRaceActive(), false); eq(next(net.Inputs().levels), nil)
-	eq(net.Verified(f.name, f.guid).title, nil, "no cached future award leaks across the boundary")
-	future:Fire(f, "PLAYER_LEVEL_UP", 20); future:Run(3700)
-	eq(#future:Sent{ from = f, type = "IL" }, 0, "an already hooked future client still checks the boundary")
-	eq(s.levels[60][1].name, f.name)
-	local shipped = W3.LevelRaceWorld({ compliance = "shipped" })
-	local p = shipped:Client("Dovan Quell", { level = 19 })
-	eq(shipped:Events(p, true).PLAYER_LEVEL_UP, nil)
-	eq(Net(shipped, p).LevelRaceActive(), false, "even the future fixture cannot open a shipped client")
-	W3.NoErrors(w); W3.NoErrors(future); W3.NoErrors(shipped)
+	eq(net.Verified(f.name, f.guid).title, nil, "no cached award leaks across the switch")
+	f.ns.HonorsNet.LEVEL_RACE_LAUNCHED = true
+	eq(net.Verified(f.name, f.guid).title, "level-race-60")
+	-- The beta's realm group: off, even where a list names its realm.
+	local realm, group, info = f.ns.realm, f.ns.group, rawget(f.ns, "RealmInfo")
+	f.ns.realm, f.ns.group = "ClassicBetaPvP", "ClassicBetaPvP+ClassicBetaPvP2"
+	rawset(f.ns, "RealmInfo", function(r) return (r == "ClassicBetaPvP" or r == "ClassicBetaPvP2") and { kind = "pvp", region = "NA" } or nil end)
+	eq(net.LevelRaceActive(), false, "the beta's")
+	eq(net.Verified(f.name, f.guid).title, nil)
+	-- A list that names other realms only: off.
+	f.ns.realm, f.ns.group = realm, group
+	rawset(f.ns, "RealmInfo", function() return nil end)
+	eq(net.LevelRaceActive(), false, "a realm the list does not name")
+	rawset(f.ns, "RealmInfo", info)
+	eq(net.LevelRaceActive(), true, "named again")
+	W3.NoErrors(w); W3.NoErrors(launch)
+end)
+
+-- (1.4.0, the owner's ask: no beta-era race state may award a launch place.) A realm's store is its
+-- own, so the beta's books stay on the beta's realms; on a launch realm the race's start is the second
+-- guard: what a store kept from before it (a realm of the same name tested before, a pre-launch book)
+-- goes the first time the race opens it, and a clerk's record timed before it is refused.
+test("1.4.0 the launch's realms: RACE_START is 2026-11-04 00:00 UTC; a saved book and claims timed before it go the first time the race opens the store, its places award nothing; a clerk's record timed before it is refused, one after it taken", function()
+	local START = 1793750400
+	local w = W3.LevelRaceWorld({ clock = START + 2 * 86400 })
+	local viewer, peer, old = w:Role("bettor1"), w:Role("fighterA"), w:Role("fighterB")
+	local clerk = w:Role("councillor")
+	local net = Net(w, viewer)
+	eq(net.RACE_START, START); eq(os.date("!%Y-%m-%d %H:%M:%S", net.RACE_START), "2026-11-04 00:00:00")
+	eq(net.LevelRaceActive(), true)
+	-- What an earlier session on a realm of this name kept: places and claims from before the start,
+	-- one place and one claim from after it.
+	local A = viewer.ns.Arena
+	w:As(viewer, function()
+		local r = A.RealmStore()
+		r.honors = { raceStart = 1790812800, levels = {
+			[20] = { { guid = old.guid, name = old.name, t = START - 86400, place = 1 } },
+			[40] = { { guid = old.guid, name = old.name, place = 1 } },
+			[60] = { { guid = peer.guid, name = peer.name, t = START + 3600, place = 1 } } },
+			claims = {
+				old = { gk = A.GK(old.guid), name = old.name, level = 40, t = START - 60, heardLocal = START - 60, vouched = true },
+				new = { gk = A.GK(peer.guid), name = peer.name, level = 40, t = START + 60, heardLocal = START + 60, vouched = false } },
+			lows = { [20] = { [old.name:lower()] = START - 7200 } } }
+	end)
+	local s = net.Store()
+	eq(s.raceStart, START)
+	eq(s.levels[20], nil, "before the start: gone"); eq(s.levels[40], nil, "untimed: gone")
+	eq(s.levels[60][1].name, peer.name, "after it: kept")
+	eq(s.claims.old, nil); eq(s.claims.new.name, peer.name)
+	eq(s.lows, nil, "sightings of an earlier start: gone")
+	NoLevel(net.Holdings(old.name, old.guid))
+	-- A clerk's records: before the start, refused; after it, taken (a milestone with no place here).
+	eq(w:As(viewer, viewer.ns.IsHighCouncillor, clerk.name), true, "the AB sender passes the authority gate")
+	eq(net.TakeRecords(clerk.name, "L", Record(old, 20, START - 1)), false, "a pre-launch record")
+	eq(s.levels[20], nil)
+	eq(net.TakeRecords(clerk.name, "L", Record(old, 20, w.clock + 3600)), false, "a record ahead of the clock")
+	eq(net.TakeRecords(clerk.name, "L", Record(peer, 20, START + 7200)), true, "a launch record")
+	eq(s.levels[20][1].name, peer.name)
+	W3.NoErrors(w)
+end)
+
+-- (1.4.0, the owner's ask: the level race runs once, and the whole network keeps one winner, decided
+-- by the author's client, the King's or a High Councillor's, so it holds while the author is offline.)
+-- Each client works the race out from what it saw, and what each saw differs (who was online at the
+-- crossing, which census reports reached it), so two clients could keep different winners forever. An
+-- authority's record replaces a place worked out here; a higher authority's replaces a lower one's (the
+-- author, the King, a councillor); between two of the same, the earlier crossing stays.
+test("1.4.0 the launch's realms: the level race's one winner: an authority's record (the author, the King, a High Councillor, in that order) replaces a place worked out here, the earlier of two equals stays; an arbiter's fills an empty milestone only, anyone else's is refused; an authority's client says its places when asked", function()
+	local START = 1793750400
+	local w = W3.LevelRaceWorld({ clock = START + 2 * 86400 })
+	local viewer, first, second = w:Role("bettor1"), w:Role("fighterA"), w:Role("fighterB")
+	local councillor, arbiter, king, author = w:Role("councillor"), w:Role("arbiter"), w:Role("king"), w:Role("author")
+	-- Borders.IsDevName, as Borders.lua answers it in the game (the core's signed author list); this
+	-- world loads no Borders.lua.
+	for _, c in ipairs({ viewer, author, first }) do
+		c.ns.Borders = c.ns.Borders or {}
+		c.ns.Borders.IsDevName = function(n) return c.ns.IsAuthorName(n) == true end
+	end
+	local net = Net(w, viewer)
+	eq(net.LevelRaceActive(), true)
+	eq(net.Authority(author.name), 3, "the author"); eq(net.Authority(king.name), 2, "the King")
+	eq(net.Authority(councillor.name), 1, "a High Councillor"); eq(net.Authority(arbiter.name), 0, "an arbiter")
+	eq(net.Authority(first.name), 0, "a player")
+	local s = net.Store(true)
+	local function Say(who, c, level, t) viewer.comm.handlers.AB("CHANNEL", who.name, "AB~L1~H~" .. Record(c, level, t)) end
+	local function Holder(level) return s.levels[level] and s.levels[level][1] and s.levels[level][1].name end
+	-- This client saw only the second crossing, and placed him itself.
+	s.levels[20] = { { guid = second.guid, name = second.name, t = START + 7300, place = 1 } }
+	Say(arbiter, first, 20, START + 7200)
+	eq(Holder(20), second.name, "an arbiter's record fills an empty milestone only")
+	Say(first, first, 20, START + 7200)
+	eq(Holder(20), second.name, "a player's own word is no record")
+	Say(councillor, first, 20, START + 7200)
+	eq(Holder(20), first.name, "a councillor's record replaces the place worked out here")
+	Say(councillor, second, 20, START + 7300)
+	eq(Holder(20), first.name, "between two of the same rank, the earlier crossing stays")
+	Say(king, second, 20, START + 7300)
+	eq(Holder(20), second.name, "the King's replaces a councillor's")
+	Say(councillor, first, 20, START + 7200)
+	eq(Holder(20), second.name, "a councillor's never replaces the King's")
+	Say(author, first, 20, START + 7200)
+	eq(Holder(20), first.name, "the author's replaces the King's")
+	Say(king, second, 20, START + 7300)
+	eq(Holder(20), first.name, "the King's never replaces the author's")
+	Say(author, second, 20, START - 1)
+	eq(Holder(20), first.name, "an authority's record from before the race's start is refused as anyone's")
+	Say(author, second, 20, w.clock + 3600)
+	eq(Holder(20), first.name, "and one ahead of the clock")
+	net.RunRace()
+	eq(Holder(20), first.name, "a later race here keeps it")
+	eq(s.levels[20][1].by, 3, "and who decided it")
+	Say(king, second, 20, START + 7300)
+	eq(Holder(20), first.name, "the King's still never replaces it after the race")
+	Say(councillor, second, 40, START + 90000)
+	eq(Holder(40), second.name, "an empty milestone: an authority's record fills it")
+	-- An authority's client says its book when asked (AQ~H); a player's who holds no claim says nothing.
+	local anet, pnet = Net(w, author), Net(w, first)
+	local as = anet.Store(true)
+	as.levels[20] = { { guid = first.guid, name = first.name, t = START + 7200, place = 1 } }
+	eq(anet.LevelRaceActive(), true, "the race runs on his client")
+	eq(anet.AuthorHere(), true, "his client knows it decides")
+	eq(pnet.AuthorHere(), false, "a player's does not")
+	eq(pnet.Answer(viewer.name), false, "a player who holds no claim says nothing")
+	eq(anet.Answer(viewer.name), true, "the author answers AQ~H with his places")
+	w:Run(10) -- (a low-priority send: the queue's next turn)
+	local said = false
+	for _, item in ipairs(w:Sent{ from = author, type = "AB" }) do
+		if item.msg:find("~H~", 1, true) then said = true end
+	end
+	eq(said, true, "his AB~H went out")
+	W3.NoErrors(w)
 end)

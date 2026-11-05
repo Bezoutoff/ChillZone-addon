@@ -70,8 +70,9 @@ M.COMMANDS = {
 	"/oly mute olympus", "/oly chatwindow tab", "/oly hop", "/oly lfg", "/oly week", "/oly craft [item or name]",
 	"/oly loot", "/oly helpme [text]", "/oly location on", "/oly borders on",
 	"/oly nameplates on", "/oly chatmarks on", "/oly block <name>", "/oly filter add\\|remove <word>",
-	"/oly alt add Name", "/oly sound", "/oly discord <code>", "/oly bug", "/oly status",
+	"/oly alt add Name", "/oly sound", "/oly bug", "/oly status",
 }
+-- (1.4.0: /oly discord's row is the README's: Olympus Link is its own addon, Olympus_Link.)
 
 local function Read(path)
 	local f = io.open(path, "rb")

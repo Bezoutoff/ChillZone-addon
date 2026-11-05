@@ -118,7 +118,10 @@ function Craft.ReadRecord(body)
 	local tier, day = min(r.tier, c.tier), max(r.day, c.day)
 	local points = Craft.Score(r.quantity, tier)
 	local id = "c" .. r.id .. ":" .. Low(r.requester) .. ":" .. Low(r.crafter)
-	return { id = id, t = day * 86400 + 43200,
+	-- (1.4.0: the start of its day, not its noon: Records refuses a record dated past its clock
+	-- (AHEAD), so a delivery made before noon UTC was refused everywhere. Its day, id, content and
+	-- month are the same either way.)
+	return { id = id, t = day * 86400,
 		content = table.concat({ r.itemID, r.quantity, tier, points, day }, "|"),
 		request = r.id, requester = r.requester, crafter = r.crafter, itemID = r.itemID,
 		quantity = r.quantity, tier = tier, points = points, day = day,

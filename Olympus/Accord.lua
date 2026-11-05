@@ -154,14 +154,13 @@ end
 
 -- This game account's follow key (see the top), or nil. make: one is made now for an account that
 -- accepted without one (an earlier build). From this computer's clocks, the game's generator and
--- the Link's sample, through SHA-256, as Keys.NewKey: no game source is cryptographic, and nobody
+-- the entropy sample (Sign.EntropySample), through SHA-256, as Keys.NewKey: no game source is cryptographic, and nobody
 -- but the moderation team ever receives it.
 function Accord.IsKey(k) return type(k) == "string" and #k == Accord.KEY_LEN and k:find(Accord.KEY_SHAPE) ~= nil end
 local function NewKey()
 	local parts = { tostring(ns.me), tostring(time and time()), tostring(GetTime and GetTime()), tostring(math.random()),
 		tostring(math.random()), tostring({}), tostring(debugprofilestop and debugprofilestop() or 0) }
-	local Link = ns.Link
-	if type(Link) == "table" and not Link.missing and type(Link.EntropySample) == "function" then parts[#parts + 1] = tostring(Link.EntropySample()) end
+	parts[#parts + 1] = tostring(ns.Sign.EntropySample())
 	local raw = ns.Sign.SHA256("OlympusAccordKey\0" .. table.concat(parts, "|"))
 	local hex = {}
 	for i = 1, Accord.KEY_LEN / 2 do hex[i] = ("%02x"):format(raw:byte(i)) end
@@ -272,6 +271,10 @@ local function Changed(on)
 		if C.JoinSoon then ns.SafeCall("accord channel", C.JoinSoon, math.huge) end
 		if C.RequestKey then ns.SafeCall("accord key", C.RequestKey) end
 		if C.Hello then ns.SafeCall("accord hello", C.Hello, true) end
+		-- (1.4.0) The login's ask for the army's guilds (Data.AskGlobalCensus, 20 s after INIT) was
+		-- refused while the Accord waited: a member now, ask again once the channel is joined.
+		local D = ns.Data
+		if D and D.AskGlobalCensus and ns.After then ns.After(30, "accord census", function() ns.SafeCall("accord census", D.AskGlobalCensus) end) end
 	end
 	-- The login's own asks that waited for a member and found none (the letter shows LOGIN_WAIT
 	-- after login, after most of them): the guild's newer realm key (Keys, K5), the War page's
@@ -798,6 +801,22 @@ function Accord.Count()
 	local s, n = Store(false), 0
 	if s then for _ in pairs(s.rows) do n = n + 1 end end
 	return n
+end
+
+-- The validated sample of the census (CensusStats.PeopleEstimate): of the rows whose guild is one
+-- of `counted` ({ [guild lower case] = true }), how many characters and how many distinct
+-- BattleTags (accounts). Two numbers, never a tag or a name; nothing off the team's page.
+function Accord.Sample(counted)
+	local s, characters, accounts, seen = Store(false), 0, 0, {}
+	if not s or not Accord.TeamShown() or type(counted) ~= "table" then return 0, 0 end
+	for _, r in pairs(s.rows) do
+		if type(r) == "table" and type(r.tag) == "string" and type(r.guild) == "string" and counted[r.guild:lower()] then
+			characters = characters + 1
+			local k = ns.Fold(r.tag)
+			if not seen[k] then seen[k], accounts = true, accounts + 1 end
+		end
+	end
+	return characters, accounts
 end
 
 -- The rows grouped by tag (one player's characters), the most characters first, then the newest.

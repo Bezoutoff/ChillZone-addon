@@ -16,7 +16,7 @@ local PEER_WINDOW = 180  -- the election only trusts peers heard in the last 3 m
 local COUNT_WINDOW = 720 -- quiet members say hello every 10 min: count them for 12
 local BROADCAST_EVERY = 170
 local SEND_INTERVAL = 1.2
-local MAX_QUEUE = 60
+local MAX_QUEUE = 60 -- (Comm.MAX_QUEUE below, for the tests; 1.5.0: a relay keys its forwards instead of widening this)
 local CHAT_QUEUE = 6  -- chat parts waiting in their own lane (two long lines)
 local CHAT_TTL = 30   -- a chat part that waited this long is dropped, not sent late
 local GUARD_AFTER = 400  -- an elected reporter never heard reporting our guild for this long...
@@ -38,6 +38,7 @@ local MAX_KEYS = 20      -- distinct keys per diagnostic count (the rest count a
 local HEAL_GAP = 60      -- the same healing call on our channel at most this often (Comm.HealChannel)
 local MAX_HURT = 20      -- banned or muted names kept per channel to let back in (oldest dropped)
 local LOCKED_RETRY = { 60, 120, 300, 600 } -- a channel locked against us is tried again after these, then every 10 min
+local HOLD_MAX = 600     -- 1.4.0: a message held this long without going out (a lockdown) is dropped (DropStale)
 
 local peers = {}
 -- Two priorities, each with single messages and whole transfers. Intrusive lists keep
@@ -46,6 +47,8 @@ local lanes = { {}, {}, {}, {} } -- urgent single/batch, ordinary single/batch
 local keyed, owned = {}, {}
 local queueSize, ordinarySize, sequence = 0, 0, 0
 local active, batchSlot
+local refusedInRow, waitUntil = 0, -math.huge -- 1.4.0: the game's "not now" in a row, and the pump's wait after it (SendNow)
+local heldSince -- 1.4.0: when the pump began holding the queue (a lockdown, RETRY_WAIT), until it sends again
 local SyncGuild
 -- Five fragments, two chat opportunities and one urgent opportunity in eight slots:
 -- 30 pieces finish within 55.2 s; six waiting chat pieces within 28.8 s at 1.2 s/slot.
@@ -56,7 +59,13 @@ local asm = Codec.NewAssembler()
 local guildAsm = Codec.NewAssembler() -- pieces over GUILD (1.0.0)...
 local outsiderAsm = Codec.NewAssembler()
 local whisperAsm = Codec.NewAssembler() -- private signed-authority answers (1.2)
-local GUILD_PIECES = { HS = true, HT = true, XB = true, WZ = true, WU = true } -- ...put together for these types alone: signed lists, loot, War recovery and bounded squad assignments
+local GUILD_PIECES = { HS = true, HT = true, XB = true, WZ = true, WU = true }
+local WHISPER_PIECES = { H2 = true } -- ...and over WHISPER (1.4.3: the relay's RL and RM too, Comm.RelayPieces)
+-- 1.4.3: the relay (Relay.lua) names the kinds its pieces carry over GUILD and WHISPER.
+function Comm.RelayPieces(kinds)
+	for k in pairs(kinds or {}) do GUILD_PIECES[k], WHISPER_PIECES[k] = true, true end
+end
+local function RelayOn() local R = ns.Relay return type(R) == "table" and R.On() == true and R.Pick() ~= nil end -- ...put together for these types alone: signed lists, loot, War recovery and bounded squad assignments
 local msgId = 0
 local lastBroadcast = 0
 local early -- { every, due }: the report due then went out early, as a census answer (see Q1)
@@ -70,9 +79,14 @@ local askTries = 0 -- census requests tried while the channel was not joined (Co
 local heardAsk = -math.huge -- someone else's census request last heard on our channel (Comm.AskCensus)
 local askedAgain = false    -- the second census request is on its way, or went (Comm.AskCensus)
 local joinedName -- name of the channel we joined (set by Comm.JoinChannel)
+-- 1.4.1: the channel lane (declared here: SendNow and Comm.Stats, above the lane's own code, use them).
+local laneRefused, laneProbe = 0, false
+local Lane
 local peerRealm = {} -- guild peer -> realm from its hello, "old" for versions that send none
 local peerVersion = {} -- guild peer -> the addon version its hello named
 local peerSealed = {} -- guild peer -> "s" (on the sealed channel) or "p" (public), from its hello
+local peerLane = {}   -- guild peer -> its channel lane when not the first (1.4.1), from its hello
+local peerRelay = {}  -- guild peer -> true when its hello says it carries the relay (1.4.3)
 local peerZone = {} -- guild peer -> true when its hello says it shares its zone (0.9.1, Comm.SharesZone)
 local peerBank = {} -- guild peer -> true while its hello says it is an arena bank on duty (1.2, Electable)
 -- Short name -> last time we heard it report our guild on the channel. Short: the server may
@@ -188,7 +202,13 @@ function Comm.Stats()
 		electAll = Comm.ElectsAcrossRealms(now), quietAfter = Comm.QuietAfter(now), presence = Comm.PresenceRealms(now),
 		-- 1.2.5.1: quiet presence on, and how many of our words it held (Comm.QuietHolds).
 		quietPresence = Quiet(), quietHeld = stats.quiet or 0,
+		-- 1.4.0: the game's "not now" (a throttle, a lockdown): sends kept for another try, sends
+		-- held back by a lockdown, and whether the queue is held now.
+		retried = stats.retried or 0, lockHeld = stats.locked or 0, held = heldSince ~= nil,
 		reportSt = r and r.st, reportCap = r and r.cap, reportPres = r and r.pres,
+		-- 1.4.1: the channel lane we are on, refusals counted towards the next, moves made.
+		lane = Lane(), laneRefused = laneRefused, laneMoves = stats.lanes or 0,
+		peerLanes = (function() local n = {} for name, l in pairs(peerLane) do n[#n + 1] = ns.DisplayName(name) .. ":" .. l end table.sort(n) return n end)(),
 	}
 end
 
@@ -288,11 +308,16 @@ end
 
 local function Enqueue(dist, parts, key, target, urgent, logged, done, options)
 	SyncGuild()
+	-- 1.4.3: on Forever the channel delivers nothing; what was for it goes to our relay by whisper
+	-- (Relay.Out, which comes back here as WHISPER jobs). Without a relay to pick, the channel as before.
+	if dist == "CHANNEL" and RelayOn() and not (options and options.relayed) then
+		if ns.Relay.Out(parts, logged, done, key, urgent, options) then return true end
+	end
 	local job = { dist = dist, parts = parts, i = 1, key = key, target = target,
 		urgent = urgent and true or false, logged = logged == true, done = done,
 		owner = options and options.owner, guard = options and options.guard,
 		guardKey = options and options.guardKey, permit = options and options.permit,
-		guild = GetGuildInfo("player") }
+		guild = GetGuildInfo("player"), at = GetTime() }
 	local dropped = {}
 	local previous = key and keyed[key]
 	-- A transfer already in flight remains whole. A waiting keyed job keeps the legacy
@@ -306,9 +331,14 @@ local function Enqueue(dist, parts, key, target, urgent, logged, done, options)
 		Done(job, false, "full")
 		return false
 	end
+	-- 1.4.0 (the queue's audit): the newest payload takes the waiting one's place in line, its
+	-- sequence: a message re-sent on a timer behind a busy queue was put back at the end each time
+	-- and never reached the front (a 15 s position stopped going out once 13 waited ahead of it).
+	local seat
 	if replace then
 		if job.done == nil then job.done = previous.done end
 		previous.done = nil
+		seat = previous.seq
 		Detach(previous)
 	end
 	while queueSize + #parts > MAX_QUEUE do
@@ -320,12 +350,23 @@ local function Enqueue(dist, parts, key, target, urgent, logged, done, options)
 	end
 	local accepted = queueSize + #parts <= MAX_QUEUE
 	if accepted then
-		sequence = sequence + 1
-		job.seq = sequence
 		local lane = lanes[(job.urgent and 1 or 3) + (#parts > 1 and 1 or 0)]
-		job.lane, job.prev = lane, lane.last
-		if lane.last then lane.last.next = job else lane.first = job end
-		lane.last = job
+		if seat then
+			-- (Each lane stays in sequence order: in after the last job ahead of its seat.)
+			job.seq = seat
+			local ahead = lane.last
+			while ahead and ahead.seq > seat do ahead = ahead.prev end
+			job.lane, job.prev = lane, ahead
+			if ahead then job.next = ahead.next else job.next = lane.first end
+			if job.next then job.next.prev = job else lane.last = job end
+			if ahead then ahead.next = job else lane.first = job end
+		else
+			sequence = sequence + 1
+			job.seq = sequence
+			job.lane, job.prev = lane, lane.last
+			if lane.last then lane.last.next = job else lane.first = job end
+			lane.last = job
+		end
 		queueSize = queueSize + #parts
 		if not job.urgent then ordinarySize = ordinarySize + #parts end
 		if key then keyed[key] = job end
@@ -356,12 +397,12 @@ end
 --   Comm.lua Q1 | Positions P1 | Layers L0 L1 | Hop LN LO LQ LR LX | HopSightings LY | Decree D1 | Channels M1 | ChatRooms M2
 --   Inspect S1 U0 U1 | TabardsV2 U2 U3 U4 | King T1 T2 T3 | Court T4 T5 | Acts T6 T7 | Treasury T8 TB TE TQ TR TX
 --   Bank T9 | Vox Y1 Y3 | Loot X1 XQ XB | Crafters W0 W1 WA WL WQ WR
---   Workshop HA HI HK HQ HR HS HT V1 V2 V3 V4 V5 V6 | Link DA DB DC DE DK DR DV DW
+--   Workshop HA HI HK HQ HR HS HT V1 V2 V3 V4 V5 V6 | Olympus Link (its own addon, Olympus_Link) DA DB DC DE DK DR DV DW
 --   Authority H2 H3
 --   GuildCharter GC (master's public card), QC (outsider's bounded ask), QD (corroborated Join card)
 --   OfficerMuster OM (bounded, zone-only officer gathering, logged)
 --   Other 1.1 work: Recruit J1 J3 | Alts AL | Filter BW | Dues FA FB FC FD FQ FS FU
---   Board G0 G1 GQ | Keys K3 K4 K5 K7 | Channels N1 | Moderation O1 | ProfileEffects FX | The Watch MW | Treasury TA TD TW
+--   Board G0 G1 GQ | Groups GA GL GM GR GW GX | Keys K3 K4 K5 K7 K8 | Channels N1 | Moderation O1 | ProfileEffects FX | The Watch MW | Treasury TA TD TW
 --   Bank TL TN TO TS | Week Y2 | Wanted WS WY W4 W5, and 1.2.3's WK (a member's own kill or death,
 --   and a reviewer's relay of one) WV (a reviewer's removal or void), and 1.2.4's W7 (a member's
 --   avenged ask at login: digests of the Horde players his open deaths name). Reserved: J2 (#20's route
@@ -409,12 +450,19 @@ end
 --   1.2.4, Dues FP FR (a payer's private receipt ask and the pinned Treasurer's observed receipt).
 --   1.2.4, ChurchFullness NF (private coverage recovery between a current nominee and the guild desk).
 --   1.2.6, global census CG (trusted anti-entropy snapshots; counts only, never census authority).
+--   1.4.0, every server's census CX (a realm group's totals, carried to the other groups by players who were there).
 --   1.2.5, PlayerSightings PS (request-bound queries; private last-seen answers and withdrawals).
 --   1.2.5.1, the Olympus Accord: Accord BT BQ (the first, a player's BattleTag to a moderation team
 --   member who asked, a logged whisper; the second, that member's ask, on the Olympus channel).
 --   Cover MC (a moderator's cover name, from their own client, over the channel and GUILD).
 --   TagFollow TF (a sanction that follows a BattleTag: a code of it, the character, the kind; logged,
 --   on the Olympus channel).
+--   1.4.0, PrivatePresence PP (Private presence on or off, to the player's own guild over GUILD only).
+--   Verify GV (guild verification: a verifier's approval or revocation of a guild and its master,
+--   logged; any member's ask; a verifier's client's answer with the words and the guilds' starts).
+--   1.4.3, Relay RL RM RG RY RX (Relay.lua: what the channel carried, by whisper where Forever delivers
+--   nothing on it: origin to relay, relay to each guild's reporter, reporter to its guild over GUILD,
+--   the relay's answer to a ping, and 1.4.6 a relay's copy to the other relays).
 local handlers = {}
 -- 1.1 (Moderation.lua): a client the moderators took off (net-off) sends none of what they hide.
 local function Held(msg)
@@ -442,7 +490,7 @@ Comm.QUIET_WORDS = {
 	"^CG~%d+~S~",   -- a global census snapshot (Data.lua)
 	"^V[248]~",     -- a roll call's answer, the author's presence, a version check's answer (Workshop.lua, Versions.lua)
 	"^NK~1~p~",     -- the Church's presence (Church.lua)
-	"^D[VW]~",      -- Olympus Link's confirmer and watcher presence (Link.lua)
+	"^D[VW]~",      -- Olympus Link's confirmer and watcher presence (its own addon, Olympus_Link, when installed)
 	-- The arena auditors' and fee receiver's hello, and an auditor's whispered check of a bank
 	-- snapshot (ZQ~<mode>~H~<epoch>~<seq>, Wallet.CheckSnapshot), which marks him as heard too: a
 	-- check held back is not sent again, and the bank prunes at the next snapshot (Wallet.lua).
@@ -546,7 +594,7 @@ function Comm.SendChunked(payload, urgent, dist, done, options)
 	return Comm.SendBatch(dist, Codec.Chunk(payload, tostring(msgId)), nil, nil, urgent, done, guarded)
 end
 function Comm.ChannelReady()
-	return channelIndex > 0
+	return channelIndex > 0 or RelayOn()
 end
 -- Messages waiting to go out, one each SEND_INTERVAL (chat lines apart).
 function Comm.QueueSize()
@@ -568,12 +616,17 @@ end
 -- the actual game send, like Comm.Send's options.guard. Returns false when the lane is full,
 -- guard refuses, or while we are on no channel.
 function Comm.SendChat(msg, done, line, guard)
-	if not joinedName or #chatQueue >= CHAT_QUEUE or Held(msg) then return false end
+	if not (joinedName or RelayOn()) or #chatQueue >= CHAT_QUEUE or Held(msg) then return false end
 	if guard ~= nil then
 		if type(guard) ~= "function" then return false end
 		local ok, valid = pcall(guard)
 		if not ok or valid ~= true then return false end
 	end
+	-- (1.5.0) Where the game delivers the player's typed text and not the hidden message
+	-- (Forever), a tier's line goes as his own text in the joined channel too (ChatHall.lua):
+	-- the same channel hears it at once, every other lane and guild by the hidden way below.
+	local H = ns.ChatHall
+	if type(H) == "table" and H.On() then pcall(H.Send, msg) end
 	chatQueue[#chatQueue + 1] = { msg = msg, done = done, t = GetTime(), channel = joinedName, line = line, guard = guard }
 	return true
 end
@@ -603,16 +656,56 @@ local function IsSuccess(res)
 	return res == nil or res == true or res == 0
 end
 
+-- 1.4.0 (the queue's audit: a chat lockdown lost every waiting job, one refusal a tick, and one
+-- throttled piece ended a whole transfer). The game's answers that mean "not now":
+-- Enum.SendAddonMessageResult's AddonMessageThrottle (3), ChannelThrottle (8), GeneralError (9)
+-- and AddOnMessageLockdown (11). The job keeps its place and the whole pump waits, longer after
+-- each refusal in a row (RETRY_WAIT); a job refused RETRY_MAX times for a throttle or an error
+-- ends as before. A lockdown never counts against a job: nothing leaves while it lasts
+-- (ns.ChatLocked, C_ChatInfo.InChatMessagingLockdown where the client has it), and a transfer
+-- already begun still ends "late" past its receivers' 60 seconds. Any other answer (an offline
+-- target, 12; an old client's false) ends the job at once, as before.
+local LOCKDOWN = 11
+local RETRYABLE = { [3] = true, [8] = true, [9] = true, [LOCKDOWN] = true }
+local RETRY_WAIT = { 2, 4, 8, 15, 30 } -- seconds the pump waits after 1, 2, 3, 4, 5+ refusals in a row
+local RETRY_MAX = 5
+-- (Named apart from the channel guard's Locked further down, a different thing.)
+local function InLockdown() return ns.ChatLocked ~= nil and ns.ChatLocked() == true end
+
 -- Player text goes through the logged API, Blizzard's function for plain text payloads
 -- (receivers get CHAT_MSG_ADDON_LOGGED). Clients without it use the usual one.
 local function SendNow(dist, msg, logged, whisperTo)
+	-- (1.4.0: during a chat lockdown the game refuses it anyway: no call, no failure logged.)
+	if InLockdown() then
+		stats.locked = (stats.locked or 0) + 1
+		return false, LOCKDOWN
+	end
 	-- (A whisper goes to the name the server finds: ns.TellName. Group distributions have no target.)
 	local target = dist == "CHANNEL" and channelIndex or (dist == "WHISPER" and ns.TellName(whisperTo) or nil)
 	local send = logged and C_ChatInfo.SendAddonMessageLogged or C_ChatInfo.SendAddonMessage
 	local ok, res = pcall(send, ns.PREFIX, msg, dist, target)
 	if ok and IsSuccess(res) then
 		stats.sent = stats.sent + 1
+		refusedInRow = 0
+		if dist == "CHANNEL" then laneRefused = 0 end -- (1.4.1: the channel takes our words)
 		return true
+	end
+	if ok and RETRYABLE[res] then
+		refusedInRow = refusedInRow + 1
+		waitUntil = GetTime() + RETRY_WAIT[math.min(refusedInRow, #RETRY_WAIT)]
+	end
+	-- (1.4.1) InvalidChannel on the channel we are on (its number still ours): counted towards the
+	-- next lane; the census is asked again a moment later, so the count settles within seconds
+	-- whatever else this client has to say. Not while we are off it (a stale number says nothing).
+	if ok and res == 7 and dist == "CHANNEL" and channelIndex > 0 and joinedName
+		and (GetChannelName(joinedName) or 0) == channelIndex then
+		laneRefused = laneRefused + 1
+		if laneRefused >= Comm.LANE_AFTER then
+			Comm.NextLane(("InvalidChannel x%d on %s"):format(laneRefused, joinedName))
+		elseif not laneProbe then
+			laneProbe = true
+			ns.After(Comm.LANE_PROBE, "channel probe", function() laneProbe = false Comm.AskCensus(true) end)
+		end
 	end
 	stats.fails = stats.fails + 1
 	stats.lastFail = ("%s %s"):format(dist, tostring(res))
@@ -742,6 +835,14 @@ local function SendJob(job, now)
 	end
 	local sent, why = SendNow(job.dist, job.parts[job.i], job.logged, job.target)
 	if not sent then
+		-- (1.4.0: "not now" keeps the job in its place, RETRY_MAX tries for a throttle or an error.)
+		if RETRYABLE[why] then
+			if why ~= LOCKDOWN then job.tries = (job.tries or 0) + 1 end
+			if (job.tries or 0) < RETRY_MAX then
+				stats.retried = (stats.retried or 0) + 1
+				return true
+			end
+		end
 		Finish(job, false, why or "failed")
 		return true -- a game API was called: do not spend another slot this tick
 	end
@@ -769,11 +870,34 @@ local function SendChatPart()
 			return
 		end
 	end
-	local sent = SendNow("CHANNEL", item.msg, true)
+	local sent
+	if RelayOn() then
+		sent = ns.Relay.Out({ item.msg }, true, nil, nil, true) -- (1.4.3: a chat line by the relay, logged at hop 1)
+	else
+		sent = SendNow("CHANNEL", item.msg, true)
+	end
 	if item.done then ns.SafeCall("chat sent", item.done, sent, (not sent) and "failed" or nil) end
 end
 
-local function Pump()
+-- The jobs not begun that waited HOLD_MAX or more (only after the pump held them: a lockdown).
+-- Their done hears "dropped", as for a full queue's eviction: what must be delivered (the arena's
+-- obligations, ArenaNet's retries) is offered again by its module, the rest is no longer news.
+local function DropStale(now)
+	local stale = {}
+	for _, lane in ipairs(lanes) do
+		local job = lane.first
+		while job do
+			if not job.started and job.at and now - job.at >= HOLD_MAX then stale[#stale + 1] = job end
+			job = job.next
+		end
+	end
+	table.sort(stale, function(a, b) return a.seq < b.seq end)
+	for _, job in ipairs(stale) do Detach(job) end
+	for _, job in ipairs(stale) do Done(job, false, "dropped") end
+	return #stale
+end
+
+local function PumpOnce()
 	SyncGuild()
 	if queueSize == 0 and not chatQueue[1] then return end
 	if not ns.IsMember() then
@@ -795,6 +919,17 @@ local function Pump()
 		local item = table.remove(chatQueue, 1)
 		if item.done then ns.SafeCall("chat drop", item.done, false, "late") end
 	end
+	-- 1.4.0: nothing leaves during a chat lockdown (the jobs wait in their places), nor before the
+	-- wait after the game's last "not now" is over (RETRY_WAIT). Once the hold is over, what waited
+	-- HOLD_MAX or more and has not begun is dropped (DropStale).
+	if InLockdown() or now < waitUntil then
+		heldSince = heldSince or now
+		return
+	end
+	if heldSince then
+		heldSince = nil
+		DropStale(now)
+	end
 	-- Invalid jobs consume no network slot. Bound the pass even if a callback adds work.
 	for _ = 1, MAX_QUEUE do
 		if active then
@@ -802,7 +937,7 @@ local function Pump()
 			local valid, why = Valid(current, now)
 			if not valid then Finish(current, false, why) end
 		end
-		local chat = chatQueue[1] and channelIndex > 0
+		local chat = chatQueue[1] and (channelIndex > 0 or RelayOn()) -- (1.4.3: the relay carries the chat too)
 		local job
 		if active then
 			local slot = BATCH_SLOTS[batchSlot]
@@ -819,6 +954,19 @@ local function Pump()
 		if not job then return end
 		lastWasChat = false
 		if SendJob(job, now) then return end
+	end
+end
+-- One part a pump as ever; a relay's client (Relay.lua: it forwards every word to every guild's
+-- reporter and the other relays) PUMP_PARTS_RELAY a pump (1.5.0: at one part every 1.2 s the
+-- dev's relay fell behind, whole reports and the signed lists waited and fell out of the queue;
+-- four parts a pump is 3.3 a second, under the server's limit of ten).
+Comm.PUMP_PARTS_RELAY = 4
+local function Pump()
+	local R = ns.Relay
+	local parts = (type(R) == "table" and R.On() and R.IsRelay(ns.me)) and Comm.PUMP_PARTS_RELAY or 1
+	for _ = 1, parts do
+		if queueSize == 0 and not chatQueue[1] then return end
+		PumpOnce()
 	end
 end
 Comm.Pump = Pump -- for tests
@@ -847,14 +995,53 @@ local function Hash36(text)
 end
 Comm.Hash36 = Hash36
 
+-- 1.4.1 (launch night, 2026-11-04: on WoW: Forever the game refused every send on "OlympusNet"
+-- with InvalidChannel (7) while we were on it, and any other channel, new or old, took them; the
+-- whole army was on that one channel and no guild heard another). The channel lane: the name a
+-- client joins is the usual one, then the usual one with 1, 2 ... LANE_MAX after it. A client moves
+-- to the next lane by itself once the game refused LANE_AFTER sends in a row on the channel it is on
+-- (SendNow), and asks the census again there: every client refused moves the same way, so the army
+-- meets again on the next lane with nobody typing anything. The lane is kept per realm group
+-- (ns.rdb.channelLane), so a /reload comes back to the lane that works. A guildmate's hello names
+-- his lane (H1's sixth field): one from a Lord or Captain of our guild naming a higher lane moves us
+-- too (TakeLane: an officer can already move the guild with a key, SetRealmKey), anyone else's is
+-- noted alone (/oly status). The sealed channel's name takes the lane the same way.
+Comm.LANE_AFTER = 3
+Comm.LANE_MAX = 9
+Comm.LANE_PROBE = 5 -- seconds after a refusal before the census is asked again, to settle it
+Lane = function()
+	local n = ns.rdb and tonumber(ns.rdb.channelLane) or 0
+	if n ~= n or n < 0 or n > Comm.LANE_MAX then return 0 end
+	return math.floor(n)
+end
+Comm.Lane = Lane
+local function LaneName(base) return base .. (Lane() > 0 and tostring(Lane()) or "") end
+
 -- Each faction has its own channel (and sealed name), so the Horde and the Alliance never
 -- mix their census, chat or decrees, whether or not the game shares channel names between them.
 function Comm.ChannelSpec()
 	local horde = ns.faction == "Horde"
 	local key = ns.rdb and ns.rdb.realmKey
-	if key and key ~= "" then return (horde and "OlyH" or "Oly") .. Hash36(key), key end
-	return horde and ns.CHANNEL_HORDE or ns.CHANNEL, nil
+	if key and key ~= "" then return LaneName((horde and "OlyH" or "Oly") .. Hash36(key)), key end
+	return LaneName(horde and ns.CHANNEL_HORDE or ns.CHANNEL), nil
 end
+-- To lane n (TakeLane: a higher one a guild officer's hello names) or the next one (NextLane): the
+-- old channel is left and the new one joined (JoinChannel), the census asked there 10 s on.
+local function MoveLane(n, why)
+	if not ns.rdb then return false end
+	n = tonumber(n)
+	if not n or n ~= n or n <= Lane() or n > Comm.LANE_MAX then return false end
+	local was = Lane()
+	ns.rdb.channelLane = math.floor(n)
+	laneRefused, laneProbe = 0, false
+	stats.lanes = (stats.lanes or 0) + 1
+	ns.Log("channel lane %d -> %d (%s)", was, Lane(), tostring(why))
+	if ns.IsMember() then Comm.JoinChannel() end
+	return true
+end
+function Comm.NextLane(why) return MoveLane(Lane() + 1, why or "refused") end
+function Comm.TakeLane(n, who) return MoveLane(n, tostring(who) .. "'s hello") end
+function Comm.LaneStats() return { lane = Lane(), refused = laneRefused, moves = stats.lanes or 0 } end
 
 local function HideChannelFromChat(name) -- gp:chat-channels
 	for i = 1, (NUM_CHAT_WINDOWS or 10) do
@@ -933,28 +1120,33 @@ end
 
 local function Mine(g) return g.mine.owner or g.mine.moderator end
 
--- Players the channel must never lose, the way the server finds them: the Treasurer, and the
--- King's character when our client knows it (our own roster in his guild, or a character
--- pinned in Core.lua).
-local function Protected()
-	local out, seen = {}, {}
-	local function Add(name)
-		name = ServerName(name)
-		if name and not seen[name:lower()] then
-			seen[name:lower()] = true
-			out[#out + 1] = name
-		end
-	end
-	Add(ns.TREASURER)
-	local pinned = ns.KING_CHARACTER
-	if type(pinned) == "table" then pinned = pinned[ns.faction or "Alliance"] end
-	Add(pinned)
-	if ns.IsKingGuild and ns.IsKingGuild(GetGuildInfo("player")) and ns.Roster and type(ns.Roster.byName) == "table" then
-		for name, rank in pairs(ns.Roster.byName) do
-			if rank == 0 then Add(name) break end
+-- 1.4.0 (the HealChannel spam a player reported): a name we saw banned is let back in only while
+-- nothing says that player is offline. The server answers an unban of an offline name with "No
+-- player named ... is currently playing" in the player's chat, so these names wait instead: one
+-- the server already named so this session (Treasury.Unavailable, which any whisper's reply
+-- fills), or a member of our own guild that a fresh roster scan shows offline. The roster's own
+-- freshness gate (Roster.Fresh) keeps an old guild's rows out of it.
+local OFFLINE_RECHECK = 300 -- names left waiting are looked at again this often while the channel is ours
+local function OfflineMembers()
+	local R = ns.Roster
+	local fresh = R and type(R.Fresh) == "function" and R.Fresh(OFFLINE_RECHECK)
+	if not fresh or type(fresh.members) ~= "table" then return nil end
+	local out
+	for _, row in ipairs(fresh.members) do
+		if type(row) == "table" and row.online == false and type(row.full) == "string" then
+			local name = ServerName(row.full)
+			if name then
+				out = out or {}
+				out[name:lower()] = true
+			end
 		end
 	end
 	return out
+end
+local function KnownOffline(name, offline)
+	local T = ns.Treasury
+	if type(T) == "table" and type(T.Unavailable) == "function" and T.Unavailable(name) == true then return true end
+	return offline ~= nil and offline[name:lower()] == true
 end
 
 -- One healing call, protected, the same one at most every HEAL_GAP: "done", "failed",
@@ -978,10 +1170,24 @@ local function HealSoon(delay)
 	end)
 end
 
+-- Names seen banned but known offline (KnownOffline) are looked at again later, on a timer of
+-- their own: a heal due sooner (a notice's) is never held behind it.
+local recheckPending = false
+local function RecheckSoon()
+	if recheckPending then return end
+	recheckPending = true
+	ns.After(OFFLINE_RECHECK, "channel heal recheck", function()
+		recheckPending = false
+		Comm.HealChannel()
+	end)
+end
+
 -- Only while the channel is ours (owner or moderator), only to undo harm, never against
 -- anyone: the password it should have (none on the public channel, the key on the sealed
--- one), no moderation, and whoever was banned or muted while we were on it let back in, the
--- Treasurer and the King always. Only for the channel we are meant to be on: what we saw on
+-- one), no moderation, and whoever we saw banned or muted while we were on it let back in.
+-- 1.4.0: only the names we saw banned (the Treasurer and the King too: never one we did not see
+-- banned, which only made the server name every offline one in the chat), and none while it is
+-- known offline (KnownOffline). Only for the channel we are meant to be on: what we saw on
 -- another one (the public channel once we have a key) changes nothing.
 -- What someone does with the channel from our own client is not undone here: the next owner's
 -- client does it.
@@ -1007,15 +1213,18 @@ function Comm.HealChannel()
 	-- saw it turned on. (Today's clients have no ChannelModerate: nobody can turn it on either.)
 	if g.moderationOn and Do("moderation off", ChannelModerate, name) ~= "later" then g.moderationOn = nil end
 	local unban = {}
-	for who in pairs(g.banned) do unban[who] = true end
-	if g.protect then
-		for _, who in ipairs(Protected()) do unban[who] = true end
+	for who in pairs(g.banned) do unban[#unban + 1] = who end
+	table.sort(unban)
+	local offline = unban[1] and OfflineMembers() or nil
+	local away = false
+	for _, who in ipairs(unban) do
+		if KnownOffline(who, offline) then
+			away = true -- kept in g.banned: let back in once nothing says he is offline
+		elseif Do("unban " .. who, ChannelUnban, name, who) ~= "later" then
+			g.banned[who] = nil
+		end
 	end
-	local waiting = false
-	for who in pairs(unban) do
-		if Do("unban " .. who, ChannelUnban, name, who) == "later" then waiting = true else g.banned[who] = nil end
-	end
-	if not waiting then g.protect = nil end
+	if away then RecheckSoon() end
 	-- (No ChannelUnmute in today's clients either: kept for one that has it.)
 	for who in pairs(g.muted) do
 		if Do("unmute " .. who, ChannelUnmute, name, who) ~= "later" then g.muted[who] = nil end
@@ -1098,7 +1307,6 @@ function Comm.OnChannelNotice(notice, player, _, channelName, player2, _, _, _, 
 		elseif not g.mine.owner then
 			g.mine.owner = true
 			g.unwatched = not g.watched or nil
-			g.protect = true
 			RoleGiven(g)
 		end
 	elseif notice == "SET_MODERATOR" or notice == "UNSET_MODERATOR" then
@@ -1108,7 +1316,6 @@ function Comm.OnChannelNotice(notice, player, _, channelName, player2, _, _, _, 
 			g.mine.moderator = nil
 		elseif not g.mine.moderator then
 			g.mine.moderator = true
-			g.protect = true
 			RoleGiven(g)
 		end
 	elseif notice == "PASSWORD_CHANGED" then
@@ -1192,7 +1399,7 @@ function Comm.JoinChannel()
 		LeaveChannelByName(joinedName) -- the key changed: leave the old channel -- gp:chat-channels
 		channelIndex = 0
 	end
-	if joinedName ~= name then watch = nil end -- another channel: the election guard starts again
+	if joinedName ~= name then watch, laneRefused = nil, 0 end -- another channel: the election guard starts again
 	joinedName = name
 	local id = GetChannelName(name)
 	if id and id > 0 then
@@ -1215,10 +1422,15 @@ function Comm.JoinChannel()
 		ns.SafeCall("channel last", Comm.KeepLast)
 		ns.Log("channel %s -> #%d", name, channelIndex)
 		HideChannelFromChat(name)
+		-- (1.4.1) One census request as a probe once we are on it: a client with nothing else to
+		-- say still learns whether the game takes its words here (SendNow's lane count).
+		if channelIndex > 0 then ns.After(Comm.LANE_PROBE, "channel probe", function() Comm.AskCensus(true) end) end
 	end)
 end
 
 function Comm.ChannelName() return joinedName end
+function Comm.ChannelIndex() return channelIndex end -- (1.5.0: the chat hall writes its text there)
+Comm.MAX_QUEUE = MAX_QUEUE
 function Comm.DeliveredLogged() return deliveredLogged end
 
 -- Who can read the channel, as the privacy questions tell the player (Layers, Channels):
@@ -1262,9 +1474,9 @@ function Comm.SetRealmKey(secret)
 	end
 	local was = ns.rdb.realmKey
 	ns.rdb.realmKey = secret
-	Enqueue("GUILD", { "K1~" .. secret }, "key")
 	-- 1.1 (Keys.lua): dated now, so our guild's 1.1 clients take it over a key the King rotated
 	-- before; the key it replaces named with it (a plain K1 of that one no longer pulls them back).
+	-- 1.4.0: that K8 alone; no plain K1, which every older version reads.
 	if ns.Keys.Typed then ns.Keys.Typed(secret, was) end
 	ns.Print(ns.L.KEY_SET)
 	Comm.JoinChannel()
@@ -1380,10 +1592,13 @@ function Comm.Hello(force)
 	-- And "z" when we share our zone (0.9.1): our guild's reporter may name it then, never
 	-- otherwise. Older versions read the fields before it and ignore the rest.
 	local sealed = ns.rdb and ns.rdb.realmKey and "s" or "p"
-	local zone = ns.Layers and ns.Layers.Sharing and ns.Layers.Sharing() and "~z" or ""
-	-- A sixth "b" field marks an arena bank on duty. Older clients ignore it.
-	if Comm.BankOnDuty() then zone = (zone ~= "" and zone or "~") .. "~b" end
-	Enqueue("GUILD", { "H1~" .. ns.VERSION .. "~" .. tostring(ns.realm) .. "~" .. sealed .. zone }, "hello")
+	-- The fields after it: "z" (our zone shared), "b" (an arena bank on duty), and (1.4.1) "L<n>",
+	-- our channel lane when it is not the first. Empty ones at the end are left out, as before.
+	local tail = { ns.Layers and ns.Layers.Sharing and ns.Layers.Sharing() and "z" or "", Comm.BankOnDuty() and "b" or "",
+		Lane() > 0 and ("L" .. Lane()) or "", "R" } -- (1.4.3: "R", this client carries the relay)
+	while #tail > 0 and tail[#tail] == "" do tail[#tail] = nil end
+	local extra = #tail > 0 and ("~" .. table.concat(tail, "~")) or ""
+	Enqueue("GUILD", { "H1~" .. ns.VERSION .. "~" .. tostring(ns.realm) .. "~" .. sealed .. extra }, "hello")
 end
 
 -- An arena bank on duty leaves census reporting to a guildmate so event traffic and
@@ -1424,7 +1639,13 @@ local function Electable(now)
 	for name, t in pairs(peers) do
 		local realm, stamped = peerRealm[name], ns.RealmOf(name)
 		local ours = (realm == nil or realm == "old" or realm == ns.realm) and (stamped == nil or stamped == ns.realm)
-		if (benched[name] or 0) <= now and (all or ours) and not peerBank[name] then pool[name] = t end
+		-- (1.4.1, launch night: a guild's 1.4.0 clients, stuck on the first lane, were elected by name
+		-- and reported into a channel nobody heard, while its guildmates on the next lane kept quiet.)
+		-- Only a peer on our lane: his hello names it (none named: the first lane).
+		local sameLane = (peerLane[name] or 0) == Lane()
+		-- (1.4.3) Where the relay carries the channel, only a peer that carries it too can report.
+		local carries = not (ns.Relay and ns.Relay.On()) or peerRelay[name] == true
+		if (benched[name] or 0) <= now and (all or ours) and not peerBank[name] and sameLane and carries then pool[name] = t end
 	end
 	return pool
 end
@@ -1464,7 +1685,10 @@ function Comm.MaybeBroadcast(report)
 			lastKeyAsk = now
 			Comm.RequestKey()
 		end
-	elseif best ~= ns.me and channelIndex > 0 then
+	-- (1.4.5) Where the relay carries the channel (Forever), the channel itself delivers nothing, so
+	-- a reporter is never "heard" there: every client benched its guild's reporter in turn and
+	-- elected itself (the dev's log, 2026-11-05: a new reporter every minute). No guard there.
+	elseif best ~= ns.me and channelIndex > 0 and not RelayOn() then
 		if not watch or watch.name ~= best then watch = { name = best, since = now } end
 		if now - math.max(watch.since, heardOwn[ns.ShortName(best)] or 0) >= GUARD_AFTER then
 			benched[best] = now + GUARD_FOR
@@ -1478,6 +1702,7 @@ function Comm.MaybeBroadcast(report)
 	Comm.isReporter = best == ns.me
 	Comm.reporterName = ns.DisplayName(best)
 	Comm.lastReport = report
+	if Comm.isReporter and ns.Relay and ns.Relay.On() then ns.SafeCall("relay register", ns.Relay.Register) end
 	-- The runner-up of the election reports too, every WITNESS_EVERY: a report never proves
 	-- its own sender's rank, so other guilds trust a reporter who leads the guild (or is an
 	-- officer) only once a second sender names them (Data.KnownRank).
@@ -1545,18 +1770,19 @@ end
 -- own (Comm.AskWait), and leaves its ask out when someone else asked within ASK_HELD, since
 -- every guild's answer to that ask reaches the whole channel. A left-out ask counts as ours for
 -- the second one: asked ASK_AGAIN later unless a report came.
-function Comm.AskCensus()
+function Comm.AskCensus(force)
 	if not ns.IsMember() then return end
-	if channelIndex == 0 then
+	if not Comm.ChannelReady() then
 		askTries = askTries + 1
 		if askTries < 3 then ns.After(20, "census request", Comm.AskCensus) end
 		return
 	end
-	-- Login and a guild change can both ask within seconds: once a minute is enough.
+	-- Login and a guild change can both ask within seconds: once a minute is enough. (1.4.1:
+	-- force, the lane's probe: asked whatever was heard or asked before, to see the game's answer.)
 	local now = ns.Now()
-	if Comm.lastAsk and now - Comm.lastAsk < 60 then return end
+	if not force and Comm.lastAsk and now - Comm.lastAsk < 60 then return end
 	Comm.lastAsk = now
-	if now - heardAsk < ASK_HELD then
+	if not force and now - heardAsk < ASK_HELD then
 		stats.askSkipped = stats.askSkipped + 1
 	else
 		stats.asked = stats.asked + 1
@@ -1785,7 +2011,8 @@ local function OnAddonMessage(prefix, text, dist, sender, target, zoneChannelID,
 	if ns.db.blocked[sender:lower()] then return end
 	if not Comm.Admit(sender, GetTime()) then return end
 	stats.recv = stats.recv + 1
-	-- Olympus Link (0.9.10): a High Councillor's addon waiting to hear the author (Link.HeardFrom)
+	-- Olympus Link (0.9.10; 1.4.0 its own addon, Olympus_Link): a High Councillor's addon waiting to
+	-- hear the author (Link.HeardFrom)
 	-- sees who speaks; only while it waits: otherwise nil, and no message pays for it.
 	local hook = Comm.senderHook
 	if hook then ns.SafeCall("link author", hook, sender, dist) end
@@ -1822,8 +2049,8 @@ local function OnAddonMessage(prefix, text, dist, sender, target, zoneChannelID,
 			ns.After(math.random(1, 5), "key answer", function()
 				SyncGuild()
 				if not MayAnswer() then return end
-				Enqueue("GUILD", { "K1~" .. ns.rdb.realmKey }, "key", nil, nil, nil, nil, { guard = MayAnswer })
-				-- 1.1 (Keys.lua): with its epoch too (and the keys it replaced), for 1.1 guildmates.
+				-- 1.1 (Keys.lua): with its epoch (and the keys it replaced). 1.4.0: as K8 alone, no plain
+				-- K1: an older version asking gets no key (Keys.lua, 1.4.0).
 				local k3 = ns.Keys.HandOutMessage and ns.Keys.HandOutMessage()
 				if type(k3) == "string" then Enqueue("GUILD", { k3 }, "key3", nil, nil, nil, nil, { guard = MayAnswer }) end
 			end)
@@ -1845,6 +2072,14 @@ local function OnAddonMessage(prefix, text, dist, sender, target, zoneChannelID,
 		peerSealed[sender] = (sealed == "s" or sealed == "p") and sealed or nil
 		peerZone[sender] = text:match("^H1~[^~]*~[^~]*~[^~]*~([^~]*)") == "z" or nil
 		peerBank[sender] = text:match("^H1~[^~]*~[^~]*~[^~]*~[^~]*~([^~]*)") == "b" or nil
+		-- (1.4.1) His channel lane, and ours after it when a Lord or Captain of our guild is ahead.
+		local lane = tonumber(text:match("^H1~[^~]*~[^~]*~[^~]*~[^~]*~[^~]*~L(%d+)")) or 0
+		peerLane[sender] = lane > 0 and lane or nil
+		peerRelay[sender] = text:match("^H1~[^~]*~[^~]*~[^~]*~[^~]*~[^~]*~[^~]*~R") ~= nil or nil -- (1.4.3)
+		if lane > Lane() then
+			local rank = ns.Roster and ns.Roster.RankOf and ns.Roster.RankOf(sender)
+			if type(rank) == "number" and rank <= (ns.CAPTAIN_RANK or 2) then Comm.TakeLane(lane, sender) end
+		end
 		return
 	end
 	local handler = handlers[text:sub(1, 2)]
@@ -1872,7 +2107,8 @@ local function OnAddonMessage(prefix, text, dist, sender, target, zoneChannelID,
 		-- H2 is the only long private payload. It carries an independently signed authority part;
 		-- Authority.lua still checks the route, signature, complete-set digest and replay boundary.
 		local full = Codec.Feed(whisperAsm, sender, text, now)
-		if full and full:sub(1, 3) == "H2~" and handlers.H2 then handlers.H2(dist, sender, full) end
+		local kind = full and full:sub(1, 2)
+		if kind and WHISPER_PIECES[kind] and full:sub(3, 3) == "~" and handlers[kind] then handlers[kind](dist, sender, full) end
 		return
 	end
 	if dist == "CHANNEL" then
@@ -1951,6 +2187,16 @@ ns.On("LOGIN", function()
 	-- No key yet? Ask our guild once (officers who have it answer).
 	ns.After(20, "key request", Comm.RequestKey)
 	ns.RegisterEvent("CHAT_MSG_ADDON", OnAddonMessage)
+	-- 1.4.3: a message the relay carried, taken as if it had come on the channel from its origin
+	-- (Relay.lua); logged as its origin sent it.
+	function Comm.Inject(dist, sender, text, logged)
+		local was = deliveredLogged
+		deliveredLogged = logged == true
+		local ok, err = pcall(OnAddonMessage, ns.PREFIX, text, dist, sender)
+		deliveredLogged = was
+		if not ok and ns.CaptureError then pcall(ns.CaptureError, "relay inject", err) end
+		return ok
+	end
 	-- Chat lines come through the logged API (the server keeps them, so they can be reported).
 	ns.RegisterEvent("CHAT_MSG_ADDON_LOGGED", function(...)
 		deliveredLogged = true

@@ -153,6 +153,8 @@ local ADDON, ns = ...
 --         guild at 25, or a veteran when 1.2 ships) makes no claim.
 --         vouched: the caller's proof that he is there (HonorsNet.Vouched: the server's roster, or
 --         two census senders of his guild; 1.2.1: never one census row), not only his own word.
+--         (1.4.0, the review's High 7: HonorsNet sets from and since on a vouched claim, the crossing
+--         its client saw; his level alone never shows when he got there.)
 --       opts: { start }: the race's start (server time). A claim whose crossing may be earlier
 --       (since, or t without it, before start) counts for nothing.
 --       Returns the new book (a copy), fresh (the places recorded by this call: { milestone,
@@ -741,7 +743,8 @@ function Honors.LevelRace(book, claims, now, opts)
 			local guid = type(p) == "table" and Guid(p.guid)
 			if guid and not taken[GuidKey(guid)] and #places < Honors.PLACES then
 				taken[GuidKey(guid)] = true
-				places[#places + 1] = { guid = guid, name = Name(p.name) or guid, t = Time(p.t), place = #places + 1 }
+				places[#places + 1] = { guid = guid, name = Name(p.name) or guid, t = Time(p.t), place = #places + 1,
+					by = tonumber(p.by) } -- (1.4.0: who decided it, HonorsNet.Authority's rank, kept)
 			end
 		end
 		-- Each other player's best claim to it.
@@ -1301,8 +1304,11 @@ end
 -- 1.2.4 (the owner's calls): the month's donors' koi, the best guild's owl, the Apostles' cross, the
 -- Bones' charm and the slayers' skeletal horse too. The level race's comet (the launch), the Arena's
 -- (its tournaments) and the Oracle's raven (2.0's bets) still wait.
+-- 1.4.0 (the owner's call, the launch): the level race's comets (first to 20, 40 and 60) are worn
+-- too; the race runs on the launch's realms alone (HonorsNet.LevelRaceActive). The Arena's and the
+-- Oracle's still wait.
 Honors.FRAMES_SHIPPED = { ["donor-top"] = true, missionary = true, ["donor-month"] = true, guild = true, apostle = true, bones = true,
-	["wanted-slayer"] = true }
+	["wanted-slayer"] = true, ["level-20"] = true, ["level-40"] = true, ["level-60"] = true }
 -- (nil: every family's frame, as the honours' own tests and 2.0 have them.)
 local function Shipped(h)
 	local s = Honors.FRAMES_SHIPPED

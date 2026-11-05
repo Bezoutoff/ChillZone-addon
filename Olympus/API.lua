@@ -13,16 +13,27 @@ local L = ns.L
 --     the observer consent, short life, audience and last-seen semantics below; the bounded
 --     profile-presentation session is host-owned, self-only and fixed-style. A registered addon
 --     may also contribute one page to the Olympus window; Olympus still owns its lifecycle.
+--     1.4.0 (the Board's groups, "groups.manage"): the player's own listing acted on as the Board's
+--     own buttons do (an applicant or a flag's player invited by the game's invite, an applicant
+--     declined, a member's role set, the listing lowered), and Olympus's own card, composer and
+--     flag dialog opened, where he posts and applies himself: never a listing posted, an
+--     application sent or a word written for him. And "ui.board-groups": one companion panel in
+--     place of the Board's Your group, an Olympus-owned frame the player can switch back from.
 --   - Only what this player already sees on Olympus's own pages, at no more detail: the Wanted list
 --     and its bounties (the Wanted tab's rows), the public rankings (the Slayers boards of the Wanted
 --     tab and the signed top three, the donors' top three while the King shows the army the
 --     Treasury's ranking (Donors below), the Church's public top three, and each game's ranking the
 --     King made public: never a staff view), the player's own frame and title, his own Olympus
 --     guild, rank and role, and the leader's presence as the King's lines on the Census and the
---     Realm, his crown and the Realm tab's layer list show it (LeaderPresence below). Never the
+--     Realm, his crown and the Realm tab's layer list show it (LeaderPresence below); (1.4.0) and
+--     whether a player the game shows him right now is in an Olympus guild (IsOlympusMember below:
+--     a live unit token's guild, as the game gives it, and Olympus's own rule). Never the
 --     census, another player's private data, the Wanted page's victims or stored sightings, a
 --     movement history, a staff view or a secret (a key, sealed channel name, signature or private
---     list). The optional search returns only a fresh native
+--     list). The Board's groups (1.4.0, Groups.lua) as its sections show them: the listings (how many
+--     are in a group by class and role, never their names; no time of anyone's), the players
+--     looking, and the player's own listing's applications and his own group; on the King's screen
+--     the words the Board hides stay out. The optional search returns only a fresh native
 --     observation or bounded memory-only recent observation: the target's game-reported unit point
 --     when available, its matching group-unit point when it is in the observer's party/raid,
 --     otherwise the observer's encounter point. Each row is labelled with that distinction and
@@ -39,6 +50,7 @@ local L = ns.L
 --     changes it changes its own copy, never Olympus's state nor another addon's.
 --   - Versioned and pushed: OlympusAPI.VERSION and OlympusAPI.Has(feature) say what this build gives;
 --     handle:On(event, fn) tells of a change (WANTED_CHANGED, RANKINGS_CHANGED, PROFILE_CHANGED,
+--     GROUPS_CHANGED, LOOKING_CHANGED, MY_GROUP_CHANGED,
 --     LEADER_CHANGED, SIGHTING_CHANGED for a search that same handle owns,
 --     PROFILE_EFFECT_SESSION_CHANGED for the sanitized host-owned profile session,
 --     QUIET_PRESENCE_CHANGED for the quiet presence, and PERMISSION_CHANGED when the player answers), once
@@ -76,11 +88,19 @@ API.VERSION = 1
 -- stays 1.
 -- Version 9 adds the leader's presence (GetLeaderPresence, LEADER_CHANGED) and the wider "outsiders"
 -- area scope: what a Yes gives grew, so it is asked again.
-API.CONSENT_VERSION = 9
+-- Version 10 (1.4.0) adds the Board's groups: their reads (the listings, the players looking, the
+-- player's own listing's applications and group) and the actions on his own listing (invite,
+-- decline, roles, lower) with Olympus's own dialogs opened; and IsOlympusMember (whether a player a
+-- live unit token names is in an Olympus guild). What a Yes gives grew again (one step for both,
+-- the same release), and the line says so (both texts, Locales/APIText.lua): every addon is asked
+-- again.
+API.CONSENT_VERSION = 10
 API.MAX_ADDONS = 16       -- addons registered in one session
 API.SURFACE_LIMIT = 1     -- one client-owned page in the shared tab rail per session
 API.RATE_MAX = 20         -- data calls one addon makes...
 API.RATE_WINDOW = 10      -- ...in this many seconds
+API.UNIT_RATE_MAX = 80    -- (1.4.0) IsOlympusMember calls one addon makes a RATE_WINDOW: a raid of 40 twice,
+                          -- on a budget of its own, so a raid check neither starves nor is starved by the reads
 API.MAX_CALLBACKS = 4     -- one addon's callbacks for one event
 API.CALLBACK_FAILS = 3    -- a callback that failed this many times is dropped
 API.DISPATCH_DELAY = 2    -- a change is told this long after it, a burst of them once
@@ -91,10 +111,20 @@ API.MAX_ROWS = 50         -- rows of one Slayers board
 API.MAX_WANTED = 200      -- Wanted rows (Wanted.MAX_TARGETS)
 API.MAX_LEADER_LAYERS = 16 -- layers of the leader's zone (the Realm tab's list)
 API.TITLE_MAX = 40        -- the addon's title on the privacy page
+API.MAX_GROUPS = 200      -- listings of GetGroups (Groups.MAX others, and ours)
+API.MAX_LOOKING = 200     -- rows of GetLooking (Board.MAX flags, each in the sections it names)
+API.MAX_APPLICANTS = 30   -- GetMyGroup's applications (Groups.APPLICANTS_MAX)
+API.MAX_MEMBERS = 39      -- GetMyGroup's members (a raid of 40, the player aside)
+API.GROUP_FRESH = 5 * 60  -- a listing up for less than this is `fresh` (no time of it leaves)
+API.MANAGE_MAX = 6        -- own-group actions one addon makes...
+API.MANAGE_WINDOW = 10    -- ...in this many seconds (a rate of their own)
+API.PANEL_LABEL_MAX = 48  -- a group panel's label, on the Board's switch
 API.EVENTS = { "WANTED_CHANGED", "RANKINGS_CHANGED", "PROFILE_CHANGED", "LEADER_CHANGED", "SIGHTING_CHANGED",
-	"PROFILE_EFFECT_SESSION_CHANGED", "QUIET_PRESENCE_CHANGED", "PERMISSION_CHANGED" }
+	"PROFILE_EFFECT_SESSION_CHANGED", "QUIET_PRESENCE_CHANGED", "GROUPS_CHANGED", "LOOKING_CHANGED", "MY_GROUP_CHANGED",
+	"PERMISSION_CHANGED" }
 API.DATA_EVENTS = { "WANTED_CHANGED", "RANKINGS_CHANGED", "PROFILE_CHANGED", "LEADER_CHANGED", "PROFILE_EFFECT_SESSION_CHANGED",
-	"QUIET_PRESENCE_CHANGED" }
+	"QUIET_PRESENCE_CHANGED", "GROUPS_CHANGED", "LOOKING_CHANGED", "MY_GROUP_CHANGED" }
+API.GROUP_KINDS = { dungeon = "D", raid = "R", pvp = "P", quest = "Q" }
 API.AREA_SCOPES = { hostile = true, outsiders = true }
 API.RANKINGS = { "slayers", "donors", "church", "games" }
 
@@ -391,6 +421,64 @@ function API.Profile()
 		if type(v.title) == "string" then out.title = Plain(Call("HonorsNet", "TitleText", v.title), 64) end
 	end
 	return out
+end
+
+-- (1.4.0) The game's own unit tokens IsOlympusMember takes, lower-cased: player, target, focus,
+-- mouseover, party1-4, raid1-40 and nameplateN, each alone or followed by "target" once
+-- (targettarget, party1target). Never a name: a player's name holds no digit, and the game's
+-- UnitExists would also take a group member's name, so a name would let an addon ask about someone
+-- the game is not showing this player. The game numbers nameplate tokens as it hands them out: the
+-- bound is wide, and a token never names more than the plate it is.
+API.NAMEPLATE_MAX = 200
+local function BaseToken(u)
+	if u == "player" or u == "target" or u == "focus" or u == "mouseover" then return true end
+	local kind, digits = u:match("^(%a+)([1-9]%d*)$")
+	local n = tonumber(digits)
+	if not n then return false end
+	return (kind == "party" and n <= 4) or (kind == "raid" and n <= 40) or (kind == "nameplate" and n <= API.NAMEPLATE_MAX)
+end
+function API.UnitToken(unit)
+	if Secret(unit) or type(unit) ~= "string" or #unit > 24 then return nil end
+	local u = unit:lower()
+	if BaseToken(u) then return u end
+	local inner = u:match("^(.+)target$")
+	if inner and BaseToken(inner) then return u end
+	return nil
+end
+
+-- The game's answer to a unit question, protected: nil when the client has no such function, the
+-- call failed or the value is secret.
+local function Ask(fn, unit)
+	if type(fn) ~= "function" then return nil end
+	local ok, v = pcall(fn, unit)
+	if not ok or Secret(v) then return nil end
+	return v
+end
+
+-- (1.4.0, promised to an addon author: a safe eligibility check) Whether the player a live unit
+-- token names is in an Olympus guild, as this client counts Olympus guilds (ns.IsFederation: the
+-- name rule, the King's guild, the signed approved and removed lists): true or false, or nil when
+-- this client cannot tell. What it reads is the game's for that unit now (UnitExists, UnitIsPlayer,
+-- UnitFactionGroup, GetGuildInfo) and Olympus's guild rule: no census, roster, sighting, sanction
+-- (a net-off is never told) or stored list of people, and nothing is kept. nil:
+--   - the game shows nothing for that token now, or a value it keeps secret;
+--   - another faction's player: Olympus's lists here are this faction's (the Horde has its own);
+--   - no guild from the game: a player in none and one whose guild the game has not given yet look
+--     the same (GetGuildInfo gives nil for both), so neither is called "not a member".
+-- false: a unit that is no player (a creature, a pet), or a player of a guild that is not Olympus's.
+function API.IsOlympusMember(unit)
+	unit = API.UnitToken(unit)
+	if not unit or not Ask(UnitExists, unit) then return nil end
+	local player = Ask(UnitIsPlayer, unit)
+	if player == nil then return nil end
+	if not player then return false end
+	local mine, theirs = Ask(UnitFactionGroup, "player"), Ask(UnitFactionGroup, unit)
+	if type(mine) ~= "string" or mine == "" or theirs ~= mine then return nil end
+	local guild = Ask(GetGuildInfo, unit)
+	if type(guild) ~= "string" or guild == "" or type(ns.IsFederation) ~= "function" then return nil end
+	local ok, yes = pcall(ns.IsFederation, guild)
+	if not ok then return nil end
+	return yes == true
 end
 
 -- The current host-owned profile-presentation session, without its internal issuer, grant id,
@@ -715,6 +803,179 @@ local function AreaMapAllowed(c, mapID, now)
 	return false
 end
 
+---------------------------------------------------------------------------
+-- The Board's groups (1.4.0, Groups.lua): what its sections show this player, field by field
+---------------------------------------------------------------------------
+
+local KIND_NAME = { D = "dungeon", R = "raid", P = "pvp", Q = "quest" }
+local ROLE_NAME = { T = "tank", H = "healer", D = "damage" }
+local ROLE_CODE = { tank = "T", healer = "H", damage = "D" }
+
+local function HasGroups()
+	return Has("Groups", "List") and Has("Groups", "Looking") and Has("Groups", "OwnEntry") and Has("Groups", "Applicants")
+		and Has("Groups", "GroupMembers") and Has("Groups", "WithLog")
+end
+
+local function ClassCode(v)
+	if Secret(v) or type(v) ~= "string" then return nil end
+	return v:match("^%u%u$")
+end
+
+-- What a listing still needs, as its row says it: how many of each role (one that takes any number
+-- counts as 1, at least one), `any` when one of them takes any number, `anyNumber` which.
+local function GroupNeed(need)
+	need = type(need) == "string" and need:match("^[0-9+][0-9+][0-9+]$") or "000"
+	local out = { any = false, anyNumber = {} }
+	for i, code in ipairs({ "T", "H", "D" }) do
+		local role, c = ROLE_NAME[code], need:sub(i, i)
+		if c == "+" then
+			out[role], out.anyNumber[role], out.any = 1, true, true
+		else
+			out[role], out.anyNumber[role] = tonumber(c) or 0, false
+		end
+	end
+	return out
+end
+
+-- A listing as its row, tooltip and card show it (Groups.Card, ListingTip): where (a place's key
+-- this version knows, the name the row shows, a quest's ID, its title and zone only as the Board
+-- shows them, the King's screen's rule), its leader as the server stamped him, his guild, class
+-- and level, the minimum level, the group's size, what it needs, how many others are in it by
+-- class and role, the note while the Board shows notes; whether it is ours, our application to
+-- it, and `fresh` instead of any time. The id is opaque (OpenGroup takes it).
+local function GroupRow(e, now)
+	if type(e) ~= "table" then return nil end
+	local kind = KIND_NAME[e.kind]
+	local id = type(e.id) == "string" and type(e.sender) == "string" and Plain(e.id .. ":" .. e.sender, 96) or nil
+	if not kind or not id then return nil end
+	local shown = Plain(Call("Groups", "Target", e.kind, e.target, e.title), 64)
+	local row = { id = id, kind = kind, placeName = shown, leader = Plain(e.sender, 72), guild = Plain(e.guild, 64),
+		class = ClassCode(e.class), level = Num(e.level, true), minLevel = Num(e.min, true), size = Num(e.size, true),
+		need = GroupNeed(e.need), members = {}, own = e.mine == true }
+	if e.kind == "Q" then
+		local quest = Num(e.target, true)
+		row.questID = quest and quest > 0 and quest or nil
+		if shown and shown ~= Plain(L.GROUPS_QUEST_UNNAMED, 64) then row.questTitle = shown end
+		row.zone = Plain(Call("Groups", "ShownZone", e), 64)
+	elseif Call("Groups", "KnownPlace", e.kind, e.target) == true then
+		row.place = Plain(e.target, 8)
+	end
+	for _, c in ipairs(type(e.counts) == "table" and e.counts or {}) do
+		if #row.members >= API.MAX_MEMBERS then break end
+		local n = type(c) == "table" and Num(c.count, true) or nil
+		if n and n > 0 then row.members[#row.members + 1] = { class = ClassCode(c.class), role = ROLE_NAME[c.role], count = n } end
+	end
+	if type(e.note) == "string" and e.note ~= "" and not ns.KingsScreen() then row.note = Plain(e.note, 64) end
+	local raised = Num(e.raisedAt)
+	row.fresh = raised ~= nil and now - raised < API.GROUP_FRESH
+	if not row.own then
+		local a = Call("Groups", "Applied", e.sender)
+		if type(a) == "table" and a.id == e.id then row.applied = a.state == "invited" and "invited" or "waiting" end
+	end
+	return row
+end
+
+-- The listings of a kind's section (every section's, in the strip's order, without one), in the
+-- Board's order: ours first in its section, then as Groups.List sorts them (a quest of our log
+-- first). The quest log read once for them all.
+function API.Groups(kind)
+	if not HasGroups() then return nil end
+	local now = ns.Now and ns.Now() or 0
+	return Call("Groups", "WithLog", function()
+		local out, mine = {}, ns.Groups.OwnEntry()
+		for _, k in ipairs(kind and { kind } or { "D", "R", "P", "Q" }) do
+			if #out < API.MAX_GROUPS and type(mine) == "table" and mine.kind == k then out[#out + 1] = GroupRow(mine, now) end
+			for _, e in ipairs(ns.Groups.List(k) or {}) do
+				if #out >= API.MAX_GROUPS then break end
+				out[#out + 1] = GroupRow(e, now)
+			end
+		end
+		return out
+	end) or {}
+end
+
+-- A section's Players looking (Groups.Looking: the flags that name its kind, the ones fitting our
+-- listing first): who, their guild, class and level, the roles their flag says, where it names in
+-- that kind ("any", or the places' keys), and whether it fits our listing. Never its note or zone.
+local function LookingRow(e, k)
+	if type(e) ~= "table" then return nil end
+	local name = Plain(e.sender, 72)
+	if not name then return nil end
+	local roles = Call("Board", "CleanRoles", e.roles) or ""
+	local pick, places = Call("Groups", "FlagPickOf", e, k), "any"
+	if type(pick) == "table" and not pick.any then
+		places = {}
+		for _, key in ipairs(type(pick.keys) == "table" and pick.keys or {}) do
+			local place = Plain(key, 8)
+			if place and #places < 8 then places[#places + 1] = place end
+		end
+	end
+	return { kind = KIND_NAME[k], name = name, guild = Plain(e.guild, 64), class = ClassCode(e.class), level = Num(e.level, true),
+		roles = { tank = roles:find("T", 1, true) ~= nil, healer = roles:find("H", 1, true) ~= nil, damage = roles:find("D", 1, true) ~= nil },
+		places = places, fits = Call("Groups", "Fits", e) == true, own = false }
+end
+
+-- The player's own flag in that kind, as the Board's flags page shows it (own = true, never fits his
+-- own listing): his name, guild, class and level from the game. (1.4.0, Daniel's test of a companion:
+-- its list of players looking had every flag but his own.)
+local function OwnLookingRow(k)
+	local mine = Call("Board", "Mine")
+	if type(mine) ~= "table" then return nil end
+	local classFile = UnitClass and select(2, UnitClass("player")) or nil
+	local e = { sender = ns.me, flag = mine.flag, roles = mine.roles, picks = mine.picks,
+		guild = GetGuildInfo and (GetGuildInfo("player")) or nil,
+		class = Call("Roster", "ClassCode", classFile), level = UnitLevel and UnitLevel("player") or nil }
+	if not Call("Groups", "FlagPickOf", e, k) then return nil end
+	local row = LookingRow(e, k)
+	if row then row.own, row.fits = true, false end
+	return row
+end
+
+-- A kind's Players looking (each section's, dungeons, raids and PvP in turn, without one: a
+-- player whose flag names two kinds is in both, as on the Board). No flag looks for a quest.
+function API.Looking(kind)
+	if not HasGroups() then return nil end
+	local out = {}
+	for _, k in ipairs(kind and { kind } or { "D", "R", "P" }) do
+		local own = OwnLookingRow(k)
+		if own and #out < API.MAX_LOOKING then out[#out + 1] = own end
+		for _, e in ipairs(Call("Groups", "Looking", k) or {}) do
+			if #out >= API.MAX_LOOKING then break end
+			out[#out + 1] = LookingRow(e, k)
+		end
+	end
+	return out
+end
+
+-- The player's own group as Your group shows it: his listing (GetGroups' row), the applications
+-- to it while it is up (who, their guild, role, level, class, note as the Board shows it, waiting
+-- or invited) and the others in his party or raid (the game's own names, levels and classes, with
+-- the roles as he set them or the invites said).
+function API.MyGroup()
+	if not HasGroups() then return nil end
+	local now = ns.Now and ns.Now() or 0
+	local out = { applicants = {}, members = {} }
+	local mine = Call("Groups", "OwnEntry")
+	if type(mine) == "table" then
+		out.listing = Call("Groups", "WithLog", GroupRow, mine, now)
+		for _, a in ipairs(Call("Groups", "Applicants") or {}) do
+			if #out.applicants >= API.MAX_APPLICANTS then break end
+			local name = type(a) == "table" and Plain(a.name, 72) or nil
+			if name and ROLE_NAME[a.role] then
+				out.applicants[#out.applicants + 1] = { name = name, guild = Plain(a.guild, 64), role = ROLE_NAME[a.role], level = Num(a.level, true),
+					class = ClassCode(a.class), state = a.state == "invited" and "invited" or "waiting",
+					note = type(a.note) == "string" and a.note ~= "" and not ns.KingsScreen() and Plain(a.note, 64) or nil }
+			end
+		end
+	end
+	for _, m in ipairs(Call("Groups", "GroupMembers") or {}) do
+		if #out.members >= API.MAX_MEMBERS then break end
+		local name = type(m) == "table" and Plain(m.name, 72) or nil
+		if name then out.members[#out.members + 1] = { name = name, class = ClassCode(m.class), level = Num(m.level, true), role = ROLE_NAME[m.role] } end
+	end
+	return out
+end
+
 -- What each data event's callback is given: what its call returns.
 local BUILD = {
 	WANTED_CHANGED = function() return Member() and API.Wanted() or nil end,
@@ -723,6 +984,9 @@ local BUILD = {
 	LEADER_CHANGED = function() return Member() and API.LeaderPresence() or nil end,
 	PROFILE_EFFECT_SESSION_CHANGED = function() return Member() and API.ProfileSession() or nil end,
 	QUIET_PRESENCE_CHANGED = function() return API.QuietPresence() end,
+	GROUPS_CHANGED = function() return Member() and API.Groups() or nil end,
+	LOOKING_CHANGED = function() return Member() and API.Looking() or nil end,
+	MY_GROUP_CHANGED = function() return Member() and API.MyGroup() or nil end,
 }
 
 local NIL_DATA_EVENT = { PROFILE_EFFECT_SESSION_CHANGED = true }
@@ -946,6 +1210,8 @@ local function SetAnswer(c, on)
 	c.sightingTold = {}
 	if on then for _, event in ipairs(API.DATA_EVENTS) do Baseline(c, event) end end
 	ns.Log("api: %s %s", c.name, on and "granted" or "refused")
+	-- (1.4.0: its group panel shows only while it is Yes: the Board redrawn with it or without it.)
+	if c.panelRegistered and Has("UI", "Refresh") then pcall(ns.UI.Refresh) end
 	Tell(c, "PERMISSION_CHANGED", Status(c))
 end
 
@@ -998,15 +1264,18 @@ end
 
 -- A data call: the player's Yes, an Olympus guild (where asked), and the addon within its rate.
 -- Past it, said in the log once a session for that addon (review of 1.2.4: once a window filled the
--- log's ring, and the 25 lines /oly bug copies, with one addon polling).
-local function Spend(c)
+-- log's ring, and the 25 lines /oly bug copies, with one addon polling). (1.4.0) unit: an
+-- IsOlympusMember call, on its own budget (UNIT_RATE_MAX), said once a session too.
+local function Spend(c, unit)
 	local now = ns.Now and ns.Now() or 0
-	local r = c.rate
+	local r, max = c.rate, API.RATE_MAX
+	if unit then r, max = c.unitRate, API.UNIT_RATE_MAX end
 	if now - r.at >= API.RATE_WINDOW or now < r.at then r.at, r.n = now, 0 end
-	if r.n >= API.RATE_MAX then
-		if not c.rateSaid then
-			c.rateSaid = true
-			ns.Log("api: %s asked more than %d times in %d s (said once a session)", c.name, API.RATE_MAX, API.RATE_WINDOW)
+	if r.n >= max then
+		if not r.said then
+			r.said = true
+			ns.Log("api: %s asked more than %d %s in %d s (said once a session)", c.name, max,
+				unit and "membership checks" or "times", API.RATE_WINDOW)
 		end
 		return false
 	end
@@ -1170,6 +1439,19 @@ function METHODS.GetRankings(c, kind)
 	return Read(c, true, API.Rankings, kind)
 end
 function METHODS.GetProfile(c) return Read(c, false, API.Profile) end
+-- (1.4.0) true or false, or nil and why: "unit" (not a unit token it takes, checked first and free),
+-- the usual "pending", "refused", "guild" and "busy" (its own budget, UNIT_RATE_MAX), or "unknown"
+-- (API.IsOlympusMember's nil: this client cannot tell).
+function METHODS.IsOlympusMember(c, unit)
+	local token = API.UnitToken(unit)
+	if not token then return nil, "unit" end
+	if not Granted(c) then return nil, Status(c) end
+	if not Member() then return nil, "guild" end
+	if not Spend(c, true) then return nil, "busy" end
+	local yes = API.IsOlympusMember(token)
+	if yes == nil then return nil, "unknown" end
+	return yes
+end
 function METHODS.GetLeaderPresence(c)
 	if not Has("Hop", "King") then return nil, "unavailable" end
 	return Read(c, true, API.LeaderPresence)
@@ -1681,6 +1963,198 @@ function METHODS.OpenSurface(c) return RegisteredSurfaceCall(c, "OpenAPISurface"
 function METHODS.ToggleSurface(c) return RegisteredSurfaceCall(c, "ToggleAPISurface") end
 function METHODS.RefreshSurface(c) return RegisteredSurfaceCall(c, "RefreshAPISurface") end
 function METHODS.IsSurfaceOpen(c) return RegisteredSurfaceCall(c, "IsAPISurfaceOpen") end
+-- 1.4.0, the Board's groups ("groups"): reads like GetWanted's (Yes, an Olympus guild, the rate).
+local function GroupKind(kind)
+	if kind == nil then return true, nil end
+	if Secret(kind) or type(kind) ~= "string" or not API.GROUP_KINDS[kind] then return false end
+	return true, API.GROUP_KINDS[kind]
+end
+function METHODS.GetGroups(c, kind)
+	if not HasGroups() then return nil, "unavailable" end
+	local ok, code = GroupKind(kind)
+	if not ok then return nil, "kind" end
+	return Read(c, true, API.Groups, code)
+end
+function METHODS.GetLooking(c, kind)
+	if not HasGroups() then return nil, "unavailable" end
+	local ok, code = GroupKind(kind)
+	if not ok then return nil, "kind" end
+	return Read(c, true, API.Looking, code)
+end
+function METHODS.GetMyGroup(c)
+	if not HasGroups() then return nil, "unavailable" end
+	return Read(c, true, API.MyGroup)
+end
+
+-- 1.4.0, the player's own group ("groups.manage"): each action is the Board's own (Groups.lua's
+-- function its button runs, with its checks and the gamepad gate's roster-actions path for the
+-- game's invite: the companion's click is the player's), after the Yes, an Olympus guild, out of
+-- combat and within a small rate of its own. `true`, or `false` and why.
+local MANAGE = { "Invite", "Decline", "SetMemberRole", "InviteFlag", "InviteRoles", "Close", "Mine", "Pending", "Wants",
+	"OpenListing", "OpenComposer", "OpenFlagComposer" }
+local function HasManage()
+	if not HasGroups() then return false end
+	for _, fn in ipairs(MANAGE) do if not Has("Groups", fn) then return false end end
+	return true
+end
+local function SpendManage(c)
+	local now = ns.Now and ns.Now() or 0
+	local r = c.manageRate
+	if now - r.at >= API.MANAGE_WINDOW or now < r.at then r.at, r.n = now, 0 end
+	if r.n >= API.MANAGE_MAX then return false end
+	r.n = r.n + 1
+	return true
+end
+local function Manage(c, fn)
+	if not HasManage() then return false, "unavailable" end
+	if not Granted(c) then return false, Status(c) end
+	if not Member() then return false, "guild" end
+	if Busy() then return false, "combat" end
+	if not SpendManage(c) then return false, "busy" end
+	local ok, done, why = pcall(fn, ns.Groups)
+	if not ok then
+		ns.Log("api: %s's group action failed: %s", c.name, ns.Cut(tostring(done), 200))
+		return false, "failed"
+	end
+	if done == true then return true end
+	return false, why or "failed"
+end
+-- A name as the Board keys it ("Name-Realm"; one without a realm is of ours).
+local function Who(name)
+	if Secret(name) or type(name) ~= "string" then return nil end
+	name = name:match("^%s*(.-)%s*$")
+	if name == "" or #name > 72 then return nil end
+	return ns.FullName(name)
+end
+local function RoleCode(role)
+	if Secret(role) or type(role) ~= "string" then return nil end
+	return ROLE_CODE[role]
+end
+local function Applicant(G, name)
+	local key = Who(name)
+	for _, a in ipairs(G.Applicants()) do if key and a.name == key then return a end end
+	return nil
+end
+-- The game's invite's answer, as the API says it.
+local function Invited(ok, why)
+	if ok == true then return true end
+	return false, why == "leader" and "not-leader" or why or "failed"
+end
+function METHODS.InviteApplicant(c, name, role)
+	return Manage(c, function(G)
+		local own = G.Mine()
+		if not own then return false, "unknown" end
+		local a = Applicant(G, name)
+		if not a then return false, "unknown" end
+		local code = RoleCode(role)
+		if not code or a.role ~= code or not G.Wants(own.need, code) then return false, "role" end
+		if G.Pending()[a.name] then return false, "invited" end
+		return Invited(G.Invite(a.name))
+	end)
+end
+function METHODS.DeclineApplicant(c, name)
+	return Manage(c, function(G)
+		if not G.Mine() then return false, "unknown" end
+		local a = Applicant(G, name)
+		if not a then return false, "unknown" end
+		return G.Decline(a.name) == true, "failed"
+	end)
+end
+-- A member's role as the Board's roster row sets it: "tank", "healer", "damage", or nil for none.
+function METHODS.SetMemberRole(c, name, role)
+	return Manage(c, function(G)
+		local code = RoleCode(role)
+		if role ~= nil and not code then return false, "role" end
+		local key = Who(name)
+		for _, m in ipairs(G.GroupMembers()) do
+			if key and m.name == key then
+				G.SetMemberRole(m.name, code, true)
+				return true
+			end
+		end
+		return false, "unknown"
+	end)
+end
+-- The Board's Invite as under Players looking: our listing's section, a role its flag names (any,
+-- when it names none) that the listing still wants (Groups.InviteRoles).
+function METHODS.InviteLooking(c, name, role)
+	return Manage(c, function(G)
+		local own = G.Mine()
+		if not own then return false, "unknown" end
+		local key, flag = Who(name), nil
+		for _, e in ipairs(G.Looking(own.kind)) do if key and e.sender == key then flag = e end end
+		if not flag then return false, "unknown" end
+		local code, fits = RoleCode(role), false
+		for _, r in ipairs(G.InviteRoles(flag)) do if r == code then fits = true end end
+		if not fits then return false, "role" end
+		if G.Pending()[flag.sender] then return false, "invited" end
+		return Invited(G.InviteFlag(flag.sender, code))
+	end)
+end
+-- Our listing taken down for everyone (/oly group off).
+function METHODS.LowerListing(c)
+	return Manage(c, function(G)
+		if not G.Mine() then return false, "unknown" end
+		return G.Close() == true, "failed"
+	end)
+end
+-- Olympus's own: a listing's card (GetGroups' id), the composer of a listing ([kind]; ours
+-- when we have one), the flag for several places ([kind], not a quest).
+function METHODS.OpenGroup(c, id)
+	return Manage(c, function(G)
+		if Secret(id) or type(id) ~= "string" then return false, "unknown" end
+		local listing, leader = id:match("^([0-9a-z][0-9a-z]?):(.+)$")
+		if not listing then return false, "unknown" end
+		return G.OpenListing(leader, listing)
+	end)
+end
+function METHODS.OpenListingDialog(c, kind)
+	local ok, code = GroupKind(kind)
+	if not ok then return false, "kind" end
+	return Manage(c, function(G) return G.OpenComposer(code or "D") end)
+end
+function METHODS.OpenFlagDialog(c, kind)
+	local ok, code = GroupKind(kind)
+	if not ok or code == "Q" then return false, "kind" end
+	return Manage(c, function(G) return G.OpenFlagComposer(code) end)
+end
+
+-- 1.4.0, the Board's group panel ("ui.board-groups"): one companion panel a session in place of Your
+-- group, as RegisterSurface's page (no data by itself; registered while the answer is pending too,
+-- shown only while it is Yes). Groups.lua owns the frame, the switch and the player's choice.
+function METHODS.RegisterGroupPanel(c, spec) -- gp:board-panel
+	if not Has("Groups", "RegisterPanel") then return false, "unavailable" end
+	if c.panelRegistered then return false, "registered" end
+	if type(spec) ~= "table" then return false, "invalid-spec" end
+	local raw = spec.label
+	if Secret(raw) or type(raw) ~= "string" or #raw > API.PANEL_LABEL_MAX then return false, "invalid-label" end
+	local label = Plain(raw, API.PANEL_LABEL_MAX)
+	if not label then return false, "invalid-label" end
+	local build, refresh = spec.build, spec.refresh
+	if type(build) ~= "function" then return false, "invalid-build" end
+	if refresh ~= nil and type(refresh) ~= "function" then return false, "invalid-refresh" end
+	local ok, done, why = pcall(ns.Groups.RegisterPanel, c.panelOwner, { label = label, build = build, refresh = refresh,
+		allowed = function() return Granted(c) end })
+	if not ok then return false, "failed" end
+	if done ~= true then return false, why or "failed" end
+	c.panelRegistered = true
+	return true
+end
+function METHODS.UnregisterGroupPanel(c)
+	if not c.panelRegistered then return false, "unregistered" end
+	if Has("Groups", "UnregisterPanel") then pcall(ns.Groups.UnregisterPanel, c.panelOwner) end
+	c.panelRegistered = false
+	return true
+end
+function METHODS.RefreshGroupPanel(c)
+	if not c.panelRegistered then return false, "unregistered" end
+	if Call("Groups", "PanelShown") == true and Has("UI", "Refresh") then pcall(ns.UI.Refresh) end
+	return true
+end
+function METHODS.IsGroupPanelShown(c)
+	if not c.panelRegistered then return false, "unregistered" end
+	return Call("Groups", "PanelShown") == true
+end
 function METHODS.On(c, event, fn)
 	if not IS_EVENT[event] or type(fn) ~= "function" then return false end
 	if API.RESERVED_EVENTS[event] and not Authorized(c) then return false end
@@ -1705,9 +2179,10 @@ local function ReadOnly(_, k) error("OlympusAPI: read-only (" .. tostring(k) .. 
 
 local function NewClient(name, key, title, slot)
 	local c = { name = name, key = key, title = title, consentKey = "api:" .. key, callbacks = {}, told = {}, fails = {},
-		rate = { at = -math.huge, n = 0 }, surfaceOwner = "api-surface:" .. tostring(slot), searches = {}, sightingTold = {}, sightingEnded = {},
+		rate = { at = -math.huge, n = 0 }, unitRate = { at = -math.huge, n = 0 }, surfaceOwner = "api-surface:" .. tostring(slot), searches = {}, sightingTold = {}, sightingEnded = {},
 		areaMapOwner = {}, areaMapFrames = {}, pinOwner = {}, pinFrames = {}, pinCount = 0, areaProofs = {}, profileOwner = "api-profile:" .. tostring(slot),
-		quietOwner = "api-quiet:" .. tostring(slot), authKey = API.AuthorizedKey(key) }
+		quietOwner = "api-quiet:" .. tostring(slot), panelOwner = "api-panel:" .. tostring(slot), manageRate = { at = -math.huge, n = 0 },
+		authKey = API.AuthorizedKey(key) }
 	local methods = {}
 	for k, fn in pairs(METHODS) do
 		local no = API.RESERVED_METHODS[k]
@@ -1748,8 +2223,8 @@ function API.Register(name)
 end
 
 -- What this build gives: a feature ("wanted", "rankings", "rankings.<kind>", "profile", "leader",
--- "callbacks", "network.sightings", "network.sightings.area-scope", "presence.quiet", "ui.guild-tools", "ui.surface")
--- or an event's name.
+-- "callbacks", "network.sightings", "network.sightings.area-scope", "presence.quiet", "ui.guild-tools", "ui.surface",
+-- and 1.4.0's "groups", "groups.manage", "ui.board-groups" and "unit.member") or an event's name.
 local function SightingsComplete()
 	for _, fn in ipairs({ "Start", "Cancel", "Session", "StartArea", "CancelArea", "AreaSession" }) do
 		if not Has("PlayerSightings", fn) then return false end
@@ -1764,6 +2239,7 @@ local FEATURES = {
 	["rankings.church"] = function() return Has("HonorsNet", "ChurchTop") end,
 	["rankings.games"] = function() return Has("ArenaHome", "RankingsPublic") end,
 	profile = function() return true end,
+	["unit.member"] = function() return type(ns.IsFederation) == "function" end,
 	leader = function() return Has("Hop", "King") and Has("King", "Location") and Has("Layers", "ForMap") end,
 	callbacks = function() return true end,
 	["network.sightings"] = SightingsComplete,
@@ -1791,6 +2267,14 @@ local FEATURES = {
 			if not Has("UI", fn) then return false end
 		end
 		return true
+	end,
+	groups = HasGroups,
+	["groups.manage"] = HasManage,
+	["ui.board-groups"] = function()
+		for _, fn in ipairs({ "RegisterPanel", "UnregisterPanel", "PanelShown", "PanelLines", "DrawPanel" }) do
+			if not Has("Groups", fn) then return false end
+		end
+		return Has("Views", "Render")
 	end,
 }
 for _, e in ipairs(API.EVENTS) do FEATURES[e] = FEATURES.callbacks end
@@ -1834,10 +2318,14 @@ ns.On("ARENA_CHANGED", function() Mark("RANKINGS_CHANGED") end)
 ns.On("LOTTERY_RESULT", function() Mark("RANKINGS_CHANGED") end)
 -- A guild joined or left, a rank (Roster.lua: DATA_CHANGED), the signed lists (the role); the census
 -- that names the leader online.
-ns.On("DATA_CHANGED", function() Mark("PROFILE_CHANGED", "LEADER_CHANGED") end)
+ns.On("DATA_CHANGED", function() Mark("PROFILE_CHANGED", "LEADER_CHANGED", "GROUPS_CHANGED", "LOOKING_CHANGED", "MY_GROUP_CHANGED") end)
 -- (1.2.5.1) The Olympus Accord accepted or asked again (Accord.lua): every read's answer changed
 -- (Member, "guild").
 ns.On("ACCORD_CHANGED", function() Mark(unpack(API.DATA_EVENTS)) end)
+-- 1.4.0, the Board's groups: a listing, a flag, an application or an answer (BOARD_CHANGED, the Board's
+-- and Groups.lua's own), and the player's own group's roster (GROUPS_ROSTER).
+ns.On("BOARD_CHANGED", function() Mark("GROUPS_CHANGED", "LOOKING_CHANGED", "MY_GROUP_CHANGED") end)
+ns.On("GROUPS_ROSTER", function() Mark("MY_GROUP_CHANGED", "GROUPS_CHANGED") end)
 -- The leader's crown, the layers announced, a local layer sighting (HOP_CHANGED) and a sanction on
 -- locations (WATCHCHAT_CHANGED): what his lines and the Realm tab's layers show.
 for _, event in ipairs({ "KING_LOCATION_CHANGED", "LAYERS_CHANGED", "HOP_CHANGED", "WATCHCHAT_CHANGED" }) do

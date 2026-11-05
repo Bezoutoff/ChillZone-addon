@@ -51,6 +51,18 @@ local L = ns.L
 -- "Move now" sooner. Guilds with no officer online in that time stay on the old channel until one
 -- of theirs types the key by hand; the Throne says how many acknowledged. Older clients ignore
 -- K3, K4 and K5.
+-- 1.3.4 (the author's call, for the launch): the addon's author rotates and hands out the key too
+-- (his characters, Workshop.IsAuthorName: the code's on the beta, the signed list's on a launch
+-- realm group), King or not, Steward or not: he becomes neither. His Throne shows the rotation in
+-- his own view (King.lua); a preview of another role (Asmon's view, View as) starts none. A K3
+-- whispered by him is taken as the King's is; the same /who, guild picking and whispers to Lords and
+-- Captains alone, never the channel.
+-- 1.4.0 (the author, for the launch: a copy of an older version, or an older version itself, must not
+-- reach the official channel): the key travels as K8 alone, the same fields as K3, wherever a K3 or a
+-- K1 went (the whisper to Lords and Captains, the officers' hand-out to their guild, the answers to a
+-- guildmate's K0 or K5, /oly key). Versions before 1.4.0 read neither K8 nor a channel they have no key
+-- for: they stay off the sealed channel until they update. A K3 or K1 from an older officer is still
+-- taken here. (A head start, not a lock: whoever copies 1.4.0's code reads K8 too.)
 
 local Keys = {}
 ns.Keys = Keys
@@ -141,8 +153,9 @@ local function Hashes(s, first, except)
 	return out
 end
 
+Keys.KIND = "K8" -- (1.4.0: K3 before)
 local function Message(at, key, retires)
-	local msg = ("K3~%d~%s"):format(at, key)
+	local msg = ("%s~%d~%s"):format(Keys.KIND, at, key)
 	if type(retires) == "string" and #retires <= 60 and retires:match("^%w[%w%.]*$") then msg = msg .. "~" .. retires end
 	return msg
 end
@@ -165,7 +178,7 @@ function Keys.HandOut()
 	local at = Epoch()
 	return key, at, at and ns.rdb.keyEpoch.retires or nil
 end
--- ...as the K3 an officer answers with (nil without an epoch: then K1 alone, as before 1.1).
+-- ...as the K8 an officer answers with (nil without an epoch: then nothing, 1.4.0; K1 alone before).
 function Keys.HandOutMessage()
 	local key, at, retires = Keys.HandOut()
 	if key and at then return Message(at, key, retires) end
@@ -196,11 +209,11 @@ local function Take(key, at, quiet, retires)
 end
 Keys.Take = Take
 
--- To our guild (an officer): the key with its epoch, and alone for guildmates before 1.1.
+-- To our guild (an officer): the key with its epoch. (1.4.0: K8 alone; no K1 for guildmates before
+-- 1.1, nor a K3: an older version gets no key.)
 local function ToGuild(key, at)
 	local e = ns.rdb and ns.rdb.keyEpoch
 	ns.Comm.Send("GUILD", Message(at, key, type(e) == "table" and e.retires or nil), "key3")
-	ns.Comm.Send("GUILD", "K1~" .. key, "key")
 	stats.relayed = stats.relayed + 1
 end
 
@@ -209,17 +222,19 @@ end
 ---------------------------------------------------------------------------
 
 function Keys.HandleKey(dist, sender, text)
-	local at, key, retires = tostring(text):match("^K3~(%d+)~([^~]+)~?([%w%.]*)$")
+	-- (K8 since 1.4.0; a K3 from an older client still taken.)
+	local at, key, retires = tostring(text):match("^K[38]~(%d+)~([^~]+)~?([%w%.]*)$")
 	at = tonumber(at)
 	if not at or not ValidKey(key) then return end
 	sender = ns.FullName(sender)
 	local fromCrown
 	if dist == "WHISPER" then
-		-- The King by his pinned name, or his Steward by the signed list: the server stamps the
-		-- sender, nobody else carries it.
-		if not (ns.IsKingCharacter(sender) or (ns.KingCharacter() ~= nil and ns.King.IsStewardName(sender))) then
+		-- The King by his pinned name, or his Steward by the signed list, or (1.3.4) the addon's
+		-- author by his: the server stamps the sender, nobody else carries it.
+		if not (ns.IsKingCharacter(sender) or (ns.KingCharacter() ~= nil and ns.King.IsStewardName(sender))
+			or (ns.Workshop and ns.Workshop.IsAuthorName and ns.Workshop.IsAuthorName(sender))) then
 			stats.refused = stats.refused + 1
-			return ns.Log("realm key by whisper from %s ignored: not the King nor his Steward", sender)
+			return ns.Log("realm key by whisper from %s ignored: not the King, his Steward nor the author", sender)
 		end
 		fromCrown = true
 	elseif dist == "GUILD" then
@@ -272,18 +287,26 @@ function Keys.HandleAck(dist, sender, text)
 	ns.King.Changed()
 end
 
+-- (1.4.2) The clear we hold, as the K7 an officer or the author answers a key ask with: the guild is
+-- public since that epoch (nil while a key is held or no clear was taken).
+function Keys.ClearMessage()
+	local e = ns.rdb and ns.rdb.keyEpoch
+	if type(e) ~= "table" or e.clear ~= true or not tonumber(e.at) or (ns.rdb.realmKey ~= nil) then return nil end
+	return ("K7~%d~%s"):format(tonumber(e.at), type(e.retires) == "string" and e.retires or "")
+end
 function Keys.HandleAsk(dist, sender, text)
 	if dist ~= "GUILD" then return end
 	local asked = tonumber(tostring(text):match("^K5~(%d+)$"))
-	if not asked or not ns.Roster.IsOfficer() then return end
+	if not asked or not (ns.Roster.IsOfficer() or Keys.IsAuthor()) then return end
 	local _, at = Keys.HandOut()
+	if not at then at = Latest() end -- (1.4.2: a clear is an epoch too; answered as K7)
 	if not at or at <= asked then return end
 	local now = ns.Now()
 	if now - lastAnswer < Keys.ANSWER_GAP then return end
 	lastAnswer = now
 	stats.answered = stats.answered + 1
 	ns.After(math.random(1, 5), "key answer", function()
-		local msg = Keys.HandOutMessage()
+		local msg = Keys.HandOutMessage() or Keys.ClearMessage()
 		if msg then ns.Comm.Send("GUILD", msg, "key3") end
 	end)
 end
@@ -318,7 +341,10 @@ function Keys.HandleClear(dist, sender, text)
 	if not at then return false end
 	sender = ns.FullName(sender)
 	local rank = ns.Roster.RankOf(sender)
-	if not rank or rank > ns.CAPTAIN_RANK then
+	-- (1.4.2) The author's own character, by his signed name (the server stamps the sender), whatever
+	-- his rank here: he may rotate the army's key, so he may take it back.
+	local author = ns.Workshop ~= nil and type(ns.Workshop.IsAuthorName) == "function" and ns.Workshop.IsAuthorName(sender) == true
+	if not author and (not rank or rank > ns.CAPTAIN_RANK) then
 		stats.refused = stats.refused + 1
 		return false
 	end
@@ -331,8 +357,12 @@ end
 
 -- /oly key off: the same guild officers who may set a private key may remove it. The instruction
 -- goes only through Blizzard's guild channel; it cannot be forged from OlympusNet.
+-- (1.4.2, launch night: the author rotated the army's key before the channel was understood, and
+-- held no rank in the King's guild to take it back) The author's own character may clear it too,
+-- as he may rotate it: his guildmates take his K7 by his signed name (HandleClear), and his client
+-- answers their key asks with the clear (HandleAsk), so each one that logs in follows.
 function Keys.Clear()
-	if not ns.IsMember() or not ns.Roster.IsOfficer() then
+	if not ns.IsMember() or not (ns.Roster.IsOfficer() or Keys.IsAuthor()) then
 		ns.Print(L.KEY_OFFICERS_ONLY)
 		return false
 	end
@@ -349,6 +379,7 @@ function Keys.Clear()
 end
 
 ns.Comm.Handle("K3", function(...) Keys.HandleKey(...) end)
+ns.Comm.Handle("K8", function(...) Keys.HandleKey(...) end)
 ns.Comm.Handle("K4", function(...) Keys.HandleAck(...) end)
 ns.Comm.Handle("K5", function(...) Keys.HandleAsk(...) end)
 ns.Comm.Handle("K7", function(...) Keys.HandleClear(...) end)
@@ -391,22 +422,43 @@ end
 -- The King: rotate, pick the guilds, hand out, move
 ---------------------------------------------------------------------------
 
--- A new key from this computer (the Link's entropy sample, the clocks, the game's generator),
+-- A new key from this computer (the entropy sample, Sign.EntropySample; the clocks, the game's generator),
 -- SHA-256, 20 hex digits. Nothing in the game is a cryptographic source: for a channel's
 -- password it is plenty, and nobody sees it.
 function Keys.NewKey()
 	local parts = { tostring(ns.me), tostring(time and time()), tostring(GetTime and GetTime()), tostring(math.random()),
 		tostring(math.random()), tostring({}), tostring(debugprofilestop and debugprofilestop() or 0) }
-	if ns.Link and not ns.Link.missing and ns.Link.EntropySample then parts[#parts + 1] = ns.Link.EntropySample() end
+	parts[#parts + 1] = ns.Sign.EntropySample()
 	local raw = ns.Sign.SHA256(table.concat(parts, "|"))
 	local hex = {}
 	for i = 1, #raw do hex[i] = ("%02x"):format(raw:byte(i)) end
 	return table.concat(hex):sub(1, 20)
 end
 
+-- 1.3.4: the addon's author himself (his own character, Workshop.IsAuthor: never his test builds).
+function Keys.IsAuthor()
+	local W = ns.Workshop
+	return type(W) == "table" and type(W.IsAuthor) == "function" and W.IsAuthor() == true
+end
+-- ...and looking at his own view: not Asmon's view (King.Preview), nor another role's (View as).
+function Keys.AuthorHere()
+	if not Keys.IsAuthor() then return false end
+	if ns.King and ns.King.Preview and ns.King.Preview() then return false end
+	local V = ns.ViewAs
+	return not (type(V) == "table" and type(V.Previewing) == "function" and V.Previewing() == true)
+end
+-- A preview (Asmon's view, or another role's under View as) shows the rotation; it starts none.
+local function Previewing()
+	if ns.King and ns.King.Preview and ns.King.Preview() then return true end
+	local V = ns.ViewAs
+	return Keys.IsAuthor() and type(V) == "table" and type(V.Previewing) == "function" and V.Previewing() == true
+end
+
 -- The King, by his pinned character, or his Steward (the signed list), acting for him: never a
--- Hand or an officer. None where no King is pinned.
+-- Hand or an officer; none of them where no King is pinned. And (1.3.4) the addon's author, King
+-- pinned or not (Keys.IsAuthor): the King's power to seal the channel again, lent him alone.
 function Keys.CanRotate()
+	if Keys.IsAuthor() then return true end
 	if not (ns.King ~= nil and ns.KingCharacter() ~= nil) then return false end
 	return (ns.King.IsKing() and ns.IsKingCharacter(ns.me)) or ns.King.IsSteward()
 end
@@ -648,7 +700,7 @@ function Keys.Hand()
 end
 
 function Keys.Rotate()
-	if ns.King and ns.King.Preview and ns.King.Preview() then return ns.Print(L.THRONE_PREVIEW_NOTE) end
+	if Previewing() then return ns.Print(L.THRONE_PREVIEW_NOTE) end
 	if not Keys.CanRotate() then return ns.Print(L.KEY_ROTATE_ONLY_KING) end
 	local rot = Rotation()
 	if rot and not rot.moved then return ns.Print(L.KEY_ROTATE_BUSY) end
@@ -662,7 +714,7 @@ function Keys.Rotate()
 	rot.retires = #list > 0 and table.concat(list, ".") or nil
 	ns.rdb.keyRotation = rot
 	stats.rotated = stats.rotated + 1
-	ns.Log("realm key: the King rotates it (epoch %d): picking the guilds", at)
+	ns.Log("realm key: %s rotates it (epoch %d): picking the guilds", Keys.IsAuthor() and "the author" or "the King", at)
 	ns.Print(L.KEY_ROTATE_READY)
 	ns.King.Changed()
 	return true
@@ -730,7 +782,7 @@ end
 -- how far it got.
 function Keys.ThroneLines()
 	local K = ns.King
-	if not (K and (K.IsKing() or K.IsSteward() or (K.Preview and K.Preview()))) then return {} end
+	if not (K and (K.IsKing() or K.IsSteward() or (K.Preview and K.Preview()) or Keys.AuthorHere())) then return {} end
 	local Line, INK, TITLE = K.Line, K.INK, K.TITLE
 	local lines = { Line(L.KEY_ROTATE_TITLE, TITLE) }
 	local rot = Rotation()
@@ -790,7 +842,7 @@ function Keys.ThroneLines()
 end
 
 function Keys.RotatePrompt()
-	if ns.King and ns.King.Preview and ns.King.Preview() then return ns.Print(L.THRONE_PREVIEW_NOTE) end
+	if Previewing() then return ns.Print(L.THRONE_PREVIEW_NOTE) end
 	if not Keys.CanRotate() then return ns.Print(L.KEY_ROTATE_ONLY_KING) end
 	ns.ShowDialog("OLYMPUS_KEY_ROTATE", tostring(math.ceil(Keys.GRACE / 60)))
 end

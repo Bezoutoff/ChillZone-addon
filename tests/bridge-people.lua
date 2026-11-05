@@ -404,16 +404,19 @@ test("bridge people: a name's colour codes and the rows' separator never reach a
 	end)
 end)
 
-test("bridge people: wanted keeps its first 100 targets in the list's order, the GUID its target's page shows, never the victims or who added him", function()
+-- (The Companion's agreed shape: no GUID any more, a target is his name on the list, so the GUID
+-- the target's page shows is now expected absent; the realm group and pvp beside the list are
+-- tests/bridge-membership.lua's.)
+test("bridge people: wanted keeps its first 100 targets in the list's order, never a GUID, the victims or who added him", function()
 	With({ wanted = 150 }, function()
 		local d = Data("wanted")
 		eq(#d.targets, 100, "cut from the end")
 		eq(d.targets[1].place, 1); eq(d.targets[100].place, 100)
-		eq(d.targets[1].guid, "Player-4619-00000001")
+		eq(d.targets[1].guid, nil, "no GUID")
 		for _, t in ipairs(d.targets) do
-			for k in pairs(t) do assert(({ place = true, name = true, guid = true, bounty = true, kills = true, cycle = true })[k], k) end
+			for k in pairs(t) do assert(({ place = true, name = true, bounty = true, kills = true, cycle = true })[k], k) end
 		end
-		Never(d, "Victim"); Never(d, "A Mod")
+		Never(d, "Victim"); Never(d, "A Mod"); Never(d, "Player-4619-", "a GUID")
 	end)
 end)
 

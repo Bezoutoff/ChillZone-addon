@@ -478,11 +478,12 @@ test("accord: tag follow: a councillor's net-off word on a character follows his
 		local d, text = Popup(w, V, "OLYMPUS_WATCHCHAT_DECISION")
 		assert(d, "told in Olympus's pop-up")
 		eq(text, L.ACCORD_FOLLOW_YOU_NETOFF:format("spam", V.M.When(e)))
-		-- His own line in the Decrees (the list below it shows Sootfang's word, its giver included, to
-		-- every member as before).
+		-- His own line in the Decrees (1.4.0: Moderation.SelfLines, the Decrees tab's one net-off line
+		-- since the list itself moved to The Watch, the author's call; the list there still shows
+		-- Sootfang's word, its giver included, to its readers).
 		local mine
-		for _, l in ipairs(w.As(V, V.M.Lines)) do if tostring(l.text):find(L.ACCORD_FOLLOW_YOU_SHORT, 1, true) then mine = l end end
-		assert(mine, "the Decrees say so: " .. Shown(w.As(V, V.M.Lines)))
+		for _, l in ipairs(w.As(V, V.M.SelfLines)) do if tostring(l.text):find(L.ACCORD_FOLLOW_YOU_SHORT, 1, true) then mine = l end end
+		assert(mine, "the Decrees say so: " .. Shown(w.As(V, V.M.SelfLines)))
 		local decree = Shown({ mine })
 		assert(decree:find(L.ACCORD_FOLLOW_YOU_NETOFF:format("spam", V.M.When(e)), 1, true), "its tooltip: " .. decree)
 		for _, said in ipairs({ text, table.concat(V.prints, "\n"), decree }) do
@@ -530,7 +531,7 @@ test("accord: tag follow: the same name on another realm of the group is still t
 		eq(on, "Sootwing-Other"); eq(via, nil, "not a follow")
 		eq(w.As(V, V.M.YouText, e), L.NETOFF_YOU:format("spam", "Warden", V.M.When(e)))
 		local short
-		for _, l in ipairs(w.As(V, V.M.Lines)) do if tostring(l.text):find(L.NETOFF_YOU_SHORT, 1, true) then short = l end end
+		for _, l in ipairs(w.As(V, V.M.SelfLines)) do if tostring(l.text):find(L.NETOFF_YOU_SHORT, 1, true) then short = l end end
 		assert(short, "the Decrees' own line")
 		assert(Shown({ short }):find("Warden", 1, true), "its tooltip names who gave it")
 	end)
@@ -905,6 +906,61 @@ test("accord: tag follow: never the King's game account, nor a councillor's own 
 		eq(#w.Kept(Hd) >= 1, true, "the Hand's client kept the word")
 		eq(w.As(Hd, Hd.WC.SelfTimeout), nil, "a Hand stands above a moderator's follow")
 		assert(w.As(RS, RS.WC.SelfTimeout), "an ordinary alt is reached")
+	end)
+end)
+
+-- 1.4.0 (the author, 11-03: "todos os bans e tudo que tinha do beta tem que ser limpo"): the shield
+-- is the account's (ns.db.tagShield), so a rank its characters held on the beta came along to the
+-- launch realms. Each client here gets the real Data.BetaOnLaunch (the world's Data is a stand-in).
+test("accord: tag follow (1.4.0): an account's shield noted on the beta's realm group, or before 1.4.0, never shields an alt on a launch realm group, nor is merged into a launch shield; one noted there still does", function()
+	World(function(w)
+		local BETA = "ClassicBetaPvP+ClassicBetaPvP2"
+		local HC, S = Basic(w)
+		local RS = w.Client("Reevealt", Y, 3, { tag = TAG })
+		RS.ns.Data.BetaOnLaunch = ns.Data.BetaOnLaunch
+		eq(RS.ns.group, "RealmGroup", "a launch realm group")
+		-- A Steward's rank this account held on the beta, two minutes ago: 1.3.x noted no group.
+		RS.ns.db.tagShield = { n = 2, t = 5, at = w.epoch - 120 }
+		eq(w.As(RS, RS.TF.Shield, RS.name, "N"), 0, "before 1.4.0: the beta's, no shield here")
+		eq(w.As(RS, RS.TF.Shield, RS.name, "T"), 0)
+		RS.ns.db.tagShield = { n = 2, t = 5, at = w.epoch - 120, group = BETA }
+		eq(w.As(RS, RS.TF.Shield, RS.name, "N"), 0, "noted on the beta: no shield here")
+		-- On the beta's own group it still counts, as before.
+		RS.ns.group = BETA
+		eq(w.As(RS, RS.TF.Shield, RS.name, "N"), 2, "the beta's shield on the beta")
+		RS.ns.db.tagShield = { n = 2, t = 5, at = w.epoch - 120 }
+		eq(w.As(RS, RS.TF.Shield, RS.name, "T"), 5, "a shield before 1.4.0 on the beta")
+		RS.ns.group = "RealmGroup"
+		-- His other character is netted off here and the follow reaches this alt: the beta's shield
+		-- does not hold it back.
+		w.TagTo(HC, S)
+		w.epoch = w.epoch + 5
+		assert(w.As(HC, HC.M.Set, "c", S.name, true, "spam"))
+		w.Run()
+		eq(#w.Kept(RS), 1, "the follow kept on the alt's client")
+		local _, _, via = w.As(RS, RS.M.SelfOff)
+		eq(via, "tag", "reached: a rank of the beta's is nobody's here")
+		-- No rank here: nothing noted, the beta's shield stays saved (for the beta), unused.
+		w.As(RS, RS.TF.NoteShield)
+		eq(RS.ns.db.tagShield.n, 2, "kept as it was"); eq(RS.ns.db.tagShield.group, nil)
+		_, _, via = w.As(RS, RS.M.SelfOff)
+		eq(via, "tag")
+		-- The same Steward's rank noted on this launch group: it shields, as ever.
+		RS.ns.db.tagShield = { n = 2, t = 5, at = w.epoch, group = "RealmGroup" }
+		eq(w.As(RS, RS.TF.Shield, RS.name, "N"), 2, "noted here: shields")
+		_, _, via = w.As(RS, RS.M.SelfOff)
+		eq(via, nil, "the launch group's own shield holds")
+		-- A Steward here notes his own rank and its group, never merging the beta's higher one.
+		w.stewards[Fold("Highreeve-Realm")] = true
+		local St = w.Client("Highreeve", Y, 2, { tag = "Reeve#7777" })
+		St.ns.Data.BetaOnLaunch = ns.Data.BetaOnLaunch
+		St.ns.db.tagShield = { n = 9, t = 9, at = w.epoch - 60 }
+		w.As(St, St.TF.NoteShield)
+		local m = St.ns.db.tagShield
+		eq(m.n, 2, "a Steward's rank, not the beta's"); eq(m.t, 5); eq(m.group, "RealmGroup"); eq(m.at, w.epoch)
+		w.epoch = w.epoch + 60
+		w.As(St, St.TF.NoteShield)
+		eq(St.ns.db.tagShield.n, 2, "noted again"); eq(St.ns.db.tagShield.group, "RealmGroup")
 	end)
 end)
 

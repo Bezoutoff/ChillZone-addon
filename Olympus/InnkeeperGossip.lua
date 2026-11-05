@@ -197,12 +197,24 @@ local function Closed() -- gp:innkeeper-gossip
 	end
 	if not request then return end
 	local current = generation
+	-- (1.4.6, the dev's cousin on live Forever: the first talk closed the panel and no lesson
+	-- opened; the second talk opened it, from this request left pending.) Blizzard's own handler
+	-- hides the panel after ours, sometimes a frame or two later: wait for it, a few frames at
+	-- most, and give the request up for good past that, never leaving it for the next talk.
+	local tries = 0
 	local function Start() -- gp:innkeeper-gossip
 		if not ns.Gate.Allowed(GATE) then return end
 		if current ~= generation then return end
 		G.Park()
-		if request.native:IsShown() or not ns.IsMember()
-			or InCombatLockdown() or ns.FarkleTable.Live() then return end
+		if request.native:IsShown() then
+			tries = tries + 1
+			if tries <= 20 then
+				pendingPractice, mode, current = request, "closing", generation -- (Park above moved it)
+				ns.After(0.05, "Bones closed gossip", Start)
+			end
+			return
+		end
+		if not ns.IsMember() or InCombatLockdown() or ns.FarkleTable.Live() then return end
 		local _, id = ns.FarkleTable.Innkeeper()
 		if id ~= request.inn then return end
 		if ns.InnkeeperArrow then ns.InnkeeperArrow.Cancel("training") end

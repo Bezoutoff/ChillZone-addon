@@ -414,7 +414,7 @@ function ns.StatusText()
 		-- (1.2.1: the sealed channel's name never: see Scrub.)
 		add("channel %s = #%s  sealed=%s  |  peers in guild=%d  |  reporter=%s (me: %s)", c.sealed and "(sealed channel)" or ("'" .. tostring(c.channelName) .. "'"),
 			tostring(c.channel), tostring(c.sealed), c.peers, tostring(c.reporter), tostring(c.isReporter))
-		add("sent=%d recv=%d reports=%d sendFails=%d badMsgs=%d queue=%d lastFail=%s", c.sent, c.recv, c.reports, c.fails, c.bad, c.queue, tostring(c.lastFail))
+		add("sent=%d recv=%d reports=%d sendFails=%d badMsgs=%d queue=%d lastFail=%s lane=%d laneRefused=%d laneMoves=%d", c.sent, c.recv, c.reports, c.fails, c.bad, c.queue, tostring(c.lastFail), tonumber(c.lane) or 0, tonumber(c.laneRefused) or 0, tonumber(c.laneMoves) or 0)
 		local types = {}
 		for k, v in pairs(c.byType or {}) do types[#types + 1] = k .. "=" .. v end
 		table.sort(types)
@@ -475,8 +475,10 @@ function ns.StatusText()
 				v == true and "shared" or (v == false and "private" or "not chosen (private)"), tostring(b and b.epoch or "-"), tostring(b and b.opening or "-"))
 		end
 		if ns.faction == "Horde" then
-			add("Horde King: %s, realm %s", tostring(ns.KING_CHARACTER.Horde), tostring(ns.KingRealm and ns.KingRealm() or "?"))
+			add("Horde King: %s, realm %s", tostring(ns.KingCharacter and ns.KingCharacter() or "none here"), tostring(ns.KingRealm and ns.KingRealm() or "?"))
 		end
+		-- (1.3.4) Where the King, the Treasurer and the author come from here: the signed list or the code's pins.
+		if ns.PinsStatus then add("identities: %s", ns.PinsStatus()) end
 		-- (1.1, Fern's #11: each off until answered, on the first-open page or its command.)
 		local ri = ns.db.royalInspection
 		add("royal inspection: %s (/oly inspection on|off)", ri == true and "taking part when sampled" or (ri == false and "not taking part" or "not chosen (not taking part)"))
@@ -501,10 +503,14 @@ function ns.StatusText()
 			add("block terms: %d yours, %d shared (%s)%s  |  acts log: %d entries", #F.Mine(), #F.SharedTerms(), F.SharedOn() and "used" or "ignored",
 				F.CanEdit() and ", you edit the shared list" or "", ns.Chronicle and ns.Chronicle.Entries and #ns.Chronicle.Entries() or 0)
 		end
-		-- Olympus Link (0.9.10): the key's id and tier only, never the key.
-		add("discord link: %s", ns.Link and ns.Link.StatusLine and ns.Link.StatusLine() or "not loaded")
+		-- Olympus Link (0.9.10): the key's id and tier only, never the key. (1.4.0: its own addon,
+		-- Olympus_Link; the loader says when it is not installed.)
+		add("discord link: %s", ns.LinkLoader and ns.LinkLoader.StatusLine and ns.LinkLoader.StatusLine() or "not loaded")
 		-- The Board (1.1): what this client holds and sends (the ch:G1, ch:G0, ch:GQ counts above).
 		add("board: %s", ns.Board and ns.Board.StatusLine and ns.Board.StatusLine() or "not loaded")
+		-- (1.4.0: the Board's group listings, counts only: ch:GL, ch:GM... above.)
+		local G = ns.Groups
+		add("board groups: %s", G and not G.missing and G.StatusLine and G.StatusLine() or "not loaded")
 		add("the King's week: %s", ns.Week and ns.Week.StatusLine and ns.Week.StatusLine() or "not loaded")
 	end
 	local n = 0

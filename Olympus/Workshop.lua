@@ -15,6 +15,8 @@ local L = ns.L
 --   * The author's presence (V4): players can send him their bug report from the Report a
 --     bug window (V5), and nowhere else.
 -- Only the character named ns.AUTHOR can send V1, V3 and V4, and only he receives V2 and V5.
+-- (1.3.4: on the beta's realm group; on a launch realm group, the characters the author's signed
+-- titles list names for it: Workshop.IsAuthorName, Core.lua's ns.AuthorCharacters.)
 -- Forever names (first name and surname) are unique across its realm group, and on the
 -- Classic realms no name has a space: nobody else can carry his. Receivers answer a roll call
 -- once per ROLL_GAP, and show "please update" once per UPDATE_GAP, only when really behind.
@@ -80,6 +82,7 @@ local lastAsk = -math.huge
 local answeredRoll    -- the roll call id we answered last
 local sending         -- our bug report waiting for the author's go: { id, pieces, to }
 local authorAt, authorName -- the author's last presence, and his full name
+local authorBuild -- 1.4.0: the build his last presence (V4) named, "?" when unreadable (Watch.lua's council collector)
 local changePending = false
 
 local function Changed()
@@ -95,12 +98,10 @@ end
 -- Who is who
 ---------------------------------------------------------------------------
 
--- His name, on his realm group (Forever's PvP realms).
-local function IsAuthorName(name)
-	if type(name) ~= "string" or ns.ShortName(name) ~= ns.AUTHOR then return false end
-	local realm = ns.RealmOf(ns.FullName(name))
-	return realm ~= nil and ns.GroupOf(realm) == ns.GroupOf(ns.AUTHOR_REALM)
-end
+-- His name, on his realm group: one of the characters the author's signed titles list names on
+-- ours (1.3.4, a launch realm group), else the code's (ns.AUTHOR on the beta's). Core.lua:
+-- ns.IsAuthorName, ns.AuthorCharacters.
+local function IsAuthorName(name) return ns.IsAuthorName(name) end
 
 function Workshop.IsAuthor() return IsAuthorName(ns.me) end
 Workshop.IsAuthorName = IsAuthorName
@@ -109,12 +110,14 @@ Workshop.IsAuthorName = IsAuthorName
 -- no guild rank, payment authority or control of another player's result.
 function Workshop.IsPracticeOperator(name) return IsAuthorName(name) end
 function Workshop.PracticeOperators()
-	if type(ns.AUTHOR) ~= "string" or ns.AUTHOR == "" then return {} end
-	local pinned = ns.FullName(ns.AUTHOR, ns.AUTHOR_REALM)
-	local names = { pinned }
+	local names, seen = {}, {}
+	for _, pinned in ipairs((ns.AuthorCharacters())) do
+		if not seen[pinned:lower()] then seen[pinned:lower()], names[#names + 1] = true, pinned end
+	end
+	if #names == 0 then return names end
 	-- Linked realms stamp their own suffix. Retain only a guarded presence identity;
 	-- an accepted caller's event writer mark must resolve on the receiving client too.
-	if authorName and IsAuthorName(authorName) and authorName:lower() ~= pinned:lower() then names[#names + 1] = authorName end
+	if authorName and IsAuthorName(authorName) and not seen[authorName:lower()] then names[#names + 1] = authorName end
 	return names
 end
 
@@ -134,6 +137,9 @@ function Workshop.AuthorOnline()
 	return ns.Now() - authorAt <= Workshop.PRESENCE_FRESH
 end
 function Workshop.AuthorName() return authorName end
+-- 1.4.0: the build his client runs, as his last presence named it (its second field), or "?" or
+-- nil. The Watch sends council reports to his client only from a build that takes them.
+function Workshop.AuthorBuild() return authorBuild end
 
 ---------------------------------------------------------------------------
 -- Versions
@@ -636,6 +642,7 @@ function Workshop.HandlePresence(dist, sender, text)
 	local was = Workshop.AuthorOnline()
 	local wasBehind = Workshop.Behind()
 	authorAt, authorName = ns.Now(), ns.FullName(sender)
+	authorBuild = Version(text:match("^V4~([^~]*)"))
 	Workshop.HeardVersion(ReleasedField(text))
 	if not was or Workshop.Behind() ~= wasBehind then ns.Fire("DATA_CHANGED") end
 end
@@ -1601,6 +1608,9 @@ function Workshop.Build(report)
 	BugLines(lines)
 	-- The elite borders' preview round his own portrait (Borders.lua, 1.0.0): not in the copy.
 	if not report then ns.Borders.PreviewLines(lines) end
+	-- (1.4.0) Every duty letter in preview (RoleBriefings.lua): not in the copy.
+	local RB = ns.RoleBriefings
+	if not report and type(RB) == "table" and not RB.missing and type(RB.WorkshopLines) == "function" then RB.WorkshopLines(lines) end
 	return lines, L.TAB_WORKSHOP, L.WORKSHOP_HINT
 end
 
@@ -1625,6 +1635,7 @@ function Workshop.State() return roll end
 -- Tests start from a clean state.
 function Workshop.Reset()
 	roll, authorAt, authorName, answeredRoll, sending, full, menuFor = nil, nil, nil, nil, nil, nil, nil
+	authorBuild = nil
 	-- (A new session: the saved variables stay, OlympusDB.bugReports with them; the next read takes them back.)
 	wipe(reports); wipe(pieces); wipe(bugsFrom); wipe(asked); wipe(askedOne)
 	reportsFor = nil
@@ -1659,6 +1670,9 @@ end
 -- entry of its own among the departments with three "^" (a department has two, so 0.9.9 and
 -- ReadDepartments leave it out, and 0.9.9 still takes, shows and passes on the whole list):
 --   ^steward^<Alliance|Horde>^<First Surname-Realm>,...
+-- The launch identities (1.3.4, Core.lua: ns.ReadPins) ride it the same way, after the Apostles:
+--   ^king^<side>^<Name-Realm>  ^treasurer^<side>^<Name-Realm>,...  ^author^<side>^<Name-Realm>,...
+--   ^realms^<NA|EU>^<Realm>=<pvp|pve|rp|rppvp|hardcore>,...
 -- A client that lacks the lists asks for them (0.9.9, a moderator's report: a councillor's
 -- client that never got the list had no "My council icon", and relays alone can take hours):
 --   HQ~<time of the name list it holds, or 0>~<time of the titles list it holds, or 0>
@@ -2034,6 +2048,16 @@ function Workshop.TakeTitles(blob, sender, guild)
 	local named = 0
 	for _, names in pairs(stewards) do named = named + #names end
 	ns.Log("High Council: a signed titles list of %d names in %d parts, %d Steward(s) (%s)", n, #depts, named, tostring(at))
+	-- 1.3.4: the launch identities it names (Core.lua: ns.ReadPins; read again from the signed text
+	-- whenever asked, ns.SignedPins), counted for the log, never named there.
+	local pins, count = ns.ReadPins(list), {}
+	for _, kind in ipairs({ "king", "treasurer", "author" }) do
+		count[kind] = 0
+		for _, names in pairs(pins[kind]) do count[kind] = count[kind] + #names end
+	end
+	local realms = 0
+	for _ in pairs(pins.realms) do realms = realms + 1 end
+	ns.Log("launch identities in it: King %d, Treasurer %d, author %d, realms %d", count.king, count.treasurer, count.author, realms)
 	local now = Steward()
 	if now and not was then
 		ns.Print(L.STEWARD_YOU:format(ns.KingName(ns.KingCharacter())))
@@ -2886,9 +2910,17 @@ end
 -- realm at once too, any other client a whole RELAY_EVERY after login at the earliest (RelayGuild).
 function Workshop.CouncilLogin()
 	lastCouncilSent, lastGuildSent = ns.Now(), ns.Now()
-	if ns.COUNCIL_SIGNED then Workshop.TakeCouncil(ns.COUNCIL_SIGNED) end
-	if ns.COUNCIL_TITLES then Workshop.TakeTitles(ns.COUNCIL_TITLES) end
-	if ns.COUNCIL_SIGNED or ns.COUNCIL_TITLES then
+	local names, titles = ns.COUNCIL_SIGNED, ns.COUNCIL_TITLES
+	-- (1.4.5) The file may carry the lists of several realm groups (ns.COUNCIL_BY_GROUP, by the
+	-- group each is signed for: the dev's PvP character beside his PvE one): ours, where it has them.
+	local by = ns.COUNCIL_BY_GROUP
+	if type(by) == "table" and type(ns.group) == "string" and type(by[ns.group]) == "table" then
+		if type(by[ns.group][1]) == "string" then names = by[ns.group][1] end
+		if type(by[ns.group][2]) == "string" then titles = by[ns.group][2] end
+	end
+	if names then Workshop.TakeCouncil(names) end
+	if titles then Workshop.TakeTitles(titles) end
+	if names or titles then
 		ns.After(15, "council", function()
 			Workshop.RelayCouncil(true)
 			Workshop.RelayGuild(true)

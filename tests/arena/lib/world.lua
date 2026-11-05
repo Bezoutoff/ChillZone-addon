@@ -750,6 +750,10 @@ local function Load(w, c)
 		for _, f in ipairs(World.LOCALES) do assert(loadfile(H.ADDON_DIR .. "Locales/" .. f .. ".lua"))("Olympus", cns) end
 		-- (opts.arenaFiles: another list of the core's arena files, a package profile's TOC.)
 		for _, f in ipairs(w.arenaFiles or World.ARENA_FILES) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("Olympus", cns) end
+		-- (1.4.0) A new duty letter opens the Olympus window by itself (RoleBriefings.Arrived, loaded with
+		-- the TOC's files above); this world builds no Olympus window (its frames are stand-ins), so this
+		-- client's letters wait in the list instead.
+		if type(rawget(cns, "RoleBriefings")) == "table" then cns.RoleBriefings.Arrived = function() return false end end
 		-- (Every family's honour frame in the machinery's worlds; a shipped-release world wears the donors' alone.)
 		if (c.compliance or w.compliance) ~= "shipped" and type(rawget(cns, "Honors")) == "table" then cns.Honors.FRAMES_SHIPPED = nil end
 		if (c.compliance or w.compliance) ~= "shipped" and type(rawget(cns, "Compliance")) == "table" then

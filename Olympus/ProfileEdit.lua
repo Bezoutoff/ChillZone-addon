@@ -133,6 +133,18 @@ function PE.ViewModel()
 	for _, x in ipairs(HN.Letters()) do
 		vm.letters[#vm.letters + 1] = { key = x.key, title = HN.TitleText(x.key), t = x.t, read = x.read == true }
 	end
+	-- Office briefings share the existing Letters section, but remain independent of royal honour
+	-- awards. Their original appointment record stays reopenable after it has been read.
+	local RB = ns.RoleBriefings
+	if type(RB) == "table" and not RB.missing and type(RB.Letters) == "function" then
+		for _, x in ipairs(RB.Letters()) do
+			vm.letters[#vm.letters + 1] = { key = x.id, title = RB.Title(x), t = x.t, read = x.read == true, role = true }
+		end
+	end
+	table.sort(vm.letters, function(a, b)
+		local at, bt = tonumber(a.t) or 0, tonumber(b.t) or 0
+		return at == bt and tostring(a.key) < tostring(b.key) or at < bt
+	end)
 	vm.preview = PE.Preview()
 	-- (1.2.4) The frame others see now: a pick of a frame not worn yet shows the rank's (Honors.Shown).
 	for _, x in ipairs(vm.frames) do x.shows = not x.own and x.key == vm.preview.frame end
@@ -699,7 +711,7 @@ local function PrivacyLines(lines, facts)
 	end
 end
 
--- Letters: the King's, newest first, unread in gold; a click opens one in the King's letter window.
+-- Letters: honours from the King and durable office briefings, newest first, unread in gold.
 local function LetterLines(lines, vm)
 	if #vm.letters == 0 then
 		Words(lines, L.MYPROFILE_LETTERS_NONE)
@@ -709,9 +721,13 @@ local function LetterLines(lines, vm)
 		local x = vm.letters[i]
 		local key = x.key
 		local title = x.title or key
+		local role = x.role == true
 		lines[#lines + 1] = { indent = 1, text = x.read and title or Gold(title),
 			right = x.t and type(date) == "function" and Grey(date("%Y-%m-%d", x.t)) or "",
-			onClick = function() H().ShowLetter(key) end }
+			onClick = function()
+				if role and ns.RoleBriefings and ns.RoleBriefings.Open then ns.RoleBriefings.Open(key)
+				else H().ShowLetter(key) end
+			end }
 	end
 end
 

@@ -5,6 +5,9 @@ local L = ns.L
 -- Treasurer (ns.TREASURER of the guild OLYMPUS) and his mail character (the other name of
 -- ns.TREASURER_CHARACTERS, in any guild or none), the King (his character, ns.KING_CHARACTER)
 -- and the characters the King adds on the Treasury tab (his word, T1~K, like his switches).
+-- (1.3.4: those pins are the beta's; on a launch realm group the Treasurer, his mail characters
+-- and the King are whom the author's signed titles list names: Core.lua's ns.TreasurerPins,
+-- ns.KingCharacter.)
 -- Each keeper's own client keeps his character's book: gold and items he receives by trade or
 -- mail are a donation, gold and items he gives a payment. What he earns playing is his: a book
 -- is an opening balance, plus what came in, less what went out, never his character's gold. A
@@ -261,13 +264,14 @@ function Treasury.Keepers()
 end
 
 -- One of the Treasurer's pinned characters (a name as typed, whatever its case): its place in
--- ns.TREASURER_CHARACTERS (1: the Treasurer himself, 2: his mail's), or nil.
+-- ns.TreasurerPins() (1: the Treasurer himself, 2: his mail's; 1.3.4: the signed list's where it
+-- names them, Core.lua), or nil.
 local function TreasurerPin(name)
 	if type(name) ~= "string" or name == "" then return nil end
 	name = ns.FullName(ns.Normal(name))
 	local short = ns.ShortName(name):lower()
-	for i, pin in ipairs(ns.TREASURER_CHARACTERS or { ns.TREASURER }) do
-		if short == pin:lower() then return SameGroup(name, ns.TREASURER_REALM) and i or nil end
+	for i, pin in ipairs((ns.TreasurerPins())) do
+		if short == ns.ShortName(pin):lower() then return SameGroup(name, ns.RealmOf(pin)) and i or nil end
 	end
 	return nil
 end
@@ -563,8 +567,9 @@ end
 -- The Treasurer's own character on this account (where he played it with the addon on), or nil.
 local function TreasurerCharacter()
 	local mine = ns.db and ns.db.myCharacters
-	if type(mine) ~= "table" or not ns.TREASURER then return nil end
-	local want = ns.TREASURER:lower()
+	local treasurer = ns.TreasurerName()
+	if type(mine) ~= "table" or not treasurer then return nil end
+	local want = treasurer:lower()
 	for key, on in pairs(mine) do
 		if on == true and (key == want or key:sub(1, #want + 1) == want .. "-") then return key end
 	end
@@ -994,10 +999,11 @@ local function TakeBook(sender)
 	if Treasury.KeeperByName(sender) or Treasury.IsOwnCharacter(sender) then return nil end
 	local b = BookOf(key, true)
 	-- (Named as his character is, until his own login names it itself.)
-	if b and b.name == key then
-		local realm = key:sub(#ns.TREASURER + 2)
+	local treasurer = ns.TreasurerName()
+	if b and b.name == key and treasurer then
+		local realm = key:sub(#treasurer + 2)
 		if ns.realm and realm:lower() == ns.realm:lower() then realm = ns.realm end
-		b.name = ns.TREASURER .. (realm ~= "" and ("-" .. realm) or "")
+		b.name = treasurer .. (realm ~= "" and ("-" .. realm) or "")
 	end
 	return b
 end
@@ -1960,9 +1966,10 @@ local function Parts(shared, public)
 		end
 	end
 	-- The Treasurer first, his mail character next, then the King, then the others by name.
+	local pinned = #(ns.TreasurerPins())
 	local function Rank(p)
-		if not PinnedName(p.name) then return #ns.TREASURER_CHARACTERS + 2 end
-		return TreasurerPin(p.name) or #ns.TREASURER_CHARACTERS + 1
+		if not PinnedName(p.name) then return pinned + 2 end
+		return TreasurerPin(p.name) or pinned + 1
 	end
 	table.sort(parts, function(x, y)
 		local a, b = Rank(x), Rank(y)
@@ -2081,6 +2088,7 @@ Treasury.PRIVATE_ROOM = 3          -- start a transfer while the queue holds thi
 Treasury.PRIVATE_WAIT = 120        -- abandon this attempt after this many turns; the share tick retries
 Treasury.PRIVATE_GAP = 180         -- a changed message to the same player this long after the last one at the soonest
 Treasury.PRIVATE_QUEUE = 100       -- whole messages waiting to be whispered, at most
+Treasury.PRIVATE_RANK_ROOM = 20    -- 1.4.0: places a ranking row (its kind's `ranking`) never takes
 Treasury.READERS_FOR = 30 * 86400  -- a client heard asking (TA) is remembered as reading whispers this long
 Treasury.PRIVATE_REPEAT = 1800     -- the same one whispered again to the same player this long after at most
                                    -- (a piece lost on the way, a wipe of his: he gets it whole again)
@@ -2296,13 +2304,26 @@ end
 -- the kind unless said): a changed one takes the place of the one still waiting, and is held
 -- while the last one went to him less than PRIVATE_GAP ago (or is going now). The same one goes
 -- again PRIVATE_REPEAT later at the soonest (its kind's repeatAfter, 1.2: a sister guild's bank's).
+-- 1.4.0: a kind marked `ranking` (the Guild treasuries' rows: one a guild, up to 128 at an ask)
+-- waits only while PRIVATE_RANK_ROOM places are left and never makes room; another message that
+-- needs room drops the oldest ranking row first (its next ask brings it again), and only with none
+-- left the oldest message waiting. A sister guild's bank snapshot is never lost to a catch-up.
 function Treasury.Private(to, kind, msg, key, pieces)
 	if type(to) ~= "string" or to == "" or type(msg) ~= "string" or msg == "" then return false end
 	to = ns.FullName(to)
 	if SameChar(to, ns.me) then return false end
 	local def = privateKinds[kind]
-	if not def or not def.send or def.send(to, msg) ~= true then return false end
 	key = key or kind
+	if def and def.ranking and #outbox >= Treasury.PRIVATE_QUEUE - Treasury.PRIVATE_RANK_ROOM then
+		-- (Before its send check, which reads every row held: a catch-up asks it once a guild.
+		-- One still waiting for him is changed in place: that takes no new place.)
+		local waiting = false
+		for _, o in ipairs(outbox) do
+			if o.to == to and o.key == key then waiting = true break end
+		end
+		if not waiting then return false end
+	end
+	if not def or not def.send or def.send(to, msg) ~= true then return false end
 	local last = sentTo[to] and sentTo[to][key]
 	if last and last.msg == msg and ns.Now() - last.at < (def.repeatAfter or Treasury.PRIVATE_REPEAT) then return false end
 	if sending and sending.to == to and sending.key == key and sending.msg == msg then return false end
@@ -2318,7 +2339,13 @@ function Treasury.Private(to, kind, msg, key, pieces)
 		held = true
 		return false
 	end
-	if #outbox >= Treasury.PRIVATE_QUEUE then table.remove(outbox, 1) end
+	if #outbox >= Treasury.PRIVATE_QUEUE then
+		local drop = 1
+		for i, o in ipairs(outbox) do
+			if privateKinds[o.kind] and privateKinds[o.kind].ranking then drop = i break end
+		end
+		table.remove(outbox, drop)
+	end
 	outbox[#outbox + 1] = { to = to, kind = kind, key = key, msg = msg, pieces = pieces, me = ns.me, guild = GetGuildInfo("player") }
 	PumpPrivate()
 	return true
@@ -2410,9 +2437,12 @@ Treasury.OnPrivate("TR", { from = function(s) return TreasurerPin(s) == 1 end, t
 -- 1.2.6: durable Guild treasury ranking, without relaying a bank.  The bank's tabs, items,
 -- donors and book remain on TS/TB's private rails.  A TY carries one already-visible numeric
 -- ranking row between members of Bank.DirectoryViewer's audience.  One viewer is not enough to
--- create a row on another client: two different authorized live holders must repeat the exact
--- row.  Once accepted it is saved and may be repeated by that holder, so the original guild
--- officer need not be online with every later viewer.  A newer accepted snapshot replaces an
+-- create a row on another client: two different authorized live holders must corroborate the same
+-- source snapshot and ranking total. Locally derived annotations (average census level,
+-- correspondent and item-loading counters) may differ without stranding that snapshot forever;
+-- the canonical accepted wire is chosen deterministically. Once accepted it is saved and may be
+-- repeated by that holder, so the original guild officer need not be online with every later
+-- viewer. A newer accepted snapshot replaces an
 -- older one; old rows remain visibly dated, as the direct ranking's rows do.
 --   TY~1~<guild>~<original by>~<time>~<money>~<units>~<stacks>~<value>~<pending>~<unpriced>
 --       ~<total>~<average level>~<correspondent|->~<home 0|1>
@@ -2458,7 +2488,10 @@ local function RankRelayWire(row)
 	local pending = RankRelayNumber(row.pending, 99999999)
 	local unpriced = RankRelayNumber(row.unpriced, 99999999)
 	local total = RankRelayNumber(row.total, Treasury.MAX_COPPER * 2)
-	local level = RankRelayNumber(row.level or 0, 255)
+	-- (1.4.0: the census keeps the average level to the tenth, Data.AvgTenths, and the direct row
+	-- carries it so; the wire's is whole, floored, or no guild with a fractional average went.)
+	local level = tonumber(row.level or 0)
+	level = RankRelayNumber(level and math.floor(level), 255)
 	local home = row.home == true or ns.IsKingGuild(guild or "")
 	if not guild or not ns.IsFederation(guild) or not by or by:find("[~%^|%c]") or corr:find("[~%^|%c]")
 		or not t or t == 0 or not money or not units or not stacks or not value or not pending or not unpriced or not total
@@ -2477,6 +2510,16 @@ local function ReadRankRelay(text)
 	local wire = RankRelayWire(row)
 	if wire ~= text then return nil end
 	return row, wire
+end
+
+-- Fields which identify the same bank observation and its ranking score. Average level and
+-- correspondent come from other replicated books, while pending/unpriced are this client's item
+-- cache state; requiring those annotations to be byte-identical was why otherwise identical bank
+-- snapshots remained one-witness candidates on every client. Value stays in the key: two holders
+-- must still agree on every copper which can change the ranking.
+local function RankRelaySourceKey(row)
+	return table.concat({ ns.Fold(row.guild), ns.Fold(row.by), row.t, row.money, row.units, row.stacks,
+		row.value, row.total, row.home and 1 or 0 }, "|")
 end
 
 local function DirectRankRows()
@@ -2542,9 +2585,9 @@ function Treasury.HandleRankRelay(dist, sender, text)
 	if not row then return false, "shape" end
 	if row.t > ns.Now() + 30 then return false, "time" end
 	local B = ns.Bank
-	local source = row.home and Treasury.KeeperByName(row.by)
+	local authorizedSource = row.home and Treasury.KeeperByName(row.by)
 		or type(B.LordOrCaptain) == "function" and B.LordOrCaptain(row.by, row.guild)
-	if not source then return false, "source" end
+	if not authorizedSource then return false, "source" end
 	local s = RankRelayRoot(true)
 	if not s then return false, "store" end -- (no realm group or faction yet: nothing to keep it under)
 	local key = ns.Fold(row.guild)
@@ -2553,9 +2596,21 @@ function Treasury.HandleRankRelay(dist, sender, text)
 	if type(e) ~= "table" then e = { seen = {}, heard = ns.Now() }; s.rows[key][wire] = e end
 	e.seen[ns.Fold(ns.FullName(sender))] = ns.Now()
 	e.heard = ns.Now()
+	local sourceKey, witnesses, candidates = RankRelaySourceKey(row), {}, {}
+	for candidateWire, candidate in pairs(s.rows[key]) do
+		local candidateRow = type(candidate) == "table" and ReadRankRelay(candidateWire) or nil
+		if candidateRow and RankRelaySourceKey(candidateRow) == sourceKey then
+			candidates[#candidates + 1] = candidate
+			for witness in pairs(type(candidate.seen) == "table" and candidate.seen or {}) do witnesses[witness] = true end
+		end
+	end
 	local n = 0
-	for _ in pairs(e.seen) do n = n + 1 end
-	if n >= Treasury.RANK_RELAY_WITNESSES then e.accepted = true end
+	for _ in pairs(witnesses) do n = n + 1 end
+	if n >= Treasury.RANK_RELAY_WITNESSES then
+		-- Marking every annotation variant accepted makes the same lexical wire win on every client
+		-- which has the union, and lets that canonical row travel after the source went offline.
+		for _, candidate in ipairs(candidates) do candidate.accepted = true end
+	end
 	PruneRankRelays()
 	if e.accepted then ns.Fire("TREASURY_CHANGED") end
 	return true, e.accepted == true and "accepted" or "witness"
@@ -2599,7 +2654,7 @@ function Treasury.SendRankRelays(to)
 	return n
 end
 
-Treasury.OnPrivate("TY", { from = RankRelayAudience, to = RankRelayMe,
+Treasury.OnPrivate("TY", { from = RankRelayAudience, to = RankRelayMe, ranking = true,
 	send = function(to, msg)
 		if not RankRelayMe() or not RankRelayAudience(to) then return false end
 		local row, wire = ReadRankRelay(msg)
@@ -2753,13 +2808,19 @@ end
 -- The King's switch, or his Steward's in his name (the author's Asmon's view: its own switches,
 -- on his screen only).
 function Treasury.SetFlag(what, on)
-	if not IsKingView() then return ns.Print(L.THRONE_ONLY_KING) end
+	if not IsKingView() then
+		-- (1.4.0) The author sets the ranking's switch alone, in his own word (Treasury.SetAuthorRanking).
+		if what == "ranking" and Treasury.AuthorSetsRanking() then return Treasury.SetAuthorRanking(on) end
+		return ns.Print(L.THRONE_ONLY_KING)
+	end
 	local f = {}
 	for _, k in ipairs(FLAGS) do f[k] = Treasury.Shows(k) end
 	f[what] = on and true or false
-	-- Each word newer than the last, two clicks in one second too (the army takes the newest).
+	-- Each word newer than the last, two clicks in one second too (the army takes the newest), and
+	-- (1.4.0) newer than the author's ranking switch held, so the King's new word is the one that stands.
 	local prev = ns.King.Preview() and ns.db.previewTreasuryFlags or ns.rdb.treasuryFlags
-	f.t, f.at, f.from = ns.Now(), math.max(Clock(), (type(prev) == "table" and tonumber(prev.at) or 0) + 1), ns.me
+	local last = type(prev) == "table" and math.max(tonumber(prev.at) or 0, tonumber(prev.rankingAt) or 0) or 0
+	f.t, f.at, f.from = ns.Now(), math.max(Clock(), last + 1), ns.me
 	ns.Print(L["TREASURY_FLAG_" .. what:upper() .. (on and "_ON" or "_OFF")])
 	if ns.King.Preview() then
 		ns.db.previewTreasuryFlags = f
@@ -2805,6 +2866,10 @@ function Treasury.TakeFlags(digits, at, sender, relayed)
 	end
 	local was = type(kept) == "table" and FlagDigits(kept) or "000"
 	local f = { balance = b == "1", ranking = r == "1", book = k == "1", at = at, t = ns.Now(), from = ns.FullName(sender) }
+	-- (1.4.0) The author's ranking switch newer than this word stands: its part alone is his.
+	if type(kept) == "table" and (tonumber(kept.rankingAt) or 0) > at then
+		f.ranking, f.rankingAt, f.rankingFrom = kept.ranking == true, tonumber(kept.rankingAt), kept.rankingFrom
+	end
 	ns.rdb.treasuryFlags = f
 	-- 1.1 (#12): in this client's log of acts when what the army sees changes (the word is
 	-- repeated), with the name the server stamped, only when heard from whoever gave it: a word
@@ -2821,6 +2886,85 @@ function Treasury.TakeFlags(digits, at, sender, relayed)
 		ns.Fire("DATA_CHANGED") -- the tab appears or goes
 	end
 end
+-- (1.4.0, the owner's rule for the launch: the King does not work these switches.) The addon's author
+-- (one of his characters as Core.lua's signed list names them, ns.IsAuthorName; never the King, a
+-- Steward or a role he previews) sets the ranking's switch alone, never the balance's nor the book's:
+--   T1~r~<id>~<guild>~<0|1>~<time it was given>     on the channel (King.AUTHOR_MAY)
+-- It is kept in the King's word (ns.rdb.treasuryFlags) as its ranking part, with its own time
+-- (rankingAt) and giver (rankingFrom): the newest of his word and the King's ranking digit stands, the
+-- King's on the same second; a King's word older than it changes the balance and the book alone.
+-- His client repeats it, as the King's client repeats the King's (FLAGS_EVERY), while it stands.
+-- Clients before 1.4.0 leave the kind out.
+-- (Treasury.lua's main chunk is at Lua's 200 locals: these live on the table.)
+function Treasury.AuthorRanks(name)
+	if type(name) ~= "string" or name == "" or not ns.IsAuthorName(ns.FullName(name)) then return false end
+	local WC = ns.WatchChat
+	return not (type(WC) == "table" and not WC.missing and type(WC.PowersBarred) == "function" and WC.PowersBarred(ns.FullName(name)) ~= nil)
+end
+-- This client may set it: the author's own character, a member, not in the King's preview (that view
+-- keeps its own switches on his screen).
+function Treasury.AuthorSetsRanking()
+	return ns.IsMember() and not ns.King.Preview() and Treasury.AuthorRanks(ns.me)
+end
+-- The ranking part's time held here: the author's, else the King's word's.
+function Treasury.RankingAt(f)
+	if type(f) ~= "table" then return 0 end
+	return math.max(tonumber(f.rankingAt) or 0, tonumber(f.at) or 0)
+end
+Treasury.authorRankingSent = -math.huge
+function Treasury.SendAuthorRanking(force)
+	local f = ns.rdb and ns.rdb.treasuryFlags
+	if not Treasury.AuthorSetsRanking() or type(f) ~= "table" or not tonumber(f.rankingAt) or not SameChar(f.rankingFrom, ns.me) then return false end
+	local now = ns.Now()
+	if not force and now - Treasury.authorRankingSent < Treasury.FLAGS_EVERY then return false end
+	Treasury.authorRankingSent = now
+	return ns.Comm.Send("CHANNEL", ("T1~r~%d~%s~%s~%d"):format(ns.King.NewId(), GetGuildInfo("player") or "", f.ranking and "1" or "0",
+		math.floor(f.rankingAt)), "treasuryrank") == true
+end
+-- Taken from the author's character when newer than the ranking part held (the King's word wins the
+-- same second). True, or false and why.
+function Treasury.TakeAuthorRanking(sender, rest)
+	local on, at = tostring(rest or ""):match("^([01])~(%d+)$")
+	at = tonumber(at)
+	if not on or not at or at > Clock() + ns.King.DATE_AHEAD then return false, "shape" end
+	if not Treasury.AuthorRanks(sender) then return false, "author" end
+	local kept = ns.rdb.treasuryFlags
+	if at <= Treasury.RankingAt(kept) then return false, "older" end
+	local was = type(kept) == "table" and FlagDigits(kept) or "000"
+	local f = {}
+	for key, v in pairs(type(kept) == "table" and kept or {}) do f[key] = v end
+	f.ranking, f.rankingAt, f.rankingFrom = on == "1", at, ns.FullName(sender)
+	ns.rdb.treasuryFlags = f
+	Treasury.LogFlags(sender, f, Clock() - at >= Treasury.WORD_FRESH)
+	if FlagDigits(f) ~= was then
+		if CanSend() then ns.Print(Treasury.WhoSees()) end
+		Treasury.SwitchesChanged(was)
+		ns.Fire("TREASURY_CHANGED")
+		ns.Fire("DATA_CHANGED")
+	end
+	return true
+end
+-- The author's click (Treasury.SetFlag sends it here): his word, newer than the part held.
+function Treasury.SetAuthorRanking(on)
+	if not Treasury.AuthorSetsRanking() then return ns.Print(L.THRONE_ONLY_KING) end
+	local kept = ns.rdb.treasuryFlags
+	local was = type(kept) == "table" and FlagDigits(kept) or "000"
+	local f = {}
+	for key, v in pairs(type(kept) == "table" and kept or {}) do f[key] = v end
+	f.ranking = on and true or false
+	f.rankingAt = math.max(Clock(), Treasury.RankingAt(kept) + 1)
+	f.rankingFrom = ns.FullName(ns.me)
+	ns.rdb.treasuryFlags = f
+	ns.Print(L["TREASURY_FLAG_RANKING" .. (on and "_ON" or "_OFF")])
+	Treasury.SendAuthorRanking(true)
+	Treasury.LogFlags(ns.me, f)
+	Treasury.SwitchesChanged(was)
+	ns.Fire("TREASURY_CHANGED")
+	ns.Fire("DATA_CHANGED")
+	return true
+end
+ns.King.Register("r", function(sender, id, rest) Treasury.TakeAuthorRanking(sender, rest) end)
+
 -- What the army sees of the treasury, in this client's log of acts (1.1, #12): once each time it
 -- changes; nothing shown is where it starts. `quiet`: this client only caught up on it (noted,
 -- so the next change is compared with it, not written).
@@ -3114,7 +3258,7 @@ end
 local function TreasurerYes()
 	local shares = ns.db and ns.db.keeperShares
 	if type(shares) ~= "table" then return false end
-	local key = TreasurerPin(ns.me) == 1 and ConsentKey() or TreasurerCharacter() or OwnKey(ns.TREASURER)
+	local key = TreasurerPin(ns.me) == 1 and ConsentKey() or TreasurerCharacter() or OwnKey(ns.TreasurerName() or "")
 	return shares[key] == true
 end
 local function MaySendEarly() return CanSend() and EarlyHolder() and TreasurerYes() end
@@ -3268,6 +3412,7 @@ function Treasury.Tick()
 	if ns.Now() - lastShare >= Treasury.SHARE_EVERY then Treasury.Share(true) end
 	Treasury.FlushPrivate()
 	Treasury.SendFlags()
+	Treasury.SendAuthorRanking()
 	Treasury.SendKeepers()
 	Treasury.AskEarly()
 end
@@ -3330,6 +3475,7 @@ ns.On("LOGIN", function()
 	ns.After(30, "treasury share", function()
 		Treasury.Share(true)
 		Treasury.SendFlags(true)
+		Treasury.SendAuthorRanking(true)
 		Treasury.SendKeepers(true)
 		-- A keeper is told once who sees the treasury (and again when the King changes it).
 		if CanSend() and not ns.rdb.treasuryToldWho then
@@ -3582,7 +3728,7 @@ function Treasury.MaySee(what)
 end
 
 -- How many keep a book: the Treasurer's characters and the King always, and the King's list.
-local function KeeperCount() return #ns.TREASURER_CHARACTERS + 1 + #Treasury.Keepers() end
+local function KeeperCount() return #(ns.TreasurerPins()) + 1 + #Treasury.Keepers() end
 
 -- A keeper's name as the tab shows it (the army's name for the King).
 local function KeeperLabel(name)
@@ -3764,14 +3910,15 @@ local function KeeperLines()
 		for key, v in pairs(extra or {}) do line[key] = v end
 		lines[#lines + 1] = line
 	end
-	Row(ns.FullName(ns.TREASURER, ns.TREASURER_REALM), L.TREASURY_KEEPER_TREASURER:format(ns.TREASURER), {
-		tooltip = function(tt) tt:AddLine(L.TREASURY_KEEPER_PINNED, 1, 1, 1, true) end })
+	local pins = ns.TreasurerPins()
+	if pins[1] then
+		Row(pins[1], L.TREASURY_KEEPER_TREASURER:format(ns.ShortName(pins[1])), {
+			tooltip = function(tt) tt:AddLine(L.TREASURY_KEEPER_PINNED, 1, 1, 1, true) end })
+	end
 	-- His mail character: his, pinned like him (not the King's to take off).
-	for _, pin in ipairs(ns.TREASURER_CHARACTERS) do
-		if pin ~= ns.TREASURER then
-			Row(ns.FullName(pin, ns.TREASURER_REALM), L.TREASURY_KEEPER_TREASURER_MAIL:format(pin), {
-				tooltip = function(tt) tt:AddLine(L.TREASURY_KEEPER_PINNED, 1, 1, 1, true) end })
-		end
+	for i = 2, #pins do
+		Row(pins[i], L.TREASURY_KEEPER_TREASURER_MAIL:format(ns.ShortName(pins[i])), {
+			tooltip = function(tt) tt:AddLine(L.TREASURY_KEEPER_PINNED, 1, 1, 1, true) end })
 	end
 	local king = ns.KingCharacter and ns.KingCharacter()
 	if king then
@@ -4823,8 +4970,7 @@ function Treasury.BackupBooks()
 	end
 	Add(ns.me)
 	if TreasurerPin(ns.me) then
-		for _, pin in ipairs(ns.TREASURER_CHARACTERS) do
-			local full = ns.FullName(pin, ns.TREASURER_REALM)
+		for _, full in ipairs((ns.TreasurerPins())) do
 			if not SameChar(full, ns.me) then Add(full) end
 		end
 	end

@@ -600,7 +600,8 @@ LG.PINS_MAX = 2000         -- fighters' keys heard first-hand, kept for this ses
 LG.HALVES_LATER = 30       -- the signature queue full: the halves are checked again this much later
 LG.HALF_LATE = 86400       -- a clerk takes a fighter's own half up to this old (LG.HalvesToClerk)
 LG.GK_RECHECK = 30         -- an entry waiting for the game's word on its GUIDs: looked at again this often...
-LG.GK_WAIT = 900           -- ...for this long after it was kept (later, whenever its halves are heard again)
+LG.GK_WAIT = 900           -- ...for this long after it began waiting here (later, whenever its halves are heard again)
+LG.GK_SESSIONS = 8         -- (1.4.0) ...and once more in each later session while it waits, in this many windows at most
 
 LG.HALF_KEEP = 62 * 86400 -- (1.2.4) halves waiting for their other half kept this long in the saved data
 
@@ -799,6 +800,16 @@ end
 
 -- The entries waiting for the game's word on their GUIDs (e.wait): [fid] = { mode, season }.
 local waiting = {}
+-- (1.4.0) When an entry began waiting here (e.waitAt), and in how many windows of GK_WAIT so far
+-- (e.waits). Never its keptAt: a duel taken through Records is kept at its own time (keptAt = e.t,
+-- the 1.2.3 rule, LG.Counted), so one relayed more than GK_WAIT after it was fought was never looked
+-- at again and stayed history alone, its fighters bound or not. Entries kept before 1.4.0 have no
+-- waitAt: their keptAt stands for it.
+local renewed = {} -- [fid] = true: its window was renewed this session (Waiting)
+local function WaitFrom(e) return tonumber(e.waitAt) or tonumber(e.keptAt) or 0 end
+local function StartWait(e)
+	e.waitAt, e.waits = Now(), (tonumber(e.waits) or 0) + 1
+end
 
 -- An entry waiting for the game's word, looked at again: rated once both fighters are bound here
 -- (e.wait "r"; "d" stays history), gone once one is another character's ("gk"). True, false, or
@@ -830,18 +841,27 @@ function LG.RecheckAll()
 	for fid, w in pairs(waiting) do
 		local book = Book(w.mode, w.season)
 		local e = book and book.list[fid]
-		if not (e and e.wait) or now - (tonumber(e.keptAt) or 0) > LG.GK_WAIT then waiting[fid] = nil
+		if not (e and e.wait) or now - WaitFrom(e) > LG.GK_WAIT then waiting[fid] = nil
 		else LG.RecheckGk(e, w.mode) end
 	end
 	GkLater()
 end
--- The ledger loaded (the companion): its entries still waiting, looked at again.
+-- The ledger loaded (the companion): its entries still waiting, looked at again. (1.4.0) One whose
+-- window is over gets a new one, once a session and GK_SESSIONS windows at most: the game may know
+-- its fighters now (they were met, or GetPlayerInfoByGUID has them cached).
 local function Waiting(mode)
 	local s = LG.Season(mode)
+	local now = Now()
 	for _, season in ipairs({ s.n, s.n - 1 }) do
 		local book = Book(mode, season)
 		for fid, e in pairs(book and book.list or {}) do
-			if e.wait and Now() - (tonumber(e.keptAt) or 0) <= LG.GK_WAIT then waiting[fid] = { mode = mode, season = season } end
+			if e.wait then
+				if now - WaitFrom(e) > LG.GK_WAIT and not renewed[fid] and (tonumber(e.waits) or 0) < LG.GK_SESSIONS then
+					StartWait(e)
+					renewed[fid] = true
+				end
+				if now - WaitFrom(e) <= LG.GK_WAIT then waiting[fid] = { mode = mode, season = season } end
+			end
 		end
 	end
 	GkLater()
@@ -885,7 +905,10 @@ local function CheckPair(fid, p, a, b, e, mode)
 					if ns.Records and ns.Records.Pin then ns.Records.Pin(x.signer, x.pk64, x.gk) end
 				end
 			end
-			if v == nil then e.fl, e.wait = (e.fl:gsub("r", "")), Has(e.fl, "r") and "r" or "d" end
+			if v == nil then
+				e.fl, e.wait = (e.fl:gsub("r", "")), Has(e.fl, "r") and "r" or "d"
+				StartWait(e)
+			end
 			e.kA, e.kB = KeyPrint(a.pk), KeyPrint(b.pk)
 			-- (The halves themselves only where they may be relayed: a clerk's, a fighter's own.)
 			if LG.MayClerk() or Me(e.A) or Me(e.B) then e.halves = { A = a.body, B = b.body } end
@@ -1708,6 +1731,13 @@ end
 local function OnBook(dist, sender, mode, body)
 	local kind, rest = Arena.Fields(body, 2)
 	if not rest then return Count("shape") end
+	-- (1.4.0, the owner's ask: the level race runs once, and the whole network keeps one winner) The
+	-- author's or the King's level race record goes to HonorsNet's own checks (H.TakeRecords: the book
+	-- every client keeps). Neither is a clerk, and this word never makes one (no clerks[] entry).
+	if kind == "H" and ns.HonorsNet and ns.HonorsNet.Authority and ns.HonorsNet.Authority(sender) >= 2 then
+		ns.HonorsNet.TakeRecords(sender, mode, rest) -- (the author's or the King's; a councillor's passes below)
+		return
+	end
 	local R = ns.ArenaRoles
 	if not R.IsPublicArbiter(sender, mode) and not ns.IsHighCouncillor(ns.FullName(sender)) then return Count("sender") end
 	if R.IsKing(sender) then return Count("king") end
@@ -2753,7 +2783,11 @@ if ns.Records and ns.Records.Register then
 		Read = LG.ReadRecord, DAY_MAX = LG.DUEL_KEEP_DAY,
 		Took = function(rec)
 			local e = rec.entry local v = BothBound(e)
-			if v == nil then e.fl, e.wait = e.fl:gsub("r", ""), Has(e.fl, "r") and "r" or "d" end
+			if v == nil then
+				e.fl, e.wait = e.fl:gsub("r", ""), Has(e.fl, "r") and "r" or "d"
+				-- (Its wait counts from now, not from keptAt: that is the duel's own time here.)
+				StartWait(e)
+			end
 			if Keep(e, "L", "records") and e.wait then waiting[e.fid] = { mode = "L", season = e.season } GkLater() end
 		end,
 		Conflict = function(rec)

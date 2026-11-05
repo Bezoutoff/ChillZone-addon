@@ -589,14 +589,16 @@ end
 -- (1.2.3, the owner's call "Cajado entra na 1.2.3": the missionaries' crook is worn too. 1.2.4, the
 -- owner's calls: the koi, the owl, the Apostles' cross, the Bones' charm and the slayers' skeletal
 -- horse too; the comet waits for the launch, the Arena's for its tournaments, the raven for 2.0's
--- bets. The list below was the donors' alone until 1.2.3, and theirs and the crook's in 1.2.3.)
-test("1.2.0 honours: the release wears the all-time donors' frames alone (1.2.3: and the missionaries' crook; 1.2.4: the koi, the owl, the cross, the charm and the skeletal horse); the level race's comet, the arena's and the Oracle's wait (the owner's call)", function()
+-- bets. The list below was the donors' alone until 1.2.3, and theirs and the crook's in 1.2.3.
+-- 1.4.0, the owner's call for the launch: the level race's comets are worn too, so level-race-60 moved
+-- from the frames that wait to the ones worn; the Arena's and the Oracle's still wait.)
+test("1.2.0 honours: the release wears the all-time donors' frames alone (1.2.3: and the missionaries' crook; 1.2.4: the koi, the owl, the cross, the charm and the skeletal horse; 1.4.0: the level race's comets); the arena's and the Oracle's wait (the owner's call)", function()
 	local saved = Honors.FRAMES_SHIPPED
 	local families = {}
 	for family in pairs(SHIPPED or {}) do families[#families + 1] = family end
 	table.sort(families)
-	eq(table.concat(families, ","), "apostle,bones,donor-month,donor-top,guild,missionary,wanted-slayer",
-		"Honors.lua ships the donors', the owl's, the Church's, the Bones' and the slayers' frames alone")
+	eq(table.concat(families, ","), "apostle,bones,donor-month,donor-top,guild,level-20,level-40,level-60,missionary,wanted-slayer",
+		"Honors.lua ships the donors', the owl's, the Church's, the Bones', the slayers' and (1.4.0) the comets' frames alone")
 	Honors.FRAMES_SHIPPED = SHIPPED
 	local ok, err = pcall(function()
 		local inputs = Everything()
@@ -610,11 +612,11 @@ test("1.2.0 honours: the release wears the all-time donors' frames alone (1.2.3:
 		eq((Honors.Shown({ frame = "donor-top-1" }, held)), "donor-top-1", "the all-time donors' frame is worn")
 		eq((Honors.Shown({ frame = "missionary-1" }, held)), "missionary-1", "(1.2.3) the missionaries' crook is worn")
 		assert(Honors.Choose({}, held, "missionary-1"), "(1.2.3) the crook can be picked")
-		for _, key in ipairs({ "donor-month-1", "guild-top-leader", "apostle-2", "bones-3", "wanted-slayer-1" }) do
-			eq((Honors.Shown({ frame = key }, held)), key, "(1.2.4) " .. key .. " is worn")
-			assert(Honors.Choose({}, held, key), "(1.2.4) " .. key .. " can be picked")
+		for _, key in ipairs({ "donor-month-1", "guild-top-leader", "apostle-2", "bones-3", "wanted-slayer-1", "level-race-60" }) do
+			eq((Honors.Shown({ frame = key }, held)), key, "(1.2.4, 1.4.0: the comet) " .. key .. " is worn")
+			assert(Honors.Choose({}, held, key), "(1.2.4, 1.4.0: the comet) " .. key .. " can be picked")
 		end
-		for _, key in ipairs({ "level-race-60", "oracle-1", "arena-champion", "arena-class-mage" }) do
+		for _, key in ipairs({ "oracle-1", "arena-champion", "arena-class-mage" }) do
 			eq((Honors.Shown({ frame = key }, held)), "rank", key .. ": his rank's frame instead")
 			eq(select(2, Honors.Choose({}, held, key)), "frame", key .. ": not offered to pick")
 		end
@@ -1564,8 +1566,10 @@ end)
 -- or not: the koi took the cornucopia's place, and Shown (the koi not worn) gave his rank's frame.
 -- (1.2.4, the owner's calls: the koi and the owl are worn now, so they switch on as the crook does;
 -- the raven, the comet and the Arena's belts still wait, and the raven stands in for the koi of
--- 1.2.3 below: the same rule, a frame this version does not wear.)
-test("1.2.3 honours: as Honors.lua ships them, a newly earned frame not worn yet (1.2.4: the raven, the comet, an arena belt) leaves the cornucopia worn, its title switching on; the crook, worn, switches on; the cornucopia picked back stays; a pick 1.2.2 left on a frame not worn (the raven) wears the cornucopia again (locked or not, held or not), else his rank's; (1.2.4) the koi and the owl, worn now, switch on", function()
+-- 1.2.3 below: the same rule, a frame this version does not wear. 1.4.0, the owner's call for the
+-- launch: the comet is worn now, so it moved from the frames that leave the cornucopia worn to the
+-- ones that switch on, beside the koi and the owl.)
+test("1.2.3 honours: as Honors.lua ships them, a newly earned frame not worn yet (1.2.4: the raven, an arena belt) leaves the cornucopia worn, its title switching on; the crook, worn, switches on; the cornucopia picked back stays; a pick 1.2.2 left on a frame not worn (the raven) wears the cornucopia again (locked or not, held or not), else his rank's; (1.2.4) the koi and the owl, worn now, switch on (1.4.0: and the comet)", function()
 	local saved = Honors.FRAMES_SHIPPED
 	Honors.FRAMES_SHIPPED = SHIPPED
 	local ok, err = pcall(function()
@@ -1583,19 +1587,20 @@ test("1.2.3 honours: as Honors.lua ships them, a newly earned frame not worn yet
 		eq(q.frame, "donor-top-1", "the cornucopia stays worn")
 		eq(q.title, "oracle-1", "the raven's title switches on")
 		eq(Honors.Shown(q, raven), "donor-top-1", "and shows")
-		-- The same for the comet and an arena belt.
-		for _, extra in ipairs({ { levels = { [60] = { { guid = "Player-1-A", name = "Aldric", t = 1 } } } },
-			{ belts = { { cat = "A", guid = "Player-1-A", name = "Aldric" } } } }) do
+		-- The same for an arena belt.
+		for _, extra in ipairs({ { belts = { { cat = "A", guid = "Player-1-A", name = "Aldric" } } } }) do
 			extra.donors = all
 			local held = Honors.Holdings(ME, extra)
 			local r = Honors.Update(p, held, true)
 			eq(r.frame, "donor-top-1", Keys(held) .. ": the cornucopia stays")
 			eq(Honors.Shown(r, held), "donor-top-1")
 		end
-		-- (1.2.4) The koi and the owl, worn now: each switches on by itself, frame and title.
-		for _, extra in ipairs({ { donors = donors }, { donors = all, guild = { guild = "Olympus Aurora", leader = "Aldric", members = 100, avgLevel = 40 } } }) do
+		-- (1.2.4) The koi and the owl, worn now: each switches on by itself, frame and title. (1.4.0) The
+		-- comet too.
+		for _, extra in ipairs({ { donors = donors }, { donors = all, guild = { guild = "Olympus Aurora", leader = "Aldric", members = 100, avgLevel = 40 } },
+			{ donors = all, levels = { [60] = { { guid = "Player-1-A", name = "Aldric", t = 1 } } } } }) do
 			local held = Honors.Holdings(ME, extra)
-			local key = extra.guild and "guild-top-leader" or "donor-month-1"
+			local key = extra.guild and "guild-top-leader" or (extra.levels and "level-race-60") or "donor-month-1"
 			local r = Honors.Update(p, held, true)
 			eq(r.frame, key, key .. ": worn now, switched on") eq(r.title, key) eq(Honors.Shown(r, held), key)
 		end
@@ -1754,8 +1759,10 @@ end)
 -- 1.2.2 switched a frame not released on by itself; 1.2.3's first mend took only one held now, on an
 -- unlocked pick: the koi after its month, the owl after his guild lost first, or a pick locked since
 -- showed his rank's frame, the cornucopia held. (1.2.4: the koi and the owl are released now, so a
--- pick on them is a released frame's, below; the raven, the comet and the Arena's still wait.)
-test("1.2.3 honours: a pick 1.2.2 left on a frame not released (1.2.4: the raven, the comet, an arena belt), held or not, locked or not, wears the first released frame he holds; with none, his rank's, unless a released family waits for its source; a released frame not held stays (1.2.4: the owl's, the koi's)", function()
+-- pick on them is a released frame's, below; the raven, the comet and the Arena's still wait. 1.4.0:
+-- the comet is released for the launch, so it moved to the released frames below, and the raven
+-- stands in for it where a frame not released was asked.)
+test("1.2.3 honours: a pick 1.2.2 left on a frame not released (1.2.4: the raven, an arena belt), held or not, locked or not, wears the first released frame he holds; with none, his rank's, unless a released family waits for its source; a released frame not held stays (1.2.4: the owl's, the koi's; 1.4.0: the comet's)", function()
 	local saved = Honors.FRAMES_SHIPPED
 	Honors.FRAMES_SHIPPED = SHIPPED
 	local ok, err = pcall(function()
@@ -1763,7 +1770,7 @@ test("1.2.3 honours: a pick 1.2.2 left on a frame not released (1.2.4: the raven
 		local cornucopia = Honors.Holdings(ME, { donors = { all = donors.all } })
 		eq(Keys(cornucopia), "donor-top-1")
 		local seen = Honors.Update(nil, cornucopia, true).seen
-		for _, key in ipairs({ "level-race-60", "oracle-1", "oracle-2", "arena-champion", "arena-champion-2", "arena-class-mage-3",
+		for _, key in ipairs({ "oracle-1", "oracle-2", "arena-champion", "arena-champion-2", "arena-class-mage-3",
 			"arena-race-nightelf" }) do
 			local p = Honors.Update({ frame = key, title = "donor-top-1", seen = seen }, cornucopia, true)
 			eq(p.frame, "donor-top-1", key .. ", not held: the cornucopia") eq(p.title, "donor-top-1")
@@ -1779,15 +1786,16 @@ test("1.2.3 honours: a pick 1.2.2 left on a frame not released (1.2.4: the raven
 		eq(l.frame, "donor-top-1") eq(l.title, "oracle-1", "his title as it was") eq(Honors.Shown(l, both), "donor-top-1")
 		-- With no released frame held: his rank's; but while the cornucopia waits for the donors' word
 		-- (remembered, its source not loaded: a login), as it is, and mended once it is in.
-		eq(Honors.Update({ frame = "level-race-60", seen = {} }, {}, true).frame, "rank")
-		local wait = Honors.Update({ frame = "level-race-60", seen = seen }, {}, { level = true })
-		eq(wait.frame, "level-race-60", "left for a later Update") eq(wait.seen["donor-top"].place, 1)
+		eq(Honors.Update({ frame = "oracle-1", seen = {} }, {}, true).frame, "rank")
+		local wait = Honors.Update({ frame = "oracle-1", seen = seen }, {}, { oracle = true })
+		eq(wait.frame, "oracle-1", "left for a later Update") eq(wait.seen["donor-top"].place, 1)
 		eq(Honors.Update(wait, cornucopia, true).frame, "donor-top-1")
 		-- A released frame not held, with its source not loaded: stays (a gap never undoes a pick).
 		eq(Honors.Update({ frame = "donor-top-1", seen = seen }, {}, nil).frame, "donor-top-1")
 		eq(Honors.Update({ frame = "missionary-2", seen = seen }, cornucopia, true).frame, "missionary-2", "a crook not held, not seen: as it is")
 		-- (1.2.4) The owl's and the koi's are released frames now: not held and never seen, as they are.
-		for _, key in ipairs({ "guild-top-leader", "donor-month-1", "donor-month-3" }) do
+		-- (1.4.0) The comet's too.
+		for _, key in ipairs({ "guild-top-leader", "donor-month-1", "donor-month-3", "level-race-60", "level-race-20" }) do
 			eq(Honors.Update({ frame = key, seen = seen }, cornucopia, true).frame, key, key .. ", released: as it is")
 		end
 		-- Rank, none and a key no honour has stay.
@@ -1796,7 +1804,7 @@ test("1.2.3 honours: a pick 1.2.2 left on a frame not released (1.2.4: the raven
 		end
 		-- Every family worn (2.0, the machinery's tests): nothing is mended.
 		Honors.FRAMES_SHIPPED = nil
-		eq(Honors.Update({ frame = "level-race-60", seen = seen }, cornucopia, true).frame, "level-race-60")
+		eq(Honors.Update({ frame = "oracle-1", seen = seen }, cornucopia, true).frame, "oracle-1")
 	end)
 	Honors.FRAMES_SHIPPED = saved
 	if not ok then error(err, 0) end

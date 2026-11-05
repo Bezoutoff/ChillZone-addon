@@ -280,6 +280,7 @@ Answers.PAGES = {
 	["treasury/dues"] = { "feat-dues", "feat-treasury", counts = { "count-treasury-donors" } },
 	watch = { "feat-watch", "feat-block-terms", "feat-net-off", "feat-hold-court" },
 	["watch/judgments"] = { "feat-judgments", "feat-watch" }, -- (1.2: The Watch's Judgments)
+	["watch/netoff"] = { "feat-net-off" }, -- (1.4.0: the hidden list's own page, a Steward's or a Hand's without the desk)
 	workshop = { "feat-workshop", "rc-see-version", "rc-bug-report-ask", "help-report-bug" },
 }
 

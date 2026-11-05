@@ -29,13 +29,11 @@ master and the officers of the Horde guild named exactly "Olympus", if there is 
 
 ## Recent versions
 
+- **1.5.0**: The Olympus chats (the three tiers, the role rooms, the arena's rooms) travel as the player's own text in the hidden channel, which Forever delivers to everyone in it across every sub-realm; the hidden way by the relay stays the fallback (no echo) and the gamepad UI's way. The High Council's relay now carries the whole army: other guilds' reports reach each reporter as a trickle (the newest of each guild, keyed), the relay sends its own global census snapshot every two minutes, a client's own-clock words are fanned out to nobody, and a relay's client sends four parts a pump. The 1.5.0 letter is the dev's own word: sorry for the delay, what broke on launch night, what works now.
 - **1.3.3**: Deliberate site export: an optional Site Aggregate folder writes a masked own-guild count for the
   Olympus website on /oly site export and /reload, never uploads, and empties at the next logout or reload.
 - **1.3.2**: Correction: explicitly approximate Census people counts, preserve accepted Treasury rows,
   fix full-suite ordering regressions and export consented Companion identity evidence.
-- **1.3.0**: Shared durable records and rankings; Church catch-up; Wanted and Slayers pagination,
-  rebalanced history and recent map sightings; the current Legate structure; safer Watch records;
-  Companion exports after the Accord; and integrated Arena, Bones and chat fixes.
 
 Every version's notes are in the [GitHub releases](https://github.com/dnl-gentile/olympus-addon/releases). This page is the short one for CurseForge: the [README](https://github.com/dnl-gentile/olympus-addon#olympus) has every section in full.
 
@@ -196,7 +194,9 @@ versions before 1.1 just get the whisper, as before.
   explanation once per appointment. They can edit their own group's list, not another leader's;
   existing authorized officers retain oversight. Old oversized saved groups stay read-only until
   an authorized, confirmed replacement archives the original membership privately. No guild
-  invitations, removals or native promotions happen automatically.
+  invitations, removals or native promotions happen automatically. An online member of the group
+  has **Invite online member to raid** (1.4.0): one party invite on the Legate's click, only while
+  the guild roster still lists that member.
 - **Level race**: the highest level players of the realm.
 - **Recruiting**: the guilds that still have free slots, so new players go where there is room
   (the five with the most, then every one on a click, 1.1).
@@ -382,8 +382,8 @@ what each player chose to share, and the King's week.
 
 ### Net-off (1.1): the moderators hide a character or take a guild off the network
 The King, his Steward, a Hand (the King's list or a Steward's) or a High Councillor of the
-author's signed list can hide one character for the whole army: **Hide a character** on the
-**Decrees** tab (the name or your target, then the reason), or `/oly netoff Name: reason`. Every
+author's signed list can hide one character for the whole army: **Hide a character** in
+**The Watch** (the name or your target, then the reason), or `/oly netoff Name: reason`. Every
 addon then hides that character on every Olympus surface: their [Olympus], [Captains] and
 [Lords] lines (and the lines the Olympus chats kept), their pinned line, their decrees, their layer and hop offers,
 their Vox Populi votes and questions, their requests at court, and (1.1, Konig's review) their
@@ -576,50 +576,15 @@ does not reset its own proven streak. No new honour, gold rule or public/general
   can't place shows as plain text in the census, and `/oly status` (and `/oly bug`) lists its
   name under "zones without a map id".
 
-### Olympus Link: your Discord role (1.0.0, optional)
-Prove to the Olympus bot on Discord that a character is yours, and the bot gives you your role.
-It is the one part of Olympus that goes outside the game, and only if you choose to link a
-character (or to confirm other players' links, below): no password, no Battle.net login, and
-nothing is sent before you say yes.
-
-Not open yet: the addon carries it, but `/oly discord` says it is not open until the Olympus bot
-is ready and its key is in the addon. Until then no addon makes, keeps, announces or uses a
-confirmer key.
-
-1. **Get a code** from the Olympus bot on Discord (its `/verify` command, in the Olympus server:
-   only you see the reply). It is good for 24 hours. Keep it to yourself, and don't show it (or
-   the Olympus Link window) on a stream.
-2. **Type `/oly discord <code>`** in the game's chat. The addon checks the bot's signature on the
-   code, then asks whether to link this character to the Discord account the code names (the
-   bot's word: nobody can change it). **Cancel** sends nothing.
-3. **Players confirm in game**, by addon whisper, that this character asked: a High Councillor
-   online, or, when none is, verified players drawn for your code (three of them must confirm).
-   Each signs with a key of its own, for its character, which the bot certified. Every confirmer,
-   High Councillors included, gets a key from the bot's keeper, made on a computer, and types it
-   in the game with `/oly discord key <id> <key>`, then its certificate with
-   `/oly discord cert <certificate>`; no addon makes a key of its own (the author's council
-   authority, which could certify keys made in game, is off). Once the bot is ready, a
-   confirmer's addon says so on the Olympus channel every 5 minutes and signs other players'
-   requests by itself (`/oly discord key off` stops it).
-4. **The proof reaches the bot.** The **Olympus Link** window shows a QR code and the same link
-   in a copy box. Open the Olympus Link page, https://dnl-gentile.github.io/olympus-addon/ (a
-   static page on the project's GitHub Pages): point your phone's camera at the code, share the
-   game's window with the page, or paste the link, then sign in with Discord there (Discord's own
-   sign-in page, which tells the bot who you are on Discord) and the page sends the proof to the
-   bot. Or, later, the addon hands it to a High Councillor's watcher the next time you are both
-   online, and the bot's keeper uploads it.
-
-The page reads the code in your browser: the camera and the shared window never leave it, and
-the proof rides after the `#` of the link, which a browser never sends to any server. The page
-loads its fonts from Google Fonts. The bot keeps which character (name, realm, guild and
-faction) is linked to which Discord account, and a record of each proof it received (for 90
-days). A linked character never moves to another Discord account by a new link: the bot refuses
-it. **Delete my link**, at the foot of the Olympus Link page (signed in with Discord), takes the
-role away and deletes what the bot keeps about your account, except how many codes and links you
-used today, counted for a day at most. The Olympus bot is Fernmelder's; how it checks a proof
-is on [GitHub](https://github.com/dnl-gentile/olympus-addon) (the README and `web/FERN.md`).
-`/oly discord show` opens the window again, `/oly discord status` lists every character of your
-account, `/oly discord forget` drops this character's request and proof.
+### Olympus Link: your Discord role (its own addon since 1.4.0)
+Olympus Link lets players in game prove to the Olympus bot on Discord that a character is yours,
+so the bot gives you your role. It is not part of this addon: since 1.4.0 it is its own addon,
+**Olympus_Link**, kept and released separately, and it is not open yet. Without it,
+`/oly discord` says it is not installed and nothing of it runs; everything else in Olympus works
+the same. Installed next to Olympus, it loads by itself at login (the README's
+[Integrating with Olympus](https://github.com/dnl-gentile/olympus-addon#integrating-with-olympus)),
+`/oly discord` and its line in `/oly help` are its own, and its own documentation says what it
+does and what it sends.
 
 ### Everywhere
 - **Copy**: every tab produces a ready-to-paste text for Discord.
@@ -632,6 +597,11 @@ account, `/oly discord forget` drops this character's request and proof.
   (the **i** left of the X) keeps every letter: **Version letters** on its page lists them,
   newest first, and a click opens one; `/oly letters` (or `/oly letters 1.1.4`) does too. Nothing
   is sent: which letters you saw is kept on your computer, for your account.
+- **Duty letters** (1.4.0, not sent yet): the King's letter for each office a character holds, the
+  first time it holds it; a guild master's has a live checklist of whom to name, reopened from his
+  Guild tab. The author turns them on at the launch; until then only he and the King preview them
+  (the Workshop, the Realm). Read ones stay under **My profile > Letters**, and `/oly duties`
+  reopens them. Nothing is sent.
 - **What this client saw** (1.1, the Decrees tab and `/oly log`): a log of the acts your addon
   took while you were online (decrees, the gates opening and closing, pardons, the King's
   visibility switches for the treasury and the untabarded list, and the shared block terms'
@@ -703,18 +673,19 @@ account, `/oly discord forget` drops this character's request and proof.
   keeps until a `/reload` (the commands typed with mouse and keyboard among it) is told once, in
   Olympus's own window, with a **Reload** button. Back to mouse and keyboard, it all comes back
   without a `/reload`.
-- English and Portuguese in full, and since 1.1 Spanish, French and German for the main
-  screens, the alerts and decrees, the Join screen and its whisper, the chats and the privacy
-  questions (the rest in English; the pages' **?** explanations and the Answers of 1.1.2 are in
-  English too). It follows the game language, and only the text on your
-  screen changes: nothing sent between players does. `/oly status` shows the language in use.
+- English, Portuguese, Spanish (Spain and Latin America), German, French, Italian and Russian,
+  every line (since 1.4.0; the Answers of 1.1.2 stay in English), the Agenda's day words
+  included. It follows the game language, and only the text on your screen changes: nothing
+  sent between players does, and a line the addon whispers to another player stays English.
+  `/oly status` shows the language in use.
 
 ### Other addons: the Olympus API (1.2.4)
 
 Another addon can read, with your permission, what Olympus already shows you: the Wanted list
 and its bounties, the public rankings (the Slayers, the Church's top three, the games the King
 made public, the donors' top three while he shows the Treasury's ranking), your own frame and
-title, your Olympus guild, rank and role, and the King's presence as his lines and the Realm tab
+title, your Olympus guild, rank and role, whether a player your game shows you now is in an
+Olympus guild, and the King's presence as his lines and the Realm tab
 show it (online, the zone they name, his crown while he shares it, whether you are on his layer,
 and his zone's layers with their "~N with Olympus" counts while you are there). The King's
 presence, the player-sighting searches and the profile presentation below are reserved for addons
@@ -813,11 +784,10 @@ retires the old private key so a delayed message cannot split them again.
 4. Every client adds up all the summaries: that is the census.
 
 The addon itself talks only in game, through the game's own addon messages: it has no server of
-its own, and nothing it sends leaves the game. One exception is Olympus Link (above), and
-only when you choose to link a character: it uses a website (the Olympus Link page, on the
-project's GitHub Pages) and the Olympus bot on Discord. A confirmer (a key from the bot's keeper)
-signs other players' requests by itself once the bot is ready, and those signatures reach the bot
-in their proofs. The other is the Olympus Companion app, only if you install it (Privacy, below).
+its own, and nothing it sends leaves the game. One exception is the Olympus Companion app, only if
+you install it (Privacy, below). Olympus Link (above), the Discord role, is its own addon, not part
+of this one: it goes outside the game only if you install it and choose to link a character, as
+its own documentation says.
 
 **Realms vs layers.** A realm (ClassicBetaPvP, ClassicBetaPvP2...) is a separate world
 with its own guilds; layers are copies of a zone *inside* one realm. Guilds on the same
@@ -832,17 +802,13 @@ window shows which realms you are counting.
 ## Privacy
 
 The addon itself talks only through the game's own addon messages: it has no server of its own,
-and what it sends stays in the game. One exception is Olympus Link, and only when you choose
-to link a character, or to confirm other players' links: a link's proof goes to the Olympus bot
-on Discord, through the Olympus Link page on GitHub Pages (where you sign in with Discord) or a
-High Councillor's watcher. A confirmer, a High Councillor too, is someone who typed in a key the
-bot's keeper made them (no addon makes or announces a key by itself, and the author's council
-authority is off): once the bot is ready, their addon says so on the Olympus channel every 5
-minutes and signs other players' requests by itself, and their character's name and signature
-reach the bot in those players' proofs, until `/oly discord key off`. The other is the Olympus
-Companion app, only if you install it: its own bridge addon takes your character's name and
-BattleTag and the Olympus and guild chat lines your client shows to Olympus's server, for its staff
-alone (the Companion's rows below). Your name is on every message (the game adds it). What goes where:
+and what it sends stays in the game. One exception is the Olympus Companion app, only if you
+install it: its own bridge addon takes your character's name and BattleTag and the Olympus and
+guild chat lines your client shows to Olympus's server, for its staff alone (the Companion's rows
+below). Olympus Link, the Discord role, is its own addon (Olympus_Link), not part of this one:
+nothing of it goes out unless you install it and choose to link a character, or to confirm other
+players' links, and its own documentation says what then goes where. Your name is on every message
+(the game adds it). What goes where:
 
 *The table is in the README, with the rest of this section: [Privacy](https://github.com/dnl-gentile/olympus-addon#privacy).*
 
@@ -903,8 +869,7 @@ code.
   (the King's alone every minute, while his crown shows: one client, one message a minute).
 - A layer request goes out once; only about 6 players answer it, each by a whisper to the asker.
 - Messages are spaced 1.2 s apart, below Blizzard's addon message limits, and alert sounds
-  play at most once every 15 seconds (1.1: a softer one never silences the Call to Arms or a
-  louder alert after it).
+  play at most once every 15 seconds.
 - Chat has its own short lane: a line goes out within about a second, and while reports are
   waiting it never takes more than every other message slot.
 - The Board (1.1): a flag is repeated every 10 to 30 minutes (less often the fuller the Board),
@@ -925,7 +890,6 @@ code.
 | `/oly chat on\|off` | the Olympus chats on this client; off, nothing is sent or shown (1.1: off until you say yes) |
 | `/oly talk [olympus\|captains\|lords]` | open or close the Olympus window on its Chat tab, on that channel; also `/ol`, `/olc` or `/oll` with nothing after it, or Shift-click the minimap button (1.1.1) |
 | `/oly helpme [text]` (or **Ask a High Councillor** on the Realm tab) | ask the High Council (the moderators) for help: it goes by whisper to up to three of them online who take requests |
-| `/oly discord <code>` · `/oly discord` | Olympus Link: link this character to your Discord account with the bot's code (or paste it in a box) |
 | `/oly hop` | ask for an invite to the King's layer (while he is online) |
 | `/oly lfg` · `/oly lfg dungeon\|raid\|pvp\|layer [note]` · `/oly lfg off` | the Board (1.1): who is looking for a group; raise your flag (a box with your note first) or lower it |
 | `/oly week` | the week on the Board and Decrees: army and own-guild Agenda entries for 7 days, alongside your guild's calendar; eligible schedulers see separate army and guild buttons ("Sat 20:00 Raid night") |
@@ -964,8 +928,9 @@ also saved in `WTF/Account/<ACCOUNT>/SavedVariables/Olympus.lua`.
 - **Code and ideas:** RoyLeviGit (Olympus chats in their own chat window), Artz (hiding the
   Issue Reporter), bjess9 (CI and the shared checks), hypertectonic (Chattynator's tabs),
   Bernardo Costa / Costafitness (exact layer-hop confirmation and stale-request regressions,
-  adapted from PR #51), and Rick-laboratory (bounded transport, cancellation and admission
-  regressions, adapted from PR #52).
+  adapted from PR #51), Rick-laboratory (bounded transport, cancellation and admission
+  regressions, adapted from PR #52), and HTX (the Board's group listings, applications and
+  invites, adapted from PR #62).
 - **Feature requests:** Fernmelder, whose 39 posts became 1.1 (the Fernmelder release);
   shenanigans_ (the nameplate marks), Valdericht (`<OLYMPIAN>`), Pyralis Ashandar (taking
   donations) and Zeal (what the King hides stays off the channel).

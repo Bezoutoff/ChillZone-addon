@@ -10,6 +10,8 @@ permission or guild session without changing the wire protocol.
   urgent work cannot be evicted by unrelated admissions. An impossible admission leaves
   existing work intact. Keyed deduplication keeps the newest pending payload and options; a
   supplied callback replaces the prior callback, while omitting it retains the one waiting.
+  Since 1.4.0 the replacement also keeps the waiting job's place in line, so a message
+  re-sent on a timer behind a busy queue still reaches the front.
 - At the existing 1.2-second send cadence, an active transfer receives five of every eight
   slots, chat two and other single-message traffic one. A 30-piece transfer finishes
   55.2 seconds after its first piece under continuous competing load; six waiting chat
@@ -20,6 +22,14 @@ permission or guild session without changing the wire protocol.
   all local send API calls succeeded; it does **not** mean a remote client acknowledged
   receipt. A failed piece aborts the remaining transfer and does not update the private
   delivery cache.
+- Since 1.4.0 the game's "not now" answers do not end a job. While
+  `C_ChatInfo.InChatMessagingLockdown()` reports a chat lockdown, nothing is sent and the
+  jobs keep their places. A throttle or general error (`Enum.SendAddonMessageResult` 3, 8
+  or 9) keeps the job and makes the queue wait 2, 4, 8, 15, then 30 seconds; a job refused
+  five times that way fails as before. A lockdown refusal (11) never counts against a job.
+  When a hold ends, work not yet begun that waited ten minutes or more fails with
+  "dropped". A transfer already begun still ends "late" after 60 seconds. Pending work is
+  not kept across a logout or `/reload`.
 - Treasury, bank and dues work observes current sharing consent and recipient authority.
   Withdrawal cancels both module outboxes and Comm entries. Old timers cannot revive a
   cancelled transfer after consent is given again. Unchanged books can be shared again
@@ -71,8 +81,7 @@ saturated admission test compares registry traversal work, not a live-client fra
 Current command results belong in the release handoff; this document does not preserve a
 stale pass count from either contributor branch.
 
-Run `bash scripts/check.sh`, `bash tests/check-scripts.sh` and
-`node --test web/test/*.test.mjs` from the repository root. The focused suites loaded by
+Run `bash scripts/check.sh` and `bash tests/check-scripts.sh` from the repository root. The focused suites loaded by
 `tests/run.lua` use the real addon functions and cover transfer pressure, cancellation,
 send failures, callback reentrancy, channel/guild changes, Hop response clocks, permission
 withdrawal, recipient changes, alt revisions and invalid census totals.

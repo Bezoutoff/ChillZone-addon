@@ -24,7 +24,6 @@ CS.RECENT_MAX = 200        -- at most (two days of quarter-hours: 192)
 CS.DAYS = 30               -- days, today among them
 CS.HOURS = 24              -- the online graph's hours
 CS.FUTURE = 5 * 60         -- a sample later than now by more than this (the clock went back) is dropped
-CS.TOP_GUILDS = 5          -- the largest guilds listed
 CS.TICK = 60               -- how often the sampler looks whether a sample is due
 CS.ARMY_COLOR = { 1, 0.82, 0 }
 CS.ONLINE_COLOR = { 0.25, 1, 0.25 }
@@ -148,6 +147,9 @@ function CS.Sample(now)
 	local day = ParseDay(h.days[key]) or { c = 0, p = 0, o = 0, n = 0 }
 	h.days[key] = ("%d,%d,%d,%d"):format(math.max(day.c, c), math.max(day.p, p), math.max(day.o, o), day.n + 1)
 	CS.Prune(now)
+	-- (1.4.0) The same look kept as this realm group's, for the other groups this account plays
+	-- (Data.RecordGroupCensus: every server's numbers on the page).
+	if D.RecordGroupCensus then D.RecordGroupCensus(s, now) end
 	return true
 end
 
@@ -240,7 +242,7 @@ function CS.Scale(values, n, fromZero)
 end
 
 -- The highest, the lowest and the latest of a series ({ v, label } each), for a graph's own tooltip.
-local function SeriesTip(title, series, value, label)
+local function SeriesTip(title, series, value, label, detail)
 	return function(tt)
 		tt:AddLine(title, 1, 0.82, 0)
 		local hi, lo, latest
@@ -260,7 +262,7 @@ local function SeriesTip(title, series, value, label)
 		tt:AddDoubleLine(L.CENSUS_STATS_LOWEST, L.CENSUS_STATS_WHEN:format(F(value(lo)), label(lo)), 1, 0.82, 0, 1, 1, 1)
 		tt:AddDoubleLine(L.CENSUS_STATS_LATEST, L.CENSUS_STATS_WHEN:format(F(value(latest)), label(latest)), 1, 0.82, 0, 1, 1, 1)
 		tt:AddLine(" ")
-		tt:AddLine(L.CENSUS_STATS_DETAIL, 0.75, 0.75, 0.75, true)
+		tt:AddLine(detail or L.CENSUS_STATS_DETAIL, 0.75, 0.75, 0.75, true)
 	end
 end
 
@@ -272,8 +274,9 @@ local function HourLabel(e)
 	return e.t and date(L.CENSUS_STATS_TIME_FORMAT, e.t) or L.CENSUS_STATS_HOURS_AGO:format(e.ago)
 end
 
--- The army over the last DAYS days: each day's highest count of characters.
-local function ArmyGraph(now)
+-- The army over the last DAYS days: each day's highest count of characters. (`est`: the people as
+-- the page shows them, CS.PeopleEstimate: each day's people as an estimate too, CS.PeopleAt.)
+local function ArmyGraph(now, est)
 	local days = CS.DaySeries(now)
 	local values, tips = {}, {}
 	for i, e in ipairs(days) do
@@ -282,7 +285,7 @@ local function ArmyGraph(now)
 			tt:AddLine(DayLabel(e), 1, 0.82, 0)
 			if not e.c then tt:AddLine(L.CENSUS_STATS_NO_SAMPLE, 0.75, 0.75, 0.75, true) return end
 			tt:AddDoubleLine(L.CENSUS_STATS_CHARACTERS, F(e.c), 1, 0.82, 0, 1, 1, 1)
-			tt:AddDoubleLine(L.CENSUS_STATS_PEOPLE, F(e.p), 1, 0.82, 0, 1, 1, 1)
+			tt:AddDoubleLine(L.CENSUS_STATS_PEOPLE, CS.PeopleAt(e.p, e.c, est), 1, 0.82, 0, 1, 1, 1)
 			tt:AddDoubleLine(L.CENSUS_STATS_PEAK_ONLINE, F(e.o), 1, 0.82, 0, 0.25, 1, 0.25)
 			tt:AddDoubleLine(L.CENSUS_STATS_SAMPLES, tostring(e.n), 0.75, 0.75, 0.75, 0.75, 0.75, 0.75)
 		end
@@ -295,8 +298,8 @@ local function ArmyGraph(now)
 	}, days
 end
 
--- Who was online over the last HOURS hours: each hour's most online, from 0.
-local function OnlineGraph(now)
+-- Who was online over the last HOURS hours: each hour's most online, from 0 (`est`: as ArmyGraph).
+local function OnlineGraph(now, est)
 	local hours = CS.HourSeries(now)
 	local values, tips = {}, {}
 	for i, e in ipairs(hours) do
@@ -310,7 +313,7 @@ local function OnlineGraph(now)
 			tt:AddLine(L.CENSUS_STATS_AROUND:format(HourLabel(e)), 1, 0.82, 0)
 			tt:AddDoubleLine(L.CENSUS_STATS_ONLINE, F(e.o), 1, 0.82, 0, 0.25, 1, 0.25)
 			tt:AddDoubleLine(L.CENSUS_STATS_CHARACTERS, F(e.c), 1, 0.82, 0, 1, 1, 1)
-			tt:AddDoubleLine(L.CENSUS_STATS_PEOPLE, F(e.p), 1, 0.82, 0, 1, 1, 1)
+			tt:AddDoubleLine(L.CENSUS_STATS_PEOPLE, CS.PeopleAt(e.p, e.c, est), 1, 0.82, 0, 1, 1, 1)
 		end
 	end
 	local lo, hi = CS.Scale(values, #hours, true)
@@ -322,10 +325,10 @@ local function OnlineGraph(now)
 end
 
 -- A graph's heading, the graph (or why there is none yet) and its summary on hover.
-local function GraphLines(lines, title, graph, series, value, label)
+local function GraphLines(lines, title, graph, series, value, label, detail)
 	local Vw = V()
 	lines[#lines + 1] = { text = title, header = true }
-	local tip = SeriesTip(title, series, value, label)
+	local tip = SeriesTip(title, series, value, label, detail)
 	if graph then
 		graph.tip = tip
 		lines[#lines + 1] = { graph = graph, gapAfter = true }
@@ -378,6 +381,341 @@ local function Percent(n, of)
 	return ("%d%s%d"):format(math.floor(p), L.DECIMAL_MARK or ".", math.floor(p * 10) % 10)
 end
 
+-- 1.4.0: every server this client knows of (Data.Groups): the characters and people of them all, by
+-- ruleset (PvP, PvE...), by region (NA, EU) and by faction when both are known, then each server,
+-- ours first. A server heard from one player alone is listed grey and left out of the totals.
+CS.KIND_ORDER = { "pvp", "rppvp", "pve", "rp", "hardcore", "?" }
+CS.REGION_ORDER = { "NA", "EU", "?" }
+local function KindLabel(kind)
+	local k = ({ pvp = "PVP", rppvp = "RPPVP", pve = "PVE", rp = "RP", hardcore = "HARDCORE" })[kind or "?"]
+	return k and L["CENSUS_STATS_KIND_" .. k] or L.CENSUS_STATS_KIND_UNKNOWN
+end
+local function RegionLabel(region)
+	return (region == "NA" or region == "EU") and L["CENSUS_STATS_REGION_" .. region] or L.CENSUS_STATS_REGION_UNKNOWN
+end
+local function ServerName(group) return (tostring(group):gsub("%+", " + ")) end
+function CS.ServerLines(lines, s, now)
+	local D = ns.Data
+	if not (D and D.Groups) then return end
+	local g = D.Groups(s, now)
+	if #g.rows == 0 then return end
+	local Vw = V()
+	local Grey = Vw.Grey
+	lines[#lines + 1] = { text = L.CENSUS_STATS_SERVERS, header = true, tooltip = function(tt)
+		tt:AddLine(L.CENSUS_STATS_SERVERS, 1, 0.82, 0)
+		tt:AddLine(L.CENSUS_STATS_SERVERS_TIP, 1, 1, 1, true)
+	end }
+	lines[#lines + 1] = Row(L.CENSUS_STATS_ALL_CHARACTERS, White(F(g.characters)), L.CENSUS_STATS_SERVERS_TIP)
+	-- (Each server's people as its reports give them, not this client's estimate: the servers' words,
+	-- never the plain count's beside a team client's ~ estimate.)
+	lines[#lines + 1] = Row(L.CENSUS_STATS_ALL_PEOPLE, White(L.CENSUS_STATS_APPROX:format(F(g.people))), L.CENSUS_STATS_SERVERS_TIP)
+	local function Split(title, order, totals, label)
+		local any = 0
+		for _, key in ipairs(order) do if totals[key] then any = any + 1 end end
+		if any == 0 or (any == 1 and totals["?"]) then return any == 1 end
+		lines[#lines + 1] = { text = title, indent = 1 }
+		for _, key in ipairs(order) do
+			local t = totals[key]
+			if t then
+				lines[#lines + 1] = { text = label(key), indent = 2,
+					right = White(F(t.characters)) .. " " .. Grey(Percent(t.characters, g.characters) .. "%"),
+					meter = { value = t.characters, total = math.max(1, g.characters) },
+					tooltip = function(tt)
+						tt:AddLine(label(key), 1, 0.82, 0)
+						tt:AddDoubleLine(L.CENSUS_STATS_CHARACTERS, F(t.characters), 1, 0.82, 0, 1, 1, 1)
+						tt:AddDoubleLine(L.CENSUS_STATS_PEOPLE, L.CENSUS_STATS_APPROX:format(F(t.people)), 1, 0.82, 0, 1, 1, 1)
+					end }
+			end
+		end
+		return false
+	end
+	local unknownKind = Split(L.CENSUS_STATS_BY_KIND, CS.KIND_ORDER, g.kinds, KindLabel)
+	local unknownRegion = Split(L.CENSUS_STATS_BY_REGION, CS.REGION_ORDER, g.regions, RegionLabel)
+	if g.factions.Alliance and g.factions.Horde then
+		Split(L.CENSUS_STATS_BY_FACTION, { "Alliance", "Horde" }, g.factions, function(f)
+			return f == "Horde" and L.CENSUS_STATS_FACTION_HORDE or L.CENSUS_STATS_FACTION_ALLIANCE
+		end)
+	end
+	if unknownKind or unknownRegion then lines[#lines + 1] = { text = Grey(L.CENSUS_STATS_KIND_WAIT), indent = 1 } end
+	lines[#lines + 1] = { text = L.CENSUS_STATS_EACH_SERVER, indent = 1 }
+	for _, r in ipairs(g.rows) do
+		local tags = {}
+		if r.kind then tags[#tags + 1] = KindLabel(r.kind) end
+		if r.region then tags[#tags + 1] = RegionLabel(r.region) end
+		if r.faction == "Horde" then tags[#tags + 1] = L.CENSUS_STATS_FACTION_HORDE end
+		local name = ServerName(r.group) .. (#tags > 0 and (" " .. Grey("(" .. table.concat(tags, ", ") .. ")")) or "")
+		if r.ours then name = name .. " " .. Grey(L.CENSUS_STATS_HERE) end
+		local right = r.counted and White(F(r.characters)) or Grey(F(r.characters))
+		lines[#lines + 1] = { text = r.counted and name or Grey(ServerName(r.group)), indent = 2, right = right,
+			tooltip = function(tt)
+				tt:AddLine(ServerName(r.group), 1, 0.82, 0)
+				tt:AddDoubleLine(L.CENSUS_STATS_CHARACTERS, F(r.characters), 1, 0.82, 0, 1, 1, 1)
+				tt:AddDoubleLine(L.CENSUS_STATS_PEOPLE, L.CENSUS_STATS_APPROX:format(F(r.people)), 1, 0.82, 0, 1, 1, 1)
+				tt:AddDoubleLine(L.CENSUS_STATS_GUILDS, F(r.guilds or 0), 1, 0.82, 0, 1, 1, 1)
+				if not r.ours then tt:AddLine(L.CENSUS_STATS_SEEN:format(ns.Ago and ns.Ago(r.observed) or ""), 0.75, 0.75, 0.75) end
+				local src = r.ours and L.CENSUS_STATS_SRC_LIVE or ({ own = L.CENSUS_STATS_SRC_OWN, relay = L.CENSUS_STATS_SRC_RELAY,
+					witnessed = L.CENSUS_STATS_SRC_WITNESSED, heard = L.CENSUS_STATS_SRC_HEARD })[r.src or ""] or ""
+				if src ~= "" then tt:AddLine(src, 0.75, 0.75, 0.75, true) end
+				if not r.counted and not r.ours then tt:AddLine(L.CENSUS_STATS_NOT_COUNTED, 1, 0.5, 0.5, true) end
+			end }
+	end
+	lines[#lines].gapAfter = true
+end
+
+---------------------------------------------------------------------------
+-- The people, estimated
+---------------------------------------------------------------------------
+-- (The author, 2026-10-20: the people can't be told exactly until every player shared his account.)
+-- A member's client shows the plain count (Data.Summary's people: the characters, confirmed linked
+-- alts once) in the words the census page already uses for it ("about 80,500 people", "Estimated
+-- people"): never divided by a rate. (The players who linked alts all have more than one
+-- character, so an estimate from their rate came out about half the true number: the author's
+-- "Membros: contagem atual".) A moderation team client (the King's is one) keeps the BattleTag
+-- estimate, marked "~" (the game's fonts have no approximately-equal sign: Latin-1 only): once its
+-- validated sample (Accord.Sample: the characters of the guilds counted whose BattleTag it holds,
+-- and how many BattleTags) holds SAMPLE_MIN accounts or more, the people are the validated accounts
+-- plus the characters not yet validated at that sample's characters per account, to three
+-- significant figures; never fewer than the players the samples tell apart (BattleTags, and the
+-- players who linked alts, Alts.Sample), never more than the plain count. With fewer validated
+-- accounts it shows the plain count as a member's does. The staff (a team client, never on the
+-- King's stream) also see the validated accounts, the characters not yet validated and the rate;
+-- any other client shows none of it. Counts only: never a tag or a name. (A later release may bring
+-- the team's rate to members through the Companion.)
+
+CS.SAMPLE_MIN = 20 -- validated accounts, at least, before their rate counts
+
+local function TeamSample(counted)
+	local A = ns.Accord
+	if type(A) ~= "table" or A.missing or type(A.TeamShown) ~= "function" or type(A.Sample) ~= "function" then return nil end
+	local ok, team = pcall(A.TeamShown)
+	if not ok or team ~= true then return nil end
+	local okSample, characters, accounts = pcall(A.Sample, counted)
+	if not okSample then return nil end
+	return { characters = Count(characters) or 0, accounts = Count(accounts) or 0 }
+end
+
+local function AltSample(counted)
+	local A = ns.Alts
+	if type(A) ~= "table" or A.missing or type(A.Sample) ~= "function" then return nil end
+	local ok, characters, people = pcall(A.Sample, counted)
+	if not ok then return nil end
+	return { characters = Count(characters) or 0, people = Count(people) or 0 }
+end
+
+-- `n` (rounded to a whole number) to three significant figures, and the step it was rounded to.
+function CS.Round3(n)
+	n = math.max(0, math.floor((tonumber(n) or 0) + 0.5))
+	local step = 1
+	while n >= 1000 * step do step = step * 10 end
+	return math.floor(n / step + 0.5) * step, step
+end
+
+-- The people from `s` (Data.Summary()): { characters, people (the plain count), shown (what the
+-- header shows), approx }; while approx (a team client's BattleTag estimate) also estimate, rate
+-- (characters per validated account) and sample = { kind = "battletag", size (accounts),
+-- characters }; on a team client also staff, validated (accounts), validatedCharacters and
+-- unvalidated (characters not yet validated). Anywhere else: approx false, shown the plain count.
+function CS.PeopleEstimate(s)
+	s = s or ns.Data.Summary()
+	local characters = Count(s.characters or s.total) or 0
+	local people = math.min(Count(s.total) or 0, characters)
+	local out = { characters = characters, people = people, shown = people, approx = false }
+	local counted = {}
+	for _, e in ipairs(s.guilds or {}) do
+		if type(e) == "table" and e.counted and type(e.name) == "string" then counted[e.name:lower()] = true end
+	end
+	local team = TeamSample(counted)
+	if not team then return out end
+	team.characters = math.min(team.characters, characters)
+	team.accounts = math.min(team.accounts, team.characters)
+	out.staff, out.validated, out.validatedCharacters = true, team.accounts, team.characters
+	out.unvalidated = characters - team.characters
+	if characters <= 0 or team.accounts < CS.SAMPLE_MIN then return out end
+	local least, most = team.accounts, people
+	local alts = AltSample(counted)
+	if alts then least = math.max(least, math.min(alts.people, alts.characters, characters)) end
+	out.rate = team.characters / team.accounts
+	out.sample = { kind = "battletag", size = team.accounts, characters = team.characters }
+	local raw = team.accounts + out.unvalidated / out.rate
+	local within = math.min(most, math.max(least, raw))
+	local shown, step = CS.Round3(within)
+	if shown > most then shown = math.floor(within / step) * step end
+	if shown < least or shown > most then shown = math.floor(within + 0.5) end
+	out.estimate, out.shown, out.approx = shown, shown, true
+	return out
+end
+
+-- A rate as the page writes it: two decimals, the language's mark ("1.25", "1,25").
+local function Rate(r)
+	local hundredths = math.floor((tonumber(r) or 0) * 100 + 0.5)
+	return ("%d%s%02d"):format(math.floor(hundredths / 100), L.DECIMAL_MARK or ".", hundredths % 100)
+end
+CS.Rate = Rate
+
+local function Stream()
+	local A = ns.Accord
+	if type(A) ~= "table" or A.missing or type(A.Stream) ~= "function" then return false end
+	local ok, on = pcall(A.Stream)
+	return ok and on == true
+end
+
+-- The header's people: a team client's estimate ("~80,500 people"), else the plain count in the
+-- members' words ("about 80,500 people").
+function CS.PeopleText(s, e)
+	e = e or CS.PeopleEstimate(s)
+	if e.approx then return L.ARMY_PEOPLE_APPROX:format(F(e.shown)) end
+	return L.ARMY_PEOPLE:format(F(e.people))
+end
+
+-- Whether the staff's figures of `e` show (a team client, never on the King's stream): the page's
+-- line and rows, and the Bridge's (BridgeSections.lua's stats).
+function CS.StaffShown(e)
+	return type(e) == "table" and e.staff == true and not Stream()
+end
+
+-- The staff's line (CS.StaffShown), nil for anyone else.
+function CS.StaffLine(e)
+	if not CS.StaffShown(e) then return nil end
+	if e.sample and e.sample.kind == "battletag" then
+		return L.PEOPLE_STAFF_TAGS:format(F(e.validated), Rate(e.rate), F(e.unvalidated))
+	end
+	return L.PEOPLE_STAFF_NONE:format(F(e.validated), F(e.unvalidated), F(CS.SAMPLE_MIN))
+end
+
+-- A sample of the history's people (`p`, of `c` characters) as the page shows them: while the
+-- people are a team client's estimate (`e`, CS.PeopleEstimate), "~" and that sample's characters at
+-- the estimate's people per character, to three significant figures and never above the sample's
+-- own count; else its plain count, as the header's. (The review of 2026-10-20: the graphs' tooltips
+-- told the plain count beside the header's "~".)
+function CS.PeopleAt(p, c, e)
+	p = Count(p) or 0
+	if type(e) ~= "table" or not e.approx or not tonumber(e.rate) or (tonumber(e.characters) or 0) <= 0 then return F(p) end
+	local within = math.min(p, (Count(c) or 0) * e.shown / e.characters)
+	local shown, step = CS.Round3(within)
+	if shown > p then shown = math.floor(within / step) * step end
+	return L.CENSUS_STATS_APPROX:format(F(shown))
+end
+
+-- The lines the header's tooltip adds about the people: what "~" means while it shows, and the
+-- staff's line.
+function CS.PeopleNotes(s, e)
+	e = e or CS.PeopleEstimate(s)
+	local out = {}
+	if e.approx then out[#out + 1] = L.PEOPLE_ESTIMATE_TIP end
+	local staff = CS.StaffLine(e)
+	if staff then out[#out + 1] = staff end
+	return out
+end
+
+-- The page's detail (its title stays the members' "How the people estimate is calculated"): the
+-- members' formula, or while a team client's estimate shows, that estimate's.
+function CS.DetailText(e)
+	return type(e) == "table" and e.approx and L.CENSUS_STATS_DETAIL_TAGS or L.CENSUS_STATS_DETAIL
+end
+
+---------------------------------------------------------------------------
+-- How the census works
+---------------------------------------------------------------------------
+-- (The author, 2026-10-20: "na pagina de censo (estatisticas dentro do botao) no addon e companion
+-- quero explicacao de como dados funcionam, quebrados em topicos, dados validados, estimativas,
+-- dados sanitizados, processos de validacao e sanitizacao... depois dos graficos", then the same
+-- words on both pages.) The page's last section, after the graphs and the lists: seven topics, each
+-- a small gold title and its lines. Every number is the code's own constant (Data, CensusClean,
+-- this file), so the words follow it: the reports' 15 minutes (Data.FRESH), a size's day
+-- (Data.TOTAL_KEEP), the week a guild stays listed (Data.KEEP), the votes' half hour
+-- (Data.VOUCH_TTL), the dispute's margins (Data.SIZE_SLACK, SIZE_SHARE, SIZE_DRIFT), the held
+-- size's (CensusClean.JUMP_MIN, JUMP_SHARE, JUMP_DRIFT; its hour, OUTLIER_HOLD, in words), the
+-- validated accounts a team client's estimate needs (SAMPLE_MIN) and the history's bounds (EVERY,
+-- RECENT_KEEP, DAYS). The estimates' topic says what a member's client shows (the plain count) and
+-- what a moderation team client's shows (its "~" estimate), as CS.PeopleEstimate does.
+
+-- A paragraph in rows short enough for the page (its rows are one line each: Views.Render), split
+-- at spaces, about WRAP letters a row, as the Treasury's and the Dues' pages do. The last row takes
+-- `gapAfter`.
+CS.WRAP = 58
+local function Para(lines, text, color, gapAfter)
+	local row = ""
+	for word in tostring(text or ""):gmatch("%S+") do
+		if row ~= "" and #row + 1 + #word > CS.WRAP then
+			lines[#lines + 1] = { text = color(row) }
+			row = word
+		else
+			row = row == "" and word or (row .. " " .. word)
+		end
+	end
+	if row ~= "" then lines[#lines + 1] = { text = color(row), gapAfter = gapAfter } end
+end
+
+local function Minutes(seconds) return math.floor(seconds / 60 + 0.5) end
+local function Hours(seconds) return math.floor(seconds / 3600 + 0.5) end
+local function Days(seconds) return math.floor(seconds / 86400 + 0.5) end
+local function Percent100(share) return math.floor(share * 100 + 0.5) end
+
+-- (The author, 2026-10-20: "que o processo de sanitização fosse bem estruturado, como por um
+-- profissional data analyst, e explicado na página como funciona: info/records mais recentes no
+-- jogo por cima de base sólida com data e hora e regras de como funciona".) A first topic, how the
+-- census is built (each guild's newest record over what was known, each with its time), and the
+-- sanitizing as numbered rules S1 to S5: S1 the door (Codec.DecodeReport, Data's Take and the
+-- relayed rows' GlobalTake; the cap is Codec.GUILD_CAP, its "5 minutes ahead" in words), S2 the
+-- recency (Data.FRESH, TOTAL_KEEP, KEEP), S3 the exclusions (net-off, /who alone), S4 the agreement
+-- (CensusClean.Confidence: FRESH, and the votes' Data.VOUCH_TTL that Data.Dispute counts senders
+-- in) and S5 the impossible jump (CensusClean's JUMP_MIN, JUMP_SHARE, JUMP_DRIFT; OUTLIER_HOLD in
+-- words). The first topic's outvote holds while the row it would replace is FRESH (Data's Take).
+
+-- The seven topics, in order: { title, lines = { text, ... } } each.
+function CS.HowTopics()
+	local D = ns.Data
+	local C = ns.CensusClean
+	if type(C) ~= "table" or C.missing or type(C.JUMP_MIN) ~= "number" then C = nil end
+	local fresh, total, keep = Minutes(D.FRESH), Hours(D.TOTAL_KEEP), Days(D.KEEP)
+	local sanitizing = {
+		L.CENSUS_STATS_HOW_SANITIZING_RULES,
+		L.CENSUS_STATS_HOW_SANITIZING_S1:format(F(ns.Codec.GUILD_CAP)),
+		L.CENSUS_STATS_HOW_SANITIZING_S2:format(fresh, total, keep),
+		L.CENSUS_STATS_HOW_SANITIZING_S3,
+		L.CENSUS_STATS_HOW_SANITIZING_S4:format(fresh, Minutes(D.VOUCH_TTL)),
+	}
+	local sanitized = { L.CENSUS_STATS_HOW_SANITIZED_OUT:format(total) }
+	-- (Without CensusClean, a client updated without a restart, nothing is held and S5's margins are
+	-- not to be had: neither S5 nor the held size's line, which names it.)
+	if C then
+		sanitizing[#sanitizing + 1] = L.CENSUS_STATS_HOW_SANITIZING_S5:format(C.JUMP_MIN, Percent100(C.JUMP_SHARE), C.JUMP_DRIFT)
+		sanitized[#sanitized + 1] = L.CENSUS_STATS_HOW_SANITIZED_HELD
+	end
+	return {
+		{ title = L.CENSUS_STATS_HOW_BUILT, lines = { L.CENSUS_STATS_HOW_BUILT_BASE, L.CENSUS_STATS_HOW_BUILT_NEWER:format(fresh) } },
+		{ title = L.CENSUS_STATS_HOW_SOURCE, lines = { L.CENSUS_STATS_HOW_SOURCE_REPORT, L.CENSUS_STATS_HOW_SOURCE_KEPT } },
+		{ title = L.CENSUS_STATS_HOW_VALIDATED, lines = { L.CENSUS_STATS_HOW_VALIDATED_WHEN:format(fresh) } },
+		{ title = L.CENSUS_STATS_HOW_ESTIMATES, lines = {
+			L.CENSUS_STATS_HOW_ESTIMATES_PLAIN,
+			L.CENSUS_STATS_HOW_ESTIMATES_RATE:format(CS.SAMPLE_MIN),
+			L.CENSUS_STATS_HOW_ESTIMATES_ROUND,
+			L.PEOPLE_ESTIMATE_MORE,
+			L.CENSUS_STATS_HOW_ESTIMATES_ONLINE:format(fresh, total),
+			L.CENSUS_STATS_HOW_ESTIMATES_GRAPHS:format(Minutes(CS.EVERY), Hours(CS.RECENT_KEEP), CS.DAYS),
+		} },
+		{ title = L.CENSUS_STATS_HOW_SANITIZED, lines = sanitized },
+		{ title = L.CENSUS_STATS_HOW_VALIDATION, lines = {
+			L.CENSUS_STATS_HOW_VALIDATION_VOTE,
+			L.CENSUS_STATS_HOW_VALIDATION_DISPUTE:format(D.SIZE_SLACK, Percent100(D.SIZE_SHARE), D.SIZE_DRIFT),
+			L.CENSUS_STATS_HOW_VALIDATION_COUNT,
+		} },
+		{ title = L.CENSUS_STATS_HOW_SANITIZING, lines = sanitizing },
+	}
+end
+
+-- The section's rows, added to `lines`: its header, then each topic's title and its lines.
+function CS.HowLines(lines)
+	local Vw = V()
+	if #lines > 0 then lines[#lines].gapAfter = true end
+	lines[#lines + 1] = { text = L.CENSUS_STATS_HOW, header = true }
+	for _, topic in ipairs(CS.HowTopics()) do
+		lines[#lines + 1] = { text = Vw.Gold(topic.title) }
+		for _, text in ipairs(topic.lines) do Para(lines, text, Vw.Grey, true) end
+	end
+	return lines
+end
+
 -- The page's lines, its detail title and text (Views.Build's census, while the page shows).
 function CS.Build(s, now)
 	s = s or ns.Data.Summary()
@@ -399,50 +737,47 @@ function CS.Build(s, now)
 		if e.fresh then live = live + 1 end
 	end
 	lines[#lines + 1] = Row(L.CENSUS_STATS_CHARACTERS, White(F(characters)), L.CENSUS_STATS_CHARACTERS_TIP)
-	lines[#lines + 1] = Row(L.CENSUS_STATS_PEOPLE, White(F(people)), L.CENSUS_STATS_PEOPLE_TIP)
-	lines[#lines + 1] = Row(L.CENSUS_STATS_ALTS, Grey(F(s.alts or 0)), L.CENSUS_STATS_PEOPLE_TIP, 1)
+	-- The people: the plain count (a member's), or a team client's "~" estimate, its tooltip saying
+	-- so; the staff's validated accounts, characters not yet validated and rate under it
+	-- (CS.PeopleEstimate).
+	local est = CS.PeopleEstimate(s)
+	local detail = CS.DetailText(est)
+	local staff = CS.StaffLine(est)
+	-- (The review of 2026-10-20: while it is an estimate, what "~" means takes the place of the plain
+	-- count's words, "a player who linked none counts once per character", which said otherwise;
+	-- the linked alts' row then has words of its own.)
+	lines[#lines + 1] = Row(L.CENSUS_STATS_PEOPLE, White(est.approx and L.CENSUS_STATS_APPROX:format(F(est.shown)) or F(people)), L.CENSUS_STATS_PEOPLE_TIP)
+	if est.approx or staff then
+		lines[#lines].tooltip = function(tt)
+			tt:AddLine(L.CENSUS_STATS_PEOPLE, 1, 0.82, 0)
+			if not est.approx then tt:AddLine(L.CENSUS_STATS_PEOPLE_TIP, 1, 1, 1, true) end
+			for i, note in ipairs(CS.PeopleNotes(s, est)) do
+				if i == 1 and est.approx then tt:AddLine(note, 1, 1, 1, true) else tt:AddLine(note, 0.75, 0.75, 0.75, true) end
+			end
+		end
+	end
+	lines[#lines + 1] = Row(L.CENSUS_STATS_ALTS, Grey(F(s.alts or 0)), est.approx and L.CENSUS_STATS_ALTS_TIP or L.CENSUS_STATS_PEOPLE_TIP, 1)
+	if staff then
+		local rate = est.sample and est.sample.kind == "battletag" and Rate(est.rate) .. " " .. L.CENSUS_STATS_RATE_TAGS:format(F(est.sample.size)) or "-"
+		lines[#lines + 1] = Row(L.CENSUS_STATS_VALIDATED, Grey(F(est.validated)), staff, 1)
+		lines[#lines + 1] = Row(L.CENSUS_STATS_UNVALIDATED, Grey(F(est.unvalidated)), staff, 1)
+		lines[#lines + 1] = Row(L.CENSUS_STATS_RATE, Grey(rate), staff, 1)
+	end
 	lines[#lines + 1] = Row(L.CENSUS_STATS_ONLINE, Green(F(s.online or 0)))
 	lines[#lines + 1] = Row(L.CENSUS_STATS_GUILDS, White(tostring(counted)) .. "  " .. Grey(L.CENSUS_STATS_GUILDS_LIVE:format(live)), L.CENSUS_STATS_GUILDS_TIP)
 	local avg = CS.AverageLevel(s)
 	lines[#lines + 1] = Row(L.CENSUS_STATS_AVG, avg and White(avg) or Grey("-"), L.CENSUS_STATS_AVG_TIP)
 	lines[#lines].gapAfter = true
 
-	local army, days = ArmyGraph(now)
-	GraphLines(lines, L.CENSUS_STATS_ARMY_GRAPH, army, days, function(e) return e.c end, DayLabel)
-	local online, hours = OnlineGraph(now)
-	GraphLines(lines, L.CENSUS_STATS_ONLINE_GRAPH, online, hours, function(e) return e.o end, HourLabel)
+	local army, days = ArmyGraph(now, est)
+	GraphLines(lines, L.CENSUS_STATS_ARMY_GRAPH, army, days, function(e) return e.c end, DayLabel, detail)
+	local online, hours = OnlineGraph(now, est)
+	GraphLines(lines, L.CENSUS_STATS_ONLINE_GRAPH, online, hours, function(e) return e.o end, HourLabel, detail)
 
-	-- The largest guilds counted, each against the game's cap of a guild: by their size alone (the
-	-- default order puts the guilds reporting now first, and would leave out a large one whose
-	-- reporters logged off), a tie as every count of guilds breaks it (Data.SortGuildCounts).
-	local cap = ns.Codec.GUILD_CAP
-	local largest = {}
-	for _, e in ipairs(s.guilds or {}) do
-		if e.counted then largest[#largest + 1] = { name = e.name, e = e, size = math.min(tonumber(e.g.total) or 0, cap) } end
-	end
-	ns.Data.SortGuildCounts(largest, "size")
-	if #largest > 0 then
-		lines[#lines + 1] = { text = L.CENSUS_STATS_LARGEST, header = true }
-		for i = 1, math.min(CS.TOP_GUILDS, #largest) do
-			local e, size = largest[i].e, largest[i].size
-			local name = Plain(e.name)
-			lines[#lines + 1] = {
-				text = e.fresh and name or Grey(name),
-				right = White(F(size)) .. " " .. Grey(L.CENSUS_STATS_OF_CAP:format(F(cap))),
-				meter = { value = size, total = cap },
-				tooltip = function(tt)
-					tt:AddLine(name, 1, 0.82, 0)
-					tt:AddDoubleLine(L.CENSUS_STATS_CHARACTERS, F(size), 1, 0.82, 0, 1, 1, 1)
-					tt:AddDoubleLine(L.CENSUS_STATS_ONLINE, F(e.g.online or 0), 1, 0.82, 0, 0.25, 1, 0.25)
-					tt:AddLine(L.CENSUS_STATS_SHARE:format(Percent(size, characters)), 0.75, 0.75, 0.75)
-				end,
-			}
-		end
-		if #largest > CS.TOP_GUILDS then
-			lines[#lines + 1] = { text = Grey(L.CENSUS_STATS_MORE_GUILDS:format(#largest - CS.TOP_GUILDS)), indent = 1 }
-		end
-		lines[#lines].gapAfter = true
-	end
+	-- 1.4.0 (the author, 11-03): the "largest guilds" are gone ("sempre vai ser as guildas com 1000,
+	-- então não vai ter primeiro lugar, aquela lista não faz sentido"); in their place every server
+	-- this client knows of: the totals, PvP and PvE, NA and EU, and each server (Data.Groups).
+	CS.ServerLines(lines, s, now)
 
 	-- The levels online.
 	local bands = CS.LevelBands(s)
@@ -465,7 +800,9 @@ function CS.Build(s, now)
 
 	local since = CS.Since()
 	if since then lines[#lines + 1] = { text = Grey(L.CENSUS_STATS_KEPT:format(date(L.CENSUS_STATS_DAY_FORMAT, since))) } end
-	return lines, L.CENSUS_STATS_DETAIL_TITLE, L.CENSUS_STATS_DETAIL
+	-- How the census works: after the graphs and the lists, the page's last section.
+	CS.HowLines(lines)
+	return lines, L.CENSUS_STATS_DETAIL_TITLE, detail
 end
 
 ---------------------------------------------------------------------------

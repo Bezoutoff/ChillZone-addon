@@ -117,6 +117,9 @@ function Cover.Taken(alias, holder)
 	local function Same(name) return type(name) == "string" and Lower(ns.ShortName(name)) == key end
 	if Same(ns.me) or Same(ns.AUTHOR) then return true end
 	for _, pin in pairs(ns.KING_CHARACTER or {}) do if Same(pin) then return true end end
+	-- (1.3.4) And whom the author's signed list names here: his characters, the King.
+	for _, author in ipairs(ns.AuthorCharacters and (ns.AuthorCharacters()) or {}) do if Same(author) then return true end end
+	if ns.KingCharacter and Same(ns.KingCharacter()) then return true end
 	local c = ns.rdb and ns.rdb.council
 	if type(c) == "table" and type(c.names) == "table" and c.names[key] then return true end
 	local R = ns.Roster

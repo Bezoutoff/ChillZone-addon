@@ -2634,12 +2634,13 @@ test("1.2.4 the API: its words in English and pt-BR; docs/API.md names every met
 	eq(Keys(pt), Keys(en))
 	-- (1.2.5.1) An addon that is not authorized for the reserved features is asked only about its
 	-- reads: since the quiet presence and the profile presentation are reserved too (2026-10-19), its
-	-- line offers neither, while the authorized addon's line still describes both.
+	-- line offers neither, while the authorized addon's line still describes both. (1.4.0: its No
+	-- also says it cannot act on the player's group, the Board's groups being no reserved feature.)
 	do
 		local k = "API_CONSENT_TEXT_BASIC"
 		local basic = assert(src:match("\nL%." .. k .. ' = "(.-)"\n'), k)
 		for _, word in ipairs({ "what Olympus shows you", "Never your location or the King's", "Authorize all", "Keep current choices",
-			"addons you trust", "No, Keep current choices, or no answer: it receives nothing." }) do
+			"addons you trust", "No, Keep current choices, or no answer: it receives nothing and cannot act on your group." }) do
 			assert(basic:find(word, 1, true), k .. " says: " .. word)
 		end
 		for _, word in ipairs({ "King's presence", "search", "crown", " layer", "presentation", "caption", "issuer",
@@ -2648,7 +2649,7 @@ test("1.2.4 the API: its words in English and pt-BR; docs/API.md names every met
 		end
 		local ptBasic = assert(tail:match("\n\tL%." .. k .. ' = "(.-)"\n'), k .. " (pt-BR)")
 		for _, word in ipairs({ "Nunca a sua localização nem a do Rei", "Autorizar tudo", "Manter escolhas atuais",
-			"Não, Manter escolhas atuais ou sem resposta: ele não recebe nada." }) do
+			"Não, Manter escolhas atuais ou sem resposta: ele não recebe nada e não pode agir no seu grupo." }) do
 			assert(ptBasic:find(word, 1, true), k .. " (pt-BR) says: " .. word)
 		end
 		for _, word in ipairs({ "presença do Rei", "busca", "coroa", "camada", "apresentação", "legenda", "emissor",
@@ -2662,6 +2663,23 @@ test("1.2.4 the API: its words in English and pt-BR; docs/API.md names every met
 		end
 		for _, word in ipairs({ "sessão curta de apresentação de perfil controlada pelo Olympus", "legenda pré-aprovada", "presença silenciosa" }) do
 			assert(ptFull:find(word, 1, true), "API_CONSENT_TEXT (pt-BR) still says: " .. word)
+		end
+	end
+	-- (1.4.0) The Board's groups, in both lines (they are not reserved) and both languages: what is
+	-- read, what may be done to the player's own group, what never is, and the panel's switch.
+	for _, k in ipairs({ "API_CONSENT_TEXT", "API_CONSENT_TEXT_BASIC" }) do
+		local line = assert(src:match("\nL%." .. k .. ' = "(.-)"\n'), k)
+		for _, word in ipairs({ "group listings and the players looking", "never their names", "your own listing's applications",
+			"invite (the game's own invite)", "decline an applicant", "lower your listing", "open Olympus's own group card",
+			"it never lists a group, raises a flag, applies or writes words for you", "in place of the Board's Your group",
+			"a switch on the Board brings Olympus's back", "act on your group" }) do
+			assert(line:find(word, 1, true), k .. " says: " .. word)
+		end
+		local ptLine = assert(tail:match("\n\tL%." .. k .. ' = "(.-)"\n'), k .. " (pt-BR)")
+		for _, word in ipairs({ "anúncios de grupo do Mural", "nunca os nomes", "convidar (o convite do próprio jogo)", "recusar um candidato",
+			"retirar o seu anúncio", "nunca anuncia um grupo, levanta uma bandeira, se candidata nem escreve palavras por você",
+			"no lugar do Seu grupo do Mural", "traz de volta o do Olympus", "agir no seu grupo" }) do
+			assert(ptLine:find(word, 1, true), k .. " (pt-BR) says: " .. word)
 		end
 	end
 	for _, word in ipairs({ "Seen nearby", "Exact last-seen point", "Visto nas proximidades", "Ponto exato do último avistamento",
@@ -2765,6 +2783,13 @@ test("1.2.4 the API: its words in English and pt-BR; docs/API.md names every met
 		"handle:GetProfileSession()", "PROFILE_EFFECT_SESSION_CHANGED", "issuer, grant identifier, caption",
 		"10 seconds", "about 32 seconds", "memory-only", "available after permission is refused" }) do
 		assert(doc:find(word, 1, true), "docs/API.md profile-presentation contract: " .. word)
+	end
+	for _, word in ipairs({ '"groups"', '"groups.manage"', '"ui.board-groups"', "every addon the player says Yes to gets them",
+		"never the names of a group's members", "never a time of anyone's", "on the King's", "anyNumber", "fresh = true",
+		"places = { \"DM\", \"SFK\" }", "Nothing here posts a listing, raises a flag, applies or writes a word",
+		"`OpenGroup` (his own listing's id) or `OpenListingDialog`", '"panel-full"', "the first registered keeps it",
+		"bounds its height to 20-600", "Olympus's own", "6 calls", '"not-leader"', '"invited"', "LOOKING_CHANGED", "MY_GROUP_CHANGED" }) do
+		assert(doc:find(word, 1, true), "docs/API.md groups contract: " .. word)
 	end
 	eq(doc:find("trusted roster", 1, true), nil, "the public contract stays consumer-neutral")
 	local sections = {}
@@ -2965,11 +2990,15 @@ end)
 
 -- 1.2.5.1: the Olympus Accord (Accord.lua). Until this account accepted it the player is no member
 -- (ns.IsMember): a granted addon reads what it reads outside an Olympus guild ("guild", member =
--- false), and the contract stays (CONSENT_VERSION 9). Accepting it (Accord.lua's ACCORD_CHANGED,
+-- false), and the contract is not changed by it (CONSENT_VERSION 10 since 1.4.0, for the Board's
+-- groups and IsOlympusMember; the Accord itself asks nothing again). Accepting it (Accord.lua's ACCORD_CHANGED,
 -- fired here as the Accord fires it) tells every data event's listeners once the burst settles.
 test("accord: the API before the Olympus Accord is accepted reads as outside an Olympus guild; once it is, WANTED, RANKINGS and PROFILE listeners are told", function()
 	local w, cast, viewer, API = Setup()
-	eq(API.CONSENT_VERSION, 9, "the contract unchanged")
+	-- (1.4.0: 10, raised for the Board's groups and IsOlympusMember, which a Yes now gives too; the
+	-- Accord itself still changes nothing of the contract, so this stays the version the API's own
+	-- reads set.)
+	eq(API.CONSENT_VERSION, 10, "the contract the Accord leaves as it is")
 	local O, C = viewer.OlympusAPI, viewer.Consent
 	Install(viewer, "MapPins", "Map Pins")
 	local api = w:As(viewer, O.Register, "MapPins")
@@ -2994,5 +3023,542 @@ test("accord: the API before the Olympus Accord is accepted reads as outside an 
 	table.sort(told)
 	eq(table.concat(told, ","), "PROFILE_CHANGED,RANKINGS_CHANGED,WANTED_CHANGED", "each told once")
 	eq(Do(w, viewer, api, "GetProfile").member, true)
+	W3.NoErrors(w)
+end)
+
+---------------------------------------------------------------------------
+-- 1.4.0, the Board's groups through the API ("groups", "groups.manage", "ui.board-groups"). Board.lua
+-- and Groups.lua load into each client that takes part (the world's clients load neither), so the
+-- listings, flags, applications and answers travel between them as the game carries them. The
+-- addon here is an ordinary one: these features are not reserved.
+---------------------------------------------------------------------------
+
+local DAWN = "Olympus Dawn"
+local function LoadGroups(w, c)
+	w:As(c, function()
+		assert(loadfile(H.ADDON_DIR .. "Board.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Groups.lua"))("Olympus", c.ns)
+	end)
+	c.ns.Board.RefreshCamps = function() end -- (the camps' map badges: not these tests')
+	-- The game's invite and the group's leader as the client gives them (world.lua models neither).
+	c.invited = {}
+	c.globals.C_PartyInfo = { InviteUnit = function(name) c.invited[#c.invited + 1] = name end }
+	c.globals.UnitIsGroupLeader = function() return c.notLeader ~= true end
+	-- Olympus's own window as the host the Board opens in: what it was asked to show.
+	c.opened = {}
+	local views, ui = c.ns.Views, c.ns.UI
+	rawset(c.ns, "Views", setmetatable({ ShowBoard = function(on) c.opened[#c.opened + 1] = on and "board" or "off" end,
+		BoardShown = function() return true end }, { __index = views }))
+	rawset(c.ns, "UI", setmetatable({ Refresh = function() c.refreshed = (c.refreshed or 0) + 1 end, RefreshSoon = function() end,
+		IsShown = function() return false end, SelectTab = function(tab) c.opened[#c.opened + 1] = "tab:" .. tab return true end },
+		{ __index = ui or {} }))
+	return c
+end
+local function GroupsWorld()
+	local w, cast, viewer, API = Setup({ wanted = false })
+	LoadGroups(w, viewer)
+	local leader = LoadGroups(w, w:Client("Orin Vale", { guild = DAWN }))
+	local quester = LoadGroups(w, w:Client("Mira Thorn", { guild = DAWN }))
+	local mate = w:Client("Dax Ember", { guild = DAWN })
+	Install(viewer, "GroupFinder", "Group Finder")
+	local api = w:As(viewer, viewer.OlympusAPI.Register, "GroupFinder")
+	assert(type(api) == "table", "an ordinary addon's handle")
+	return w, cast, viewer, API, api, leader, quester, mate
+end
+local function G(w, c) return W3.M(w, c, "Groups") end
+local function Lines(w, c, q)
+	local out = {}
+	for _, l in ipairs(w:As(c, c.ns.Board.Lines, q)) do out[#out + 1] = l end
+	return out
+end
+local function LineOf(lines, text)
+	for _, l in ipairs(lines) do if type(l.text) == "string" and l.text:find(text, 1, true) then return l end end
+end
+local function LineId(lines, id)
+	for _, l in ipairs(lines) do if l.id == id then return l end end
+end
+
+test("1.4.0 the API groups: Has; GetGroups and GetLooking copy what the Board's sections show, field by field, in its order: counts not names, no time, the King's screen's words hidden; the usual gates", function()
+	local w, cast, viewer, API, api, leader, quester, mate = GroupsWorld()
+	local O, L = viewer.OlympusAPI, viewer.ns.L
+	for _, f in ipairs({ "groups", "groups.manage", "ui.board-groups", "GROUPS_CHANGED", "LOOKING_CHANGED", "MY_GROUP_CHANGED" }) do
+		eq(w:As(viewer, O.Has, f), true, f)
+	end
+	eq(select(2, Do(w, viewer, api, "GetGroups")), "pending", "nothing before the Yes")
+	w:As(viewer, viewer.Consent.Choose, "api:groupfinder", true)
+	-- The leader lists a dungeon with a friend in his group; another member a quest from her log.
+	w:Group({ leader, mate })
+	assert(G(w, leader).Post("D", "DM", nil, "113", "chill run", 16))
+	assert(G(w, quester).Post("Q", "176", "Kill Hogger", "0+2", "", nil, "Elwynn Forest"))
+	w:Run(2)
+	local rows = Do(w, viewer, api, "GetGroups")
+	eq(#rows, 2)
+	local d, q = rows[1], rows[2]
+	eq(Keys(d), "class,fresh,guild,id,kind,leader,level,members,minLevel,need,note,own,place,placeName,size", "the row's fields, no more")
+	eq(d.kind, "dungeon"); eq(d.place, "DM"); eq(d.placeName, "Deadmines"); eq(d.leader, leader.name); eq(d.guild, DAWN)
+	eq(d.level, 60); eq(d.minLevel, 16); eq(d.size, 2); eq(d.note, "chill run"); eq(d.own, false); eq(d.fresh, true)
+	eq(d.need.tank, 1); eq(d.need.healer, 1); eq(d.need.damage, 3); eq(d.need.any, false); eq(d.need.anyNumber.tank, false)
+	eq(#d.members, 1); eq(d.members[1].count, 1, "his friend, counted")
+	NoName(rows, { mate.short, mate.name }, "never a member's name")
+	eq(type(d.id), "string")
+	eq(q.kind, "quest"); eq(q.questID, 176); eq(q.questTitle, "Kill Hogger"); eq(q.placeName, "Kill Hogger"); eq(q.zone, "Elwynn Forest"); eq(q.place, nil)
+	eq(q.need.tank, 0); eq(q.need.healer, 1); eq(q.need.damage, 2)
+	eq(Keys(q.need.anyNumber), "damage,healer,tank")
+	-- A kind's section; an unknown kind.
+	eq(#Do(w, viewer, api, "GetGroups", "quest"), 1); eq(Do(w, viewer, api, "GetGroups", "quest")[1].kind, "quest")
+	eq(#Do(w, viewer, api, "GetGroups", "raid"), 0)
+	eq(select(2, Do(w, viewer, api, "GetGroups", "dungeons")), "kind")
+	-- No time of anyone's in any row.
+	for _, row in ipairs(rows) do
+		for _, k in ipairs({ "raisedAt", "heardAt", "firstSeen", "at", "age", "every", "sender", "counts", "target", "title" }) do eq(row[k], nil, k) end
+	end
+	-- An application of ours to it: waiting, then invited (the leader's answer).
+	assert(G(w, viewer).Apply(leader.name, "T", "prot"))
+	w:Run(2)
+	eq(Do(w, viewer, api, "GetGroups", "dungeon")[1].applied, "waiting")
+	assert(G(w, leader).Invite(viewer.name))
+	w:Run(2)
+	eq(Do(w, viewer, api, "GetGroups", "dungeon")[1].applied, "invited")
+	-- On the King's screen the words the Board hides stay out: the note, a quest's title and zone
+	-- (his own log has no quest 176).
+	local kings = viewer.ns.KingsScreen
+	viewer.ns.KingsScreen = function() return true end
+	rows = Do(w, viewer, api, "GetGroups")
+	viewer.ns.KingsScreen = kings
+	eq(rows[1].note, nil); eq(rows[2].questTitle, nil); eq(rows[2].zone, nil); eq(rows[2].placeName, L.GROUPS_QUEST_UNNAMED)
+	-- Players looking: a flag for a dungeon and any PvP, a tank; in both sections, as the Board has it.
+	assert(w:As(quester, quester.ns.Board.Raise, "D", "", { roles = "T", picks = "D:DM,SFK;P:*" }))
+	w:Run(2)
+	local looking = Do(w, viewer, api, "GetLooking")
+	eq(#looking, 2)
+	eq(Keys(looking[1]), "class,fits,guild,kind,level,name,own,places,roles")
+	eq(looking[1].own, false, "another player's flag")
+	eq(looking[1].kind, "dungeon"); eq(looking[1].name, quester.name); eq(table.concat(looking[1].places, ","), "DM,SFK")
+	eq(looking[1].roles.tank, true); eq(looking[1].roles.healer, false); eq(looking[1].fits, false, "no listing of ours")
+	eq(looking[2].kind, "pvp"); eq(looking[2].places, "any")
+	eq(#Do(w, viewer, api, "GetLooking", "pvp"), 1); eq(#Do(w, viewer, api, "GetLooking", "quest"), 0, "no flag looks for a quest")
+	-- (Daniel's test of a companion, 1.4.0) The player's own flag is on the list too, first, marked own:
+	-- the Board's flags page shows it, and a companion's list of players looking must not leave it out.
+	-- (The client's own map names, which the Board's flags page reads for his flag's zone while he
+	-- shares his location: the real C_Map has GetMapInfo, the viewer's stand-in above only the best map.)
+	viewer.globals.C_Map.GetMapInfo = function(id) return id == 1453 and { name = "Stormwind City" } or nil end
+	assert(w:As(viewer, viewer.ns.Board.Raise, "D", "", { roles = "D", picks = "D:*" }))
+	w:Run(2)
+	local withMine = Do(w, viewer, api, "GetLooking", "dungeon")
+	eq(#withMine, 2)
+	eq(withMine[1].own, true); eq(withMine[1].name, viewer.name); eq(withMine[1].places, "any")
+	eq(withMine[1].roles.damage, true); eq(withMine[1].fits, false, "his own flag never fits his own listing")
+	eq(withMine[2].own, false); eq(withMine[2].name, quester.name)
+	eq(#Do(w, viewer, api, "GetLooking", "raid"), 0, "his flag names no raid")
+	w:As(viewer, viewer.ns.Board.Lower, true)
+	w:Run(2)
+	eq(#Do(w, viewer, api, "GetLooking", "dungeon"), 1, "taken down: gone from the list")
+	-- Copies: changing one changes nothing of Olympus's.
+	rows = Do(w, viewer, api, "GetGroups")
+	rows[1].need.tank, rows[1].leader = 9, "x"
+	eq(Do(w, viewer, api, "GetGroups")[1].need.tank, 1)
+	-- Outside an Olympus guild: nothing.
+	local member = viewer.ns.IsMember
+	viewer.ns.IsMember = function() return false end
+	eq(select(2, Do(w, viewer, api, "GetGroups")), "guild"); eq(select(2, Do(w, viewer, api, "GetMyGroup")), "guild")
+	viewer.ns.IsMember = member
+	W3.NoErrors(w)
+end)
+
+test("1.4.0 the API groups: GetMyGroup, and the own-group actions run the Board's own handlers (the game's invite, decline, roles, a player looking, lower); each refusal says why; a rate of their own", function()
+	local w, cast, viewer, API, api, leader, quester, mate = GroupsWorld()
+	local applicant2 = LoadGroups(w, w:Client("Sela Brook", { guild = DAWN }))
+	local looker = LoadGroups(w, w:Client("Tobin Reed", { guild = DAWN }))
+	w:As(viewer, viewer.Consent.Choose, "api:groupfinder", true)
+	local mine = Do(w, viewer, api, "GetMyGroup")
+	eq(mine.listing, nil); eq(#mine.applicants, 0); eq(#mine.members, 0)
+	eq(select(2, Do(w, viewer, api, "InviteApplicant", leader.name, "tank")), "unknown", "no listing of ours")
+	eq(select(2, Do(w, viewer, api, "LowerListing")), "unknown")
+	assert(G(w, viewer).Post("D", "DM", nil, "112", ""))
+	w:Run(2)
+	assert(G(w, leader).Apply(viewer.name, "T", "prot war"))
+	assert(G(w, applicant2).Apply(viewer.name, "D", ""))
+	assert(w:As(looker, looker.ns.Board.Raise, "D", "", { roles = "D", picks = "D:DM" }))
+	w:Run(2)
+	mine = Do(w, viewer, api, "GetMyGroup")
+	eq(mine.listing.own, true); eq(mine.listing.kind, "dungeon"); eq(#mine.applicants, 2)
+	local a = mine.applicants[1]
+	eq(Keys(a), "class,guild,level,name,note,role,state")
+	eq(a.name, leader.name); eq(a.role, "tank"); eq(a.note, "prot war"); eq(a.state, "waiting"); eq(a.guild, DAWN)
+	-- Invite: only an applicant, only the role he applied as.
+	w:Run(API.MANAGE_WINDOW)
+	eq(select(2, Do(w, viewer, api, "InviteApplicant", "Nobody Here-Emberfall", "tank")), "unknown")
+	eq(select(2, Do(w, viewer, api, "InviteApplicant", leader.name, "healer")), "role")
+	eq(select(2, Do(w, viewer, api, "InviteApplicant", leader.name, "wizard")), "role")
+	eq(Do(w, viewer, api, "InviteApplicant", leader.name, "tank"), true)
+	eq(viewer.invited[1], leader.short, "the game's invite")
+	w:Run(API.MANAGE_WINDOW)
+	eq(G(w, leader).Applied(viewer.name).state, "invited", "he was told, as the Board's click tells")
+	eq(select(2, Do(w, viewer, api, "InviteApplicant", leader.name, "tank")), "invited", "once")
+	eq(Do(w, viewer, api, "GetMyGroup").applicants[1].state, "invited")
+	w:Run(API.MANAGE_WINDOW)
+	-- He joins: the tank comes off what the listing needs; his role on the roster.
+	w:Group({ viewer, leader })
+	w:As(viewer, viewer.ns.Groups.OnRoster)
+	w:Run(2)
+	mine = Do(w, viewer, api, "GetMyGroup")
+	eq(mine.listing.need.tank, 0)
+	eq(#mine.members, 1); eq(mine.members[1].name, leader.name); eq(mine.members[1].role, "tank")
+	eq(Keys(mine.members[1]), "class,level,name,role")
+	-- Roles as the roster's row sets them; nil for none.
+	eq(Do(w, viewer, api, "SetMemberRole", leader.name, "healer"), true)
+	eq(Do(w, viewer, api, "GetMyGroup").members[1].role, "healer")
+	eq(Do(w, viewer, api, "SetMemberRole", leader.name, nil), true)
+	eq(Do(w, viewer, api, "GetMyGroup").members[1].role, nil)
+	eq(select(2, Do(w, viewer, api, "SetMemberRole", leader.name, "wizard")), "role")
+	eq(select(2, Do(w, viewer, api, "SetMemberRole", quester.name, "tank")), "unknown", "not in the group")
+	w:Run(API.MANAGE_WINDOW)
+	-- Decline: told; once.
+	eq(Do(w, viewer, api, "DeclineApplicant", applicant2.name), true)
+	w:Run(2)
+	eq(G(w, applicant2).Applied(viewer.name), nil, "she was told")
+	eq(select(2, Do(w, viewer, api, "DeclineApplicant", applicant2.name)), "unknown")
+	-- A player looking: as the Board's Invite as under Players looking (his flag's roles we need).
+	eq(select(2, Do(w, viewer, api, "InviteLooking", looker.name, "tank")), "role")
+	eq(select(2, Do(w, viewer, api, "InviteLooking", quester.name, "damage")), "unknown", "no flag up")
+	eq(Do(w, viewer, api, "InviteLooking", looker.name, "damage"), true)
+	eq(viewer.invited[#viewer.invited], looker.short)
+	eq(select(2, Do(w, viewer, api, "InviteLooking", looker.name, "damage")), "invited")
+	w:Run(API.MANAGE_WINDOW)
+	-- Another player leads our group: no invite (the Board's own rule).
+	assert(G(w, applicant2).Apply(viewer.name, "D", ""))
+	w:Run(API.MANAGE_WINDOW)
+	viewer.notLeader = true
+	eq(select(2, Do(w, viewer, api, "InviteApplicant", applicant2.name, "damage")), "not-leader")
+	viewer.notLeader = nil
+	-- In combat: nothing.
+	viewer.combat = true
+	eq(select(2, Do(w, viewer, api, "LowerListing")), "combat")
+	viewer.combat = nil
+	-- A rate of their own (the reads keep theirs).
+	w:Run(API.MANAGE_WINDOW)
+	for _ = 1, API.MANAGE_MAX do Do(w, viewer, api, "SetMemberRole", leader.name, "tank") end
+	eq(select(2, Do(w, viewer, api, "SetMemberRole", leader.name, "tank")), "busy")
+	assert(type(Do(w, viewer, api, "GetMyGroup")) == "table", "reads go on")
+	w:Run(API.MANAGE_WINDOW)
+	-- Lower: GX for everyone; once.
+	local before = #w.sent
+	eq(Do(w, viewer, api, "LowerListing"), true)
+	w:Run(2)
+	local gx = false
+	for i = before + 1, #w.sent do if w.sent[i].from == viewer.name and w.sent[i].msg:find("^GX~") then gx = true end end
+	eq(gx, true, "lowered on every Board")
+	eq(#G(w, quester).List("D"), 0)
+	eq(select(2, Do(w, viewer, api, "LowerListing")), "unknown")
+	-- Without the Yes: nothing.
+	Install(viewer, "QuietFinder", "Quiet Finder")
+	local quiet = w:As(viewer, viewer.OlympusAPI.Register, "QuietFinder")
+	eq(select(2, Do(w, viewer, quiet, "LowerListing")), "pending")
+	eq(select(2, Do(w, viewer, quiet, "InviteApplicant", leader.name, "tank")), "pending")
+	W3.NoErrors(w)
+end)
+
+test("1.4.0 the API groups: OpenGroup, OpenListingDialog and OpenFlagDialog open Olympus's own card, composer and flag dialog on the Board, and send nothing", function()
+	local w, cast, viewer, API, api, leader = GroupsWorld()
+	local L = viewer.ns.L
+	w:As(viewer, viewer.Consent.Choose, "api:groupfinder", true)
+	assert(G(w, leader).Post("R", "MC", nil, "+++", ""))
+	w:Run(2)
+	local id = Do(w, viewer, api, "GetGroups")[1].id
+	local sent = #w.sent
+	eq(Do(w, viewer, api, "OpenGroup", id), true)
+	eq(G(w, viewer).View(), "R")
+	eq(viewer.opened[#viewer.opened], "tab:realm", "the Board in Olympus's window")
+	local lines = Lines(w, viewer)
+	assert(LineOf(lines, "> " .. L.GROUPS_APPLY_AS:format(L.GROUPS_ROLE_T)), "its card open: the player applies there himself")
+	eq(select(2, Do(w, viewer, api, "OpenGroup", "zz:Nobody-Emberfall")), "unknown")
+	eq(select(2, Do(w, viewer, api, "OpenGroup", 42)), "unknown")
+	eq(Do(w, viewer, api, "OpenListingDialog", "pvp"), true)
+	eq(G(w, viewer).View(), "P"); eq(G(w, viewer).Composing().kind, "P")
+	assert(LineOf(Lines(w, viewer), L.GROUPS_CHOOSE), "the composer: where, then the roles")
+	eq(select(2, Do(w, viewer, api, "OpenListingDialog", "everything")), "kind")
+	eq(Do(w, viewer, api, "OpenFlagDialog", "raid"), true)
+	eq(G(w, viewer).View(), "flags"); eq(G(w, viewer).FlagComposing(), true)
+	eq(select(2, Do(w, viewer, api, "OpenFlagDialog", "quest")), "kind", "no flag looks for a quest")
+	w:Run(2)
+	for i = sent + 1, #w.sent do eq(w.sent[i].from == viewer.name, false, "sent: " .. w.sent[i].msg) end
+	W3.NoErrors(w)
+end)
+
+test("1.4.0 the API groups: GROUPS_CHANGED, LOOKING_CHANGED and MY_GROUP_CHANGED once a burst settles, only on a real change, never in combat nor without a Yes", function()
+	local w, cast, viewer, API, api, leader, quester, mate = GroupsWorld()
+	local told = { GROUPS_CHANGED = {}, LOOKING_CHANGED = {}, MY_GROUP_CHANGED = {} }
+	for event, list in pairs(told) do
+		eq(Do(w, viewer, api, "On", event, function(e, data) list[#list + 1] = data end), true, event)
+	end
+	assert(G(w, leader).Post("D", "DM", nil, "113", ""))
+	w:Run(5)
+	eq(#told.GROUPS_CHANGED, 0, "no Yes: nothing")
+	w:As(viewer, viewer.Consent.Choose, "api:groupfinder", true)
+	assert(G(w, quester).Post("R", "MC", nil, "+++", ""))
+	w:Run(5)
+	eq(#told.GROUPS_CHANGED, 1, "once")
+	eq(#told.GROUPS_CHANGED[1], 2, "what GetGroups returns")
+	eq(#told.LOOKING_CHANGED, 0, "nobody looking changed")
+	LoadGroups(w, mate)
+	assert(w:As(mate, mate.ns.Board.Raise, "R", "", { roles = "H", picks = "R:MC" }))
+	w:Run(5)
+	eq(#told.LOOKING_CHANGED, 1); eq(told.LOOKING_CHANGED[1][1].name, mate.name); eq(told.LOOKING_CHANGED[1][1].kind, "raid")
+	-- Our own listing, then someone in our group.
+	assert(G(w, viewer).Post("D", "SFK", nil, "113", ""))
+	w:Run(5)
+	local n = #told.MY_GROUP_CHANGED
+	assert(n >= 1 and told.MY_GROUP_CHANGED[n].listing.own == true)
+	w:Group({ viewer, quester })
+	w:As(viewer, viewer.ns.Groups.OnRoster)
+	w:Run(5)
+	eq(#told.MY_GROUP_CHANGED, n + 1); eq(told.MY_GROUP_CHANGED[n + 1].members[1].name, quester.name)
+	-- In combat: it waits for the combat's end.
+	viewer.combat = true
+	assert(G(w, leader).Close())
+	w:Run(10)
+	local before = #told.GROUPS_CHANGED
+	viewer.combat = nil
+	w:Run(10)
+	eq(#told.GROUPS_CHANGED, before + 1, "told once the combat ended")
+	W3.NoErrors(w)
+end)
+
+test("1.4.0 the API group panel: one a session; it takes Your group's place while the addon has its Yes, with a switch back to Olympus's own kept for the account; build errors contained; Unregister gives the Board's own back", function()
+	local w, cast, viewer, API, api, leader = GroupsWorld()
+	local L = viewer.ns.L
+	Install(viewer, "OtherPanel", "Other Panel")
+	local other = w:As(viewer, viewer.OlympusAPI.Register, "OtherPanel")
+	local built, refreshed = {}, 0
+	local spec = { label = "Group Finder", build = function(frame) built[#built + 1] = frame end, refresh = function() refreshed = refreshed + 1 end }
+	eq(select(2, Do(w, viewer, api, "RegisterGroupPanel", "x")), "invalid-spec")
+	eq(select(2, Do(w, viewer, api, "RegisterGroupPanel", { label = string.rep("x", 49), build = spec.build })), "invalid-label")
+	eq(select(2, Do(w, viewer, api, "RegisterGroupPanel", { label = "Group Finder" })), "invalid-build")
+	eq(select(2, Do(w, viewer, api, "RegisterGroupPanel", { label = "Group Finder", build = spec.build, refresh = 1 })), "invalid-refresh")
+	eq(select(2, Do(w, viewer, api, "IsGroupPanelShown")), "unregistered")
+	eq(Do(w, viewer, api, "RegisterGroupPanel", spec), true, "while the answer is pending")
+	eq(select(2, Do(w, viewer, api, "RegisterGroupPanel", spec)), "registered")
+	eq(select(2, Do(w, viewer, other, "RegisterGroupPanel", spec)), "panel-full", "the first keeps it")
+	G(w, viewer).Show("D", true)
+	-- Pending: Olympus's own Your group, no switch.
+	local lines = Lines(w, viewer)
+	eq(LineId(lines, "board-panel-switch"), nil); eq(LineId(lines, "board-panel"), nil)
+	assert(LineOf(lines, L.GROUPS_LIST:format(L.GROUPS_KIND_D)), "Olympus's own way to list one")
+	-- Yes: the switch and the panel in its place; the listings stay Olympus's.
+	w:As(viewer, viewer.Consent.Choose, "api:groupfinder", true)
+	assert(G(w, leader).Post("D", "DM", nil, "113", ""))
+	w:Run(2)
+	lines = Lines(w, viewer)
+	local switch, slot = LineId(lines, "board-panel-switch"), LineId(lines, "board-panel")
+	assert(switch and slot, "the switch and the panel")
+	eq(switch.nav[1].text, "Group Finder"); eq(switch.nav[1].selected, true); eq(switch.nav[2].text, L.GROUPS_PANEL_OWN)
+	eq(LineOf(lines, L.GROUPS_LIST:format(L.GROUPS_KIND_D)), nil, "Your group's own lines give their place")
+	assert(LineOf(lines, "Orin Vale"), "the listings stay Olympus's")
+	-- Drawn in its row: built once into an Olympus frame, refreshed after.
+	local row = CreateFrame("Button")
+	local h, frame = w:As(viewer, slot.panel, row, 300)
+	eq(#built, 1); eq(built[1], frame); eq(h, viewer.ns.Groups.PANEL_MIN, "its frame's height, bounded")
+	w:As(viewer, slot.panel, row, 300)
+	eq(#built, 1, "built once"); eq(refreshed, 1)
+	-- The player's switch: Olympus's own, kept for the account; and back.
+	w:As(viewer, switch.nav[2].onClick)
+	eq(viewer.db.groupsPanel, "olympus")
+	lines = Lines(w, viewer)
+	assert(LineId(lines, "board-panel-switch") and not LineId(lines, "board-panel"))
+	assert(LineOf(lines, L.GROUPS_LIST:format(L.GROUPS_KIND_D)))
+	w:As(viewer, LineId(lines, "board-panel-switch").nav[1].onClick)
+	eq(viewer.db.groupsPanel, nil)
+	assert(LineId(Lines(w, viewer), "board-panel"))
+	eq(Do(w, viewer, api, "RefreshGroupPanel"), true)
+	eq(Do(w, viewer, api, "IsGroupPanelShown"), false, "the window isn't open here")
+	-- No: Olympus's own again (no switch).
+	w:As(viewer, viewer.Consent.Choose, "api:groupfinder", false)
+	lines = Lines(w, viewer)
+	eq(LineId(lines, "board-panel-switch"), nil); assert(LineOf(lines, L.GROUPS_LIST:format(L.GROUPS_KIND_D)))
+	w:As(viewer, viewer.Consent.Choose, "api:groupfinder", true)
+	-- Unregistered: the Board's own back; the slot free for another.
+	eq(Do(w, viewer, api, "UnregisterGroupPanel"), true)
+	eq(select(2, Do(w, viewer, api, "UnregisterGroupPanel")), "unregistered")
+	eq(LineId(Lines(w, viewer), "board-panel-switch"), nil)
+	-- Put back by the same addon: its frame and what its build made, no second build, no new frame.
+	eq(Do(w, viewer, api, "RegisterGroupPanel", spec), true)
+	local _, same = w:As(viewer, LineId(Lines(w, viewer), "board-panel").panel, row, 300)
+	eq(same, frame); eq(#built, 1)
+	eq(Do(w, viewer, api, "UnregisterGroupPanel"), true)
+	-- A build that fails: contained, logged, Olympus's own Your group instead.
+	w:As(viewer, viewer.Consent.Choose, "api:otherpanel", true)
+	eq(Do(w, viewer, other, "RegisterGroupPanel", { label = "Other", build = function() error("broken") end }), true)
+	slot = LineId(Lines(w, viewer), "board-panel")
+	eq(w:As(viewer, slot.panel, CreateFrame("Button"), 300), 0)
+	eq(LineId(Lines(w, viewer), "board-panel"), nil, "Olympus's own instead")
+	local logged = false
+	for _, l in ipairs(viewer.log) do if l:find("panel build failed", 1, true) then logged = true end end
+	eq(logged, true)
+	W3.NoErrors(w)
+end)
+
+-- 1.4.0: IsOlympusMember(unit), the safe eligibility check promised to an addon author (an addon
+-- that buffs or marks Olympus players). The units below are the game's, as this test's client
+-- reports them: the world's own functions stay underneath for "player" (who the viewer is).
+local SecretValue = assert(loadfile(H.ROOT .. "tests/arena/lib/secret.lua"))()
+local function MemberUnits(w, viewer)
+	local secret = SecretValue.New()
+	local units = {
+		target = { player = true, faction = "Alliance", guild = World.GUILD },
+		focus = { player = true, faction = "Alliance", guild = "Silver Hand" },
+		mouseover = { player = false, faction = "Alliance" },                  -- a creature
+		party1 = { player = true, faction = "Alliance" },                      -- no guild from the game
+		party2 = { player = true, faction = "Alliance", guild = "Olympus Fakes" },
+		raid3 = { player = true, faction = "Horde", guild = "Olympus Horde" },
+		raid4 = { player = true, faction = "Alliance", guild = secret },       -- a value the game keeps secret
+		nameplate12 = { player = true, faction = "Alliance", guild = World.KING_GUILD },
+		targettarget = { player = true, faction = "Alliance", guild = World.GUILD },
+		-- A name the game's UnitExists would also take (a group member's): never asked.
+		["someone-realm"] = { player = true, faction = "Alliance", guild = World.GUILD },
+	}
+	local g = viewer.globals
+	local base = { UnitExists = g.UnitExists, UnitIsPlayer = g.UnitIsPlayer, UnitFactionGroup = g.UnitFactionGroup,
+		GetGuildInfo = g.GetGuildInfo }
+	local asked = {}
+	local function Of(unit)
+		if type(unit) == "string" and unit ~= "player" then
+			asked[#asked + 1] = unit
+			return units[unit:lower()]
+		end
+	end
+	g.UnitExists = function(unit) if unit == "player" then return base.UnitExists(unit) end return Of(unit) ~= nil end
+	g.UnitIsPlayer = function(unit) if unit == "player" then return base.UnitIsPlayer(unit) end local u = Of(unit) return u and u.player or false end
+	g.UnitFactionGroup = function(unit) if unit == "player" then return base.UnitFactionGroup(unit) end local u = Of(unit) return u and u.faction end
+	g.GetGuildInfo = function(unit)
+		if unit == nil or unit == "player" then return base.GetGuildInfo(unit) end
+		local u = Of(unit)
+		return u and u.guild
+	end
+	g.issecretvalue = SecretValue.Is
+	return units, asked, secret
+end
+
+test("1.4.0 the API IsOlympusMember: a live unit token's guild by Olympus's own rule; true, false, or nil and why; never a name", function()
+	local w, cast, viewer, API = Setup()
+	local O, C = viewer.OlympusAPI, viewer.Consent
+	local units, asked, secret = MemberUnits(w, viewer)
+	-- Any addon may have it (not a reserved feature): this one is not on the authorized list.
+	Install(viewer, "BuffTool", "Buff Tool")
+	local api = w:As(viewer, O.Register, "BuffTool")
+	eq(w:As(viewer, O.Has, "unit.member"), true)
+	-- Before the Yes: nothing, and a bad argument is refused first, for free.
+	local yes, why = Do(w, viewer, api, "IsOlympusMember", "target")
+	eq(yes, nil); eq(why, "pending")
+	eq(select(2, Do(w, viewer, api, "IsOlympusMember", "Someone-Realm")), "unit")
+	w:As(viewer, C.Choose, "api:bufftool", true)
+	-- An Olympus guild's player (the world's guild; the King's guild too, by Olympus's list).
+	eq(Do(w, viewer, api, "IsOlympusMember", "target"), true)
+	eq(Do(w, viewer, api, "IsOlympusMember", "TARGET"), true, "the game's tokens take any case")
+	eq(Do(w, viewer, api, "IsOlympusMember", "targettarget"), true, "a token followed by target once")
+	eq(Do(w, viewer, api, "IsOlympusMember", "nameplate12"), true)
+	eq(Do(w, viewer, api, "IsOlympusMember", "player"), true, "the player himself, a member")
+	-- Not one: another guild; a creature.
+	eq(Do(w, viewer, api, "IsOlympusMember", "focus"), false)
+	eq(Do(w, viewer, api, "IsOlympusMember", "mouseover"), false)
+	-- Olympus's rule, not the name alone: a guild the High Council removed is not Olympus's, though
+	-- its name says Olympus; and the answer is the one Olympus's own pages work from.
+	eq(Do(w, viewer, api, "IsOlympusMember", "party2"), true, "by name, until removed")
+	rawset(viewer.ns, "REMOVED_BUILTIN", { Alliance = { "Olympus Fakes" } })
+	eq(Do(w, viewer, api, "IsOlympusMember", "party2"), false, "removed: no longer an Olympus guild")
+	for _, unit in ipairs({ "target", "focus", "party2", "nameplate12" }) do
+		eq(Do(w, viewer, api, "IsOlympusMember", unit), w:As(viewer, viewer.ns.IsFederation, units[unit].guild), unit .. ": ns.IsFederation's answer")
+	end
+	-- What this client cannot tell: nil and "unknown", never a guess.
+	for _, unit in ipairs({ "party1", "raid3", "raid4", "nameplate7", "party3target" }) do
+		yes, why = Do(w, viewer, api, "IsOlympusMember", unit)
+		eq(yes, nil, unit); eq(why, "unknown", unit)
+	end
+	-- Only the game's unit tokens: a name, an out-of-range or malformed token, anything else.
+	local before = #asked
+	for _, bad in ipairs({ "Someone-Realm", "someone-realm", "Zeus", "party0", "party5", "raid0", "raid01", "raid41",
+		"nameplate0", "nameplate" .. (API.NAMEPLATE_MAX + 1), "player2", "targettargettarget", "pet", "npc", "", 42, true, {}, secret }) do
+		local label = type(bad) == "string" and bad or type(bad) -- (a secret is never joined or printed)
+		yes, why = Do(w, viewer, api, "IsOlympusMember", bad)
+		eq(yes, nil, label); eq(why, "unit", label)
+	end
+	eq(#asked, before, "the game is never asked about a name or a refused token")
+	-- No sanction is ever told: a player the moderators took off the network reads as his guild does.
+	local moderation = rawget(viewer.ns, "Moderation")
+	rawset(viewer.ns, "Moderation", setmetatable({ Hides = function() return { kind = "netoff" } end }, { __index = moderation }))
+	eq(Do(w, viewer, api, "IsOlympusMember", "target"), true, "a net-off is not told")
+	rawset(viewer.ns, "Moderation", moderation)
+	-- Outside an Olympus guild: "guild", as every read.
+	viewer.guild = nil
+	yes, why = Do(w, viewer, api, "IsOlympusMember", "target")
+	eq(yes, nil); eq(why, "guild")
+	viewer.guild = World.GUILD
+	-- After No: nothing.
+	w:As(viewer, C.Choose, "api:bufftool", false)
+	eq(select(2, Do(w, viewer, api, "IsOlympusMember", "target")), "refused")
+	W3.NoErrors(w)
+end)
+
+test("1.4.0 the API IsOlympusMember: a budget of its own (a raid of 40, twice, every 10 s), apart from the other reads; said once in the log", function()
+	local w, cast, viewer, API = Setup()
+	local O, C = viewer.OlympusAPI, viewer.Consent
+	MemberUnits(w, viewer)
+	Install(viewer, "BuffTool", "Buff Tool")
+	local api = w:As(viewer, O.Register, "BuffTool")
+	w:As(viewer, C.Choose, "api:bufftool", true)
+	eq(API.UNIT_RATE_MAX, 80); eq(API.UNIT_RATE_MAX >= 2 * 40, true, "a full raid checked twice in a window")
+	for i = 1, API.UNIT_RATE_MAX do eq(Do(w, viewer, api, "IsOlympusMember", "target"), true, "check " .. i) end
+	local yes, why = Do(w, viewer, api, "IsOlympusMember", "target")
+	eq(yes, nil); eq(why, "busy", "past its own budget")
+	-- The other reads keep theirs: a raid check starves none of them.
+	assert(type(Do(w, viewer, api, "GetProfile")) == "table", "GetProfile still reads")
+	for _ = 1, API.RATE_MAX do Do(w, viewer, api, "GetProfile") end
+	eq(select(2, Do(w, viewer, api, "GetProfile")), "busy")
+	w:Run(API.RATE_WINDOW)
+	-- ...nor do they starve it.
+	for _ = 1, API.RATE_MAX + 5 do Do(w, viewer, api, "GetProfile") end
+	eq(Do(w, viewer, api, "IsOlympusMember", "target"), true, "the reads' budget spent, the check still answers")
+	for _ = 1, 2 * API.UNIT_RATE_MAX do Do(w, viewer, api, "IsOlympusMember", "target") end
+	w:Run(API.RATE_WINDOW)
+	for _ = 1, 2 * API.UNIT_RATE_MAX do Do(w, viewer, api, "IsOlympusMember", "target") end
+	local lines = 0
+	for _, l in ipairs(viewer.log) do if l:find("api: BuffTool asked more than 80 membership checks", 1, true) then lines = lines + 1 end end
+	eq(lines, 1, "once a session, however many windows")
+	-- A refused token costs nothing: it never reaches the budget.
+	w:Run(API.RATE_WINDOW)
+	for _ = 1, 3 * API.UNIT_RATE_MAX do Do(w, viewer, api, "IsOlympusMember", "Someone-Realm") end
+	eq(Do(w, viewer, api, "IsOlympusMember", "target"), true)
+	W3.NoErrors(w)
+end)
+
+test("1.4.0 the API IsOlympusMember: a Yes given for 1.3's contract is asked again; the privacy line, docs/API.md and the store pages say what it reads", function()
+	local w, cast, viewer, API = Setup()
+	local O = viewer.OlympusAPI
+	eq(API.CONSENT_VERSION, 10)
+	-- An account that said Yes before 1.4.0 (version 9): pending again, so nothing until asked.
+	viewer.db.apiAddons = viewer.db.apiAddons or {}
+	viewer.db.apiAddons.bufftool = { on = true, v = 9, at = 0 }
+	MemberUnits(w, viewer)
+	Install(viewer, "BuffTool", "Buff Tool")
+	local api = w:As(viewer, O.Register, "BuffTool")
+	eq(Do(w, viewer, api, "Status"), "pending")
+	eq(select(2, Do(w, viewer, api, "IsOlympusMember", "target")), "pending")
+	-- The line it is asked with says it, in both languages, for every addon (basic and authorized).
+	local src = Read(H.ADDON_DIR .. "Locales/APIText.lua")
+	local tail = src:match("\nif GetLocale and GetLocale%(%) == \"ptBR\" then(\n.*)$")
+	for _, k in ipairs({ "API_CONSENT_TEXT_BASIC", "API_CONSENT_TEXT" }) do
+		local en = assert(src:match("\nL%." .. k .. ' = "(.-)"\n'), k) -- (the English line comes first)
+		local pt = assert(tail:match("\n\tL%." .. k .. ' = "(.-)"\n'), k .. " (pt-BR)")
+		assert(en:find("whether a player the game shows you right now (your target, group, mouseover or a nameplate) is in an Olympus guild", 1, true), k)
+		assert(pt:find("se um jogador que o jogo mostra a você agora (seu alvo, seu grupo, o mouseover ou uma placa de nome) está em uma guilda do Olympus", 1, true), k .. " (pt-BR)")
+	end
+	local doc = Read(H.ROOT .. "docs/API.md")
+	for _, word in ipairs({ '| `"unit.member"` | `handle:IsOlympusMember(unit)` |', "### `handle:IsOlympusMember(unit)`",
+		'`nil, "unit"`', '`nil, "unknown"`', "80 calls in 10 seconds", "another faction's player",
+		"never the census, a roster, a sighting,\na moderation sanction" }) do
+		assert(doc:find(word, 1, true), "docs/API.md: " .. word)
+	end
+	for _, path in ipairs({ "README.md", "docs/CURSEFORGE.md", "docs/CURSEFORGE-STORE.md" }) do
+		assert(Read(H.ROOT .. path):find("whether a player your game shows you now is in an\nOlympus guild", 1, true), path)
+	end
 	W3.NoErrors(w)
 end)

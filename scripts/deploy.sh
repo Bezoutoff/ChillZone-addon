@@ -15,7 +15,9 @@ FOLDERS=(Olympus Olympus_Arena OlympusSiteAggregate)
 for folder in "${FOLDERS[@]}"; do
 	[ -f "$TREE/$folder/$folder.toc" ] || { echo "no $folder/$folder.toc in $TREE" >&2; exit 1; }
 done
+# (1.4.0: a release zip may carry Olympus Link, a separate addon, as its own folder.)
+[ -f "$TREE/Olympus_Link/Olympus_Link.toc" ] && FOLDERS+=(Olympus_Link)
 DEST="$WOW_DIR/$WOW_FLAVOR/Interface/AddOns"
-ssh "$WOW_HOST" "powershell -NoProfile -Command \"New-Item -ItemType Directory -Force -Path '$DEST' | Out-Null; Remove-Item -Recurse -Force -ErrorAction SilentlyContinue '$DEST/Olympus','$DEST/Olympus_Arena','$DEST/OlympusSiteAggregate'; exit 0\""
+ssh "$WOW_HOST" "powershell -NoProfile -Command \"New-Item -ItemType Directory -Force -Path '$DEST' | Out-Null; Remove-Item -Recurse -Force -ErrorAction SilentlyContinue '$DEST/Olympus','$DEST/Olympus_Arena','$DEST/OlympusSiteAggregate','$DEST/Olympus_Link'; exit 0\""
 COPYFILE_DISABLE=1 tar --no-mac-metadata --exclude "._*" --exclude '.DS_Store' -C "$TREE" -cf - "${FOLDERS[@]}" | ssh "$WOW_HOST" "tar -xf - -C \"$DEST\""
 echo "deployed ${FOLDERS[*]} to $WOW_HOST:$DEST  -> in game: /reload (restart the game if files were added)"

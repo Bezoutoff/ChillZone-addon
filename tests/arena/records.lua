@@ -4,8 +4,8 @@ local test, eq = H.test, H.eq
 local FW = assert(loadfile(H.ROOT .. "tests/arena/lib/farkle-world.lua"))(H)
 local N = H.World.NAMES
 local function Do(w, c, f, ...) return w:As(c, c.ns.Records[f], ...) end
-local function Setup()
-	local w = FW.New({ compliance = "shipped" })
+local function Setup(clock)
+	local w = FW.New({ compliance = "shipped", clock = clock })
 	return w, w:Player(N.fighterA), w:Player(N.fighterB), w:Player(N.bettor3)
 end
 local function Pair(w, a, b, id, winner, t)
@@ -21,6 +21,44 @@ local function Pair(w, a, b, id, winner, t)
 	end
 	return out[1] .. "^" .. out[2]
 end
+-- A crafting delivery's two signed halves (the requester's, the crafter's), of today's server day,
+-- as a Records body.
+local function CraftPair(w, requester, crafter, id, itemID, quantity, tier)
+	local out, day = {}, math.floor(w.clock / 86400)
+	for i, client in ipairs({ requester, crafter }) do
+		out[i] = w:As(client, function()
+			local role = i == 1 and "r" or "c"
+			local core = table.concat({ id, requester.name, crafter.name, itemID or 123, quantity or 5, tier or 2, day, role }, "~")
+			local D = client.ns.Debts
+			local _, pk = D.MyKey()
+			return core .. "~" .. D.B64(pk) .. "~" .. D.B64(D.Sign("OLYC1|" .. core))
+		end)
+	end
+	return out[1] .. "^" .. out[2]
+end
+-- The game names every client of the world by its GUID (GetPlayerInfoByGUID), from now on.
+local function EnableGuidLookup(w)
+	for _, client in ipairs(w.clients) do
+		client.globals.GetPlayerInfoByGUID = function(guid)
+			for _, named in ipairs(w.clients) do
+				if named.guid == guid then return "Warrior", "WARRIOR", "Human", "Human", 2, named.short, named.realm end
+			end
+		end
+	end
+end
+-- A direct duel's two signed halves (A won 1:0 by knockout, 20 s), dated now, as a Records body.
+local function DuelPair(w, a, b, id)
+	local halves = {}
+	for side, client in ipairs({ a, b }) do
+		halves[side] = w:As(client, function()
+			local A, D = client.ns.Arena, client.ns.Debts
+			local core = table.concat({ id, side == 1 and "A" or "B", A.GK(a.guid), a.name, A.GK(b.guid), b.name, "1", "A", "A", "K", "AK" .. A.B36(20), A.B36(w.clock), "-", "60", "60" }, "~")
+			local _, pk = D.MyKey()
+			return core .. "~" .. D.B64(pk) .. "~" .. D.B64(D.Sign("OLYH1|" .. core))
+		end)
+	end
+	return halves[1] .. "^" .. halves[2]
+end
 local function Keys(w, a, b)
 	for _, c in ipairs({ a, b }) do assert(Do(w, c, "SendKey")) end
 	w:Run(3)
@@ -28,6 +66,15 @@ end
 local function Take(w, c, body) Do(w, c, "Take", "b", body, N.bettor1, "relay") w:Run(3) end
 local function Errors(w)
 	for _, c in ipairs(w.clients) do for _, err in ipairs(c.errors) do error(c.name .. ": " .. err) end end
+end
+-- The world runs in steps (5 s) until fn() holds or `seconds` passed: when it first held, or nil.
+local function RunUntil(w, seconds, fn, step)
+	local stop = w.clock + seconds
+	while w.clock < stop do
+		w:Run(math.min(step or 5, stop - w.clock))
+		if fn() then return w.clock end
+	end
+	return nil
 end
 
 test("shared records diagnostics include every registered ranking type", function()
@@ -119,14 +166,16 @@ test("1.2.4 records rotation review: equal inventories on different full pages n
 				mine.seals[latest - i], peer.seals[latest - i] = { r = "", h = string.rep("a", 64) }, { r = "", h = string.rep("a", 64) }
 			end
 		end
-		c.ns.Records.random = function() return 0 end
 		b.ns.Arena.Send = function() return true end
 		assert(Do(w, b, "SendDigest", "b")) -- advance to a noncontiguous historical page
 		local page = Do(w, b, "DigestBody", "b")
 		local pushes = 0
 		c.ns.Arena.Send = function(tag) if tag == "RD" then pushes = pushes + 1 end; return true end
 		w:As(c, c.comm.handlers.RD, "CHANNEL", b.name, "RD~L1~" .. page)
-		w:Run(12)
+		-- (Changed on purpose, 1.4.0: a push is no longer drawn (the random stub that forced the
+		-- draw is gone) and waits for its slot, PUSH_MIN + score * PUSH_WINDOW, not 2 to 10 s: the
+		-- run covers the whole window, so a false push would be seen.)
+		w:Run(R.PUSH_MIN + R.PUSH_WINDOW + 1)
 		eq(pushes, 0, kind .. " omitted by rotation do not prove a missing record")
 		Errors(w)
 	end
@@ -153,12 +202,13 @@ test("1.2.4 records rotation review: genuinely newer days and sealed months stil
 				if i > 0 then peer.seals[latest - i] = { r = "", h = string.rep("a", 64) } end
 			end
 		end
-		c.ns.Records.random = function() return 0 end
 		local pushes = 0
 		c.ns.Arena.Send = function(tag) if tag == "RD" then pushes = pushes + 1 end; return true end
 		local page = Do(w, b, "DigestBody", "b")
 		w:As(c, c.comm.handlers.RD, "CHANNEL", b.name, "RD~L1~" .. page)
-		w:Run(12)
+		-- (Changed on purpose, 1.4.0: the push is no longer drawn and waits for its slot, PUSH_MIN +
+		-- score * PUSH_WINDOW: the run covers that window instead of the draw's 2 to 10 s.)
+		w:Run(R.PUSH_MIN + R.PUSH_WINDOW + 1)
 		eq(pushes, 1, "newest " .. kind .. " is not a rotated omission")
 		Errors(w)
 	end
@@ -305,7 +355,8 @@ test("1.2.4 records: any ordinary holder relays a Bones result to a late member;
 	local late = w:Player(N.bettor1)
 	Keys(w, a, b)
 	w:Run(c.ns.Records.ANSWER_GAP + 1) -- an original result just heard suppresses redundant immediate answers
-	c.ns.Records.random, late.ns.Records.random = function() return 0 end, function() return 0 end
+	-- (Changed on purpose, 1.4.0: no draw stubs, as no answer is drawn any more: the holder whose
+	-- digest made the late client ask answers it first, Records.Slot.)
 	assert(Do(w, c, "SendDigest", "b")) w:Run(20)
 	eq(Do(w, late, "Count", "b"), 1, "neither original player sent the result to this late client")
 	eq(#w:As(late, late.ns.FarkleTable.Best, "L"), 2)
@@ -326,16 +377,20 @@ test("global records: two validating holders recover Bones ranking for a late cl
 	w:Logout(a)
 	w:Logout(b)
 	local late = w:Player(N.bettor1)
-	c.ns.Records.random = function() return 0 end
-	second.ns.Records.random = function() return 0 end
-	late.ns.Records.random = function() return 0 end
 	-- (Changed on purpose, the weight rule: a client that holds nothing sends nothing at its login,
 	-- so the late client makes no discovery call of its own. A holder's periodic digest (Tick,
 	-- DIGEST_EVERY) is the path, as the author asked: "a rede precisa armazenar aquele estado e
 	-- republicar para as pessoas quando a fonte original não tiver online". The holders' digest,
 	-- the late client's ask, the body and two independently signed validations, within one round.)
-	w:Run(c.ns.Records.DIGEST_EVERY + 120)
-	eq(#w:Sent({ from = late, type = "RD" }), 0, "the late, empty client asked nobody at its login")
+	-- (Changed on purpose, 1.4.0: no draw stubs any more, as no digest is drawn: each holder has
+	-- its slot in every round, R.Slot. The bound is a round and its window, plus the answers.)
+	local R = c.ns.Records
+	local heldAt = RunUntil(w, R.DIGEST_EVERY + w:As(c, R.DigestWindow) + 120, function() return Do(w, late, "Count", "b") == 1 end)
+	-- (Changed on purpose, 1.4.0: once it holds the record the late client is a holder like any
+	-- other and takes its turn in the next round. What the weight rule forbids is a digest from the
+	-- empty client, before it held anything.)
+	local digests = w:Sent({ from = late, type = "RD" })
+	assert(not digests[1] or (heldAt and digests[1].t >= heldAt - 5), "the late, empty client asked nobody at its login")
 
 	local count = Do(w, late, "Count", "b")
 	local refused = {}
@@ -354,8 +409,8 @@ test("global records: two validating holders recover Bones ranking for a late cl
 end)
 
 -- The author: "ela passa a fazer o relay daquele negócio validado, que vai ser validado junto com
--- outras pessoas que têm o negócio que receberam validade". The test above draws every holder
--- (random 0); in the game a holder answers an ask only when drawn (about RELAYS of the army). The
+-- outras pessoas que têm o negócio que receberam validade". The test above drew every holder
+-- (random 0); in the game a holder answered an ask only when drawn (about RELAYS of the army). The
 -- first build's late client then kept the body, waiting, after ONE holder's validation: its next
 -- asks listed that body as held, so no holder answered it again, no second validation ever came,
 -- and the result never counted (7 asks over an hour, 1 RV, count 0). It now asks for the
@@ -370,14 +425,13 @@ local function ShortOfOne(w, id)
 	Take(w, second, body)
 	w:Logout(a)
 	w:Logout(b)
+	-- (Changed on purpose, 1.4.0: no holder is drawn any more, so the second holder is offline for
+	-- this round instead of not drawn for its answer. The caller logs it in for the next round.)
+	w:Logout(second)
 	local late = w:Player(N.bettor1)
-	c.ns.Records.random, late.ns.Records.random = function() return 0 end, function() return 0 end
-	-- The second holder is not drawn for this round's answer.
-	second.ns.Records.random, second.ns.Records.RELAYS = function() return 0.99 end, 0
 	w:Run(c.ns.Records.DIGEST_EVERY + 120)
 	eq(Do(w, late, "Count", "b"), 0, "one holder's validation admits nothing")
 	eq(Do(w, late, "Pending", "b"), 1, "the body is here, waiting")
-	second.ns.Records.random, second.ns.Records.RELAYS = function() return 0 end, 3
 	return c, second, late, day
 end
 local function WitnessAsks(w, from)
@@ -390,6 +444,7 @@ test("global records review: a late client one validation short asks for the val
 	local w = Setup()
 	local c, second, late = ShortOfOne(w, "Kr12")
 	local bodies = #w:Sent({ type = "EP" }) -- (the body went in parts, EP; nothing else here does)
+	w:Login(second) -- (1.4.0: back for the next round)
 	w:Run(c.ns.Records.DIGEST_EVERY + 120)
 	eq(Do(w, late, "Count", "b"), 1, "the second holder's validation came: the result counts")
 	eq(Do(w, late, "Pending", "b"), 0)
@@ -403,12 +458,10 @@ end)
 test("global records review: validations are heard in one session only; after a reload the waiting body is validated in the next session", function()
 	local w = Setup()
 	local c, second, late = ShortOfOne(w, "Kr13")
-	second.ns.Records.random, second.ns.Records.RELAYS = function() return 0.99 end, 0
 	w:Logout(late) w:Login(late)
-	late.ns.Records.random = function() return 0 end
 	w:Run(15)
 	eq(Do(w, late, "Pending", "b"), 1, "the body survived the reload, waiting")
-	second.ns.Records.random, second.ns.Records.RELAYS = function() return 0 end, 3
+	w:Login(second) -- (1.4.0: back for the next round, ShortOfOne)
 	w:Run(c.ns.Records.DIGEST_EVERY + 120)
 	eq(Do(w, late, "Count", "b"), 1, "both holders' validations heard in this session")
 	eq(Do(w, late, "Pending", "b"), 0)
@@ -442,20 +495,650 @@ test("global records review: an answer declares the holder's key once and signs 
 	for i = 1, 4 do Take(w, c, Pair(w, a, b, "Krs" .. i)) end
 	eq(Do(w, c, "Count", "b"), 4)
 	w:Run(c.ns.Records.ANSWER_GAP + 1)
-	c.ns.Records.random = function() return 0 end
 	local D, signs = c.ns.Debts, 0
 	local Sign = D.Sign
 	D.Sign = function(...) signs = signs + 1 return Sign(...) end
+	-- (Changed on purpose, 1.4.0: no draw stub. The holder whose digest made the late client ask
+	-- answers it first, so c's digest goes first; and its answer comes at its slot, ANSWER_MIN +
+	-- score * ANSWER_SPREAD, so the world runs until it is on its way, a second at a time.)
+	assert(Do(w, c, "SendDigest", "b"))
 	-- The late client holds none of that day's records: an ask with no prefixes.
 	assert(w:As(late, late.ns.Arena.Send, "RA", "L", "b~d~" .. late.ns.Arena.B36(d) .. "~", { dist = "CHANNEL" }))
-	w:Run(c.ns.Records.ANSWER_MIN + 1)
-	assert(Do(w, c, "OutSize") > 0, "the answer is on its way, a message at a time")
+	local R = c.ns.Records
+	assert(RunUntil(w, R.ANSWER_MIN + R.ANSWER_SPREAD + 1, function() return Do(w, c, "OutSize") > 0 end, 1), "the answer is on its way, a message at a time")
 	assert(signs <= 2, "the key once and at most the first validation so far, not 8 signatures: " .. signs)
 	w:Run(120)
 	eq(Do(w, c, "OutSize"), 0)
 	eq(signs, 1 + 4, "one key declaration and one signature a validation")
 	eq(#w:Sent({ from = c, type = "RV" }), 4)
 	D.Sign = Sign
+	Errors(w)
+end)
+
+-- 1.4.0, the relay bars (Records.Bar): the author's character never relays a record and a client
+-- whose quiet presence is on sends nothing that says it is online; the King's client relays last.
+-- This world's borders are told who the author is, on each client after each login (the core's
+-- Borders.IsDevName, which Records asks: no arena file names him).
+local function TellBorders(w, c)
+	for _, client in ipairs(c and { c } or w.clients) do
+		rawset(client.ns, "Borders", { IsDevName = function(name) return client.ns.Workshop.IsAuthorName(name) == true end })
+	end
+end
+-- (A record's body goes in parts, EP: the pieces of an arena message over 255 bytes. Nothing but
+-- records goes in parts in these scenes.)
+local function SentKinds(w, c)
+	local out = {}
+	for _, kind in ipairs({ "RK", "RD", "RA", "RR", "RV", "RS", "RT", "EP" }) do out[kind] = #w:Sent({ from = c, type = kind }) end
+	return out
+end
+local function Draws(w)
+	for _, client in ipairs(w.clients) do client.ns.Records.random = function() return 0 end end
+end
+
+test("records: the author's character holds records but never relays one (no digest, record or validation); his own key still goes", function()
+	local w, _, b, c = Setup()
+	local author = w:Player(N.author)
+	TellBorders(w)
+	local body = Pair(w, author, b, "Kau1")
+	Keys(w, author, b)
+	Take(w, c, body)
+	Take(w, author, body)
+	eq(Do(w, author, "Count", "b"), 1, "he holds it")
+	-- A new session of his: his record names him, so his key goes after the login (KeyLater).
+	w:Logout(author) w:Login(author) TellBorders(w, author)
+	local before = SentKinds(w, author)
+	w:Logout(b)
+	local late = w:Player(N.bettor1)
+	Draws(w) -- every holder drawn, where a draw is still made
+	w:Run(c.ns.Records.DIGEST_EVERY + 300)
+	local after = SentKinds(w, author)
+	for _, kind in ipairs({ "RD", "RR", "EP", "RV", "RS", "RT" }) do eq(after[kind] - before[kind], 0, kind .. " from the author's client") end
+	assert(after.RK - before.RK >= 1, "his own key, declared after his login")
+	assert(#w:Sent({ from = c, type = "RD" }) >= 1, "another holder's digest went")
+	assert(#w:Sent({ from = late, type = "RA" }) >= 1, "the late client asked")
+	assert(#w:Sent({ from = c, type = "EP" }) >= 1 and #w:Sent({ from = c, type = "RV" }) >= 1, "another holder answered it")
+	Errors(w)
+end)
+
+test("records: a King holder whose quiet presence is on sends no records word: no key, digest, record or validation", function()
+	local w, _, b, c = Setup()
+	local king = w:Player(N.king, { guild = H.World.KING_GUILD, rank = 0 })
+	local body = Pair(w, king, b, "Kking1")
+	Keys(w, king, b)
+	Take(w, c, body)
+	Take(w, king, body)
+	eq(Do(w, king, "Count", "b"), 1, "he holds it")
+	-- A new session; his quiet presence turned on before his key would go (KeyLater).
+	w:Logout(king) w:Login(king)
+	eq(w:As(king, king.ns.SetQuietPresence, true, "records-test"), true, "the King may turn it on")
+	local before = SentKinds(w, king)
+	w:Logout(b)
+	local late = w:Player(N.bettor1)
+	Draws(w)
+	w:Run(c.ns.Records.DIGEST_EVERY + 300)
+	local after = SentKinds(w, king)
+	for _, kind in ipairs({ "RK", "RD", "RR", "EP", "RV", "RS", "RT" }) do eq(after[kind] - before[kind], 0, kind .. " from the quiet King's client") end
+	assert(#w:Sent({ from = late, type = "RA" }) >= 1, "the late client asked")
+	assert(#w:Sent({ from = c, type = "EP" }) >= 1 and #w:Sent({ from = c, type = "RV" }) >= 1, "another holder answered it")
+	-- Turned off: his key goes at the next tick.
+	eq(w:As(king, king.ns.SetQuietPresence, false, "records-test"), true)
+	w:Run(c.ns.Records.DIGEST_EVERY + 1)
+	assert(SentKinds(w, king).RK - before.RK >= 1, "his key, once it is off")
+	Errors(w)
+end)
+
+-- The author's paste is where a seal starts: his own signed word, not a relay. It still leaves his
+-- client (RS and its totals, RT), while a seal ask (a relay) is answered by the other holders.
+test("records: the author's pasted seal still leaves his client, though he answers no seal ask", function()
+	local w, _, _, c = Setup()
+	local author = w:Player(N.author)
+	TellBorders(w)
+	local month = Do(w, author, "MonthOf", w.clock) - 1
+	-- (This world has no signer of the author's RSA key; the seal's own check is the real round trip,
+	-- tests/records-seal-roundtrip.lua. Here his client takes the pasted text as signed.)
+	rawset(author.ns, "Sign", setmetatable({ Plausible = function() return true end, Verify = function() return true end }, { __index = author.ns.Sign }))
+	local hash = w:As(author, author.ns.Records.HashOf, "")
+	local seal = ("RS1~%d~%s~Alliance~b~%d~0~%s~%s"):format(w.clock, H.World.GROUP, month, hash, ("ab"):rep(64))
+	eq(Do(w, author, "Paste", seal), true)
+	w:Run(30)
+	eq(#w:Sent({ from = author, type = "RS" }), 1, "his seal went")
+	assert(#w:Sent({ from = author, type = "RT" }) >= 1, "its totals went")
+	-- An ask for that month's seal, once his own word is ANSWER_GAP old: no answer from him.
+	w:Run(c.ns.Records.ANSWER_GAP + 1)
+	assert(w:As(c, c.ns.Arena.Send, "RA", "L", "b~s~" .. c.ns.Arena.B36(month) .. "~-", { dist = "CHANNEL" }))
+	w:Run(30)
+	eq(#w:Sent({ from = author, type = "RS" }), 1, "no seal relayed by his client")
+	Errors(w)
+end)
+
+-- 1.4.0, the rounds (Records.Slot, no draw). The digests went by a draw: each holder sent its own
+-- with a chance of RELAYS / the army's addons (King.AddonsOnline). In an army of 300 with two
+-- holders online that was 3 in 300 each, a round with no digest was the rule, and a late client
+-- whose players were offline waited hours for the rankings. Each holder now has a slot every round.
+local function Army(client, size)
+	client.ns.King.AddonsOnline = function() return size end
+	client.ns.Records.random = function() return 0.5 end -- (a draw, where one is still made: lost at 3 in 300)
+end
+local function Small(client) client.ns.King.AddonsOnline = function() return 1 end end
+local function AskedDay(w, from, day)
+	local tag = "~b~d~" .. day .. "~"
+	for _, s in ipairs(w:Sent({ from = from, type = "RA" })) do if s.msg:find(tag, 1, true) then return true end end
+	return false
+end
+test("records: in an army of 300, two holders tell a late client what they hold within one round, with no draw", function()
+	local w, a, b, c = Setup()
+	local second = w:Player(N.bettor2)
+	Army(c, 300) Army(second, 300)
+	local body = Pair(w, a, b, "Kround1")
+	local day = c.ns.Arena.B36(math.floor(w.clock / 86400))
+	Keys(w, a, b)
+	Take(w, c, body)
+	Take(w, second, body)
+	w:Logout(a) w:Logout(b)
+	local late = w:Player(N.bettor1)
+	Army(late, 300)
+	local R = c.ns.Records
+	local window = w:As(c, R.DigestWindow)
+	eq(window, 300, "the round's window follows the army's size")
+	local start = w.clock
+	local askedAt = RunUntil(w, R.DIGEST_EVERY + window + 10, function() return AskedDay(w, late, day) end)
+	assert(#w:Sent({ from = c, type = "RD" }) + #w:Sent({ from = second, type = "RD" }) >= 1, "a holder's digest went this round")
+	assert(w:As(c, R.Lag).n + w:As(second, R.Lag).n >= 1, "its time from slot to wire is kept (the stats)")
+	assert(askedAt, "the late client asked for the record's day within one round")
+	-- ...and both holders answered it (no draw for the answers either): the body and two validations.
+	assert(RunUntil(w, start + R.DIGEST_EVERY + window + 120 - w.clock, function() return Do(w, late, "Count", "b") == 1 end), "the late client holds it within one round")
+	eq(Do(w, late, "Pending", "b"), 0)
+	Errors(w)
+end)
+
+-- (A review of the rounds: a digest heard silences ours only when it told the same of every day
+-- and month ours would. Holders whose digests lack a record never silence the one holder of it,
+-- even when their slots come first, round after round.)
+local STALE = { "Aldo", "Brin", "Cass", "Dara", "Edda", "Fenn", "Gale", "Hask", "Ivo", "Jory", "Kell" }
+test("records: the one holder of a record nobody else told always tells it, though stale holders' slots come first", function()
+	local w, a, b, empty = Setup()
+	w:Logout(empty) -- (no client here asks for what it lacks: the digests alone are watched)
+	local holders = {}
+	for i, first in ipairs(STALE) do holders[i] = w:Player(first .. " Tarrow") end
+	local common, extra = Pair(w, a, b, "Kstale1"), Pair(w, a, b, "Kstale2")
+	Keys(w, a, b)
+	local R = holders[1].ns.Records
+	-- The next round, and the holder whose slot in it comes last: the one that holds both records.
+	local round = math.floor(w.clock / R.DIGEST_EVERY) + 1
+	local function Score(c) return w:As(c, R.Score, "RD|b|" .. round, c.name) end
+	table.sort(holders, function(x, y) return Score(x) < Score(y) end)
+	local unique = holders[#holders]
+	for _, h in ipairs(holders) do Take(w, h, common) end
+	Take(w, unique, extra)
+	eq(Do(w, unique, "Count", "b"), 2)
+	-- (Its push is shut here, so that only its round's slot can tell it: a digest of its own a
+	-- moment ago that nobody heard, and a push gap longer than the test. The push has its own test.)
+	local send = unique.ns.Arena.Send
+	unique.ns.Arena.Send = function() return true end
+	assert(Do(w, unique, "SendDigest", "b"))
+	unique.ns.Arena.Send = send
+	unique.ns.Records.PUSH_GAP = 1e9
+	w:Logout(a) w:Logout(b)
+	local from, to = round * R.DIGEST_EVERY, (round + 1) * R.DIGEST_EVERY
+	w:Run(to - w.clock)
+	local function InRound(c, before)
+		local n = 0
+		for _, s in ipairs(w:Sent({ from = c, type = "RD" })) do if s.t >= from and s.t < (before or to) then n = n + 1 end end
+		return n
+	end
+	eq(InRound(unique), 1, "the holder of the only copy told it, once")
+	-- (Until it told it, the stale holders' round digests alone: about ELECT, the rest silenced. What
+	-- its digest then sets off, asks and pushes, is the catch-up's.)
+	local told = w:Sent({ from = unique, type = "RD" })
+	local stale = 0
+	for i = 1, #holders - 1 do stale = stale + InRound(holders[i], told[#told].t) end
+	assert(stale >= R.ELECT and stale <= R.ELECT + 1, "the stale holders' digests, about ELECT a round: " .. stale)
+	Errors(w)
+end)
+
+test("records: digests heard after a push was due that lack the same record never cancel it; two that tell it all do", function()
+	for _, case in ipairs({ { stale = true, pushes = 1 }, { stale = false, pushes = 0 } }) do
+		local w, a, b, c = Setup()
+		local others = {}
+		for i = 1, 3 do others[i] = w:Player(STALE[i] .. " Tarrow") end
+		local common, extra = Pair(w, a, b, "Kpush1"), Pair(w, a, b, "Kpush2")
+		Keys(w, a, b)
+		Take(w, c, common) Take(w, c, extra)
+		for i, o in ipairs(others) do
+			Take(w, o, common)
+			if not case.stale and i > 1 then Take(w, o, extra) end
+		end
+		local R = c.ns.Records
+		local pushes = 0
+		c.ns.Arena.Send = function(tag) if tag == "RD" then pushes = pushes + 1 end; return true end
+		-- The first digest lacks a record c holds: c's push is due. Two more digests come after it.
+		w:As(c, c.comm.handlers.RD, "CHANNEL", others[1].name, "RD~L1~" .. Do(w, others[1], "DigestBody", "b"))
+		w:Run(1)
+		for i = 2, 3 do w:As(c, c.comm.handlers.RD, "CHANNEL", others[i].name, "RD~L1~" .. Do(w, others[i], "DigestBody", "b")) end
+		w:Run(R.PUSH_MIN + R.PUSH_WINDOW + 1)
+		eq(pushes, case.pushes, case.stale and "stale digests silence nothing" or "two digests that told it all")
+		Errors(w)
+	end
+end)
+
+-- 1.4.0, who answers an ask (no draw). With a draw of 0 every holder answered every ask: nine
+-- holders, nine validations of one record and as many copies of its body. Now the holders whose
+-- digest made the late client ask answer it (and one whose digest goes while it waits); any other
+-- holder only as a fallback, when nothing came.
+test("records: an ask is answered by the holders whose digests made it, not by every holder", function()
+	local w, a, b, empty = Setup()
+	w:Logout(empty)
+	local holders = {}
+	for i = 1, 9 do holders[i] = w:Player(STALE[i] .. " Tarrow") end
+	local body = Pair(w, a, b, "Kelect1")
+	Keys(w, a, b)
+	for _, h in ipairs(holders) do Take(w, h, body) end
+	w:Logout(a) w:Logout(b)
+	local late = w:Player(N.bettor1)
+	Draws(w) -- (a draw of 0, where one is still made: every holder drawn)
+	local R = late.ns.Records
+	assert(RunUntil(w, R.DIGEST_EVERY + R.DIGEST_WINDOW_MAX + 120, function() return Do(w, late, "Count", "b") == 1 end), "the late client holds it")
+	eq(Do(w, late, "Pending", "b"), 0)
+	w:Run(R.FALLBACK_MIN + R.FALLBACK_SPREAD_MAX + R.KING_AFTER + 1) -- (any later answer would show)
+	-- Every holder that answered (the body, EP, or a validation, RV) had told its digest first.
+	local answered = 0
+	for _, h in ipairs(holders) do
+		local digests, first = w:Sent({ from = h, type = "RD" }), nil
+		for _, kind in ipairs({ "EP", "RV" }) do
+			for _, s in ipairs(w:Sent({ from = h, type = kind })) do if not first or s.t < first then first = s.t end end
+		end
+		if first then
+			answered = answered + 1
+			assert(digests[1] and digests[1].t <= first, h.name .. " answered without having told its digest")
+		end
+	end
+	assert(answered >= R.WITNESSES and answered <= R.ELECT + 1, "the holders that answered: " .. answered)
+	Errors(w)
+end)
+
+-- (A review of the election: the asker needs two validations from distinct holders. Holders whose
+-- digests made it ask and then left before answering leave it to the others, turn by turn, until
+-- the body and two validations came: not one fallback, which would leave it waiting for good.)
+test("records: when the holders whose digests made a late client ask leave before answering, the others answer it", function()
+	local w, a, b, empty = Setup()
+	w:Logout(empty)
+	local holders = {}
+	for i = 1, 5 do holders[i] = w:Player(STALE[i] .. " Tarrow") Army(holders[i], 300) end
+	local body = Pair(w, a, b, "Kfall1")
+	local day = holders[1].ns.Arena.B36(math.floor(w.clock / 86400))
+	Keys(w, a, b)
+	for _, h in ipairs(holders) do Take(w, h, body) end
+	w:Logout(a) w:Logout(b)
+	local late = w:Player(N.bettor1)
+	Army(late, 300)
+	local R = late.ns.Records
+	assert(RunUntil(w, R.DIGEST_EVERY + w:As(late, R.DigestWindow) + 10, function() return AskedDay(w, late, day) end, 1), "the late client asked")
+	local gone = {}
+	for _, h in ipairs(holders) do
+		if w:Sent({ from = h, type = "RD" })[1] then gone[h] = true w:Logout(h) end
+	end
+	assert(next(gone), "a holder whose digest made it ask left")
+	local spread = math.max(R.FALLBACK_SPREAD_MIN, math.min(R.FALLBACK_SPREAD_MAX, 300 / 2))
+	assert(RunUntil(w, R.FALLBACK_MIN + spread + 30, function() return Do(w, late, "Count", "b") == 1 end), "the others answered within a fallback's turn")
+	eq(Do(w, late, "Pending", "b"), 0)
+	local validators = 0
+	for _, h in ipairs(holders) do
+		if not gone[h] and w:Sent({ from = h, type = "RV" })[1] then validators = validators + 1 end
+	end
+	assert(validators >= R.WITNESSES, "two holders that stayed validated it: " .. validators)
+	Errors(w)
+end)
+
+-- (A review of the election: each client works its round's window out from what it sees of the
+-- army. The King's turn is fixed after the widest window any client may use, so a King whose own
+-- view is the narrowest still comes after every other holder: his digest, and his answer.)
+test("records: the King's client relays last, after the widest round and every other holder's turn, though his own window is the narrowest", function()
+	local w, a, b, empty = Setup()
+	w:Logout(empty)
+	local king = w:Player(N.king, { guild = H.World.KING_GUILD, rank = 0 })
+	local holder = w:Player(STALE[1] .. " Tarrow")
+	Small(king) Army(holder, 480)
+	local body = Pair(w, a, b, "Kking2")
+	local day = king.ns.Arena.B36(math.floor(w.clock / 86400))
+	Keys(w, a, b)
+	Take(w, king, body) Take(w, holder, body)
+	w:Logout(a) w:Logout(b)
+	local R = king.ns.Records
+	local round = math.floor(w.clock / R.DIGEST_EVERY) + 1
+	local base = round * R.DIGEST_EVERY
+	eq(w:As(king, R.DigestWindow), R.DIGEST_WINDOW_MIN, "his own window: the narrowest")
+	eq(w:As(king, R.Slot, "RD|b|" .. round, king.name, base, R.DIGEST_WINDOW_MIN, R.DIGEST_WINDOW_MAX), base + R.DIGEST_WINDOW_MAX + R.KING_AFTER)
+	local late = w:Player(N.bettor1)
+	Army(late, 480)
+	assert(RunUntil(w, R.DIGEST_EVERY + R.DIGEST_WINDOW_MAX + 2 * R.KING_AFTER + 600, function() return Do(w, late, "Count", "b") == 1 end), "the late client holds it")
+	local asked
+	for _, s in ipairs(w:Sent({ from = late, type = "RA" })) do if s.msg:find("~b~d~" .. day .. "~", 1, true) then asked = asked or s.t end end
+	local kingDigests, kingWitness = w:Sent({ from = king, type = "RD" }), w:Sent({ from = king, type = "RV" })
+	local holderDigests, holderWitness = w:Sent({ from = holder, type = "RD" }), w:Sent({ from = holder, type = "RV" })
+	assert(holderDigests[1] and holderWitness[1] and asked, "the other holder told it and answered first")
+	assert(kingDigests[1], "his digest went (one other holder alone told it)")
+	for _, s in ipairs(kingDigests) do
+		assert(s.t - math.floor(s.t / R.DIGEST_EVERY) * R.DIGEST_EVERY >= R.DIGEST_WINDOW_MAX + R.KING_AFTER, "his digest after the widest round")
+	end
+	assert(kingWitness[1] and kingWitness[1].t >= asked + R.DIGEST_WINDOW_MAX + R.KING_AFTER - 1, "his validation after every other holder's turn")
+	Errors(w)
+end)
+
+-- (A review of the election: one answer budget a holder, and one asker cannot spend it all.)
+local function Quiet()
+	-- Past this round's slots (an army of one: the narrowest window, DIGEST_WINDOW_MIN): no digest
+	-- here until the next round, so the asks below are the only jobs.
+	local w, a, b, c = Setup(math.floor(H.World.CLOCK / 600) * 600 + 130)
+	for _, client in ipairs(w.clients) do Small(client) end
+	return w, a, b, c
+end
+local function RawAsk(w, from, day)
+	assert(w:As(from, from.ns.Arena.Send, "RA", "L", "b~d~" .. from.ns.Arena.B36(day) .. "~", { dist = "CHANNEL" }))
+end
+test("records: a holder past its answer budget answers no ask, and one asker's asks cannot spend all of it", function()
+	for _, case in ipairs({ "budget", "asker" }) do
+		local w, a, b, c = Quiet()
+		Keys(w, a, b)
+		local today = math.floor(w.clock / 86400)
+		Take(w, c, Pair(w, a, b, "Kbud1"))
+		Take(w, c, Pair(w, a, b, "Kbud2", "1", w.clock - 86400))
+		eq(Do(w, c, "Count", "b"), 2)
+		w:Logout(a) w:Logout(b) -- (they would hold what c answers, and tell it)
+		local one, two = w:Player(N.bettor1), w:Player(N.bettor2)
+		Small(one) Small(two)
+		local R = c.ns.Records
+		if case == "budget" then R.BUDGET = 1 else R.ASKER_JOBS = 1 end
+		local turn = R.FALLBACK_MIN + R.FALLBACK_SPREAD_MIN + 1 -- (an army of one: the narrowest fallback spread)
+		local function Answers() return #w:Sent({ from = c, type = "RV" }) end
+		RawAsk(w, one, today) w:Run(turn)
+		eq(Answers(), 1, case .. ": the first job")
+		RawAsk(w, one, today - 1) w:Run(turn)
+		eq(Answers(), 1, case .. ": no answer past it")
+		assert((R.Stats()[case] or 0) >= 1, case .. " counted")
+		RawAsk(w, two, today - 1) w:Run(turn)
+		eq(Answers(), case == "budget" and 1 or 2, case == "budget" and "the whole budget spent" or "another asker is answered")
+		Errors(w)
+	end
+end)
+
+-- 1.4.0, the validations of one ask. A holder's validation waits on the records' low lane behind
+-- its answer's bodies (a message a second, while Comm's queue has room); meanwhile the other
+-- holders' validations of that record arrive. It went anyway: every holder that had queued one
+-- sent it. Now it is looked at again when its turn comes, and stays home once WITNESSES other
+-- holders' validations of that record were heard since the ask; validations heard before the ask
+-- silence nothing (the asker may not have taken them).
+local function Witnessing(w)
+	local a, b, c = w.clients[1], w.clients[2], w.clients[3]
+	local h1, h2 = w:Player(STALE[1] .. " Tarrow"), w:Player(STALE[2] .. " Tarrow")
+	local body = Pair(w, a, b, "Kwit" .. #w.clients)
+	local day = math.floor(w.clock / 86400)
+	Keys(w, a, b)
+	for _, h in ipairs({ c, h1, h2 }) do Take(w, h, body) end
+	-- (Each holder's key, heard by the others: a validation counts only from a sender whose key
+	-- this client holds, OnWitness.)
+	for _, h in ipairs({ c, h1, h2 }) do assert(Do(w, h, "SendKey")) end
+	w:Run(3)
+	w:Logout(a) w:Logout(b)
+	return c, h1, h2, body, day, w:As(c, c.ns.Records.RecordHash, "b", body)
+end
+-- c's low lane held (Comm's queue full, as Arena.ROOM reads it) while fn runs.
+local function Held(c, fn)
+	local size = c.ns.Comm.QueueSize
+	c.ns.Comm.QueueSize = function() return 99 end
+	local ok, err = pcall(fn)
+	c.ns.Comm.QueueSize = size
+	if not ok then error(err, 0) end
+end
+test("records: a holder whose validation waits on its low lane stays home once two others' validations of that record were heard since the ask", function()
+	local w = Quiet()
+	local c, h1, h2, body, day, hash = Witnessing(w)
+	local late = w:Player(N.bettor1)
+	Small(late)
+	local R = c.ns.Records
+	-- c's digest named that day: c answers the ask first (ANSWER_MIN + score * ANSWER_SPREAD).
+	assert(Do(w, c, "SendDigest", "b"))
+	w:Run(1)
+	local before = #w:Sent({ from = c, type = "RV" })
+	local asked
+	Held(c, function()
+		asked = w.clock
+		RawAsk(w, late, day)
+		w:Run(R.ANSWER_MIN + R.ANSWER_SPREAD + 1)
+		eq(#w:Sent({ from = c, type = "RV" }), before, "c's answer is waiting on its low lane")
+		assert(Do(w, c, "OutSize") >= 1, "c's validation is queued")
+		-- Meanwhile two other holders' validations of that record arrive.
+		for _, h in ipairs({ h1, h2 }) do assert(Do(w, h, "SendWitness", "b", body, day, true)) end
+		w:Run(5)
+		eq(Do(w, c, "WitnessesSince", "b", hash, asked), 2, "c heard two validations since the ask")
+	end)
+	w:Run(30)
+	eq(Do(w, c, "OutSize"), 0, "c's low lane went")
+	eq(#w:Sent({ from = c, type = "RV" }), before, "c's own validation stayed home")
+	assert(#w:Sent({ from = c, type = "EP" }) >= 1, "its body went (no copy of it was heard)")
+	Errors(w)
+end)
+
+-- (A validation still waiting when a newer ask of that record comes answers the newer one: the
+-- validations heard since the first ask silence nothing the newer ask needs.)
+test("records: a validation still waiting on the low lane when a newer ask comes answers the newer ask", function()
+	local w = Quiet()
+	local c, h1, h2, body, day = Witnessing(w)
+	local late = w:Player(N.bettor1)
+	Small(late)
+	local R = c.ns.Records
+	assert(Do(w, c, "SendDigest", "b"))
+	w:Run(1)
+	local before = #w:Sent({ from = c, type = "RV" })
+	Held(c, function()
+		RawAsk(w, late, day)
+		w:Run(R.ANSWER_MIN + R.ANSWER_SPREAD + 1)
+		for _, h in ipairs({ h1, h2 }) do assert(Do(w, h, "SendWitness", "b", body, day, true)) end
+		-- A newer ask once c's answer gap is over, its validation still waiting: c answers it too.
+		w:Run(R.ANSWER_GAP + 1)
+		RawAsk(w, late, day)
+		w:Run(R.ANSWER_MIN + R.ANSWER_SPREAD + 1)
+		eq(#w:Sent({ from = c, type = "RV" }), before, "still waiting")
+	end)
+	w:Run(30)
+	eq(#w:Sent({ from = c, type = "RV" }), before + 1, "it went, for the newer ask")
+	Errors(w)
+end)
+
+test("records: validations heard before an ask never silence a holder's answer to it", function()
+	local w = Quiet()
+	local c, h1, h2, body, day, hash = Witnessing(w)
+	local late = w:Player(N.bettor1)
+	Small(late)
+	local R = c.ns.Records
+	for _, h in ipairs({ h1, h2 }) do assert(Do(w, h, "SendWitness", "b", body, day, true)) end
+	w:Run(5)
+	eq(Do(w, c, "WitnessesSince", "b", hash, 0), 2, "c heard two validations, before the ask")
+	assert(Do(w, c, "SendDigest", "b"))
+	w:Run(1)
+	local before = #w:Sent({ from = c, type = "RV" })
+	Held(c, function()
+		RawAsk(w, late, day)
+		w:Run(R.ANSWER_MIN + R.ANSWER_SPREAD + 1)
+	end)
+	w:Run(30)
+	eq(#w:Sent({ from = c, type = "RV" }), before + 1, "c validated it for this ask")
+	Errors(w)
+end)
+
+-- (A review: the validations a holder heard are not the ones the asker took. The asker refuses one
+-- whose sender's key it does not hold yet, "witness-key": that sender's key declaration may come
+-- after it. The holders that heard two stay silent for that ask; the asker's next ask, later, is
+-- answered with fresh validations, and the record counts.)
+test("records: validations the asker refused (their senders' keys came after them) leave its next ask answered with fresh ones", function()
+	local w = Quiet()
+	local c, h1, h2, body, day = Witnessing(w)
+	local late = w:Player(N.bettor1)
+	Small(late)
+	local R = late.ns.Records
+	-- The late client holds the body, waiting for its players' keys (they are offline).
+	Do(w, late, "Take", "b", body, c.name, "relay") w:Run(3)
+	eq(Do(w, late, "Pending", "b"), 1)
+	-- Its first ask: every holder's key declaration is lost on its way to it.
+	local rk = late.comm.handlers.RK
+	late.comm.handlers.RK = function() end
+	local first = #w:Sent({ type = "RV" })
+	assert(Do(w, late, "AskWitness", "b", day))
+	w:Run(R.FALLBACK_MIN + R.FALLBACK_SPREAD_MIN + 5)
+	late.comm.handlers.RK = rk
+	eq(#w:Sent({ type = "RV" }) - first, R.WITNESSES, "two holders validated it; the third heard them and stayed home")
+	eq(Do(w, late, "Pending", "b"), 1, "the asker took neither: their senders' keys were not with it")
+	eq((Do(w, late, "Stats").refused["witness-key"] or 0), R.WITNESSES)
+	-- Its next ask, once the holders' answer gap is over: fresh validations, and the record counts.
+	w:Run(R.ANSWER_GAP)
+	local second = #w:Sent({ type = "RV" })
+	assert(Do(w, late, "AskWitness", "b", day))
+	w:Run(R.FALLBACK_MIN + R.FALLBACK_SPREAD_MIN + 5)
+	assert(#w:Sent({ type = "RV" }) - second >= R.WITNESSES, "fresh validations for the new ask")
+	eq(Do(w, late, "Count", "b"), 1, "taken")
+	eq(Do(w, late, "Pending", "b"), 0)
+	Errors(w)
+end)
+
+-- (A review's guard, on the late clients' side: with three, five or nine holders and four late
+-- clients logging in fifteen minutes apart (each a holder too once it took the records), every
+-- late client takes every record, none left waiting, and no ask draws more than three validations
+-- of one record, though the bodies queued before them make each holder's validations wait.)
+test("records: three, five or nine holders and four late clients fifteen minutes apart: every late client takes all, with three validations of a record an ask at most", function()
+	for _, holders in ipairs({ 3, 5, 9 }) do
+		local w, a, b, empty = Setup()
+		w:Logout(empty)
+		local list = {}
+		for i = 1, holders do list[i] = w:Player(STALE[i] .. " Tarrow") end
+		Keys(w, a, b)
+		local bodies = {}
+		for i = 1, 4 do bodies[i] = Pair(w, a, b, "Kguard" .. holders .. "x" .. i) end
+		for _, h in ipairs(list) do for _, body in ipairs(bodies) do Take(w, h, body) end end
+		w:Logout(a) w:Logout(b)
+		local R = list[1].ns.Records
+		local lates = {}
+		for i, name in ipairs({ N.bettor1, N.bettor2, STALE[10] .. " Tarrow", STALE[11] .. " Tarrow" }) do
+			lates[i] = w:Player(name)
+			w:Run(900)
+		end
+		for i, late in ipairs(lates) do
+			eq(Do(w, late, "Count", "b"), #bodies, holders .. " holders: late client " .. i .. " took every record")
+			eq(Do(w, late, "Pending", "b"), 0, holders .. " holders: late client " .. i .. " has none waiting")
+		end
+		-- Each validation answers the newest ask of its record's day before it.
+		local asks = {}
+		for _, s in ipairs(w:Sent({ type = "RA" })) do asks[#asks + 1] = s end
+		local per = {}
+		for _, s in ipairs(w:Sent({ type = "RV" })) do
+			local hash = s.msg:match("^RV~L1~b~(%x+)~")
+			local ask
+			for i, q in ipairs(asks) do if q.t <= s.t then ask = i end end
+			assert(ask, "a validation answers an ask")
+			local k = ask .. ":" .. hash
+			per[k] = (per[k] or 0) + 1
+			assert(per[k] <= 3, ("%d holders: %d validations of one record for one ask"):format(holders, per[k]))
+		end
+		Errors(w)
+	end
+end)
+
+-- 1.4.0, the asks a digest sets off. Every client that heard a digest lacking what it told asked at
+-- once: a hundred late clients, a hundred asks of one day, and as many answers waiting on each
+-- holder. Each ask now waits its turn (score × ASK_SPREAD) and stays home when an ask heard
+-- meanwhile asked for all it would: the answers go on the channel, to everyone. The bound: one
+-- ask, and those whose turns came within the delay from a turn to the wire (L: here the arena
+-- ticker's period, Arena.TICK) of it.
+local function Asks(w, day)
+	local n, tag = 0, "~b~d~" .. day .. "~"
+	for _, s in ipairs(w:Sent({ type = "RA" })) do if s.msg:find(tag, 1, true) then n = n + 1 end end
+	return n
+end
+-- (Forty clients here, a full client each: the scale runs are tests/arena/records-load.lua's.)
+test("records: forty empty clients that hear one digest ask for its day once, within the transport's delay, and every one of them takes the answer", function()
+	local w, a, b, c = Quiet()
+	local body = Pair(w, a, b, "Kmany1")
+	local day = c.ns.Arena.B36(math.floor(w.clock / 86400))
+	Take(w, c, body)
+	local lates = {}
+	for i = 1, 40 do lates[i] = w:Player(("Late%03d Tarrow"):format(i)) Small(lates[i]) end
+	-- (The players' keys, heard first-hand by every client: the answer's body alone admits it.)
+	Keys(w, a, b)
+	local R = c.ns.Records
+	assert(Do(w, c, "SendDigest", "b"))
+	w:Run(R.ASK_SPREAD + 2)
+	local bound = 1 + math.ceil(#lates * c.ns.Arena.TICK / R.ASK_SPREAD)
+	local asks = Asks(w, day)
+	assert(asks >= 1 and asks <= bound, ("asks of that day: %d, bound %d"):format(asks, bound))
+	for i, late in ipairs(lates) do
+		local merged = Do(w, late, "Stats").askMerged or 0
+		eq(merged + #w:Sent({ from = late, type = "RA" }), 1, "late client " .. i .. ": its ask went, or merged with one heard")
+	end
+	w:Run(R.ANSWER_MIN + R.ANSWER_SPREAD + 60)
+	for i, late in ipairs(lates) do eq(Do(w, late, "Count", "b"), 1, "late client " .. i .. " took the answer to the one ask") end
+	eq(Asks(w, day), asks, "nobody asked again")
+	Errors(w)
+end)
+
+-- (Merged only when the heard ask asked for all ours would: one that named a record this client
+-- lacks (its asker holds it) brings no copy of it, and ours goes.)
+test("records: an ask heard that named a record this client lacks never merges its own", function()
+	local w, a, b, c = Quiet()
+	local r1, r2 = Pair(w, a, b, "Kmerge1"), Pair(w, a, b, "Kmerge2")
+	local day = c.ns.Arena.B36(math.floor(w.clock / 86400))
+	local d = math.floor(w.clock / 86400)
+	local one, two = w:Player(N.bettor1), w:Player(N.bettor2)
+	Small(one) Small(two)
+	Keys(w, a, b)
+	Take(w, c, r1) Take(w, c, r2)
+	local R = c.ns.Records
+	-- The client whose turn comes first holds r1; the other holds nothing.
+	local round = math.floor(w.clock / R.DIGEST_EVERY)
+	local function Turn(x) return w:As(x, R.Score, "RA|b|" .. d .. "|" .. round, x.name) end
+	local first, second = one, two
+	if Turn(two) < Turn(one) then first, second = two, one end
+	Take(w, first, r1)
+	eq(Do(w, first, "Count", "b"), 1) eq(Do(w, second, "Count", "b"), 0)
+	w:Logout(a) w:Logout(b) -- (they hold nothing: their asks, naming nothing, would merge both)
+	assert(Do(w, c, "SendDigest", "b"))
+	w:Run(R.ASK_SPREAD + 2)
+	eq(#w:Sent({ from = first, type = "RA" }), 1, "the first asked, naming r1")
+	eq(#w:Sent({ from = second, type = "RA" }), 1, "the second asked too: the first's ask named r1, which it lacks")
+	w:Run(R.ANSWER_MIN + R.ANSWER_SPREAD + R.ANSWER_GAP + 60)
+	eq(Do(w, second, "Count", "b"), 2, "the second holds both")
+	eq(Do(w, first, "Count", "b"), 2, "the first holds both")
+	Errors(w)
+end)
+
+-- (The pushes: a digest that lacks what many holders hold made every holder that heard it push its
+-- own, when drawn (a draw of 0: all of them). Each now has a slot, PUSH_MIN + score × PUSH_WINDOW,
+-- and stays home once ELECT digests heard since told all its own would.)
+-- (A guard of the bound, not of a fault seen here: the harness delivers at once, and the first push
+-- heard silenced the old draw's other pushes too. In the game the delay from a turn to the wire let
+-- every drawn holder's push go.)
+test("records: twelve holders that hold what a digest lacks push at most a few digests back in a push gap", function()
+	local w, a, b, empty = Setup()
+	w:Logout(empty)
+	local holders = {}
+	for i = 1, 12 do holders[i] = w:Player(("Hold%02d Tarrow"):format(i)) Small(holders[i]) end
+	local lacking = w:Player(N.bettor1)
+	Small(lacking)
+	local common, extra = Pair(w, a, b, "Kpushes1"), Pair(w, a, b, "Kpushes2")
+	Keys(w, a, b)
+	for _, h in ipairs(holders) do Take(w, h, common) Take(w, h, extra) end
+	Take(w, lacking, common)
+	w:Logout(a) w:Logout(b)
+	Draws(w) -- (a draw of 0, where one is still made: every holder drawn)
+	local R = lacking.ns.Records
+	-- Past the holders' own push gap (their digests of a moment ago, none: they took the records
+	-- without telling), the lacking client's digest.
+	local start = w.clock
+	assert(Do(w, lacking, "SendDigest", "b"))
+	w:Run(R.PUSH_GAP - 1)
+	local pushes = 0
+	for _, h in ipairs(holders) do
+		for _, s in ipairs(w:Sent({ from = h, type = "RD" })) do if s.t >= start then pushes = pushes + 1 end end
+	end
+	local bound = R.ELECT + math.ceil(#holders * lacking.ns.Arena.TICK / R.PUSH_WINDOW) + 1
+	assert(pushes >= 1 and pushes <= bound, ("pushes in a push gap: %d, bound %d"):format(pushes, bound))
 	Errors(w)
 end)
 
@@ -480,5 +1163,122 @@ test("1.2.4 records: the duel adapter preserves GUID identity checks and adds a 
 	local entries = w:As(c, c.ns.ArenaLedger.Entries) eq(#entries, 1) eq(entries[1].fl, "dr")
 	eq(#w:As(c, c.ns.ArenaLedger.RecordMonth, Do(w, c, "MonthOf", w.clock)), 2)
 	w:Logout(c) w:Login(c) w:Run(15) eq(Do(w, c, "Count", "d"), 1)
+	Errors(w)
+end)
+
+-- 1.4.0: a duel taken through Records is kept at its own time (keptAt = its time: the 1.2.3 rule,
+-- LG.Counted), and its wait for the game's word on its fighters' GUIDs (GK_WAIT) was counted from
+-- keptAt too. A duel relayed to a client more than GK_WAIT after it was fought was never looked at
+-- again: it stayed history alone ("d"), out of every ranking, though the game knew both fighters a
+-- moment later. The wait now counts from when this client took it (waitAt); keptAt is unchanged.
+local function DuelEntry(w, c)
+	local entries = w:As(c, c.ns.ArenaLedger.Entries)
+	eq(#entries, 1)
+	return entries[1]
+end
+local function DuelRows(w, c)
+	return #w:As(c, c.ns.ArenaLedger.RankingView, "all", "A").rows
+end
+test("records: a duel relayed 20 minutes after it was fought is rated once the game knows its fighters, its place in the limits unchanged", function()
+	local w, a, b, c = Setup()
+	local body = DuelPair(w, a, b, "Frwait1")
+	local fought = w.clock
+	Keys(w, a, b)
+	w:Run(1200 - 3)
+	Do(w, c, "Take", "d", body, N.bettor1, "relay") w:Run(3)
+	eq(Do(w, c, "Count", "d"), 1)
+	local e = DuelEntry(w, c)
+	eq(e.fl, "d", "the game does not know its fighters yet: history alone")
+	eq(e.wait, "r")
+	eq(e.keptAt, fought, "the 1.2.3 rule: a relayed duel is kept at its own time")
+	eq(DuelRows(w, c), 0)
+	w:Run(300)
+	EnableGuidLookup(w)
+	w:Run(c.ns.ArenaLedger.GK_RECHECK + 5)
+	e = DuelEntry(w, c)
+	eq(e.fl, "dr", "rated once the game names both fighters")
+	eq(e.wait, nil)
+	eq(e.keptAt, fought, "its place in the day's and the pair's limits is still its own time")
+	eq(DuelRows(w, c), 2, "both fighters in the ranking view")
+	Errors(w)
+end)
+
+test("records: a duel relayed within GK_WAIT of its fight is still rated once the game knows its fighters", function()
+	local w, a, b, c = Setup()
+	local body = DuelPair(w, a, b, "Frwait2")
+	Keys(w, a, b)
+	w:Run(300)
+	Do(w, c, "Take", "d", body, N.bettor1, "relay") w:Run(3)
+	eq(DuelEntry(w, c).fl, "d")
+	w:Run(300)
+	EnableGuidLookup(w)
+	w:Run(c.ns.ArenaLedger.GK_RECHECK + 5)
+	eq(DuelEntry(w, c).fl, "dr")
+	eq(DuelRows(w, c), 2)
+	Errors(w)
+end)
+
+-- (1.4.0) A duel still waiting when its window ends gets a new one in each later session, once a
+-- session, GK_SESSIONS windows at most: the game may know its fighters then.
+test("records: a duel still waiting for its fighters' GUIDs is looked at again in a later session, in GK_SESSIONS windows at most", function()
+	local w, a, b, c = Setup()
+	local LG = c.ns.ArenaLedger
+	Keys(w, a, b)
+	Do(w, c, "Take", "d", DuelPair(w, a, b, "Frwait3"), N.bettor1, "relay") w:Run(3)
+	eq(DuelEntry(w, c).waits, 1, "its first window")
+	w:Run(LG.GK_WAIT + 60)
+	w:Logout(c) w:Login(c) w:Run(3)
+	eq(DuelEntry(w, c).waits, 2, "a new window in the next session")
+	-- (Once a session: the companion loading later in that session renews nothing more.)
+	w:Run(LG.GK_WAIT + 60)
+	w:As(c, c.ns.Fire, "ARENA_UI_LOADED") w:Run(3)
+	eq(DuelEntry(w, c).waits, 2, "one window a session")
+	w:Logout(c) w:Login(c) w:Run(3)
+	EnableGuidLookup(w)
+	w:Run(LG.GK_RECHECK + 5)
+	local e = DuelEntry(w, c)
+	eq(e.fl, "dr", "rated in a later session once the game knows its fighters")
+	eq(e.waits, 3)
+	Errors(w)
+
+	-- Past GK_SESSIONS windows it waits no more: history alone, until its halves are heard again.
+	w, a, b, c = Setup()
+	LG = c.ns.ArenaLedger
+	Keys(w, a, b)
+	Do(w, c, "Take", "d", DuelPair(w, a, b, "Frwait4"), N.bettor1, "relay") w:Run(3)
+	for i = 2, LG.GK_SESSIONS do
+		w:Run(LG.GK_WAIT + 60)
+		w:Logout(c) w:Login(c) w:Run(3)
+		eq(DuelEntry(w, c).waits, i)
+	end
+	w:Run(LG.GK_WAIT + 60)
+	w:Logout(c) w:Login(c) w:Run(3)
+	EnableGuidLookup(w)
+	w:Run(LG.GK_RECHECK + 5)
+	e = DuelEntry(w, c)
+	eq(e.waits, LG.GK_SESSIONS, "no window past the last")
+	eq(e.fl, "d"); eq(e.wait, "r")
+	Errors(w)
+end)
+
+-- 1.4.0: a crafting delivery's record was dated at noon UTC of its day (day * 86400 + 43200), and
+-- Records refuses a record dated more than AHEAD (two minutes) past the clock ("time"). Every
+-- delivery made before 11:58 UTC (before 08:58 in Brasilia) was refused by every client, its own
+-- signers' too, and never reached the crafting ranking. It is dated at the start of its day now:
+-- its day, id, content and month are the same, so clients of either version agree on it.
+test("records: a crafting delivery made before noon UTC is taken and counts in the crafting ranking", function()
+	local early = math.floor(H.World.CLOCK / 86400) * 86400 + 3 * 3600 -- 03:00 UTC
+	local w, requester, crafter, holder = Setup(early)
+	local body = CraftPair(w, requester, crafter, "craftearly1", 123, 5, 2)
+	Keys(w, requester, crafter)
+	local ok, why = Do(w, holder, "Take", "c", body, N.bettor1, "relay")
+	w:Run(3)
+	eq(Do(w, holder, "Count", "c"), 1, "taken: " .. tostring(ok) .. " " .. tostring(why))
+	eq((Do(w, holder, "Stats").refused.time or 0), 0, "never refused as dated ahead of the clock")
+	local rec = w:As(holder, holder.ns.CraftRanking.ReadRecord, body)
+	eq(rec.t, math.floor(early / 86400) * 86400, "dated at the start of its day")
+	eq(math.floor(rec.t / 86400), math.floor(early / 86400), "its day unchanged")
+	local rows = w:As(holder, holder.ns.CraftRanking.Current)
+	eq(#rows, 1); eq(rows[1].name, crafter.name); eq(rows[1].deliveries, 1)
 	Errors(w)
 end)

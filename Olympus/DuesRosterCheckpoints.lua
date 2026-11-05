@@ -50,7 +50,7 @@ function R.CurrentGM(guild)
 end
 local function Keeper() return Safe() and ns.DuesGrace and type(ns.DuesGrace.Keeper) == "function" and ns.DuesGrace.Keeper() end
 local function Primary()
-	local name = ns.TREASURER_CHARACTERS and ns.TREASURER_CHARACTERS[1]
+	local name = ns.TreasurerFull and ns.TreasurerFull() -- (1.3.4: the signed list's Treasurer where it names one)
 	return Name(name)
 end
 local function Identity() return table.concat({ ns.me, GetGuildInfo("player") or "", ns.group or "", ns.faction or "" }, "|") end

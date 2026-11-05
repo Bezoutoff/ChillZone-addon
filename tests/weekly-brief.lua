@@ -347,7 +347,8 @@ test("Weekly public brief: Board opens the existing Realm page, which is read-on
 	w:Guild(w.guild, 100)
 	w.entries = { { title = "Public raid night", at = w.clock + 3600 } }
 	local link
-	for _, row in ipairs(w:As(c.Board.Lines)) do if row.text:find(c.L.BRIEF_TITLE, 1, true) then link = row end end
+	-- (1.4.0: the Board's sections strip, Groups.lua's nav row, has buttons and no text of its own.)
+	for _, row in ipairs(w:As(c.Board.Lines)) do if row.text and row.text:find(c.L.BRIEF_TITLE, 1, true) then link = row end end
 	assert(link and link.onClick, "a public summary entry on the existing Board")
 	link.onClick(); eq(w.page, "weeklybrief")
 	local page = c.RealmPages[1]

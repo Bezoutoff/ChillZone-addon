@@ -161,16 +161,7 @@ test("companion bridge affairs (931): every section of the tabs of affairs is re
 	eq(select(2, B.RegisterSection("ChatRooms", 1, F)), "name", "a capital first is refused")
 	eq(select(2, B.RegisterSection("chat rooms", 1, F)), "name")
 	eq(select(2, B.RegisterSection("chatRooms", 1, F)), "taken", "the affairs' file holds it")
-	-- The private sidecar knows every tab's section, both lanes' (OlympusCompanionBridge/Checkpoint.lua).
-	local text = assert(io.open(ROOT .. "OlympusCompanionBridge/Checkpoint.lua")):read("*a")
-	local known = text:match("local KNOWN_SECTIONS = (%b{})")
-	assert(known, "KNOWN_SECTIONS")
-	for _, name in ipairs({ "guilds", "rankings", "self", "stats", "wanted", "realm", "roster", "church", "games", "profile",
-		"crafting", "crafters", "treasury", "decrees", "agenda", "notices", "watch", "chatRooms" }) do
-		assert(known:find("[{,%s]" .. name .. " = 1"), "the sidecar knows " .. name)
-	end
-	local readme = assert(io.open(ROOT .. "OlympusCompanionBridge/README.md")):read("*a")
-	for _, name in ipairs(AFFAIRS) do assert(readme:find("`" .. name .. "`", 1, true), "README names " .. name) end
+	-- (1.4.0: that the Companion's bridge addon saves each of them is checked in its own repository.)
 	local toc = assert(io.open(ROOT .. "Olympus/Olympus.toc")):read("*a")
 	-- (931: the Companion's section files, BridgeSections.lua's helpers first, then the people tabs'
 	-- file and this one, which needs neither of the other two's sections.)

@@ -91,7 +91,12 @@ test("global census: a trusted holder restores normalized guild counts to a late
 	eq(s.guilds[1].name, "Olympus Dawn"); eq(s.guilds[1].g.relayed, true)
 	eq(s.guilds[1].g.leader, nil, "leadership is deliberately not relayed as census authority")
 	late.ns.Church.IsLedgerRelay = function() return false end
-	eq(late.D.ReceiveGlobalCensus("CHANNEL", "Stranger-Realm", payload), false, "an untrusted snapshot is refused")
+	-- 1.4.0 (the author's witness rule, 10-20 and 11-03): a snapshot of someone who is not a trusted
+	-- relay is no longer refused outright; each of its rows is that person's witness. One witness
+	-- alone changes nothing, here a newer, larger size of the guild.
+	local lone = ("CG~1~S~%d~Olympus Dawn,999,80,462,%d"):format(late.clock, late.clock + 60)
+	eq(late.D.ReceiveGlobalCensus("CHANNEL", "Stranger-Realm", lone), true, "a stranger's snapshot is heard as his witness")
+	eq(late.D.Summary().characters, 987, "one witness alone moves nothing")
 end)
 
 test("global census: an ordinary late client may ask a trusted holder for the public snapshot", function()
@@ -164,11 +169,277 @@ test("global census: a trusted holder's snapshot really reaches the transport's 
 		for _ = 1, #pieces * 2 do clock = clock + 2; C.Pump() end
 		eq(#sent, 1, "no piece after his trust went")
 		eq(C.QueueSize(), 0, "the rest dropped, not left waiting")
-		eq(holder.D.SendGlobalCensus(), false, "an untrusted client sends no snapshot")
+		-- 1.4.0: a member that is no trusted relay may answer too (the witness path, tested below);
+		-- a client that is neither sends nothing.
+		holder.ns.IsMember = function() return false end
+		eq(holder.D.SendGlobalCensus(), false, "a client neither trusted nor a member sends no snapshot")
 		eq(C.QueueSize(), 0)
 	end)
 	C_ChatInfo, GetChannelName, GetTime = saved.info, saved.channel, saved.time
 	if not ok then error(err, 0) end
+end)
+
+-- 1.4.0, the witnesses (the author, 10-20: "uma pessoa vale uma testemunha... confirmado com 1
+-- moderador ou 2+ pessoas concordando", 30 minutes, max(5, 5%); and 11-03: "se múltiplas pessoas me
+-- mandam números com os mesmos dados, eu vou confiar"). A world with no trusted relay at all, as on a
+-- launch realm before any list is signed for it.
+local function WitnessWorld()
+	local w = CensusWorld()
+	w.ns.Church = { IsLedgerRelay = function() return false end }
+	w.ns.Alts = nil
+	w.ns.me = "Late-Realm"
+	w.ns.IsMember = function() return true end
+	return w
+end
+local function Snapshot(w, rows)
+	local out = {}
+	for _, r in ipairs(rows) do out[#out + 1] = ("%s,%d,%d,%d,%d"):format(r[1], r[2], r[3] or 50, r[4] or 300, r[5] or w.clock) end
+	return ("CG~1~S~%d~%s"):format(w.clock, table.concat(out, ";"))
+end
+
+test("global census (1.4.0): two people's agreeing rows confirm a guild on a client that never heard its reporter; one alone does not", function()
+	local w = WitnessWorld()
+	eq(w.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(w, { { "Olympus Dawn", 640 } })), true)
+	eq(w.D.Summary().characters, 0, "one witness")
+	eq(w.D.ReceiveGlobalCensus("CHANNEL", "Second-Realm", Snapshot(w, { { "Olympus Dawn", 644, 50, 300, w.clock - 600 } })), true)
+	local s = w.D.Summary()
+	eq(s.characters, 640, "two people agree (within 5 and half an hour): the newer of the two is taken")
+	eq(s.guilds[1].g.relayed, true, "shown as a relayed row, never as the guild's own report")
+	eq(w.D.GlobalWitnesses("Olympus Dawn"), 2)
+	eq(next(w.ns.rdb.guilds), nil, "no census authority comes of it")
+end)
+
+test("global census (1.4.0): rows that disagree in size or time, and one person's two characters, confirm nothing", function()
+	local w = WitnessWorld()
+	w.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(w, { { "Olympus Dawn", 640 } }))
+	w.D.ReceiveGlobalCensus("CHANNEL", "Second-Realm", Snapshot(w, { { "Olympus Dawn", 700 } }))
+	eq(w.D.Summary().characters, 0, "640 and 700 are more than max(5, 5%) apart")
+	local far = WitnessWorld()
+	far.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(far, { { "Olympus Dawn", 640, 50, 300, far.clock } }))
+	far.D.ReceiveGlobalCensus("CHANNEL", "Second-Realm", Snapshot(far, { { "Olympus Dawn", 640, 50, 300, far.clock - 31 * 60 } }))
+	eq(far.D.Summary().characters, 0, "observed more than half an hour apart")
+	local alts = WitnessWorld()
+	alts.ns.Alts = { Group = function(name)
+		if name == "Main-Realm" or name == "Alt-Realm" then return { main = "Main-Realm", members = {} } end
+	end }
+	alts.D.ReceiveGlobalCensus("CHANNEL", "Main-Realm", Snapshot(alts, { { "Olympus Dawn", 640 } }))
+	alts.D.ReceiveGlobalCensus("CHANNEL", "Alt-Realm", Snapshot(alts, { { "Olympus Dawn", 640 } }))
+	eq(alts.D.Summary().characters, 0, "a player's alt is the same witness as his main")
+	alts.D.ReceiveGlobalCensus("CHANNEL", "Other-Realm", Snapshot(alts, { { "Olympus Dawn", 641 } }))
+	eq(alts.D.Summary().characters, 641, "a second person confirms it")
+end)
+
+test("global census (1.4.0): our own direct row is one witness, so one member's newer agreeing row moves the guild forward", function()
+	local w = WitnessWorld()
+	w.ns.rdb.guilds["Olympus Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock - 1200, st = w.clock - 1200 }
+	w.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(w, { { "Olympus Dawn", 646, 41 } }))
+	local s = w.D.Summary()
+	eq(s.characters, 646, "ours (20 minutes old) and his agree: his newer row is shown")
+	w.D.ReceiveGlobalCensus("CHANNEL", "Second-Realm", Snapshot(w, { { "Olympus Dawn", 900, 41 } }))
+	eq(w.D.Summary().characters, 646, "a lone row far from every other changes nothing")
+end)
+
+test("global census (1.4.0): a late client ends with the same totals as the members it heard, whatever the order", function()
+	local rows = { { "Olympus Dawn", 640 }, { "Olympus Dusk", 980 }, { "Olympus Noon", 12, 5 } }
+	local function Total(order)
+		local w = WitnessWorld()
+		for _, who in ipairs(order) do w.D.ReceiveGlobalCensus("CHANNEL", who, Snapshot(w, rows)) end
+		return w.D.Summary().characters
+	end
+	eq(Total({ "First-Realm", "Second-Realm" }), 1632)
+	eq(Total({ "Second-Realm", "First-Realm", "Third-Realm" }), 1632)
+	-- Agreeing rows of the same time but slightly different sizes: every client shows the same one.
+	local function Shown(order)
+		local w = WitnessWorld()
+		for _, e in ipairs(order) do w.D.ReceiveGlobalCensus("CHANNEL", e[1], Snapshot(w, { { "Olympus Dawn", e[2] } })) end
+		return w.D.Summary().characters
+	end
+	eq(Shown({ { "First-Realm", 640 }, { "Second-Realm", 643 } }), 643)
+	eq(Shown({ { "Second-Realm", 643 }, { "First-Realm", 640 } }), 643)
+	eq(Shown({ { "Third-Realm", 641 }, { "Second-Realm", 643 }, { "First-Realm", 640 } }), 643)
+end)
+
+test("global census (1.4.0): an ask carries what its client holds; a member answers one behind it, late and announced, and holds back after two answers or a trusted one", function()
+	local function Holder()
+		local w = WitnessWorld()
+		w.ns.me = "Holder-Realm"
+		w.sent = {}
+		w.ns.Comm = {
+			Send = function(dist, text) w.sent[#w.sent + 1] = { kind = "send", dist = dist, text = text } return true end,
+			SendChunked = function(payload, _, dist) w.sent[#w.sent + 1] = { kind = "chunked", dist = dist, text = payload } return true end,
+		}
+		w.ns.rdb.guilds["Olympus Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock, st = w.clock }
+		w.ns.rdb.guilds["Olympus Dusk"] = { total = 980, online = 70, avgLevel = 31, t = w.clock, st = w.clock }
+		return w
+	end
+	-- What the ask says.
+	local asker = Holder()
+	asker.D.AskGlobalCensus()
+	eq(asker.sent[1].text, ("CG~1~Q~%d~2~%d"):format(asker.clock, asker.clock), "two guilds, the newest observed now")
+	-- Behind: answered after the members' delay, a claim first, then the snapshot.
+	local h = Holder()
+	eq(h.D.ReceiveGlobalCensus("CHANNEL", "Latecomer-Realm", ("CG~1~Q~%d~0~0"):format(h.clock)), true)
+	eq(#h.timers, 1, "one answer scheduled")
+	assert(h.timers[1].seconds >= h.D.MEMBER_ANSWER_AFTER, "a member answers after the trusted relays' 2-9 s")
+	h.Run()
+	eq(#h.sent, 2)
+	eq(h.sent[1].text, ("CG~1~C~%d"):format(h.clock), "the claim first")
+	assert(h.sent[2].text:find("^CG~1~S~"), "then the snapshot")
+	assert(h.sent[2].text:find("Olympus Dawn,640,40,300", 1, true) and h.sent[2].text:find("Olympus Dusk,980,70,310", 1, true))
+	-- Not behind: no answer.
+	local even = Holder()
+	even.D.ReceiveGlobalCensus("CHANNEL", "Latecomer-Realm", ("CG~1~Q~%d~2~%d"):format(even.clock, even.clock))
+	eq(#even.timers, 0, "the asker holds as much: nothing to send")
+	-- A 1.3.3 ask says nothing of what it holds: answered.
+	local old = Holder()
+	old.D.ReceiveGlobalCensus("CHANNEL", "Latecomer-Realm", ("CG~1~Q~%d"):format(old.clock))
+	eq(#old.timers, 1)
+	-- Two answers heard meanwhile (two claims): it holds back.
+	local quiet = Holder()
+	quiet.D.ReceiveGlobalCensus("CHANNEL", "Latecomer-Realm", ("CG~1~Q~%d~0~0"):format(quiet.clock))
+	quiet.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", ("CG~1~C~%d"):format(quiet.clock))
+	quiet.D.ReceiveGlobalCensus("CHANNEL", "Second-Realm", ("CG~1~C~%d"):format(quiet.clock))
+	quiet.Run()
+	eq(#quiet.sent, 0, "two members answered already")
+	-- One trusted answer heard meanwhile: it holds back too.
+	local relayed = Holder()
+	relayed.ns.Church.IsLedgerRelay = function(name) return name == "Council-Realm" end
+	relayed.D.ReceiveGlobalCensus("CHANNEL", "Latecomer-Realm", ("CG~1~Q~%d~0~0"):format(relayed.clock))
+	relayed.D.ReceiveGlobalCensus("CHANNEL", "Council-Realm", Snapshot(relayed, { { "Olympus Dawn", 640 } }))
+	relayed.Run()
+	eq(#relayed.sent, 0, "a trusted relay answered")
+	-- Our own claim or ask echoed back by the channel is not someone else's.
+	local echo = Holder()
+	echo.D.ReceiveGlobalCensus("CHANNEL", "Latecomer-Realm", ("CG~1~Q~%d~0~0"):format(echo.clock))
+	echo.D.ReceiveGlobalCensus("CHANNEL", "Holder-Realm", ("CG~1~C~%d"):format(echo.clock))
+	echo.D.ReceiveGlobalCensus("CHANNEL", "Holder-Realm", ("CG~1~C~%d"):format(echo.clock))
+	echo.Run()
+	eq(#echo.sent, 2, "its own echoes do not hold it back")
+	-- Quiet presence, or not a member: no answer.
+	local hidden = Holder()
+	hidden.ns.QuietPresence = function() return true end
+	hidden.D.ReceiveGlobalCensus("CHANNEL", "Latecomer-Realm", ("CG~1~Q~%d~0~0"):format(hidden.clock))
+	eq(#hidden.timers, 0)
+	eq(hidden.D.SendGlobalCensus(), false)
+end)
+
+test("global census (1.4.0): asks at login, again after GLOBAL_ASK_AGAIN, then every half hour", function()
+	local w = WitnessWorld()
+	local every
+	w.ns.Every = function(seconds, where, fn) every = { seconds = seconds, where = where } end
+	w.ns.Comm = { Handle = function() end }
+	w.Fire("INIT")
+	local delays = {}
+	for _, t in ipairs(w.timers) do if t.where:find("global census ask") then delays[#delays + 1] = t.seconds end end
+	table.sort(delays)
+	eq(#delays, 2)
+	eq(delays[1], 20)
+	eq(delays[2], 20 + w.D.GLOBAL_ASK_AGAIN)
+	eq(every and every.seconds, 30 * 60)
+end)
+
+-- 1.4.0, every server's numbers (CX): a world on a launch realm group.
+local function GroupWorld(me)
+	local w = WitnessWorld()
+	w.ns.me = me or "Late-Realm"
+	w.ns.db = {}
+	w.ns.group, w.ns.faction = "Launchpve", "Alliance"
+	w.sent = {}
+	w.ns.Comm = {
+		Send = function(dist, text) w.sent[#w.sent + 1] = text return true end,
+		SendChunked = function(payload) w.sent[#w.sent + 1] = payload return true end,
+	}
+	return w
+end
+local function Say(w, rows)
+	local out = {}
+	for _, r in ipairs(rows) do out[#out + 1] = ("%s|%s|%d|%d|%d|%d"):format(r[1], r[2] or "Alliance", r[3], r[4] or r[3], r[5] or 3, r[6] or w.clock) end
+	return ("CX~1~S~%d~%s"):format(w.clock, table.concat(out, ";"))
+end
+
+test("census groups (1.4.0): our own look at our realm group is kept and carried to another group, where it is said; ours is never said where everyone sees it live", function()
+	local w = GroupWorld("Traveller-Realm")
+	w.ns.rdb.guilds["Olympus Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock, st = w.clock }
+	eq(w.D.RecordGroupCensus(), true)
+	local kept = w.ns.db.groupCensus["Alliance|Launchpve"]
+	eq(kept.characters, 640); eq(kept.src, "own"); eq(kept.guilds, 1)
+	eq(w.D.GroupCensusPayload(), nil, "on its own group: nothing to say")
+	-- The same account on another group (a PvP character): it says the PvE group's numbers there.
+	w.ns.group = "Launchpvp"
+	w.clock = w.clock + 600
+	local said = w.D.GroupCensusPayload()
+	eq(said, ("CX~1~S~%d~Launchpve|Alliance|640|640|1|%d"):format(w.clock, w.clock - 600))
+	eq(w.D.SayGroupCensus(), true)
+	-- Something it heard here lately, as new as its own: not said again.
+	w.D.ReceiveGroupCensus("CHANNEL", "Other-Realm", Say(w, { { "Launchpve", "Alliance", 641, 641, 1, w.clock - 600 } }))
+	eq(w.D.GroupCensusPayload(), nil, "heard here already")
+end)
+
+test("census groups (1.4.0): another group's numbers: a moderator's alone, two people agreeing, or one person's listed grey and never counted; ours and the beta's never taken", function()
+	local w = GroupWorld()
+	w.D.ReceiveGroupCensus("CHANNEL", "First-Realm", Say(w, { { "Launchpvp", "Alliance", 3000, 2500 } }))
+	local g = w.D.Groups()
+	eq(g.characters, 0, "one person: not counted")
+	eq(#g.rows, 1); eq(g.rows[1].counted, false); eq(g.rows[1].src, "heard")
+	w.D.ReceiveGroupCensus("CHANNEL", "Second-Realm", Say(w, { { "Launchpvp", "Alliance", 3100, 2600, 3, w.clock - 3600 } }))
+	g = w.D.Groups()
+	eq(g.characters, 3000, "two people agree (an hour apart, within 10%): the newer is counted")
+	eq(g.rows[1].src, "witnessed")
+	-- A moderator's alone, newer.
+	w.ns.Church.IsLedgerRelay = function(name) return name == "Council-Realm" end
+	w.clock = w.clock + 60
+	w.D.ReceiveGroupCensus("CHANNEL", "Council-Realm", Say(w, { { "Launchpvp", "Alliance", 3050, 2550 } }))
+	eq(w.D.Groups().characters, 3050)
+	-- Far apart in size: no agreement.
+	local far = GroupWorld()
+	far.D.ReceiveGroupCensus("CHANNEL", "First-Realm", Say(far, { { "Launchpvp", "Alliance", 3000 } }))
+	far.D.ReceiveGroupCensus("CHANNEL", "Second-Realm", Say(far, { { "Launchpvp", "Alliance", 3500 } }))
+	eq(far.D.Groups().characters, 0)
+	-- Our own group as someone else says it: we count it live, never from a word.
+	local ours = GroupWorld()
+	ours.D.ReceiveGroupCensus("CHANNEL", "First-Realm", Say(ours, { { "Launchpve", "Alliance", 9000 } }))
+	ours.D.ReceiveGroupCensus("CHANNEL", "Second-Realm", Say(ours, { { "Launchpve", "Alliance", 9000 } }))
+	eq(next(ours.ns.db.groupCensus or {}), nil); eq(next(ours.ns.db.groupHeard or {}), nil)
+	-- The beta's realms, on a launch realm: neither taken nor listed.
+	local beta = GroupWorld()
+	beta.D.ReceiveGroupCensus("CHANNEL", "First-Realm", Say(beta, { { "ClassicBetaPvP+ClassicBetaPvP2", "Alliance", 80000 } }))
+	beta.D.ReceiveGroupCensus("CHANNEL", "Second-Realm", Say(beta, { { "ClassicBetaPvP+ClassicBetaPvP2", "Alliance", 80000 } }))
+	eq(#beta.D.Groups().rows, 0)
+	-- Malformed or out of bounds: refused.
+	eq(beta.D.ReceiveGroupCensus("CHANNEL", "First-Realm", ("CX~1~S~%d~Bad|Elves|10|10|1|%d"):format(beta.clock, beta.clock)), true)
+	eq(#beta.D.Groups().rows, 0, "an unknown faction is no row")
+	eq(beta.D.ReceiveGroupCensus("CHANNEL", "First-Realm", ("CX~1~S~%d~Launchpvp|Alliance|10|11|1|%d"):format(beta.clock, beta.clock)), true)
+	eq(#beta.D.Groups().rows, 0, "more people than characters is no row")
+	eq(beta.D.ReceiveGroupCensus("WHISPER", "First-Realm", Say(beta, { { "Launchpvp", "Alliance", 10 } })), false, "the channel only")
+end)
+
+test("census groups (1.4.0): Data.BetaOnLaunch: what the account noted on the beta's realm group, or before 1.4.0 (no group), never applies on a launch group; everything applies on the beta's", function()
+	local D, BETA = ns.Data, "ClassicBetaPvP+ClassicBetaPvP2"
+	eq(D.BetaOnLaunch(BETA, "Launchpvp"), true, "the beta's, on a launch group")
+	eq(D.BetaOnLaunch("ClassicBetaPvP2", "Launchpvp+Launchpve"), true, "one of its realms")
+	eq(D.BetaOnLaunch(nil, "Launchpvp"), true, "noted before 1.4.0: the beta's")
+	eq(D.BetaOnLaunch("", "Launchpvp"), true)
+	eq(D.BetaOnLaunch("Launchpvp", "Launchpvp"), false, "a launch group's own")
+	eq(D.BetaOnLaunch("Launchpve", "Launchpvp"), false, "another launch group's: not the beta's")
+	eq(D.BetaOnLaunch(nil, BETA), false, "on the beta everything applies")
+	eq(D.BetaOnLaunch("Launchpvp", "ClassicBetaPvP"), false)
+	eq(D.BetaOnLaunch(BETA, nil), true, "our group not known yet: the beta's stays out")
+end)
+
+test("census groups (1.4.0): our own look is kept at logout only after the census was rebuilt, never a half-heard count", function()
+	local w = GroupWorld()
+	local onLogout
+	w.ns.RegisterEvent = function(event, fn) if event == "PLAYER_LOGOUT" then onLogout = fn end end
+	w.Fire("LOGIN")
+	assert(onLogout, "a logout handler")
+	w.ns.rdb.guilds["Olympus Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock, st = w.clock }
+	w.ns.SafeCall = function(_, fn, ...) return fn(...) end
+	w.ns.Comm = { loginAt = w.clock - 60 }
+	onLogout()
+	eq(w.ns.db.groupCensus, nil, "a minute after login: not kept")
+	w.ns.Comm.loginAt = w.clock - w.D.CROWN_AFTER - 1
+	onLogout()
+	eq(w.ns.db.groupCensus["Alliance|Launchpve"].characters, 640)
 end)
 
 -- Two values alike, tables compared value by value whatever their identity; the first difference.
@@ -504,6 +775,26 @@ local function GuildOf(alts, name)
 	end
 	error("missing group member " .. name)
 end
+
+-- 1.4.0 (the author, 11-03: "os números do beta não devem ser utilizados"): this account's links
+-- are account-wide, so the beta's came along to the launch realms; matched by guild name alone, a
+-- beta pair in guilds named like launch guilds took people off the launch count.
+test("alts (1.4.0): this account's links of another realm group (the beta's, on a launch realm) take nobody off here", function()
+	WithAlts(function(w, Client)
+		local c = Client("Main Guy-Realm", true)
+		local counted = { ["olympus old"] = true, ["olympus main"] = true }
+		c.group = "Realm"
+		eq(c.Alts.Duplicates(counted), 1, "on its own group the pair is one person")
+		assert(c.Alts.Group("Alt Guy-Realm"), "and a group")
+		-- (A character of the launch realm: its realm and its group are both the launch realm's. A
+		-- character of our own realm is always ours, so the realm moves with the group.)
+		c.realm, c.group = "Launchrealm", "Launchrealm"
+		eq(c.Alts.Duplicates(counted), 0, "on another realm group, nobody taken off")
+		eq(c.Alts.Group("Alt Guy-Realm"), nil, "and no group shown")
+		c.group = nil
+		eq(c.Alts.Duplicates(counted), 1, "no group known yet: as before")
+	end)
+end)
 
 test("alts: a live guild change revises and sends the claim, refreshing both clients' counts", function()
 	WithAlts(function(w, Client)

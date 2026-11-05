@@ -242,6 +242,60 @@ function Army.Matrix(frame, pause)
 	return matrix
 end
 
+-- 1.4.0: the drawing of a QR code, here since Olympus Link moved to its own addon (Olympus_Link):
+-- these were its helpers (Link.Rects, Link.PixelSize, Link.ModulePixels, Link.QUIET), which this
+-- window drew with while Link.lua shipped in this folder.
+Army.QUIET = 4 -- modules of white around the code
+
+-- The dark modules as few rectangles: the runs of each row, a run the next row repeats growing
+-- down. { x, y, w, h } in modules from the top left (0-based).
+function Army.Rects(matrix)
+	local n, out, open = #matrix, {}, {}
+	for y = 1, n do
+		local nextOpen, x = {}, 1
+		while x <= n do
+			if matrix[x][y] > 0 then
+				local x2 = x
+				while x2 < n and matrix[x2 + 1][y] > 0 do x2 = x2 + 1 end
+				local k = x * 1000 + x2
+				local rect = open[k]
+				if rect then
+					rect.h = rect.h + 1
+				else
+					rect = { x = x - 1, y = y - 1, w = x2 - x + 1, h = 1 }
+					out[#out + 1] = rect
+				end
+				nextOpen[k] = rect
+				x = x2 + 1
+			else
+				x = x + 1
+			end
+		end
+		open = nextOpen
+	end
+	return out
+end
+
+-- UI units of one screen pixel for this frame, and the screen's height in pixels.
+function Army.PixelSize(f)
+	local h
+	if GetPhysicalScreenSize then h = select(2, GetPhysicalScreenSize()) end
+	h = tonumber(h) or 0
+	if h <= 0 then h = 1080 end
+	local scale = f and f.GetEffectiveScale and f:GetEffectiveScale() or 1
+	if not scale or scale <= 0 then scale = 1 end
+	return 768 / h / scale, h
+end
+
+-- Screen pixels per module: about half the screen's height for the whole code; 4 at least when
+-- the window still fits on the screen, else 3.
+function Army.ModulePixels(modules, screenH, chromePx)
+	screenH = tonumber(screenH) or 1080
+	local want = math.max(4, math.floor(screenH * 0.5 / modules))
+	local room = math.floor((screenH - (chromePx or 0)) / modules)
+	return math.max(3, math.min(want, room))
+end
+
 local function Monotonic()
 	if type(GetTimePreciseSec) == "function" then return tonumber(GetTimePreciseSec()) or 0 end
 	if type(GetTime) == "function" then return tonumber(GetTime()) or 0 end
@@ -342,11 +396,11 @@ end
 function Army.Cancel(reason) return Cancel(reason) end
 
 local function Render(f, matrix, part, total)
-	local rects = ns.Link.Rects(matrix)
-	local modules, quiet = #matrix, ns.Link.QUIET or 4
-	local px, screenH = ns.Link.PixelSize(f)
+	local rects = Army.Rects(matrix)
+	local modules, quiet = #matrix, Army.QUIET
+	local px, screenH = Army.PixelSize(f)
 	local allModules = modules + quiet * 2
-	local modulePixels = ns.Link.ModulePixels(allModules, screenH, math.ceil(118 / px))
+	local modulePixels = Army.ModulePixels(allModules, screenH, math.ceil(118 / px))
 	local module = modulePixels * px
 	local size = allModules * module
 	f.canvas:SetSize(size, size)

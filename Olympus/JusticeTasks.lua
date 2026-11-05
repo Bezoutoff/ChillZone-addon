@@ -687,7 +687,7 @@ ShareTick = function()
 	local K = ns.KingCharacter and ns.KingCharacter(); if K then Add(ns.FullName(K, ns.KingRealm())) end
 	local W = ns.Workshop
 	if W and W.AuthorName then Add(W.AuthorName()) end
-	if type(ns.AUTHOR) == "string" and type(ns.AUTHOR_REALM) == "string" then Add(ns.FullName(ns.AUTHOR, ns.AUTHOR_REALM)) end
+	for _, author in ipairs(ns.AuthorCharacters and (ns.AuthorCharacters()) or {}) do Add(author) end
 	for short in pairs(ns.rdb and ns.rdb.council and ns.rdb.council.names or {}) do Add(short) end
 	for full in pairs(KeyStore(false) or {}) do Add(full) end
 	table.sort(names)

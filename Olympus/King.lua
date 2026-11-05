@@ -93,12 +93,17 @@ end
 ---------------------------------------------------------------------------
 
 -- Where the King is pinned by name, another guild master of his guild is not him: nobody
--- would obey the powers the Throne gave that character.
+-- would obey the powers the Throne gave that character. (1.3.4) Nor where the author's signed
+-- launch list reaches and names no King for our side yet (ns.LaunchListHeld): on a launch realm group the
+-- first to found a guild of that name is nobody's King.
 function King.IsKing()
 	if not ns.IsMember() then return false end
+	-- (1.4.3, launch night: the signed King's character is the King whatever his rank or guild; on
+	-- the live realms he holds a council rank in the King's guild and does not lead it.)
+	if ns.splitNames == true and ns.LaunchListHeld and ns.LaunchListHeld() and ns.KingCharacter() ~= nil then return ns.IsKingCharacter(ns.me) end
 	local guild, _, rank = GetGuildInfo("player")
 	if not (ns.IsKingGuild(guild) and rank == 0) then return false end
-	return ns.KingCharacter() == nil or ns.IsKingCharacter(ns.me)
+	return (ns.KingCharacter() == nil and not ns.LaunchListHeld()) or ns.IsKingCharacter(ns.me)
 end
 
 -- The author's test build (Dev.lua, never published) shows the tab without the powers:
@@ -161,7 +166,7 @@ local function KingSender(sender, guild, soft)
 		if ns.Hop and ns.Hop.HeardKing then ns.Hop.HeardKing(sender) end -- (his realm: his own word, 1.0.0)
 		return true
 	end
-	return soft == true and ns.Data.KnownRank(sender, guild, true) == 0
+	return soft == true and not ns.LaunchListHeld() and ns.Data.KnownRank(sender, guild, true) == 0
 end
 
 -- The page refreshes at most once a second, whatever arrives.
@@ -329,7 +334,17 @@ end
 -- The King may send it; a Steward what STEWARD_MAY lends him (his own list of Hands among it:
 -- never a list of the King's); one of their Hands what is theirs to use too (soft: his
 -- position).
+-- (1.4.0, the owner's rule for the launch: the King does not work these switches) What the addon's
+-- author may do though he is never the King nor a Steward: the Treasury ranking's switch alone among
+-- the Throne's words (T1~r, Treasury.lua), and the Games tab's rankings' publish word (ArenaRoles,
+-- "rankings": the arena's files name no author, so they ask here). One of his characters as Core.lua's
+-- signed list names them (ns.IsAuthorName), never a role he previews.
+King.AUTHOR_MAY = { r = true, rankings = true }
+function King.AuthorMay(what, name)
+	return King.AUTHOR_MAY[what] == true and type(name) == "string" and name ~= "" and ns.IsAuthorName(ns.FullName(name)) == true
+end
 function King.Authorized(kind, sender, guild)
+	if King.AUTHOR_MAY[kind] == true then return King.AuthorMay(kind, sender) end
 	if KingSender(sender, guild, kind == "P" or kind == "Q") then return true end
 	if King.STEWARD_MAY[kind] == true and King.IsStewardName(sender) then return true end
 	return King.HAND_MAY[kind] == true and Hand(sender)
@@ -1175,7 +1190,10 @@ end
 -- Quiet presence turned off (Core.lua): his crown at once again, while he shares it.
 ns.On("QUIET_PRESENCE_CHANGED", function(on) if on == false then SendLocation(true) end end)
 
-function King.ToggleLocation()
+-- privateTransition is used only while Core is entering quiet presence. The crown and layer
+-- withdrawals still leave, but the ordinary final hello, donation refresh and public events wait
+-- until quiet presence is active, so hiding never renews an online lease on the way out.
+function King.ToggleLocation(privateTransition)
 	if King.Preview() then return ns.Print(L.THRONE_PREVIEW_NOTE) end
 	if not King.IsKing() then return end
 	ns.db.throneLocation = not King.SharingLocation()
@@ -1198,12 +1216,15 @@ function King.ToggleLocation()
 		end
 		-- His layer goes with it, at once, and his hello stops naming his zone (Layers.Sharing).
 		ns.Layers.Withdraw()
-		ns.Comm.Hello(true)
+		if privateTransition ~= true then ns.Comm.Hello(true) end
 	end
-	ns.Fire("KING_LOCATION_CHANGED", King.SharingLocation() and "show" or "hide", ns.FullName(ns.me), locationId)
+	if privateTransition ~= true then
+		ns.Fire("KING_LOCATION_CHANGED", King.SharingLocation() and "show" or "hide", ns.FullName(ns.me), locationId)
+	end
 	-- Taking donations (1.1): his zone in it follows his crown at once.
-	if ns.Treasury and ns.Treasury.DonationsMoved then ns.Treasury.DonationsMoved() end
+	if privateTransition ~= true and ns.Treasury and ns.Treasury.DonationsMoved then ns.Treasury.DonationsMoved() end
 	Changed()
+	return true, locationId
 end
 
 local function CrownTip(self)
@@ -1683,7 +1704,8 @@ local function HomeLines()
 		Para(lines, L.THRONE_COUNCIL_HINT, INK, { gapAfter = true })
 	end
 	-- (1.2: the court's queue is in The Watch, with Judgment.)
-	if mine or steward then
+	-- 1.3.4: and the addon's author's, in his own view (Keys.AuthorHere), neither King nor Steward.
+	if mine or steward or (ns.Keys.AuthorHere and ns.Keys.AuthorHere()) then
 		-- 1.1: the army's key, the King's to rotate, or his Steward's for him (Keys.lua).
 		for _, l in ipairs(ns.Keys.ThroneLines and ns.Keys.ThroneLines() or {}) do lines[#lines + 1] = l end
 	end
@@ -1710,13 +1732,19 @@ function King.Build(s)
 	-- 1.1.5: a guild master's Guild tab, in the Throne's place (Nominees.lua). (1.2: the author sees
 	-- every tab in his own view, ViewAs.lua: without a role of his own here, the Throne as it is.)
 	local V = ns.ViewAs
+	-- (1.3.4: the author himself leading a guild too sees the Throne in his own view, its key's
+	-- rotation his; his Guild tab's section follows the Throne Room there, as a King's does.)
 	local authorsOwn = type(V) == "table" and not V.missing and type(V.Available) == "function" and V.Available() == true
-		and V.Role() == "my" and not King.GuildShown()
+		and V.Role() == "my" and (not King.GuildShown() or (ns.Keys and ns.Keys.AuthorHere and ns.Keys.AuthorHere() == true))
 	if not King.ThroneShown() and not authorsOwn then
 		local N = ns.Nominees
 		local master, guild = King.GuildShown(), N and N.GuildAccess and select(2, N.GuildAccess())
 		local detail = N and N.IsMaster and N.IsMaster() and L.GUILD_TAB_DETAIL or L.GUILD_DEPARTMENT_SCOPE
-		return master and N.GuildLines() or {}, L.TAB_GUILD, master and detail:format(tostring(guild)) or nil
+		local lines = master and N.GuildLines() or {}
+		-- (1.4.0) His letter from the King and its checklist, reopened from here (RoleBriefings.lua).
+		local RB = ns.RoleBriefings
+		if master and type(RB) == "table" and not RB.missing and type(RB.GuildTabLine) == "function" then RB.GuildTabLine(lines) end
+		return lines, L.TAB_GUILD, master and detail:format(tostring(guild)) or nil
 	end
 	local lines, home
 	if not King.mode then King.mode = "home" end

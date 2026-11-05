@@ -13,6 +13,9 @@ L.SQUAD_HISTORY_READONLY = "Read retained group chat (read-only)"
 L.SQUAD_EMPTY = "No soldiers assigned"
 L.SQUAD_ADD = "Assign soldier"
 L.SQUAD_INVITE = "Invite online member to raid"
+-- (1.4.0) Why that click invited nobody (PartyGuard.InviteGuildmate).
+L.SQUAD_INVITE_GONE = "Olympus cannot confirm %s on your guild's current roster: nobody was invited."
+L.SQUAD_INVITE_CANNOT = "Could not invite %s: invite out of combat, with room in your group, as its leader or a raid assistant (convert a full party of five to a raid first)."
 L.SQUAD_REMOVE = "Remove soldier"
 L.SQUAD_HINT = "Add a current guildmate who agreed to join. Each group has its Legate and up to 39 guildmates: 40 in total. Arrange attendance together; this does not invite or remove anyone from the guild."
 L.SQUAD_OPEN_CHAT = "Open private squad chat"
@@ -60,6 +63,8 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.SQUAD_EMPTY = "Nenhum soldado designado"
 	L.SQUAD_ADD = "Designar soldado"
 	L.SQUAD_INVITE = "Convidar membro online para a raide"
+	L.SQUAD_INVITE_GONE = "O Olympus não consegue confirmar %s na lista atual de membros da sua guilda: ninguém foi convidado."
+	L.SQUAD_INVITE_CANNOT = "Não foi possível convidar %s: convide fora de combate, com vaga no grupo, como líder dele ou assistente da raide (converta antes um grupo cheio de cinco em raide)."
 	L.SQUAD_REMOVE = "Remover soldado"
 	L.SQUAD_HINT = "Adicione um membro atual da guilda que combinou participar. Cada grupo tem o Legate e até 39 companheiros: 40 no total. Combinem a presença juntos; isso não convida nem remove ninguém da guilda."
 	L.SQUAD_OPEN_CHAT = "Abrir chat privado do esquadrão"
@@ -99,6 +104,87 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.JUSTICE_TASKS_CONFIRM_HINT = "Confirmar a conclusão para %s após sua própria revisão? A tentativa e a ausência observada não comprovam quem agiu ou a causa. O registro será identificado como confirmado por revisão humana."
 end
 
+-- 1.4.0, the launch (the author's ask: the letter Asmon reads on stream; the dev's, to the King and the army).
+L.LETTER_1_4_0_TITLE = "Hear ye, hear ye: the gates are open"
+L.LETTER_1_4_0_HEAD = "The Launch Proclamation"
+L.LETTER_1_4_0 = [==[Your Majesty. Soldiers of Olympus. Lords, Captains, Councillors, and that one guy who still hasn't put on the tabard.
+
+Hear ye: today the true realm opens.
+
+In the beta you did the impossible. More than a hundred thousand characters in the census, PvE included, and close to a hundred thousand downloads of this humble contraption. The scribes counted twice and asked for a raise.
+
+But the beta is a memory now. Today everyone starts at level one: no gold, no gear, no excuses. Only the banner and the people beside you. So march together. Lift up the new recruits, fill every dungeon, guard the King, and make sure every realm out there knows exactly whose army just arrived.
+
+I came to this realm a stranger, and you made me one of the court. The funniest people I have ever played with, and a King's team that treated me like family. Thank you. I am proud to march with you.
+
+Long live the King. Long live Olympus.
+
+What's new in version 1.4.0, for the march:
+
+- {guild} The census shows every realm of the army on one page, PvP and PvE, NA and EU: click the number for the totals. Every addon now agrees on the count, and no beta numbers sneak in.
+- {crown} The King, the Treasurer and the High Council are recognized on the new realms from the signed list.
+- {church} The Church's top three and the donors now reach everyone, not only whoever was online at the right moment, and the frames follow.
+- {news} Every office receives a letter from the King, and every guild master a checklist of what to name.
+- {crown} Every guild master has 48 hours to verify with the High Council.
+- {gold} The level race is on: the first to reach 20, 40 and 60 earns the comet frame, for good.
+- {star} Olympus now finds groups: list yours, apply to one, see who is looking.
+- {team} Olympus now speaks English, Portuguese, Spanish, German, French, Italian and Russian.
+- {watch} An addon older than 1.4.0 no longer finds the army's channel. If a friend sees an empty census, tell them to update.
+- {star} Built for a crowd: messages wait out the game's limits instead of getting lost, and logins no longer flood the Treasurer.
+- {guild} Fern has raised a guild hall for us. The button below copies its address.
+
+The gates are open.]==]
+L.LETTER_1_4_0_SIGNED = "Your humble artificer, the Olympus dev"
+L.LETTER_1_4_0_LINK = "https://olympus.roachcouncil.com/"
+-- 1.4.1 (launch night: the army's channel, refused by WoW: Forever, moves to the next lane by itself).
+-- The letter is the launch letter again, with the fix first: most of the army never saw 1.4.0's.
+L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK = L.LETTER_1_4_0_TITLE, L.LETTER_1_4_0_HEAD, L.LETTER_1_4_0_SIGNED, L.LETTER_1_4_0_LINK
+L.LETTER_1_4_1 = (L.LETTER_1_4_0:gsub("What's new in version 1%.4%.0, for the march:\n\n",
+	"What's new in version 1.4.1 (and 1.4.0), for the march:\n\n- {team} Launch night fix: the game refused the army's channel, so each guild saw only itself. Olympus now moves to the next channel by itself the moment the game refuses it, and every updated addon meets there. Update, then close and reopen the game.\n", 1))
+-- 1.4.2 (launch night too: the author may take the army's key back): the 1.4.1 letter, its version.
+L.LETTER_1_4_2_TITLE, L.LETTER_1_4_2_HEAD, L.LETTER_1_4_2_SIGNED, L.LETTER_1_4_2_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
+L.LETTER_1_4_2 = (L.LETTER_1_4_1:gsub("version 1%.4%.1 %(and 1%.4%.0%)", "version 1.4.2 (and 1.4.0)", 1))
+-- 1.4.3 (launch night: Forever delivers nothing an addon says on a chat channel; everything between
+-- guilds travels by addon whispers now, Relay.lua): the launch letter, its version, the fix line's words.
+L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
+L.LETTER_1_4_3 = (L.LETTER_1_4_1:gsub("version 1%.4%.1 %(and 1%.4%.0%)", "version 1.4.3 (and 1.4.0)", 1)
+	:gsub("%- {team} Launch night fix:[^\n]*", "- {team} Launch night: we hit technical problems, since the live Forever client differs from the beta's, and part of the network had to be rebuilt. Between guilds, Olympus now travels by addon whispers relayed through the High Council: silent, invisible to you. The census of every guild, the rankings and the Olympus chat come back as people update. Hopefully all good now. Update, then close and reopen the game.", 1))
+-- 1.4.4 (the morning after: a guild finds a live relay at once, and the relay's whispers leave no
+-- line in the chat): the same letter, its version, a word on the fix.
+L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK = L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK
+L.LETTER_1_4_4 = (L.LETTER_1_4_3:gsub("version 1%.4%.3 %(and 1%.4%.0%)", "version 1.4.4 (and 1.4.0)", 1)
+	:gsub("(%- {team} Launch night:[^\n]*)", "%1 In 1.4.4 a guild finds the Council at once, and nothing of it shows in your chat.", 1))
+-- 1.4.5 (the guild's reporter stays, the King's crown on The Realm, a chat line to the guild at once).
+L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK = L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK
+L.LETTER_1_4_5 = (L.LETTER_1_4_4:gsub("version 1%.4%.4 %(and 1%.4%.0%)", "version 1.4.5 (and 1.4.0)", 1)
+	:gsub("(%- {team} Launch night:[^\n]*)", "%1 In 1.4.5 your guild keeps one reporter, your words reach your guild at once, and the King wears his crown on The Realm.", 1))
+-- 1.4.6 (the sub-realms are one realm; the relays speak to each other; Bones at the innkeeper).
+L.LETTER_1_4_6_TITLE, L.LETTER_1_4_6_HEAD, L.LETTER_1_4_6_SIGNED, L.LETTER_1_4_6_LINK = L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK
+L.LETTER_1_4_6 = (L.LETTER_1_4_5:gsub("version 1%.4%.5 %(and 1%.4%.0%)", "version 1.4.6 (and 1.4.0)", 1)
+	:gsub("(%- {team} Launch night:[^\n]*)", "%1 In 1.4.6 every sub-realm of your ruleset counts as one realm, so every guild sees the same census, and the Council's relays pass each word to one another.", 1))
+-- 1.5.0 (the dev's ask, 2026-11-05: the letter of this version is his own word to the army, sorry
+-- for the delay, why launch night broke, what works now, where to reach him).
+L.LETTER_1_5_0_TITLE = "Sorry for the delay"
+L.LETTER_1_5_0_HEAD = "A word from the dev"
+L.LETTER_1_5_0_SIGNED, L.LETTER_1_5_0_LINK = L.LETTER_1_4_0_SIGNED, L.LETTER_1_4_0_LINK
+L.LETTER_1_5_0 = [==[Your Majesty. Soldiers of Olympus.
+
+First of all: sorry for the delay. Launch night did not go the way I had planned, and many of you spent the first days with an empty census and a silent chat. That one is on me.
+
+What happened: Blizzard's policy on the tools an addon may use is not the same in the beta as in the live game. Everything Olympus relied on worked through the whole beta, and on launch night the live Forever client refused part of it. The same thing happened in 2019. It does not look like they are targeting us, but I have no way to be sure. Either way, the part that broke had to be rebuilt, and that took longer than I would have liked.
+
+What works now, in version 1.5.0:
+
+- {team} The Olympus chat travels as your own words in a channel of the game, so everyone in it hears you at once, on every sub-realm.
+- {guild} The census and the rankings of every guild travel by whispers relayed through the High Council: silent, invisible to you, and now with room for the whole army.
+- {watch} Every sub-realm of your ruleset counts as one realm, so every guild sees the same census.
+- {star} Update, then close and reopen the game.
+
+I am still fixing things, so expect a few more updates in the coming days. If something is off, send me a message on CurseForge or here in the game: a whisper to Developus Olympicus reaches me.
+
+Again, sorry for the delay. I hope you have fun.
+
+Long live the King. Long live Olympus.]==]
 L.LETTER_1_3_3_TITLE = "Your guild on the website"
 L.LETTER_1_3_3 = [==[Version 1.3.3.
 
@@ -132,6 +218,74 @@ L.LETTER_1_3_0 = [==[Version 1.3.0.
 This is a large release and therefore starts the 1.3 line. Offline tests cover the rules and data boundaries; multiplayer relay, client-specific UI and map placement still depend on live in-game observation.]==]
 
 if GetLocale() == "ptBR" then
+	L.LETTER_1_4_0_TITLE = "Ouçam, ouçam: os portões estão abertos"
+	L.LETTER_1_4_0_HEAD = "A Proclamação do Lançamento"
+	L.LETTER_1_4_0 = [==[Vossa Majestade. Soldados de Olympus. Lordes, Capitães, Conselheiros, e aquele cara que ainda não vestiu o tabardo.
+
+Ouçam: hoje o reino de verdade se abre.
+
+No beta vocês fizeram o impossível. Mais de cem mil personagens no censo, PvE incluído, e quase cem mil downloads desta humilde engenhoca. Os escribas contaram duas vezes e pediram aumento.
+
+Mas o beta agora é lembrança. Hoje todo mundo começa no nível um: sem ouro, sem equipamento, sem desculpa. Só o estandarte e as pessoas ao seu lado. Então marchem juntos. Ergam os novos recrutas, lotem cada masmorra, guardem o Rei, e garantam que cada reino por aí saiba exatamente de quem é o exército que acabou de chegar.
+
+Cheguei a este reino um estrangeiro, e vocês me fizeram parte da corte. As pessoas mais engraçadas com quem já joguei, e uma equipe do Rei que me tratou como família. Obrigado. Tenho orgulho de marchar com vocês.
+
+Vida longa ao Rei. Vida longa a Olympus.
+
+O que há de novo na versão 1.4.0, para a marcha:
+
+- {guild} O censo mostra cada reino do exército numa página só, PvP e PvE, NA e EU: clique no número para ver os totais. Todos os addons agora concordam na contagem, e nenhum número do beta entra escondido.
+- {crown} O Rei, o Tesoureiro e o Alto Conselho são reconhecidos nos reinos novos pela lista assinada.
+- {church} O top três da Igreja e os doadores agora chegam a todos, não só a quem estava online na hora certa, e as molduras acompanham.
+- {news} Cada cargo recebe uma carta do Rei, e cada mestre de guilda uma lista do que nomear.
+- {crown} Todo mestre de guilda tem 48 horas para se verificar com o Alto Conselho.
+- {gold} A corrida de level está valendo: o primeiro a chegar ao 20, ao 40 e ao 60 ganha a moldura do cometa, para sempre.
+- {star} O Olympus agora encontra grupos: anuncie o seu, candidate-se a um, veja quem está procurando.
+- {team} Olympus agora fala inglês, português, espanhol, alemão, francês, italiano e russo.
+- {watch} Um addon anterior à 1.4.0 não encontra mais o canal do exército. Se um amigo vir o censo vazio, diga para ele atualizar.
+- {star} Feito para multidão: as mensagens esperam os limites do jogo em vez de se perder, e os logins não inundam mais o Tesoureiro.
+- {guild} Fern ergueu um salão da guilda para nós. O botão abaixo copia o endereço.
+
+Os portões estão abertos.]==]
+	L.LETTER_1_4_0_SIGNED = "Seu humilde artífice, o dev do Olympus"
+	L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK = L.LETTER_1_4_0_TITLE, L.LETTER_1_4_0_HEAD, L.LETTER_1_4_0_SIGNED, L.LETTER_1_4_0_LINK
+	L.LETTER_1_4_1 = (L.LETTER_1_4_0:gsub("O que há de novo na versão 1%.4%.0, para a marcha:\n\n",
+		"O que há de novo na versão 1.4.1 (e na 1.4.0), para a marcha:\n\n- {team} Correção da noite do lançamento: o jogo recusou o canal do exército, e cada guilda só via a si mesma. Agora o Olympus muda para o próximo canal sozinho assim que o jogo recusa, e todo addon atualizado se encontra lá. Atualize, feche e abra o jogo.\n", 1))
+	L.LETTER_1_4_2_TITLE, L.LETTER_1_4_2_HEAD, L.LETTER_1_4_2_SIGNED, L.LETTER_1_4_2_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
+	L.LETTER_1_4_2 = (L.LETTER_1_4_1:gsub("versão 1%.4%.1 %(e na 1%.4%.0%)", "versão 1.4.2 (e na 1.4.0)", 1))
+	L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
+	L.LETTER_1_4_3 = (L.LETTER_1_4_1:gsub("versão 1%.4%.1 %(e na 1%.4%.0%)", "versão 1.4.3 (e na 1.4.0)", 1)
+		:gsub("%- {team} Correção da noite do lançamento:[^\n]*", "- {team} Noite do lançamento: tivemos problemas técnicos, porque o cliente do Forever ao vivo é diferente do da beta, e parte da rede teve que ser refeita. Entre guildas, o Olympus agora viaja por sussurros de addon repassados pelo Alto Conselho: silenciosos, invisíveis para você. O censo de todas as guildas, os rankings e o chat do Olympus voltam conforme o pessoal atualiza. Espero que agora esteja tudo bem. Atualize, feche e abra o jogo.", 1))
+	L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK = L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK
+	L.LETTER_1_4_4 = (L.LETTER_1_4_3:gsub("versão 1%.4%.3 %(e na 1%.4%.0%)", "versão 1.4.4 (e na 1.4.0)", 1)
+		:gsub("(%- {team} Noite do lançamento:[^\n]*)", "%1 Na 1.4.4 a guilda encontra o Conselho na hora, e nada disso aparece no seu chat.", 1))
+	L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK = L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK
+	L.LETTER_1_4_5 = (L.LETTER_1_4_4:gsub("versão 1%.4%.4 %(e na 1%.4%.0%)", "versão 1.4.5 (e na 1.4.0)", 1)
+		:gsub("(%- {team} Noite do lançamento:[^\n]*)", "%1 Na 1.4.5 a sua guilda mantém um só repórter, as suas palavras chegam à sua guilda na hora, e o Rei usa a coroa no Reino.", 1))
+	L.LETTER_1_4_6_TITLE, L.LETTER_1_4_6_HEAD, L.LETTER_1_4_6_SIGNED, L.LETTER_1_4_6_LINK = L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK
+	L.LETTER_1_4_6 = (L.LETTER_1_4_5:gsub("versão 1%.4%.5 %(e na 1%.4%.0%)", "versão 1.4.6 (e na 1.4.0)", 1)
+		:gsub("(%- {team} Noite do lançamento:[^\n]*)", "%1 Na 1.4.6 todo sub-reino do seu conjunto de regras conta como um reino só, então toda guilda vê o mesmo censo, e os relés do Conselho passam cada palavra uns aos outros.", 1))
+	L.LETTER_1_5_0_TITLE = "Desculpem pela demora"
+	L.LETTER_1_5_0_HEAD = "Uma palavra do dev"
+	L.LETTER_1_5_0_SIGNED, L.LETTER_1_5_0_LINK = L.LETTER_1_4_0_SIGNED, L.LETTER_1_4_0_LINK
+	L.LETTER_1_5_0 = [==[Vossa Majestade. Soldados de Olympus.
+
+Antes de tudo: desculpem pela demora. A noite do lançamento não saiu como eu tinha planejado, e muitos de vocês passaram os primeiros dias com o censo vazio e o chat mudo. Essa é por minha conta.
+
+O que aconteceu: a política da Blizzard sobre as ferramentas que um addon pode usar não é a mesma na beta e no jogo ao vivo. Tudo em que o Olympus se apoiava funcionou a beta inteira, e na noite do lançamento o cliente do Forever ao vivo recusou parte disso. A mesma coisa aconteceu em 2019. Não parece que estejam mirando a gente, mas não tenho como ter certeza. De qualquer forma, a parte que quebrou teve que ser refeita, e isso levou mais tempo do que eu gostaria.
+
+O que funciona agora, na versão 1.5.0:
+
+- {team} O chat do Olympus viaja como suas próprias palavras num canal do jogo, e todo mundo nele ouve você na hora, em todo sub-reino.
+- {guild} O censo e os rankings de todas as guildas viajam por sussurros repassados pelo Alto Conselho: silenciosos, invisíveis para você, e agora com espaço para o exército inteiro.
+- {watch} Todo sub-reino do seu conjunto de regras conta como um reino só, então toda guilda vê o mesmo censo.
+- {star} Atualize, feche e abra o jogo.
+
+Ainda estou arrumando algumas coisas, então esperem mais algumas atualizações nos próximos dias. Se algo estiver errado, me mandem mensagem pelo CurseForge ou aqui pelo jogo: um sussurro para Developus Olympicus chega até mim.
+
+Mais uma vez, desculpem pela demora. Espero que se divirtam.
+
+Vida longa ao Rei. Vida longa a Olympus.]==]
 	L.LETTER_1_3_3_TITLE = "Sua guilda no site"
 	L.LETTER_1_3_3 = [==[Versão 1.3.3.
 
@@ -1195,6 +1349,14 @@ L.LOCATION_KEEP = "Keep private"
 L.LOCATION_ON = "You share your zone and layer on the Olympus channel. /oly location off stops it."
 L.LOCATION_OFF = "Your zone and layer stay private: the addon sends neither. /oly location on shares them."
 L.HELP_LOCATION = "  /oly location on | off - share (or not) your zone and layer on the Olympus channel"
+L.HELP_PRIVATE_PRESENCE = "  /oly presence on | off - King/High Council: hide your Olympus online presence and location until you turn it off (across logins)"
+L.PRIVATE_PRESENCE_ON = "Private presence is on, and stays on across logins until you turn it off. Olympus withdrew your shared location and no longer announces you online or says where you are. Your guild alone is told, so its members' Olympus clients count you offline in the census they send (an older Olympus may not). Your guild's Blizzard roster, /who and the chat lines you type still show you."
+L.PRIVATE_PRESENCE_OFF = "Private presence is off. Olympus may announce you again; your location stays private until you share it yourself."
+L.PRIVATE_PRESENCE_ONLY = "Only the current King, signed High Council or the addon's author can use private presence."
+L.PRIVATE_PRESENCE_OTHER_OWNER = "Private presence is held by an authorized integration. Turn it off there; Olympus will not override its privacy choice."
+L.PRIVATE_PRESENCE_LAPSED = "Private presence is off: this character is no longer the King, on the signed High Council or the addon's author."
+L.CONSENT_PRIVATE_PRESENCE = "Private presence"
+L.CONSENT_PRIVATE_PRESENCE_TEXT = "For the King, the signed High Council and the addon's author. It stays on across logins until you turn it off. Olympus first withdraws your shared location, then stops announcing you online or saying where you are: no hello, census report, layer, map dot or other presence word. Your guild alone is told, so its members' Olympus clients count you offline in the census they send and other guilds don't see you online (guildmates on an older Olympus may still count you). Your guild's Blizzard roster, /who and the chat lines you type still show you. Turning it off doesn't turn location sharing back on."
 L.HOP_PRIVATE_HINT = "This ask told the Olympus channel the zone you are in and the layer you want; your own layer stays private. Layers are only known from the members who share theirs: the more share, the better hopping works (/oly location on)."
 L.CHAN_WARN_ASK = "|cffe6c35c[%s] is not private.|r\n\nEvery addon on the Olympus channel receives the text of [Olympus], [Captains] and [Lords] alike and only chooses which lines to show you, so anyone on the channel can read all three with a script. %s\n\nNever write passwords or secrets there. Send your line? (Asked once per channel.)"
 L.CHAN_WARN_NOT_SENT = "Your line was not sent."
@@ -1471,93 +1633,9 @@ L.SEARCH_TIP_HERALDRY = "A name or a guild, any case: only the untabarded and in
 L.SEARCH_TIP_TREASURY = "A name or an item, any case: only the donors of the ranking, the lines of the book and the bank's items that match show."
 L.SEARCH_TIP_TREASURY_GUILDS = "A name, an item or a guild, any case (or drag an item from your bags onto the box: its link goes in): the donors of the ranking, the lines of the book, and every bank of the Guild treasuries at once."
 L.SEARCH_MORE_GUILDS = "... and %d more guilds found: click to show them"
--- 0.9.10: Olympus Link (the Discord role)
+-- 0.9.10: Olympus Link (the Discord role). 1.4.0: its own addon, Olympus_Link (LinkLoader.lua), with its words.
 L.HELP_DISCORD = "  /oly discord [code] - link this character to your Discord account (Olympus Link); /oly discord show | status | forget"
-L.LINK_TITLE = "Olympus Link"
-L.LINK_PASTE_PROMPT = "Paste the code the Olympus bot gave you on Discord (it starts with OLC2., or with /oly discord):"
-L.LINK_CONTINUE = "Continue"
-L.LINK_ACCEPT = "Accept"
-L.LINK_CONSENT = "Link %s to the Discord account @%s? This shares your character name, realm, guild and faction with the Olympus Discord bot to give you your role. Only accept if @%s is you."
-L.LINK_CHECKING = "Checking your Discord code..."
-L.LINK_CODE_BAD = "That Discord code is not valid. Get a new code from the Olympus bot on Discord and try again."
-L.LINK_CODE_EXPIRED = "That Discord code has expired. Get a new code from the Olympus bot on Discord and try again."
-L.LINK_NOT_OPEN = "Olympus Link is not open yet: this version of the addon doesn't know the Olympus bot's key. Update the addon, then get a new code."
-L.LINK_NOT_MEMBER = "Only a character in an Olympus guild can be linked to Discord."
-L.LINK_CANT = "This character can't be linked right now (its guild or faction isn't known yet). Try again in a moment."
-L.LINK_BUSY = "Olympus Link is busy: try again in a moment."
-L.LINK_STARTED = "Asking players in game to confirm that this character is yours. Keep playing: it takes a moment."
-L.LINK_ASKING_COUNCIL = "A High Councillor online is confirming your Discord link..."
-L.LINK_DRAWING = "No High Councillor online: asking five verified players drawn at random (three must confirm)..."
-L.LINK_WAITING_COUNCIL = "No High Councillor online right now. Your Discord link stays open until your code expires and goes out as soon as one comes online."
-L.LINK_WAITING = "Not enough confirmers online right now. Your Discord link stays open until your code expires and is asked again when more come online."
-L.LINK_READY = "Your Discord link is confirmed! Its proof is in the Olympus Link window (/oly discord show opens it again)."
-L.LINK_GUILD_CHECKING = "Your character is confirmed, but no confirmer could see you in your guild yet: asking again for up to 10 minutes (a High Councillor of your guild, or one whose /who sees you, makes it certain). Stay online."
-L.LINK_READY_CLAIMED = "Your Discord link is confirmed, but your guild is only taken as you named it: the bot may refuse it and ask for one who saw you in it. If it does, get a new code while a High Councillor of your guild is online. Its proof is in the Olympus Link window (/oly discord show)."
-L.LINK_READY_SCAN = "Your Discord link's proof can no longer go to a watcher in time: scan it now on the Olympus Link page (/oly discord show opens it)."
-L.LINK_READY_REMINDER = "Your Discord link's proof is ready and waits for %s. /oly discord show opens it, to scan it now."
-L.LINK_DELIVERED = "Your Discord link reached %s: your role comes once the bot reads it."
-L.LINK_EXPIRED = "Your Discord link request expired with its code. Get a new code from the Olympus bot on Discord."
-L.LINK_RESUMED = "Your Discord link request is still open: asking again for confirmations."
-L.LINK_STILL_WAITING = "Your Discord link is still waiting for confirmations (/oly discord status)."
-L.LINK_NOTHING = "No Discord link proof for this character. Type /oly discord to start one."
-L.LINK_FORGOTTEN = "This character's Discord link request and proof are forgotten."
-L.LINK_BY_COUNCIL = "confirmed by a High Councillor"
-L.LINK_BY_PLAYERS = "confirmed by %d players"
-L.LINK_SCAN = "Scan it on the Olympus Link page (screen share or phone camera), or wait: it reaches the bot when %s is online."
-L.LINK_WATCHER_GENERIC = "the bot's watcher"
-L.LINK_WATCHER_OF = "%s's watcher"
-L.LINK_COPY = "Or copy the link (Ctrl+C) into the page:"
-L.LINK_NEED_PLAYERS = "%d of %d players"
-L.LINK_NEED_COUNCIL = "a High Councillor"
-L.LINK_STATUS_WAITING = "  %s: waiting for confirmers (%s), the code expires in %d h"
-L.LINK_STATUS_READY = "  %s: ready, waiting for %s (%d days left); /oly discord show on that character"
-L.LINK_STATUS_SCAN_ONLY = "  %s: ready, too late for a watcher: scan it (/oly discord show on that character)"
-L.LINK_STATUS_CLAIMED = "  %s: confirmed, the guild still being checked (up to %d more minutes)"
-L.LINK_STATUS_DELIVERED = "  %s: delivered to %s"
-L.LINK_STATUS_NONE = "  No Discord link request or proof on this account."
-L.LINK_STATUS_KEY = "  Confirmer key %s on this character, %s."
-L.LINK_STATUS_CERT = "certificate: %s, %d more days"
-L.LINK_STATUS_NOCERT = "no certificate (/oly discord cert): not confirming"
-L.LINK_STATUS_AUTOCERT = "no certificate yet: it comes from the author's client the next time he is online"
-L.LINK_STATUS_NOKEY = "  No confirmer key on this character."
-L.LINK_STATUS_WATCHER_ON = "  Watcher: on, %d proofs in the inbox."
-L.LINK_STATUS_WATCHER_OFF = "  Watcher: off (/oly discord watcher on)."
-L.LINK_TIER_C = "High Councillor"
-L.LINK_TIER_P = "verified player"
-L.LINK_KEY_BAD = "Usage: /oly discord key <id> <key>, with the id (6 to 16 lowercase letters and digits) and the 43-character key you were given; /oly discord key off removes it."
-L.LINK_KEY_SET = "Confirmer key %s saved for this character. Never show or share the key itself."
-L.LINK_KEY_SHOW = "Confirmer key %s, public key %s"
-L.LINK_KEY_OFF = "Confirmer key removed from this character."
-L.LINK_KEY_OFF_COUNCIL = "Confirmer key removed from this character. Your addon makes no new one by itself until /oly discord key new."
-L.LINK_KEY_NONE = "No confirmer key on this character."
-L.LINK_KEY_NEW = "Making a new confirmer key for this character (the old one is gone from this game). Your addon asks the author's client for its certificate the next time he is online."
-L.LINK_KEY_OLD = "Your old key %s still counts at the bot until its keeper revokes it: send them that id (at once if the key leaked)."
-L.LINK_KEY_NEW_ONLY = "Only a High Councillor's addon makes its own key. Other confirmers get theirs from the bot's keeper (/oly discord key <id> <key>)."
-L.LINK_KEY_FROM_KEEPER = "Confirmer keys, a High Councillor's too, come from the bot's keeper: ask them for one, then type /oly discord key <id> <key> and /oly discord cert <certificate> on this character."
-L.LINK_KEY_AUTO_GONE = "Olympus Link: the High Council confirmer key an earlier version made in game on this account was removed; keys now come from the bot's keeper (/oly discord key)."
-L.LINK_CA_LOG = "Certificates this client signed as the council authority (%d), for the bot's keeper, who can revoke a key id or every key of a character:"
-L.LINK_CA_LOG_LINE = "  %s  %s  until %s"
-L.LINK_CA_LOG_NONE = "This client has signed no High Council certificate."
-L.LINK_KEY_MADE = "Olympus Link: your High Council confirmer key %s was made for this character. Its certificate comes from the author's client the next time he is online."
-L.LINK_KEY_PER_CHARACTER = "Olympus Link: confirmer keys now belong to one character each. The key kept for your whole account was removed: ask the bot's keeper for one for the character that confirms."
-L.LINK_WATCHER_ONLY = "Only a High Councillor can be an Olympus Link watcher."
-L.LINK_WATCHER_ON = "Watcher on: the proofs players hand you are kept in your SavedVariables' inbox (%d now)."
-L.LINK_WATCHER_OFF = "Watcher off."
-L.LINK_CERT_USAGE = "Usage: /oly discord cert <certificate>, the line starting with OLK2. that the bot's keeper gave you with your key."
-L.LINK_CERT_NO_KEY = "Save your confirmer key first (/oly discord key <id> <key>), then its certificate (/oly discord cert <certificate>)."
-L.LINK_CERT_OTHER = "That certificate is for the key %s, not for your key %s."
-L.LINK_CERT_OTHER_CHAR = "That certificate is for %s, not for this character (%s): a key and its certificate belong to one character."
-L.LINK_CERT_EXPIRED = "That certificate has expired: ask the bot's keeper for a new one."
-L.LINK_CERT_CHECKING = "Checking the certificate..."
-L.LINK_CERT_BAD = "That certificate is not signed by the Olympus bot: check that you pasted all of it, or ask the bot's keeper for a new one."
-L.LINK_CERT_NOT_MINE = "That certificate is for another key: it doesn't match the key saved for this character."
-L.LINK_CERT_SET = "Certificate saved: key %s, %s, valid %d more days. Your addon now tells requesters it can confirm."
-L.LINK_CERT_SHOW = "Certificate: key %s, %s, valid %d more days."
-L.LINK_CERT_NONE = "No certificate for a confirmer key on this character (/oly discord cert <certificate>)."
-L.LINK_CERT_AUTO = "Olympus Link: the author's client certified your High Council confirmer key %s for this character (%d days). Your addon now tells requesters it can confirm."
-L.LINK_CERT_NEEDED = "Now save its certificate: /oly discord cert <certificate>. Until then your addon doesn't confirm."
-L.LINK_CERT_REMOVED = "The certificate of your previous key was removed."
-L.LINK_CERT_SAVED_BAD = "Your saved Olympus Link certificate doesn't match your key or isn't the bot's: your addon doesn't confirm until you save a good one (/oly discord cert)."
+L.DISCORD_NOT_INSTALLED = "Olympus Link (/oly discord, your Discord role) is its own addon, Olympus_Link, and it is not installed or not enabled here. Everything else in Olympus works without it."
 -- 1.0.0: the King's Steward (the character the author marks in the signed titles list).
 L.STEWARD_ACTING = "Acting for the King"
 L.THRONE_YOU_ARE_STEWARD = "You are the King's Steward: in %s's name you name Hands of your own beside his, the treasury's keepers and what the army sees of it, and use every tool of his Hands. On the treasury his own newer word always wins."
@@ -1594,7 +1672,7 @@ L.PUBLIC_NET_SPLIT = "%d guildmates are on the sealed channel: an officer online
 L.PUBLIC_NET_TITLE = "The Olympus channel is public"
 -- 1.2.5.1: the quiet presence (Core.lua), on top of the Census and the Realm while it is on.
 L.QUIET_PRESENCE_LINE = "Quiet presence: Olympus stops announcing you and where you are. Your guild roster, the census your guildmates build from it, /who and chat still show you."
-L.QUIET_PRESENCE_TIP = "An addon you authorized turned it on for this session. Olympus stops sending, on its own, the words that announce you online or say where you are: no hello, census report, layer, map dot, layer-hop offer, court, donations or duty notice, help or crafter answer, Wanted sighting or sighting answer, profile presentation, nor the King's crown or the lists his client repeats. What other clients heard before lapses as after a logout. Your guildmates' census still reads the guild roster: a guild leader or officer still shows online there, and your zone may show for up to 12 minutes. Olympus chat lines you type, what you post yourself and the records your client relays still go out. It ends when that addon turns it off, on a /reload or at logout; after a /reload, Olympus may say hello before that addon turns it on again."
+L.QUIET_PRESENCE_TIP = "You turned on Private presence, or an addon you authorized turned on a quiet presence. Olympus stops sending, on its own, the words that announce you online or say where you are: no hello, census report, layer, map dot, layer-hop offer, court, donations or duty notice, help or crafter answer, Wanted sighting or sighting answer, profile presentation, nor the King's crown or the lists his client repeats. What other clients heard before lapses as after a logout. Your guildmates' census still reads the guild roster: a guild leader or officer still shows online there, and your zone may show for up to 12 minutes. With Private presence your guild is told, and its members' Olympus clients count you offline in the census they send (an older Olympus may not). Olympus chat lines you type, what you post yourself and the records your client relays still go out. Private presence stays on across logins until you turn it off. An addon's quiet presence ends when that addon turns it off, on a /reload or at logout; after a /reload, Olympus may say hello before that addon turns it on again."
 L.QUIET_PRESENCE_HELD = "Quiet presence is on: Olympus sends this once it is off."
 L.PUBLIC_NET_TIP = "No realm key is set, so every Olympus addon meets on the public %s channel. Anyone can join it by name and, with a one-line script, read everything sent there: the census, where people are (for those who share it), the three chats ([Captains] and [Lords] too) and the decrees. Sealed with a key, the channel's name and password come from the key and only players who hold it get in. An officer types /oly key <secret> once, and guildmates with the addon get the key by themselves over guild chat. Use the secret the officers of the other guilds use: a key of your own splits your guild off the army."
 -- 1.1: the pinned line (request #9).
@@ -1745,7 +1823,6 @@ L.NOCONTACT_TIP = "On, your addon tells a recruit's Join screen that asks it not
 L.HELP_NOCONTACT = "  /oly nocontact on | off - recruits' Join screens skip you (on) or may ask you (off)"
 L.HELP_PARTY_GUARD = "  /oly partyguard on | off - show clear party-invite whispers in the War Room while the King is online"
 L.PARTY_GUARD_TITLE = "Party Guard (%d)"
-L.PARTY_GUARD_TIP = "Clear party-invite requests received while the King is online. A whisper is never proof of guild membership: Olympus only labels a player after a fresh roster, an explicit /who result, or a direct target/mouseover check. Every verification and invitation is your click."
 L.HELP_PARTY_GUARD = "  /oly partyguard on | off - show clear party-invite whispers in the Census while the King is online"
 L.PARTY_GUARD_TITLE = "Party Guard (%d)"
 L.PARTY_GUARD_TIP = "Clear party-invite requests received while the King is online. A whisper is never proof of guild membership: Olympus only labels a player after a fresh roster, an explicit /who result, or a direct target/mouseover check. Every verification and invitation is your click."
@@ -1862,6 +1939,147 @@ L.BOARD_CAMPS_IN = "Camps in %s"
 L.BOARD_CAMP_MAP_TIP = "Whisper them from the Board (/oly lfg). /oly camps off hides these badges."
 L.BOARD_CAMPS_MAP_ON = "Camps show on the world map (/oly camps off hides them; the Board keeps them)."
 L.BOARD_CAMPS_MAP_OFF = "Camps are hidden on the world map (/oly camps on shows them; the Board keeps them)."
+-- 1.4.0: group listings on the Board (Groups.lua)
+L.GROUPS_TAB_FLAGS = "Flags"
+L.GROUPS_TAB_D = "Dungeons"
+L.GROUPS_TAB_R = "Raids"
+L.GROUPS_TAB_P = "PvP"
+L.GROUPS_TAB_Q = "Quests"
+L.GROUPS_TAB_TIP = "Groups looking for players: what each one needs, and its leader's note. Click a group to apply with your role; the leader invites you or declines."
+L.GROUPS_KIND_D = "Dungeon"
+L.GROUPS_KIND_R = "Raid"
+L.GROUPS_KIND_P = "PvP"
+L.GROUPS_KIND_Q = "Quest"
+L.GROUPS_ROLE_T = "Tank"
+L.GROUPS_ROLE_H = "Healer"
+L.GROUPS_ROLE_D = "Damage"
+L.GROUPS_LINK = "%d groups"
+L.GROUPS_OTHER = "Other (see the note)"
+L.GROUPS_QUEST_UNNAMED = "A quest"
+L.GROUPS_NEEDS = "Needs: %s"
+L.GROUPS_NEED_NONE = "nobody now"
+L.GROUPS_SIZE = "%d in group"
+L.GROUPS_ANY = "any number"
+L.GROUPS_YOURS = "Your group"
+L.GROUPS_YOURS_TIP = "List your group: where, and which roles you still need. Your name, level, class and guild go with it, how many are in your group by class and role (never their names), and your note if you write one. Players apply with a role; you invite or decline them here. It lasts an hour at most (a quest's half an hour), and one listing at a time."
+L.GROUPS_LIST = "List a group: %s"
+L.GROUPS_LIST_TIP = "Choose where, then the roles you need, then post it with a short note (optional)."
+L.GROUPS_CHOOSE = "Where? Click one:"
+L.GROUPS_FROM_LEVEL = "from level %d"
+L.GROUPS_GROUP_QUEST = "group"
+L.GROUPS_NO_QUESTS = "Your quest log has no quest to list."
+L.GROUPS_WHERE = "Where: %s"
+L.GROUPS_CHANGE = "click to change"
+L.GROUPS_WANTED = "%s wanted: %s"
+L.GROUPS_CLICK_CHANGE = "click for more or fewer"
+L.GROUPS_POST = "Post the listing"
+L.GROUPS_POST_TIP = "Opens a box for a short note (optional), and says what goes out before it does."
+L.GROUPS_CANCEL = "Cancel"
+L.GROUPS_LIST_ASK = "List a group\n\n%s\n\nYour name, level, class and guild go with it, what your group needs, how many are in it by class and role (never their names) and your note, to every Olympus player of your realm and faction. %s The note goes the way chat does: the game's servers keep it, so abuse can be reported.\n\nA short note (optional):"
+L.GROUPS_LIST_BTN = "List"
+L.GROUPS_LISTED = "Your group is listed on the Board: %s. Applications show under Your group."
+L.GROUPS_MINE = "Your group is listed: %s"
+L.GROUPS_MINE_ELSEWHERE = "Your group is listed under %s: one listing at a time. Click to see it."
+L.GROUPS_LOWER = "Lower your listing"
+L.GROUPS_LOWER_TIP = "It leaves every Board at once, and the players still waiting are told."
+L.GROUPS_APPLICANTS = "Applications (%d)"
+L.GROUPS_NO_APPLICANTS = "No applications yet."
+L.GROUPS_APPLICANT_TIP = "Click: invite, decline or whisper them."
+L.GROUPS_STATE_INVITED = "invited"
+L.GROUPS_INVITE = "Invite"
+L.GROUPS_DECLINE = "Decline"
+L.GROUPS_WHISPER = "Whisper %s"
+L.GROUPS_UP = "Groups listed (%d)"
+L.GROUPS_EMPTY = "No groups listed here. List yours: every Olympus player sees it at once."
+L.GROUPS_CARD_TIP = "Click: apply with your role, or whisper the leader."
+L.GROUPS_IN_LOG = "in your log"
+L.GROUPS_APPLY_AS = "Apply as %s"
+L.GROUPS_APPLY_TIP = "Opens a box for a short note (optional). Your name, level, class and guild go to the leader alone."
+L.GROUPS_APPLY_WHAT = "%s for %s, with %s"
+L.GROUPS_APPLY_ASK = "Apply: %s\n\nYour name, level, class, guild and role go to the leader alone, and your note. %s\n\nA short note (optional):"
+L.GROUPS_APPLY_BTN = "Apply"
+L.GROUPS_APP_SENT = "You applied as %s: waiting for the leader."
+L.GROUPS_APP_INVITED = "You applied as %s: the leader invited you."
+L.GROUPS_WITHDRAW = "Withdraw your application"
+L.GROUPS_APPLIED = "You applied as %s for %s: %s sees it on the Board."
+L.GROUPS_WITHDRAWN = "Your application is withdrawn."
+L.GROUPS_APPLICANT = "%s applied as %s for %s. Answer on the Board (/oly group)."
+L.GROUPS_INVITED = "You invited %s (%s)."
+L.GROUPS_FILLED = "Your group has every role it listed: the listing is lowered."
+L.GROUPS_CLOSED = "Your listing is lowered."
+L.GROUPS_ENDED = "Your listing's time is over and it is lowered. List it again on the Board if you still need players."
+L.GROUPS_NONE_UP = "You have no group listed."
+L.GROUPS_NOT_LEADER = "Only your group's leader can invite: ask them to, or whisper the player."
+L.GROUPS_GONE = "That group is no longer listed."
+L.GROUPS_ROLE_FULL = "That group doesn't need that role now."
+L.GROUPS_TOO_MANY = "%d applications waiting at most: withdraw one first."
+L.GROUPS_WAIT = "Wait %d seconds first."
+L.GROUPS_HOURLY = "%d listings an hour at most: lower yours only when you are done."
+L.GROUPS_YOU_INVITED = "%s invited you (%s): accept the game's invite."
+L.GROUPS_YOU_DECLINED = "%s declined your application (%s)."
+L.GROUPS_YOU_CLOSED = "%s lowered the listing you applied to (%s)."
+L.HELP_GROUPS = "  /oly group [dungeon | raid | pvp | quest | off] - the Board's groups: list yours, apply to one, or lower yours"
+L.GROUPS_MIN_SHORT = "lvl %d+"
+L.GROUPS_MIN_TIP = "From level %d."
+L.GROUPS_TOO_LOW = "This group takes players from level %d."
+L.GROUPS_MIN_LINE = "Minimum level: %s"
+L.GROUPS_MIN_NONE = "none"
+L.GROUPS_MIN_LINE_TIP = "Players under it can't apply. It starts at the level the place is usually run from."
+L.GROUPS_IN_GROUP = "In the group:"
+L.GROUPS_COUNT = "%s x%d"
+L.GROUPS_CLASS_UNKNOWN = "Another class"
+L.GROUPS_INVITE_FAILED = "The game didn't take the invite: try again, or invite them from the chat."
+L.GROUPS_PANEL_OWN = "Olympus's own"
+L.GROUPS_PANEL_OWN_TIP = "Olympus's own Your group: your listing, its applications, your group and what it needs. Your choice is kept for your account."
+L.GROUPS_PANEL_THEIRS_TIP = "Another addon's panel, in place of Olympus's own Your group (you allowed it on the privacy page). The listings, their cards and the players looking stay Olympus's. Your choice is kept for your account."
+L.GROUPS_TYPE_NAME = "Type a name (an elite, a rare, a quest not in your log)"
+L.GROUPS_TYPE_NAME_TIP = "The name you type shows on your listing, as a quest's title does, with the zone you are in while you share it (/oly location on)."
+L.GROUPS_NAME_ASK = "What is your group for?\n\nAn elite, a rare, or a quest that isn't in your log: the name shows on your listing.\n\nName:"
+L.GROUPS_NAME_BTN = "Next"
+L.GROUPS_ANY_D = "Any dungeon"
+L.GROUPS_ANY_R = "Any raid"
+L.GROUPS_ANY_P = "Any PvP"
+L.GROUPS_FLAG_MULTI = "Raise a flag for several places, with your roles"
+L.GROUPS_FLAG_MULTI_TIP = "One flag for everything you'd go to (dungeons, raids, PvP, up to 8 places or Any of a kind), and the roles you play. Leaders see it in each section it names."
+L.GROUPS_FLAG_ROLES = "Roles you play (any number):"
+L.GROUPS_FLAG_WHERE = "Where you would go (%d places at most; Any takes a whole kind):"
+L.GROUPS_FLAG_PICKED = "%d picked"
+L.GROUPS_FLAG_NONE = "none"
+L.GROUPS_FLAG_RAISE = "Raise this flag"
+L.GROUPS_FLAG_PICK_ONE = "Pick at least one place, or Any of a kind."
+L.GROUPS_FLAG_PICKS_MAX = "%d places at most: pick Any for a whole kind."
+L.GROUPS_LOOKING = "Players looking (%d)"
+L.GROUPS_LOOKING_TIP = "Flags that name this kind of group. The ones that fit your listing (its place, a role you still need, your minimum level) come first. Click one to whisper or, with your group listed here, invite."
+L.GROUPS_LOOKING_EMPTY = "Nobody's flag names this kind right now."
+L.GROUPS_FITS = "fits your group"
+L.BOARD_PLAYS = "Plays: %s"
+L.GROUPS_SHORT_T = "T"
+L.GROUPS_SHORT_H = "H"
+L.GROUPS_SHORT_D = "D"
+L.GROUPS_FULL = "full"
+L.GROUPS_YOUR_GROUP = "(your group)"
+L.GROUPS_OWN_TIP = "Your listing: manage it under Your group, above."
+L.GROUPS_ZONE = "Zone: %s"
+L.GROUPS_CARD_LEADER = "Leader: %s <%s>"
+L.GROUPS_ROLE_UNSET = "role not set"
+L.GROUPS_MANAGE_ABOVE = "Your group: change what it needs, set roles and answer applications under Your group, above."
+L.GROUPS_APPLIED_AS = "%s applied as %s"
+L.GROUPS_INVITE_AS = "Invite as %s"
+L.GROUPS_LOCKED = "You're in an instance: the game holds addon messages here, so your listing can't refresh until you leave."
+L.GROUPS_CONVERT = "A party holds 5: convert it to a raid to invite more (right-click your portrait, Convert to Raid)."
+L.GROUPS_EDIT_NEED = "What your group still needs"
+L.GROUPS_EDIT_NEED_TIP = "A click steps this role's count. Change it when someone switches roles or joins from the chat: every Board sees it within seconds. Invites from your applications take a role off by themselves when the player joins."
+L.GROUPS_ROSTER = "In your group (%d)"
+L.GROUPS_SET_ROLE_TIP = "Click to set their role (Tank, Healer, Damage, none): your group's card on every Board counts it, by class and role (never their name). The game doesn't tell addons a player's role."
+L.GROUPS_PENDING = "Invited: %s as %s, waiting for them to join"
+L.GROUPS_JOINED = "%s joined your group as %s."
+L.GROUPS_NOT_JOINED = "%s didn't join within 2 minutes: your listing needs a %s again."
+L.GROUPS_EXPLAIN = "Groups looking for players. Looking for a group yourself? Raise a flag (Flags, above): leaders see it here under Players looking."
+L.GROUPS_FILTER_ALL = "All"
+L.GROUPS_FILTER_JOIN = "I can join"
+L.GROUPS_FILTER_LOG = "In my log"
+L.GROUPS_FILTER_ZONE = "My zone"
+L.SOUND_GROUPS = "Board groups: someone applied to your group" -- (1.4.0)
 L.MAPOPT_CAMPS = "Camps"
 L.HELP_CAMP = "  /oly camp [note] | off - drop a camp in your zone (it needs /oly location on) or take yours down; /oly camps on | off - camps on the world map"
 -- 1.1: the King's week (Week.lua, Fern's #26).
@@ -1940,6 +2158,8 @@ L.NETOFF_CLICK_UNDO = "Click to show them again."
 L.NETOFF_ADD = "Hide a character"
 L.NETOFF_REASON_HIDDEN = "(hidden on your screen: show the council's names in the Realm to read it)"
 L.NETOFF_LIST = "Hidden by the moderators: %d."
+L.NETOFF_LIST_STAFF = "The list of who is hidden is in The Watch, for the moderators and the guilds' officers."
+L.WATCH_NETOFF_DETAIL = "Who the moderators hid for everyone with the addon, and the guilds off the network: why, by whom and when, with your buttons to hide a character, take a guild off the network or show one again."
 L.NETOFF_WHO_PROMPT = "Hide which character for the army? (name, or your target)"
 L.NETOFF_WHY_PROMPT = "Why hide %s? Everyone on the Olympus channel reads the reason, with your name and the time."
 L.NETOFF_UNDO_CONFIRM = "Put %s back on for the army?"
@@ -3535,6 +3755,14 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.LOCATION_ON = "Você compartilha sua zona e seu layer no canal Olympus. /oly location off para."
 	L.LOCATION_OFF = "Sua zona e seu layer ficam privados: o addon não envia nenhum dos dois. /oly location on compartilha."
 	L.HELP_LOCATION = "  /oly location on | off - compartilhar (ou não) sua zona e seu layer no canal Olympus"
+	L.HELP_PRIVATE_PRESENCE = "  /oly presence on | off - Rei/Alto Conselho: ocultar a sua presença e localização no Olympus até você desligar (entre logins)"
+	L.PRIVATE_PRESENCE_ON = "A presença privada está ligada, e continua ligada entre logins até você desligar. O Olympus retirou a sua localização compartilhada e não anuncia mais que você está online nem onde você está. Só a sua guilda é avisada, para que os clientes Olympus dos membros dela contem você offline no censo que enviam (um Olympus mais antigo pode não contar). O roster da guilda do WoW, o /who e as linhas de chat que você digitar ainda mostram você."
+	L.PRIVATE_PRESENCE_OFF = "A presença privada está desligada. O Olympus pode voltar a anunciar você; a sua localização continua privada até você mesmo compartilhar."
+	L.PRIVATE_PRESENCE_ONLY = "Só o Rei atual, o High Council assinado ou o autor do addon pode usar a presença privada."
+	L.PRIVATE_PRESENCE_OTHER_OWNER = "Uma integração autorizada mantém a presença privada. Desligue por ela; o Olympus não vai sobrescrever essa escolha de privacidade."
+	L.PRIVATE_PRESENCE_LAPSED = "A presença privada foi desligada: este personagem não é mais o Rei, do Alto Conselho assinado ou o autor do addon."
+	L.CONSENT_PRIVATE_PRESENCE = "Presença privada"
+	L.CONSENT_PRIVATE_PRESENCE_TEXT = "Para o Rei, o Alto Conselho assinado e o autor do addon. Continua ligada entre logins até você desligar. O Olympus primeiro retira a sua localização compartilhada e depois para de anunciar que você está online ou onde você está: nenhum olá, relatório do censo, camada, ponto no mapa ou outra palavra de presença. Só a sua guilda é avisada, para que os clientes Olympus dos membros dela contem você offline no censo que enviam e as outras guildas não vejam você online (colegas com um Olympus mais antigo ainda podem contar você). O roster da guilda do WoW, o /who e as linhas de chat que você digitar ainda mostram você. Desligar não religa o compartilhamento de localização."
 	L.HOP_PRIVATE_HINT = "Este pedido contou ao canal Olympus a zona onde você está e o layer que você quer; seu próprio layer continua privado. Os layers só são conhecidos pelos membros que compartilham os deles: quanto mais compartilham, melhor o pulo funciona (/oly location on)."
 	L.CHAN_WARN_ASK = "|cffe6c35c[%s] não é privado.|r\n\nTodo addon no canal Olympus recebe o texto de [Olympus], [Capitães] e [Lordes] do mesmo jeito e só escolhe quais linhas te mostrar, então qualquer um no canal pode ler os três com um script. %s\n\nNunca escreva senhas ou segredos ali. Enviar sua linha? (Perguntado uma vez por canal.)"
 	L.CHAN_WARN_NOT_SENT = "Sua linha não foi enviada."
@@ -3807,92 +4035,9 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.SEARCH_TIP_TREASURY = "Um nome ou um item, maiúsculas ou não: só os doadores do ranking, as linhas do livro e os itens do banco que batem aparecem."
 	L.SEARCH_TIP_TREASURY_GUILDS = "Um nome, um item ou uma guilda, maiúsculas ou não (ou arraste um item das suas bolsas para a caixa: o link dele entra): os doadores do ranking, as linhas do livro e todos os bancos dos Tesouros das guildas de uma vez."
 	L.SEARCH_MORE_GUILDS = "... e mais %d guildas encontradas: clique para vê-las"
-	-- 0.9.10: Olympus Link (o cargo no Discord)
+	-- 0.9.10: Olympus Link (o cargo no Discord). 1.4.0: um addon à parte, o Olympus_Link (LinkLoader.lua), com os textos dele.
 	L.HELP_DISCORD = "  /oly discord [código] - vincular este personagem à sua conta do Discord (Olympus Link); /oly discord show | status | forget"
-	L.LINK_PASTE_PROMPT = "Cole o código que o bot do Olympus te deu no Discord (ele começa com OLC2., ou com /oly discord):"
-	L.LINK_CONTINUE = "Continuar"
-	L.LINK_ACCEPT = "Aceitar"
-	L.LINK_CONSENT = "Vincular %s à conta do Discord @%s? Isso compartilha o nome, o reino, a guilda e a facção do seu personagem com o bot do Olympus no Discord para te dar o seu cargo. Só aceite se @%s for você."
-	L.LINK_CHECKING = "Conferindo o seu código do Discord..."
-	L.LINK_CODE_BAD = "Esse código do Discord não é válido. Pegue um código novo com o bot do Olympus no Discord e tente de novo."
-	L.LINK_CODE_EXPIRED = "Esse código do Discord expirou. Pegue um código novo com o bot do Olympus no Discord e tente de novo."
-	L.LINK_NOT_OPEN = "O Olympus Link ainda não abriu: esta versão do addon não conhece a chave do bot do Olympus. Atualize o addon e pegue um código novo."
-	L.LINK_NOT_MEMBER = "Só um personagem de uma guilda Olympus pode ser vinculado ao Discord."
-	L.LINK_CANT = "Este personagem não pode ser vinculado agora (a guilda ou a facção ainda não é conhecida). Tente de novo daqui a pouco."
-	L.LINK_BUSY = "O Olympus Link está ocupado: tente de novo daqui a pouco."
-	L.LINK_STARTED = "Pedindo a jogadores no jogo que confirmem que este personagem é seu. Continue jogando: leva um instante."
-	L.LINK_ASKING_COUNCIL = "Um High Councillor online está confirmando o seu vínculo com o Discord..."
-	L.LINK_DRAWING = "Nenhum High Councillor online: pedindo a cinco jogadores verificados sorteados (três precisam confirmar)..."
-	L.LINK_WAITING_COUNCIL = "Nenhum High Councillor online agora. O seu vínculo com o Discord fica aberto até o código expirar e sai assim que um entrar."
-	L.LINK_WAITING = "Não há confirmadores suficientes online agora. O seu vínculo com o Discord fica aberto até o código expirar e é pedido de novo quando mais deles entrarem."
-	L.LINK_READY = "O seu vínculo com o Discord foi confirmado! A prova está na janela do Olympus Link (/oly discord show abre de novo)."
-	L.LINK_GUILD_CHECKING = "O seu personagem foi confirmado, mas nenhum confirmador conseguiu te ver na sua guilda ainda: pedindo de novo por até 10 minutos (um High Councillor da sua guilda, ou um cujo /who te veja, deixa isso certo). Fique online."
-	L.LINK_READY_CLAIMED = "O seu vínculo com o Discord foi confirmado, mas a sua guilda só foi aceita como você a nomeou: o bot pode recusar e pedir alguém que te viu nela. Se recusar, pegue um código novo enquanto um High Councillor da sua guilda estiver online. A prova está na janela do Olympus Link (/oly discord show)."
-	L.LINK_READY_SCAN = "A prova do seu vínculo com o Discord não chega mais a tempo a um vigia: leia agora na página do Olympus Link (/oly discord show abre a janela)."
-	L.LINK_READY_REMINDER = "A prova do seu vínculo com o Discord está pronta e espera o %s. /oly discord show abre a janela para ler agora."
-	L.LINK_DELIVERED = "O seu vínculo com o Discord chegou ao %s: o cargo vem quando o bot ler."
-	L.LINK_EXPIRED = "O seu pedido de vínculo com o Discord expirou junto com o código. Pegue um código novo com o bot do Olympus no Discord."
-	L.LINK_RESUMED = "O seu pedido de vínculo com o Discord continua aberto: pedindo confirmações de novo."
-	L.LINK_STILL_WAITING = "O seu vínculo com o Discord ainda espera confirmações (/oly discord status)."
-	L.LINK_NOTHING = "Nenhuma prova de vínculo com o Discord para este personagem. Digite /oly discord para começar."
-	L.LINK_FORGOTTEN = "O pedido e a prova de vínculo com o Discord deste personagem foram esquecidos."
-	L.LINK_BY_COUNCIL = "confirmado por um High Councillor"
-	L.LINK_BY_PLAYERS = "confirmado por %d jogadores"
-	L.LINK_SCAN = "Leia na página do Olympus Link (compartilhando a tela ou com a câmera do celular), ou espere: ele chega ao bot quando o %s estiver online."
-	L.LINK_WATCHER_GENERIC = "vigia do bot"
-	L.LINK_WATCHER_OF = "vigia de %s"
-	L.LINK_COPY = "Ou copie o link (Ctrl+C) para a página:"
-	L.LINK_NEED_PLAYERS = "%d de %d jogadores"
-	L.LINK_NEED_COUNCIL = "um High Councillor"
-	L.LINK_STATUS_WAITING = "  %s: esperando confirmadores (%s), o código expira em %d h"
-	L.LINK_STATUS_READY = "  %s: pronto, esperando o %s (faltam %d dias); /oly discord show nesse personagem"
-	L.LINK_STATUS_SCAN_ONLY = "  %s: pronto, tarde demais para um vigia: leia na página (/oly discord show nesse personagem)"
-	L.LINK_STATUS_CLAIMED = "  %s: confirmado, a guilda ainda sendo conferida (por até mais %d minutos)"
-	L.LINK_STATUS_DELIVERED = "  %s: entregue ao %s"
-	L.LINK_STATUS_NONE = "  Nenhum pedido ou prova de vínculo com o Discord nesta conta."
-	L.LINK_STATUS_KEY = "  Chave de confirmador %s neste personagem, %s."
-	L.LINK_STATUS_CERT = "certificado: %s, mais %d dias"
-	L.LINK_STATUS_NOCERT = "sem certificado (/oly discord cert): não confirma"
-	L.LINK_STATUS_AUTOCERT = "ainda sem certificado: ele vem do cliente do autor na próxima vez que ele estiver online"
-	L.LINK_STATUS_NOKEY = "  Nenhuma chave de confirmador neste personagem."
-	L.LINK_STATUS_WATCHER_ON = "  Vigia: ligado, %d provas na caixa de entrada."
-	L.LINK_STATUS_WATCHER_OFF = "  Vigia: desligado (/oly discord watcher on)."
-	L.LINK_TIER_C = "High Councillor"
-	L.LINK_TIER_P = "jogador verificado"
-	L.LINK_KEY_BAD = "Uso: /oly discord key <id> <chave>, com o id (6 a 16 letras minúsculas e dígitos) e a chave de 43 caracteres que você recebeu; /oly discord key off a remove."
-	L.LINK_KEY_SET = "Chave de confirmador %s salva para este personagem. Nunca mostre nem compartilhe a chave em si."
-	L.LINK_KEY_SHOW = "Chave de confirmador %s, chave pública %s"
-	L.LINK_KEY_OFF = "Chave de confirmador removida deste personagem."
-	L.LINK_KEY_OFF_COUNCIL = "Chave de confirmador removida deste personagem. O seu addon não faz outra sozinho até /oly discord key new."
-	L.LINK_KEY_NONE = "Nenhuma chave de confirmador neste personagem."
-	L.LINK_KEY_NEW = "Fazendo uma chave de confirmador nova para este personagem (a antiga saiu deste jogo). O seu addon pede o certificado dela ao cliente do autor na próxima vez que ele estiver online."
-	L.LINK_KEY_OLD = "A sua chave antiga %s ainda vale no bot até o responsável por ele revogá-la: mande esse id para ele (na hora, se a chave vazou)."
-	L.LINK_KEY_NEW_ONLY = "Só o addon de um High Councillor faz a própria chave. Os outros confirmadores recebem a sua do responsável pelo bot (/oly discord key <id> <chave>)."
-	L.LINK_KEY_FROM_KEEPER = "As chaves de confirmador, a de um High Councillor também, vêm do responsável pelo bot: peça uma a ele e digite /oly discord key <id> <chave> e /oly discord cert <certificado> neste personagem."
-	L.LINK_KEY_AUTO_GONE = "Olympus Link: a chave de confirmador do High Council que uma versão anterior fez no jogo nesta conta foi removida; agora as chaves vêm do responsável pelo bot (/oly discord key)."
-	L.LINK_CA_LOG = "Certificados que este cliente assinou como autoridade do conselho (%d), para o responsável pelo bot, que pode revogar um id de chave ou todas as chaves de um personagem:"
-	L.LINK_CA_LOG_LINE = "  %s  %s  até %s"
-	L.LINK_CA_LOG_NONE = "Este cliente não assinou nenhum certificado do High Council."
-	L.LINK_KEY_MADE = "Olympus Link: a sua chave de confirmador do High Council %s foi feita para este personagem. O certificado dela vem do cliente do autor na próxima vez que ele estiver online."
-	L.LINK_KEY_PER_CHARACTER = "Olympus Link: agora cada chave de confirmador é de um personagem só. A chave guardada para a conta inteira foi removida: peça ao responsável pelo bot uma para o personagem que confirma."
-	L.LINK_WATCHER_ONLY = "Só um High Councillor pode ser vigia do Olympus Link."
-	L.LINK_WATCHER_ON = "Vigia ligado: as provas que os jogadores te entregam ficam na caixa de entrada das suas SavedVariables (%d agora)."
-	L.LINK_WATCHER_OFF = "Vigia desligado."
-	L.LINK_CERT_USAGE = "Uso: /oly discord cert <certificado>, a linha que começa com OLK2. que o responsável pelo bot te deu junto com a chave."
-	L.LINK_CERT_NO_KEY = "Salve primeiro a sua chave de confirmador (/oly discord key <id> <chave>), depois o certificado dela (/oly discord cert <certificado>)."
-	L.LINK_CERT_OTHER = "Esse certificado é da chave %s, não da sua chave %s."
-	L.LINK_CERT_OTHER_CHAR = "Esse certificado é de %s, não deste personagem (%s): uma chave e o certificado dela são de um personagem só."
-	L.LINK_CERT_EXPIRED = "Esse certificado expirou: peça um novo ao responsável pelo bot."
-	L.LINK_CERT_CHECKING = "Conferindo o certificado..."
-	L.LINK_CERT_BAD = "Esse certificado não foi assinado pelo bot do Olympus: confira se colou ele inteiro, ou peça um novo ao responsável pelo bot."
-	L.LINK_CERT_NOT_MINE = "Esse certificado é de outra chave: não bate com a chave salva para este personagem."
-	L.LINK_CERT_SET = "Certificado salvo: chave %s, %s, válido por mais %d dias. O seu addon agora avisa que pode confirmar."
-	L.LINK_CERT_SHOW = "Certificado: chave %s, %s, válido por mais %d dias."
-	L.LINK_CERT_NONE = "Nenhum certificado de chave de confirmador neste personagem (/oly discord cert <certificado>)."
-	L.LINK_CERT_AUTO = "Olympus Link: o cliente do autor certificou a sua chave de confirmador do High Council %s para este personagem (%d dias). O seu addon agora avisa que pode confirmar."
-	L.LINK_CERT_NEEDED = "Agora salve o certificado dela: /oly discord cert <certificado>. Até lá o seu addon não confirma."
-	L.LINK_CERT_REMOVED = "O certificado da sua chave anterior foi removido."
-	L.LINK_CERT_SAVED_BAD = "O certificado do Olympus Link salvo não bate com a sua chave ou não é do bot: o seu addon não confirma até você salvar um certo (/oly discord cert)."
+	L.DISCORD_NOT_INSTALLED = "O Olympus Link (/oly discord, o seu cargo no Discord) é um addon à parte, o Olympus_Link, e não está instalado ou não está ativado aqui. Todo o resto do Olympus funciona sem ele."
 	-- 1.0.0: o Senescal do Rei (o personagem que o autor marca na lista assinada de títulos).
 	L.STEWARD_ACTING = "Agindo pelo Rei"
 	L.THRONE_YOU_ARE_STEWARD = "Você é o Senescal do Rei: em nome de %s você nomeia Mãos suas ao lado das dele, os guardiões do tesouro e o que o exército vê dele, e usa todas as ferramentas das Mãos. No tesouro, a palavra mais nova do próprio Rei sempre vence."
@@ -3928,7 +4073,7 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.PUBLIC_NET_TITLE = "O canal de Olympus é público"
 	-- 1.2.5.1: a presença silenciosa (Core.lua), no topo do Censo e do Reino enquanto está ligada.
 	L.QUIET_PRESENCE_LINE = "Presença silenciosa: o Olympus para de anunciar você e onde você está. A lista da guilda, o censo que seus colegas de guilda montam com ela, o /who e o chat ainda mostram você."
-	L.QUIET_PRESENCE_TIP = "Um addon que você autorizou a ligou nesta sessão. O Olympus deixa de enviar, por conta própria, as palavras que anunciam você online ou dizem onde você está: nenhum olá, relatório do censo, camada, ponto no mapa, oferta de troca de camada, corte, aviso de doações ou de plantão, resposta de ajuda ou de artesão, avistamento do Wanted ou resposta de avistamento, apresentação de perfil, nem a coroa do Rei ou as listas que o cliente dele repete. O que os outros clientes ouviram antes expira como após um logout. O censo dos seus colegas de guilda ainda lê a lista da guilda: um mestre ou oficial de guilda ainda aparece online lá, e sua zona pode aparecer por até 12 minutos. As linhas de chat do Olympus que você digitar, o que você mesmo publicar e os registros que seu cliente repassa ainda são enviados. Ela termina quando esse addon a desligar, num /reload ou ao sair do jogo; depois de um /reload, o Olympus pode dizer olá antes que esse addon a ligue de novo."
+	L.QUIET_PRESENCE_TIP = "Você ligou a Presença privada, ou um addon que você autorizou ligou uma presença silenciosa. O Olympus deixa de enviar, por conta própria, as palavras que anunciam você online ou dizem onde você está: nenhum olá, relatório do censo, camada, ponto no mapa, oferta de troca de camada, corte, aviso de doações ou de plantão, resposta de ajuda ou de artesão, avistamento do Wanted ou resposta de avistamento, apresentação de perfil, nem a coroa do Rei ou as listas que o cliente dele repete. O que os outros clientes ouviram antes expira como após um logout. O censo dos seus colegas de guilda ainda lê a lista da guilda: um mestre ou oficial de guilda ainda aparece online lá, e sua zona pode aparecer por até 12 minutos. Com a Presença privada a sua guilda é avisada, e os clientes Olympus dos membros dela contam você offline no censo que enviam (um Olympus mais antigo pode não contar). As linhas de chat do Olympus que você digitar, o que você mesmo publicar e os registros que seu cliente repassa ainda são enviados. A Presença privada continua ligada entre logins até você desligar. A presença silenciosa de um addon termina quando esse addon a desligar, num /reload ou ao sair do jogo; depois de um /reload, o Olympus pode dizer olá antes que esse addon a ligue de novo."
 	L.QUIET_PRESENCE_HELD = "A presença silenciosa está ligada: o Olympus envia isto quando ela for desligada."
 	L.PUBLIC_NET_TIP = "Nenhuma chave de reino foi definida, então todo addon de Olympus se encontra no canal público %s. Qualquer um pode entrar nele pelo nome e, com um script de uma linha, ler tudo o que passa por lá: o censo, onde as pessoas estão (de quem compartilha), os três chats ([Capitães] e [Lordes] também) e os decretos. Selado com uma chave, o nome e a senha do canal vêm da chave e só entra quem a tem. Um oficial digita /oly key <segredo> uma vez, e os colegas de guilda com o addon recebem a chave sozinhos pelo chat da guilda. Use o segredo que os oficiais das outras guildas usam: uma chave só sua separa a sua guilda do exército."
 	-- 1.1: a linha fixada (pedido #9).
@@ -4073,7 +4218,6 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.HELP_NOCONTACT = "  /oly nocontact on | off - as telas Entrar na Olympus dos recrutas pulam você (on) ou podem te chamar (off)"
 	L.HELP_PARTY_GUARD = "  /oly partyguard on | off - mostra whispers claros pedindo grupo na Sala de Guerra enquanto o Rei está online"
 	L.PARTY_GUARD_TITLE = "Guarda do Grupo (%d)"
-	L.PARTY_GUARD_TIP = "Pedidos claros de convite para grupo recebidos enquanto o Rei está online. Um whisper nunca prova a guilda: o Olympus só classifica o jogador após um roster recente, um /who explícito ou uma conferência direta pelo alvo/mouseover. Toda verificação e todo convite dependem do seu clique."
 	L.HELP_PARTY_GUARD = "  /oly partyguard on | off - mostra whispers claros pedindo grupo no Censo enquanto o Rei está online"
 	L.PARTY_GUARD_TITLE = "Guarda do Grupo (%d)"
 	L.PARTY_GUARD_TIP = "Pedidos claros de convite para grupo recebidos enquanto o Rei está online. Um whisper nunca prova a guilda: o Olympus só classifica o jogador após um roster recente, um /who explícito ou uma conferência direta pelo alvo/mouseover. Toda verificação e todo convite dependem do seu clique."
@@ -4900,6 +5044,147 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.BOARD_CAMP_MAP_TIP = "Sussurre para eles pelo Mural (/oly lfg). /oly camps off esconde estes selos."
 	L.BOARD_CAMPS_MAP_ON = "Os acampamentos aparecem no mapa-múndi (/oly camps off esconde; o Mural continua com eles)."
 	L.BOARD_CAMPS_MAP_OFF = "Os acampamentos estão escondidos no mapa-múndi (/oly camps on mostra; o Mural continua com eles)."
+	-- 1.4.0: grupos no Mural (Groups.lua)
+	L.GROUPS_TAB_FLAGS = "Bandeiras"
+	L.GROUPS_TAB_D = "Masmorras"
+	L.GROUPS_TAB_R = "Raides"
+	L.GROUPS_TAB_P = "JxJ"
+	L.GROUPS_TAB_Q = "Missões"
+	L.GROUPS_TAB_TIP = "Grupos procurando jogadores: do que cada um precisa, e o recado do líder. Clique num grupo para se candidatar com sua função; o líder convida ou recusa."
+	L.GROUPS_KIND_D = "Masmorra"
+	L.GROUPS_KIND_R = "Raide"
+	L.GROUPS_KIND_P = "JxJ"
+	L.GROUPS_KIND_Q = "Missão"
+	L.GROUPS_ROLE_T = "Tanque"
+	L.GROUPS_ROLE_H = "Curandeiro"
+	L.GROUPS_ROLE_D = "Dano"
+	L.GROUPS_LINK = "%d grupos"
+	L.GROUPS_OTHER = "Outro (veja o recado)"
+	L.GROUPS_QUEST_UNNAMED = "Uma missão"
+	L.GROUPS_NEEDS = "Precisa: %s"
+	L.GROUPS_NEED_NONE = "ninguém agora"
+	L.GROUPS_SIZE = "%d no grupo"
+	L.GROUPS_ANY = "quantos vierem"
+	L.GROUPS_YOURS = "Seu grupo"
+	L.GROUPS_YOURS_TIP = "Anuncie seu grupo: onde, e quais funções ainda faltam. Seu nome, nível, classe e guilda vão junto, quantos estão no seu grupo por classe e função (nunca os nomes deles), e seu recado se você escrever um. Os jogadores se candidatam com uma função; você convida ou recusa aqui. Dura uma hora no máximo (uma missão, meia hora), e um anúncio por vez."
+	L.GROUPS_LIST = "Anunciar um grupo: %s"
+	L.GROUPS_LIST_TIP = "Escolha onde, depois as funções que faltam, depois publique com um recado curto (opcional)."
+	L.GROUPS_CHOOSE = "Onde? Clique em um:"
+	L.GROUPS_FROM_LEVEL = "a partir do nível %d"
+	L.GROUPS_GROUP_QUEST = "grupo"
+	L.GROUPS_NO_QUESTS = "Seu registro de missões não tem missão para anunciar."
+	L.GROUPS_WHERE = "Onde: %s"
+	L.GROUPS_CHANGE = "clique para trocar"
+	L.GROUPS_WANTED = "%s procurado: %s"
+	L.GROUPS_CLICK_CHANGE = "clique para mais ou menos"
+	L.GROUPS_POST = "Publicar o anúncio"
+	L.GROUPS_POST_TIP = "Abre uma caixa para um recado curto (opcional), e diz o que vai antes de ir."
+	L.GROUPS_CANCEL = "Cancelar"
+	L.GROUPS_LIST_ASK = "Anunciar um grupo\n\n%s\n\nSeu nome, nível, classe e guilda vão junto, do que seu grupo precisa, quantos estão nele por classe e função (nunca os nomes deles) e seu recado, para todo jogador Olympus do seu reino e facção. %s O recado vai como o chat: os servidores do jogo guardam, então abuso pode ser denunciado.\n\nUm recado curto (opcional):"
+	L.GROUPS_LIST_BTN = "Anunciar"
+	L.GROUPS_LISTED = "Seu grupo está anunciado no Mural: %s. As candidaturas aparecem em Seu grupo."
+	L.GROUPS_MINE = "Seu grupo está anunciado: %s"
+	L.GROUPS_MINE_ELSEWHERE = "Seu grupo está anunciado em %s: um anúncio por vez. Clique para vê-lo."
+	L.GROUPS_LOWER = "Retirar seu anúncio"
+	L.GROUPS_LOWER_TIP = "Ele sai de todos os Murais na hora, e quem ainda espera é avisado."
+	L.GROUPS_APPLICANTS = "Candidaturas (%d)"
+	L.GROUPS_NO_APPLICANTS = "Nenhuma candidatura ainda."
+	L.GROUPS_APPLICANT_TIP = "Clique: convidar, recusar ou sussurrar."
+	L.GROUPS_STATE_INVITED = "convidado"
+	L.GROUPS_INVITE = "Convidar"
+	L.GROUPS_DECLINE = "Recusar"
+	L.GROUPS_WHISPER = "Sussurrar para %s"
+	L.GROUPS_UP = "Grupos anunciados (%d)"
+	L.GROUPS_EMPTY = "Nenhum grupo anunciado aqui. Anuncie o seu: todo jogador Olympus vê na hora."
+	L.GROUPS_CARD_TIP = "Clique: candidatar-se com sua função, ou sussurrar para o líder."
+	L.GROUPS_IN_LOG = "no seu registro"
+	L.GROUPS_APPLY_AS = "Candidatar-se como %s"
+	L.GROUPS_APPLY_TIP = "Abre uma caixa para um recado curto (opcional). Seu nome, nível, classe e guilda vão só para o líder."
+	L.GROUPS_APPLY_WHAT = "%s para %s, com %s"
+	L.GROUPS_APPLY_ASK = "Candidatar-se: %s\n\nSeu nome, nível, classe, guilda e função vão só para o líder, e seu recado. %s\n\nUm recado curto (opcional):"
+	L.GROUPS_APPLY_BTN = "Candidatar-se"
+	L.GROUPS_APP_SENT = "Você se candidatou como %s: esperando o líder."
+	L.GROUPS_APP_INVITED = "Você se candidatou como %s: o líder convidou você."
+	L.GROUPS_WITHDRAW = "Retirar sua candidatura"
+	L.GROUPS_APPLIED = "Você se candidatou como %s para %s: %s vê no Mural."
+	L.GROUPS_WITHDRAWN = "Sua candidatura foi retirada."
+	L.GROUPS_APPLICANT = "%s se candidatou como %s para %s. Responda no Mural (/oly group)."
+	L.GROUPS_INVITED = "Você convidou %s (%s)."
+	L.GROUPS_FILLED = "Seu grupo tem todas as funções que anunciou: o anúncio foi retirado."
+	L.GROUPS_CLOSED = "Seu anúncio foi retirado."
+	L.GROUPS_ENDED = "O tempo do seu anúncio acabou e ele foi retirado. Anuncie de novo no Mural se ainda precisar de jogadores."
+	L.GROUPS_NONE_UP = "Você não tem grupo anunciado."
+	L.GROUPS_NOT_LEADER = "Só o líder do seu grupo pode convidar: peça a ele, ou sussurre para o jogador."
+	L.GROUPS_GONE = "Esse grupo não está mais anunciado."
+	L.GROUPS_ROLE_FULL = "Esse grupo não precisa dessa função agora."
+	L.GROUPS_TOO_MANY = "%d candidaturas esperando no máximo: retire uma antes."
+	L.GROUPS_WAIT = "Espere %d segundos antes."
+	L.GROUPS_HOURLY = "%d anúncios por hora no máximo: retire o seu só quando terminar."
+	L.GROUPS_YOU_INVITED = "%s convidou você (%s): aceite o convite do jogo."
+	L.GROUPS_YOU_DECLINED = "%s recusou sua candidatura (%s)."
+	L.GROUPS_YOU_CLOSED = "%s retirou o anúncio em que você se candidatou (%s)."
+	L.HELP_GROUPS = "  /oly group [dungeon | raid | pvp | quest | off] - os grupos do Mural: anunciar o seu, candidatar-se a um, ou retirar o seu"
+	L.GROUPS_MIN_SHORT = "nv %d+"
+	L.GROUPS_MIN_TIP = "A partir do nível %d."
+	L.GROUPS_TOO_LOW = "Este grupo aceita jogadores a partir do nível %d."
+	L.GROUPS_MIN_LINE = "Nível mínimo: %s"
+	L.GROUPS_MIN_NONE = "nenhum"
+	L.GROUPS_MIN_LINE_TIP = "Quem estiver abaixo não pode se candidatar. Começa no nível em que o lugar costuma ser feito."
+	L.GROUPS_IN_GROUP = "No grupo:"
+	L.GROUPS_COUNT = "%s x%d"
+	L.GROUPS_CLASS_UNKNOWN = "Outra classe"
+	L.GROUPS_INVITE_FAILED = "O jogo não aceitou o convite: tente de novo, ou convide pelo chat."
+	L.GROUPS_PANEL_OWN = "O do Olympus"
+	L.GROUPS_PANEL_OWN_TIP = "O Seu grupo do próprio Olympus: seu anúncio, as candidaturas, seu grupo e do que ele precisa. Sua escolha fica guardada para a sua conta."
+	L.GROUPS_PANEL_THEIRS_TIP = "O painel de outro addon, no lugar do Seu grupo do Olympus (você o permitiu na página de privacidade). Os anúncios, os cartões deles e os jogadores procurando continuam do Olympus. Sua escolha fica guardada para a sua conta."
+	L.GROUPS_TYPE_NAME = "Digitar um nome (um elite, um raro, uma missão fora do seu registro)"
+	L.GROUPS_TYPE_NAME_TIP = "O nome que você digitar aparece no seu anúncio, como o título de uma missão, com a zona onde você está enquanto a compartilha (/oly location on)."
+	L.GROUPS_NAME_ASK = "Para que é o seu grupo?\n\nUm elite, um raro, ou uma missão que não está no seu registro: o nome aparece no seu anúncio.\n\nNome:"
+	L.GROUPS_NAME_BTN = "Próximo"
+	L.GROUPS_ANY_D = "Qualquer masmorra"
+	L.GROUPS_ANY_R = "Qualquer raide"
+	L.GROUPS_ANY_P = "Qualquer JxJ"
+	L.GROUPS_FLAG_MULTI = "Levantar uma bandeira para vários lugares, com suas funções"
+	L.GROUPS_FLAG_MULTI_TIP = "Uma bandeira para tudo o que você toparia (masmorras, raides, JxJ, até 8 lugares ou Qualquer de um tipo), e as funções que você joga. Os líderes a veem em cada seção que ela cita."
+	L.GROUPS_FLAG_ROLES = "Funções que você joga (quantas quiser):"
+	L.GROUPS_FLAG_WHERE = "Aonde você iria (%d lugares no máximo; Qualquer pega um tipo inteiro):"
+	L.GROUPS_FLAG_PICKED = "%d escolhidos"
+	L.GROUPS_FLAG_NONE = "nenhum"
+	L.GROUPS_FLAG_RAISE = "Levantar esta bandeira"
+	L.GROUPS_FLAG_PICK_ONE = "Escolha ao menos um lugar, ou Qualquer de um tipo."
+	L.GROUPS_FLAG_PICKS_MAX = "%d lugares no máximo: escolha Qualquer para um tipo inteiro."
+	L.GROUPS_LOOKING = "Jogadores procurando (%d)"
+	L.GROUPS_LOOKING_TIP = "Bandeiras que citam este tipo de grupo. As que servem ao seu anúncio (o lugar, uma função que ainda falta, seu nível mínimo) vêm primeiro. Clique em uma para sussurrar ou, com seu grupo anunciado aqui, convidar."
+	L.GROUPS_LOOKING_EMPTY = "Nenhuma bandeira cita este tipo agora."
+	L.GROUPS_FITS = "serve ao seu grupo"
+	L.BOARD_PLAYS = "Joga: %s"
+	L.GROUPS_SHORT_T = "T"
+	L.GROUPS_SHORT_H = "C"
+	L.GROUPS_SHORT_D = "D"
+	L.GROUPS_FULL = "completo"
+	L.GROUPS_YOUR_GROUP = "(seu grupo)"
+	L.GROUPS_OWN_TIP = "Seu anúncio: cuide dele em Seu grupo, acima."
+	L.GROUPS_ZONE = "Zona: %s"
+	L.GROUPS_CARD_LEADER = "Líder: %s <%s>"
+	L.GROUPS_ROLE_UNSET = "função não definida"
+	L.GROUPS_MANAGE_ABOVE = "Seu grupo: mude do que ele precisa, defina funções e responda candidaturas em Seu grupo, acima."
+	L.GROUPS_APPLIED_AS = "%s se candidatou como %s"
+	L.GROUPS_INVITE_AS = "Convidar como %s"
+	L.GROUPS_LOCKED = "Você está numa instância: o jogo segura as mensagens de addon aqui, então seu anúncio não se atualiza até você sair."
+	L.GROUPS_CONVERT = "Um grupo comporta 5: converta em raide para convidar mais (clique direito no seu retrato, Converter em Raide)."
+	L.GROUPS_EDIT_NEED = "Do que seu grupo ainda precisa"
+	L.GROUPS_EDIT_NEED_TIP = "Um clique muda a quantidade desta função. Mude quando alguém trocar de função ou entrar pelo chat: todo Mural vê em segundos. Os convites das suas candidaturas tiram a função sozinhos quando o jogador entra."
+	L.GROUPS_ROSTER = "No seu grupo (%d)"
+	L.GROUPS_SET_ROLE_TIP = "Clique para definir a função (Tanque, Curandeiro, Dano, nenhuma): o cartão do seu grupo em todo Mural a conta, por classe e função (nunca o nome). O jogo não informa aos addons a função de um jogador."
+	L.GROUPS_PENDING = "Convidado: %s como %s, esperando entrar"
+	L.GROUPS_JOINED = "%s entrou no seu grupo como %s."
+	L.GROUPS_NOT_JOINED = "%s não entrou em 2 minutos: seu anúncio precisa de %s de novo."
+	L.GROUPS_EXPLAIN = "Grupos procurando jogadores. Procurando grupo? Levante uma bandeira (Bandeiras, acima): os líderes a veem aqui em Jogadores procurando."
+	L.GROUPS_FILTER_ALL = "Todos"
+	L.GROUPS_FILTER_JOIN = "Posso entrar"
+	L.GROUPS_FILTER_LOG = "No meu registro"
+	L.GROUPS_FILTER_ZONE = "Minha zona"
+	L.SOUND_GROUPS = "Grupos do Mural: alguém se candidatou ao seu grupo"
 	L.MAPOPT_CAMPS = "Acampamentos"
 	L.HELP_CAMP = "  /oly camp [recado] | off - deixar um acampamento na sua zona (precisa de /oly location on) ou desfazer o seu; /oly camps on | off - acampamentos no mapa-múndi"
 	-- 1.1: a semana do Rei (Week.lua, do Fern).
@@ -4978,6 +5263,8 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.NETOFF_ADD = "Esconder um personagem"
 	L.NETOFF_REASON_HIDDEN = "(escondido na sua tela: mostre os nomes do conselho no Reino para ler)"
 	L.NETOFF_LIST = "Escondidos pelos moderadores: %d."
+	L.NETOFF_LIST_STAFF = "A lista de quem está escondido fica na The Watch, para os moderadores e os oficiais das guildas."
+	L.WATCH_NETOFF_DETAIL = "Quem os moderadores esconderam para todo mundo com o addon, e as guildas fora da rede: por quê, por quem e quando, com os seus botões para esconder um personagem, tirar uma guilda da rede ou mostrar de novo."
 	L.NETOFF_WHO_PROMPT = "Esconder qual personagem para o exército? (nome, ou o seu alvo)"
 	L.NETOFF_WHY_PROMPT = "Por que esconder %s? Todo mundo no canal do Olympus lê o motivo, com o seu nome e a hora."
 	L.NETOFF_UNDO_CONFIRM = "Devolver %s para o exército?"

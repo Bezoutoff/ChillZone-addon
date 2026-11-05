@@ -12,8 +12,17 @@ copying its shell. This page is the whole contract of version 1 (`OlympusAPI.VER
   search at a time under the map/cadence rules below, or open the bounded host-owned
   profile-presentation session described below.
 - **Only what the player already sees, at no more detail.** The Wanted list and its bounties, the
-  public rankings, the player's own frame and title, his own Olympus guild, rank and role, and the
-  leader's presence as the leader lines, the leader's map crown and the Realm tab's layer list show it.
+  public rankings, the player's own frame and title, his own Olympus guild, rank and role, the
+  leader's presence as the leader lines, the leader's map crown and the Realm tab's layer list show
+  it, whether a player the game shows him right now (a live unit token) is in an Olympus guild, and
+  (1.4.0) the Board's group listings and players looking as its sections show them, with the
+  player's own listing's applications and his own group.
+- **The player's own group, as the Board's buttons act on it (1.4.0).** A companion addon may invite
+  (the game's own invite) or decline an applicant of the player's own listing, invite a player
+  looking, set his group members' roles and lower his listing, each through Olympus's own handler,
+  and open Olympus's own card, listing composer and flag dialog. It never posts a listing, raises a
+  flag, applies or writes words for the player: he does that himself in Olympus's own UI. It may
+  also show one panel of its own in place of the Board's **Your group**, with a switch back.
 - **One permission per addon.** Your addon calls `OlympusAPI.Register`, the player answers **Yes**
   or **No** for it on Olympus's privacy page, and no data comes back, search starts or presentation
   is enabled before a Yes. The line describes the reads and optional bounded network actions.
@@ -82,6 +91,27 @@ if OlympusAPI.Has("network.sightings") then
 	if OlympusAPI.Has("network.sightings.area-scope") then
 		-- api:StartAreaSearch(84, "outsiders")
 	end
+end
+```
+
+A group finder can build on the Board's groups (1.4.0) instead of a second network of its own: read
+the listings and the players looking, act on the player's own listing through Olympus, and show
+its own panel where the Board's **Your group** is:
+
+```lua
+if OlympusAPI.Has("groups") and OlympusAPI.Has("groups.manage") and OlympusAPI.Has("ui.board-groups") then
+	api:On("GROUPS_CHANGED", function(_, groups) --[[ redraw your list ]] end)
+	api:On("LOOKING_CHANGED", function(_, looking) --[[ redraw your players ]] end)
+	api:On("MY_GROUP_CHANGED", function(_, mine) --[[ redraw your panel ]] end)
+	api:RegisterGroupPanel({
+		label = "Group Finder",
+		build = function(frame) --[[ your panel's frames, children of frame; set its height ]] end,
+		refresh = function(frame) --[[ update them from api:GetMyGroup() ]] end,
+	})
+	-- An Invite button of your panel, from the player's click:
+	-- local ok, reason = api:InviteApplicant("Example-Realm", "tank")
+	-- A "List a group" button: Olympus's own composer, where the player lists it himself.
+	-- api:OpenListingDialog("dungeon")
 end
 ```
 
@@ -177,6 +207,7 @@ separate from the 16 addons that may register data handles.
 | `"rankings"` | `handle:GetRankings()` |
 | `"rankings.slayers"`, `"rankings.donors"`, `"rankings.church"`, `"rankings.games"` | that kind of ranking (a build without the games has no `"rankings.games"`) |
 | `"profile"` | `handle:GetProfile()` |
+| `"unit.member"` | `handle:IsOlympusMember(unit)` |
 | `"leader"` | `handle:GetLeaderPresence()` and `LEADER_CHANGED` |
 | `"network.sightings"` | request-bound exact-name and hostile-area searches through `StartPlayerSearch`, `StartAreaSearch`, their cancel/get methods, and explicit host-owned area map pins |
 | `"network.sightings.area-scope"` | `handle:StartAreaSearch(mapID, scope)` accepts `"outsiders"` as well as `"hostile"` |
@@ -185,10 +216,14 @@ separate from the 16 addons that may register data handles.
 | `"ui.guild-tools"` | `handle:OpenGuildTools([section[, target]])`, which opens an authorized section of Olympus's own Watch workspace without returning its records |
 | `"callbacks"`, and each event's name | `handle:On(...)` |
 | `"ui.surface"` | one page through `handle:RegisterSurface(...)` and its lifecycle methods |
+| `"groups"` | (1.4.0) `handle:GetGroups([kind])`, `handle:GetLooking([kind])`, `handle:GetMyGroup()` and `GROUPS_CHANGED`, `LOOKING_CHANGED`, `MY_GROUP_CHANGED` |
+| `"groups.manage"` | (1.4.0) the own-group actions: `InviteApplicant`, `DeclineApplicant`, `SetMemberRole`, `InviteLooking`, `LowerListing`, `OpenGroup`, `OpenListingDialog`, `OpenFlagDialog` |
+| `"ui.board-groups"` | (1.4.0) one panel in place of the Board's Your group: `RegisterGroupPanel`, `UnregisterGroupPanel`, `RefreshGroupPanel`, `IsGroupPanelShown` |
 
 **Reserved features.** `"leader"`, `"network.sightings"`, `"network.sightings.area-scope"`,
 `"network.profile-effects"` and `"presence.quiet"` are reserved for
-addons the Olympus team has authorized. `Has` still says whether this build has them. For any other
+addons the Olympus team has authorized (`"groups"`, `"groups.manage"` and `"ui.board-groups"` are
+not: every addon the player says Yes to gets them). `Has` still says whether this build has them. For any other
 addon, their methods return `nil` and `"unauthorized"` (`false` and `"unauthorized"` for the cancel and map methods,
 `SetQuietPresence`, `StartProfileSession`, `StopProfileSession` and `SetProfileEffect`), `On`
 returns `false` for `LEADER_CHANGED`, `SIGHTING_CHANGED`, `PROFILE_EFFECT_SESSION_CHANGED` and
@@ -503,7 +538,7 @@ While it is on, this client stops sending, on its own, the words that announce t
 online or place him: no hello, no census report (it is never the guild's reporter, so it answers no
 census request), no layer announcement, guildmate map dot or layer-hop offer or answer, no answer
 to a player-sighting or King's-layer request, no roll-call, version-check, council-help or crafter
-answer, no author, Church, Olympus Link, council-help, crafter listing, Wanted reviewer, arena
+answer, no author, Church, Olympus Link (its own addon, when installed), council-help, crafter listing, Wanted reviewer, arena
 auditor or arbiter presence, no Wanted sighting, no treasury "taking donations" notice, no repeated
 treasury ask (a session's first still goes), no profile-presentation heartbeat and, for the King,
 no crown position or layer, no court, no tabard collector lease and no timed repeat of his Hands,
@@ -690,6 +725,45 @@ Outside an Olympus guild, or before the player accepted the Olympus Accord (Olym
 use, 1.2.5.1), it is `{ member = false }`, and `GetWanted` and `GetRankings` return
 `nil, "guild"`.
 
+### `handle:IsOlympusMember(unit)`
+
+Whether the player a live unit token names is in an Olympus guild, as Olympus counts its guilds on
+this client: `true` or `false`, or `nil` and a reason. Available when
+`OlympusAPI.Has("unit.member")`, to any addon with the player's Yes, while the player is in an
+Olympus guild (the same permission and guild checks as `GetWanted`).
+
+```lua
+local yes, why = api:IsOlympusMember("target")
+if yes then
+	-- an Olympus guild's player
+elseif yes == false then
+	-- a player of another guild, or not a player at all
+else
+	-- why: "unknown" when Olympus cannot tell; see below for the others
+end
+```
+
+- `unit` is one of the game's own unit tokens: `"player"`, `"target"`, `"focus"`, `"mouseover"`,
+  `"party1"` to `"party4"`, `"raid1"` to `"raid40"` or `"nameplateN"`, alone or followed by
+  `"target"` once (`"targettarget"`, `"party1target"`). Case does not matter. A name, or any other
+  string, returns `nil, "unit"`: you can ask only about a player the game shows the player now.
+- `true`: the unit is a player of the player's own faction whose guild, as the game gives it now,
+  is an Olympus guild by Olympus's own rule (the same answer Olympus's own pages give).
+- `false`: the unit is not a player (a creature, a pet), or is a player of the player's own faction
+  in a guild that is not an Olympus guild.
+- `nil, "unknown"`: the game shows nothing for that token now, another faction's player (Olympus's
+  lists on this client are its own faction's), or no guild from the game. The game's
+  `GetGuildInfo` gives nothing both for a player in no guild and for one whose guild it has not
+  received yet, so neither is called "not a member": ask again later, for instance on
+  `PLAYER_TARGET_CHANGED` or `GROUP_ROSTER_UPDATE`.
+
+It reads only what the game gives for that unit now (`UnitExists`, `UnitIsPlayer`,
+`UnitFactionGroup`, `GetGuildInfo`) and Olympus's guild rule: never the census, a roster, a sighting,
+a moderation sanction or a stored list of people, and Olympus keeps nothing of the call. It has a
+budget of its own, separate from the other data methods: 80 calls in 10 seconds (a raid of 40,
+twice), then `nil, "busy"`. No event tells of a change: ask when the game tells you that unit
+changed.
+
 ### `handle:GetLeaderPresence()`
 
 The federation leader's presence (the King on Olympus's pages), built field by field from what this
@@ -724,6 +798,153 @@ Realm tab's "~N with Olympus", a sample of Olympus clients that share their laye
 remain. It never returns another member's name except as a layer name the Realm tab already shows,
 nor a population, the census or a movement history.
 
+### The Board's groups (1.4.0)
+
+The Board's sections (**Dungeons**, **Raids**, **PvP**, **Quests**, beside **Flags**) list groups
+looking for players; a flag says a player is looking for a group. Everything travels on Olympus's
+own network: a companion addon reads it here instead of broadcasting listings of its own, so every
+Olympus player sees every group whether or not he runs that addon. The reads need the same
+permission, Olympus guild and rate checks as `GetWanted`. `kind` is `"dungeon"`, `"raid"`, `"pvp"`
+or `"quest"` (another value: `nil, "kind"`). Each row is built field by field from what the Board's
+row, tooltip and card show this player, at no more detail: never the names of a group's members
+(how many, by class and role), never a time of anyone's (`fresh` instead), and on the King's
+screen (his stream) the words the Board hides stay out: the notes, and a quest's title and zone
+unless his own quest log has that quest (a typed name never).
+
+#### `handle:GetGroups([kind])`
+
+That section's listings, or every section's in the strip's order, in the Board's order (the
+player's own first in its section, then newest first; quests in his own log first):
+
+```lua
+{
+	{
+		id = "a7:Example-Realm", -- opaque: give it to OpenGroup, never parse it
+		kind = "dungeon",
+		place = "DM", -- a place key this build knows (nil for a quest, or a later version's place)
+		placeName = "Deadmines", -- what the row shows: the place, a quest's title, "Other"
+		questID = nil, questTitle = nil, zone = nil, -- a quest's, only as the Board shows them
+		leader = "Example-Realm", -- as the server stamped his messages
+		guild = "Olympus Example", class = "PR", level = 18, minLevel = 16, size = 2,
+		need = { tank = 1, healer = 0, damage = 3, any = false,
+			anyNumber = { tank = false, healer = false, damage = false } },
+		members = { { class = "MA", role = "damage", count = 1 } }, -- the others in his group, counted
+		note = "chill run", -- nil when there is none or on the King's screen
+		own = false, -- the player's own listing
+		applied = nil, -- "waiting" or "invited": the player's own application to it
+		fresh = true, -- listed in the last 5 minutes
+	},
+}
+```
+
+A role that takes any number (raids and PvP) counts as `1` with `anyNumber[role] = true`, and
+`any` is `true` when one of them does. `members[].role` is `"tank"`, `"healer"`, `"damage"` or
+`nil` (not set); `class` the chats' two-letter code, `nil` when unknown. A declined application is
+not kept (the Board forgets it): `applied` is then `nil`.
+
+#### `handle:GetLooking([kind])`
+
+The section's **Players looking**: the player's own flag first when it names that kind
+(`own = true`, as the Board's flags page shows it), then the others' flags that name it, the ones
+that fit the player's own listing first. Without `kind`, the dungeon, raid and PvP sections in turn: a player whose flag
+names two kinds is in both, as on the Board. No flag looks for a quest (`{}`).
+
+```lua
+{
+	{ kind = "dungeon", name = "Example-Realm", guild = "Olympus Example", class = "WA", level = 20,
+		roles = { tank = true, healer = false, damage = false }, -- what his flag says he plays
+		places = { "DM", "SFK" }, -- the places it names in that kind, or "any"
+		fits = false, -- it fits the player's own listing (its place, a role it needs, its minimum)
+		own = false }, -- true for the player's own flag (which never fits his own listing)
+}
+```
+
+Never the flag's note or zone, nor a time.
+
+#### `handle:GetMyGroup()`
+
+The player's own group, as **Your group** shows it:
+
+```lua
+{
+	listing = { --[[ GetGroups' row of his own listing, own = true ]] }, -- nil without one
+	applicants = { -- while his listing is up
+		{ name = "Example-Realm", guild = "Olympus Example", role = "tank", level = 20, class = "WA",
+			note = "prot", state = "waiting" }, -- or "invited"; note as the Board shows it
+	},
+	members = { -- the others in his party or raid, as the game names them
+		{ name = "Example-Realm", class = "PR", level = 20, role = "healer" }, -- role as he set it, or nil
+	},
+}
+```
+
+#### Acting on the player's own group (`"groups.manage"`)
+
+Each of these runs the very function the Board's own button runs, with its checks, and the game's
+invite through Olympus's click-only path: call them only from the player's click on your own
+button. They need the player's Yes, an Olympus guild, no combat, and a rate of their own (6 calls
+in 10 seconds per addon, apart from the reads' 20). Each returns `true`, or `false` and a reason.
+
+- `handle:InviteApplicant(name, role)`: the game's invite for an applicant of the player's own
+  listing, as the role he applied as (`"tank"`, `"healer"` or `"damage"`), while the listing still
+  wants it. The applicant is told, and the role comes off the listing when he joins. Reasons:
+  `"unknown"` (no listing, no such applicant), `"role"`, `"invited"` (already invited, waiting for
+  him to join), `"not-leader"` (another player leads the group), `"invite"` (the game refused it).
+- `handle:DeclineApplicant(name)`: declines one (he is told). `"unknown"` without such an applicant.
+- `handle:SetMemberRole(name, role)`: a member's role as the Board's roster row sets it, `nil` for
+  none (`"role"` for another value, `"unknown"` for someone not in the group). His listing's card
+  counts it on every Board.
+- `handle:InviteLooking(name, role)`: the Board's **Invite as** under **Players looking**: a player
+  whose flag is up in the section of the player's own listing, as a role his flag names (any role,
+  when it names none, as the Board's own buttons offer) that the listing still wants. Same reasons
+  as `InviteApplicant`.
+- `handle:LowerListing()`: takes the player's own listing down for everyone (what
+  `/oly group off` does); the applicants still waiting are told. `"unknown"` without one.
+- `handle:OpenGroup(id)`: opens Olympus's window on the Board at that listing's card (an id from
+  `GetGroups`), where the player applies or whispers himself. `"unknown"` for a listing that is gone.
+- `handle:OpenListingDialog([kind])`: opens Olympus's own composer of a listing on the Board
+  (where, the roles, the minimum level, then the dialog that says what goes out), for `kind`
+  (`"dungeon"` by default); with a listing of his up, its section, where he changes what it needs.
+- `handle:OpenFlagDialog([kind])`: opens Olympus's own flag for several places and roles on the
+  Board's flags, `kind`'s places opened (`"dungeon"`, `"raid"` or `"pvp"`; `"quest"` is `"kind"`);
+  with a flag of his up, the flags, where it is.
+
+Nothing here posts a listing, raises a flag, applies or writes a word: the player does each himself
+in Olympus's own UI, so what goes out is always what Olympus's dialogs said. To change what his
+listing needs, open it with `OpenGroup` (his own listing's id) or `OpenListingDialog`.
+
+#### The Board's group panel (`"ui.board-groups"`)
+
+`handle:RegisterGroupPanel(spec)` puts one panel of your addon in place of the Board's **Your
+group** (the applications, the roster, what the group needs, the way to list one). One panel a
+session: the first registered keeps it.
+
+| Field | Required | Contract |
+|---|---|---|
+| `label` | yes | at most 48 bytes; the Board's switch names your panel with it |
+| `build(frame)` | yes | makes your panel's frames as children of `frame`, once; set `frame`'s height |
+| `refresh(frame)` | no | updates them each time the Board redraws |
+
+`frame` is Olympus's, in its own window: Olympus anchors it, gives it the list's width, shows and
+hides it, and bounds its height to 20-600. Registering works while the answer is pending; the
+panel shows only while the player's answer is Yes and he has not chosen **Olympus's own** on the
+Board's switch above it (his choice is kept for his account; the switch is always there while your
+panel could show). A `build` that raises an error leaves Olympus's own **Your group** in its place
+for the session; a `refresh` error is logged and contained. The listings, their cards, the filters
+and the players looking stay Olympus's. While the player is composing a listing, Olympus's composer
+shows above your panel. Returns `true`, or `false` and `"registered"` (this handle's already),
+`"panel-full"` (another addon's), `"invalid-spec"`, `"invalid-label"`, `"invalid-build"`,
+`"invalid-refresh"`, `"unavailable"` or `"failed"`.
+
+- `handle:UnregisterGroupPanel()`: takes your panel off (after the player's No, say): the Board's
+  own **Your group** comes back, and the slot is free again. `false, "unregistered"` without one.
+  Registering again later in the session gives your handle back the same frame, with what your
+  `build` made in it: `build` is not called again, `refresh` is.
+- `handle:RefreshGroupPanel()`: asks Olympus to redraw the Board while your panel shows (your
+  `refresh` runs). `true`, or `false, "unregistered"`.
+- `handle:IsGroupPanelShown()`: `true` while the Olympus window shows your panel on the Board,
+  `false` otherwise, or `false, "unregistered"`.
+
 ### `handle:On(event, fn)` and `handle:Off(event[, fn])`
 
 `On` adds a callback and returns `true` (`false` for an unknown event, a non-function, a reserved
@@ -739,10 +960,13 @@ without `fn`.
 | `SIGHTING_CHANGED` | `fn(event, search)`: the current full owned exact-name or area search for non-terminal changes; cancellation or disappearance may be the terminal marker `{ id = id, status = "cancelled" or "ended" }` | after a start method has returned, its queued send completes, a result arrives or is withdrawn, or the search is cancelled or disappears |
 | `PROFILE_EFFECT_SESSION_CHANGED` | `fn(event, session)`: the sanitized `{ style, expiresIn }` returned by `GetProfileSession()`, or `nil` | a bounded host-owned session opens, closes or expires; heartbeat renewals do not produce callbacks |
 | `QUIET_PRESENCE_CHANGED` | `fn(event, state)`: what `GetQuietPresence()` returns | the quiet presence was turned on or off, by any handle |
+| `GROUPS_CHANGED` | `fn(event, groups)`: what `GetGroups()` returns | a listing went up, changed or came down, the player applied or was answered |
+| `LOOKING_CHANGED` | `fn(event, looking)`: what `GetLooking()` returns | a flag went up, changed or came down, or whether one fits the player's listing changed |
+| `MY_GROUP_CHANGED` | `fn(event, mine)`: what `GetMyGroup()` returns | his listing, its applications, his group's members or their roles changed |
 | `PERMISSION_CHANGED` | `fn(event, status)`: `"granted"` or `"refused"` | the player answered your line |
 
-- The data events come only while the player's answer is Yes (`WANTED_CHANGED` and
-  `RANKINGS_CHANGED` only in an Olympus guild), and only when the data you would get differs from
+- The data events come only while the player's answer is Yes (`WANTED_CHANGED`,
+  `RANKINGS_CHANGED` and the three group events only in an Olympus guild), and only when the data you would get differs from
   what you were last told: you may register before the Yes. `On` and the Yes take the data as it is
   then as told, so no event comes for it: read it yourself once (`Status()` is `"granted"`, or
   `PERMISSION_CHANGED` with `"granted"`), as the examples below do.
@@ -767,8 +991,11 @@ Every data method returns `nil` and a reason when it gives nothing:
 |---|---|
 | `"pending"`, `"refused"` | no Yes from the player |
 | `"guild"` | the player is in no Olympus guild, or has not accepted the Olympus Accord |
-| `"busy"` | more than 20 data calls from your addon in 10 seconds: wait, or use the callbacks |
-| `"kind"` | `GetRankings` was given an unknown kind |
+| `"busy"` | more than 20 data calls from your addon in 10 seconds (or more than 80 `IsOlympusMember` calls, on their own budget): wait, or use the callbacks |
+| `"unit"` | `IsOlympusMember` was given something that is not one of the unit tokens it takes |
+| `"kind"` | `GetRankings`, a group read or a group dialog was given an unknown kind |
+| `"combat"` | (1.4.0) an own-group action during combat |
+| `"not-leader"`, `"role"`, `"invited"`, `"invite"` | (1.4.0) another player leads the group; a role not applied as, not named or no longer wanted; already invited; the game refused the invite |
 | `"unauthorized"` | a reserved feature's method, from an addon the Olympus team has not authorized (see `OlympusAPI.Has`) |
 | `"unavailable"` | this build does not provide the requested optional capability |
 | `"member"`, `"authority"` | the player is not a current member or their signed Olympus role cannot start that guild-tools request or turn on the quiet presence |
@@ -779,7 +1006,7 @@ Every data method returns `nil` and a reason when it gives nothing:
 | `"map"` | an area search was given a secret, unknown, non-zone/non-micro map, or a map that is neither current nor backed by this handle's fresh exact result |
 | `"active"`, `"cooldown"` | this handle already has a live area, or its previous successful area start was less than 60 seconds ago |
 | `"capacity"`, `"queue"` | the bounded sighting-session or send queue cannot accept the request |
-| `"unknown"` | that search id was not started by this handle |
+| `"unknown"` | that search id was not started by this handle, or `IsOlympusMember` cannot tell for that unit (see there); (1.4.0) no such listing, applicant, member or player looking |
 | `"unsupported"`, `"empty"`, `"ended"`, `"failed"` | an explicit area map view is unsupported, has no current rows, has ended, or its guarded draw failed |
 | `"none"` | no bounded profile-presentation session is live |
 | `"style"`, `"state"`, `"caption"` | an unknown host style, non-boolean enable state, or caption that is not the exact pre-approved text |
@@ -789,8 +1016,11 @@ Every data method returns `nil` and a reason when it gives nothing:
 ## What it never gives
 
 The census of the guilds, other players' private data, the Wanted page's victims or stored
-sightings, a movement history, the GUID of an Olympus member merely because they are a member, the
-staff's views, or any secret: no key, no sealed channel name, no signature, no private list. The
+sightings, the names of the people in another player's group (only how many, by class and role),
+when anyone listed, applied or raised a flag, a movement history, the GUID of an Olympus member merely because they are a member, the
+staff's views, or any secret: no key, no sealed channel name, no signature, no private list.
+`IsOlympusMember` answers only for a live unit token, from that unit's guild as the game gives it
+and Olympus's guild rule, never from a name, a roster, the census or a moderation sanction. The
 optional request-bound capability returns only a current or at-most-15-minute recent native
 last-seen result: a native observed or matching group-unit point where WoW exposes one, otherwise
 the consenting observer's encounter point, to the verified requester, then expires it. A hostile-
@@ -821,6 +1051,23 @@ Stop/Off. Everything else remains read-only. Keep that trust: never start a sear
 without the player's action, silently add a list source, auto-resume after permission or reload,
 broaden its audience, keep it running after the visible session ends, or present a nearby encounter point as exact.
 Never persist a movement history.
+
+## Integrating with Olympus
+
+This API is how every other addon, and every tool or service of Olympus's own outside the addon,
+integrates with Olympus. Besides it, Olympus offers only `OlympusBridge`, the read-only sections and
+chat observers the moderators' OfficerSpy and the Olympus Companion's bridge addon read (the
+README's Privacy names what they carry). Olympus's namespace, its saved variables and its addon
+messages are not interfaces: they change between versions without notice.
+
+The one other way in is for Olympus's own load-on-demand modules, which run as part of Olympus:
+`Olympus_Arena`, in the Olympus package, and `Olympus_Link` (Olympus Link, the Discord role, 1.4.0),
+its own addon, released separately. Olympus loads Olympus_Link itself when it is installed
+(`Olympus/LinkLoader.lua`): once a session, when its saved variables are read, it sets the global
+`OlympusLinkHandoff` to its namespace for one synchronous `C_AddOns.LoadAddOn("Olympus_Link")` call
+and clears it right after; the module's first file takes it and checks `ns.LinkLoader.HOST_API`
+(1), and the module loaded any other way does nothing. Without the module, `/oly discord` says it is
+not installed and nothing else of Olympus changes. That handoff is not for other addons: use this API.
 
 ## Examples
 

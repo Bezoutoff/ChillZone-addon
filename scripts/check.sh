@@ -15,7 +15,6 @@ trap 'rm -rf "$check_tmp"' EXIT
 lua_files="$check_tmp/lua-files"
 lua_dirs=(Olympus tests)
 [ -d Olympus_Arena ] && lua_dirs+=(Olympus_Arena) # (1.2: the Olympus Arena module)
-[ -d OlympusCompanionBridge ] && lua_dirs+=(OlympusCompanionBridge)
 [ -d OlympusSiteAggregate ] && lua_dirs+=(OlympusSiteAggregate)
 find "${lua_dirs[@]}" -type f -name '*.lua' -print0 > "$lua_files"
 while IFS= read -r -d '' file; do
@@ -42,7 +41,6 @@ local failed = false
 for _, pair in ipairs({
 	{ "Olympus", "Olympus/Olympus.toc" },
 	{ "Olympus_Arena", "Olympus_Arena/Olympus_Arena.toc" },
-	{ "OlympusCompanionBridge", "OlympusCompanionBridge/OlympusCompanionBridge.toc" },
 	{ "OlympusSiteAggregate", "OlympusSiteAggregate/OlympusSiteAggregate.toc" },
 }) do
 	local toc = io.open(pair[2], "r")
@@ -137,17 +135,6 @@ if [ -f scripts/make-farkle-art.py ]; then
 		PYTHONDONTWRITEBYTECODE=1 python3 scripts/make-farkle-art.py --check
 	else
 		printf 'python3 with Pillow not found: the Bone Throw textures check skipped.\n'
-	fi
-fi
-
-# Olympus Link's vectors, sample, draw and inbox, shared with the page's and the Worker's tests:
-# checked again with Python's "cryptography" wherever it is installed (the script changes nothing).
-if [ -f tests/fixtures/make-link-vectors.py ]; then
-	printf "Checking Olympus Link's shared vectors...\n"
-	if command -v python3 >/dev/null 2>&1 && python3 -c 'import cryptography' >/dev/null 2>&1; then
-		PYTHONDONTWRITEBYTECODE=1 python3 tests/fixtures/make-link-vectors.py --check
-	else
-		printf 'python3 with "cryptography" not found: the shared vectors check skipped.\n'
 	fi
 fi
 

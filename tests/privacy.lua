@@ -247,3 +247,105 @@ test("privacy: a busy queue defers a whole private transfer instead of forcing a
 		assert(w.count("TW~TB~") > 0, "a quiet queue lets the normal share retry deliver")
 	end)
 end)
+
+-- 1.4.0: a catch-up of the Guild treasuries' ranking is one TY a guild, up to 128 of them, and they
+-- filled the private outbox: past PRIVATE_QUEUE, Treasury.Private dropped the oldest waiting
+-- message, so a sister guild's bank snapshot queued behind a transfer in flight was evicted by its
+-- viewer's own ranking rows and never delivered. Ranking rows now leave PRIVATE_RANK_ROOM places
+-- for the rest and never evict; a message that needs room evicts the oldest ranking row first.
+-- (A snapshot alone in the queue goes straight into `sending`, as PumpPrivate takes it: the one at
+-- risk is the one queued behind a transfer in flight.)
+test("privacy: a guild ranking catch-up never evicts a bank snapshot waiting in the private queue", function()
+	WithTransport(function(w, T, _, B)
+		local group, faction = ns.group, ns.faction
+		local ok, err = pcall(function()
+			-- A sister guild's officer who sits on the High Council: he shares his guild's bank
+			-- (TS) and holds the Guild treasuries' ranking rows (TY), both by whisper.
+			w.guild = "Olympus II"
+			ns.me = "Sister Officer-Realm"
+			ns.group, ns.faction = "Realm", "Alliance"
+			local viewers = { "Sage Elder-Realm" }
+			local names = { ["sister officer"] = "Sister Officer", ["sage elder"] = "Sage Elder" }
+			for i = 1, 21 do
+				local short = "Viewer " .. string.char(96 + i)
+				names[short:lower()] = short
+				viewers[#viewers + 1] = short .. "-Realm"
+			end
+			ns.rdb.council = { at = 1, names = names }
+			ns.Comm.CheckMembership()
+			ns.rdb.bank = { guild = "Olympus II", by = ns.me, t = w.clock - 30, money = 123456, tabs = {} }
+			B.SetSisterConsent(true)
+			local snapshot = assert(B.SisterMessage(), "his guild's bank, as it is whispered")
+			-- 128 guilds' rows, accepted in an earlier session (two holders each) and saved.
+			local rows = {}
+			for i = 1, 128 do
+				local guild = ("Olympus %s%s"):format(string.char(65 + math.floor((i - 1) / 26)), string.char(97 + (i - 1) % 26))
+				assert(ns.IsFederation(guild), guild)
+				local wire = assert(T.RankRelayWire({ guild = guild, by = "Guild Lead-Realm", t = w.clock - 600, money = 1000 + i,
+					units = 1, stacks = 1, value = 0, pending = 0, unpriced = 0, total = 1000 + i, level = 50, home = false }))
+				rows[ns.Fold(guild)] = { [wire] = { accepted = true, heard = w.clock - 600,
+					seen = { ["first holder-realm"] = w.clock - 600, ["second holder-realm"] = w.clock - 600 } } }
+			end
+			ns.rdb.treasuryRankRelay = { v = 1, group = ns.group, faction = ns.faction, rows = rows }
+			eq(#T.RelayedRanking(), 128)
+
+			local state = T.PrivateState()
+			local function Count(kind, to)
+				local n = 0
+				for _, o in ipairs(state.outbox) do if o.kind == kind and (not to or o.to == to) then n = n + 1 end end
+				return n
+			end
+			local function Drain()
+				for _ = 1, 2000 do
+					if not T.PrivateState().sending and not state.outbox[1] then return end
+					w.step()
+				end
+				error("the private queue never emptied")
+			end
+			local function Delivered(to, kind)
+				local n = 0
+				for _, sent in pairs(state.sentTo[to] or {}) do if sent.kind == kind then n = n + 1 end end
+				return n
+			end
+			local waits = T.PRIVATE_QUEUE - T.PRIVATE_RANK_ROOM
+
+			-- The King asks at his login: his snapshot goes at once, his ranking rows wait, and stop
+			-- short of the queue's last places.
+			T.HandleAsk("CHANNEL", KING, "TA~Olympus~0")
+			assert(T.PrivateState().sending and T.PrivateState().sending.kind == "TS", "the King's snapshot is in flight")
+			eq(Count("TY", KING), waits, "ranking rows stop short of the queue's last places")
+			Drain()
+			eq(Delivered(KING, "TY"), waits, "those that waited went")
+
+			-- Later his guild's bank changes: the new snapshot goes to the King (heard asking within
+			-- AUDIENCE_FRESH) at once, as Bank.ShareSister sends it.
+			w.clock = w.clock + T.PRIVATE_GAP + 20
+			ns.rdb.bank = { guild = "Olympus II", by = ns.me, t = w.clock, money = 123457, tabs = {} }
+			snapshot = assert(B.SisterMessage())
+			eq(B.ShareSister(), 1)
+			assert(T.PrivateState().sending and T.PrivateState().sending.to == KING, "the King's new snapshot is in flight")
+			-- A councillor asks meanwhile: his snapshot waits behind the King's, first in the queue,
+			-- and his ranking rows after it, short of the last places.
+			T.HandleAsk("CHANNEL", viewers[1], "TA~Olympus II~0")
+			eq(state.outbox[1].to, viewers[1]); eq(state.outbox[1].kind, "TS", "the councillor's snapshot is first in the queue")
+			eq(Count("TY", viewers[1]), waits - 1, "his ranking rows queued after it")
+			eq(#state.outbox, waits)
+			-- Twenty-one more ask: their snapshots take the last places, then room is made from the
+			-- oldest ranking row, never from the oldest message, his snapshot.
+			for i = 2, #viewers do T.HandleAsk("CHANNEL", viewers[i], "TA~Olympus II~0") end
+			eq(#state.outbox, T.PRIVATE_QUEUE)
+			eq(Count("TS"), #viewers, "every snapshot waits")
+			eq(Count("TY"), waits - 2, "the one evicted to make room was a ranking row")
+			eq(state.outbox[1].to, viewers[1]); eq(state.outbox[1].kind, "TS", "the councillor's snapshot is still first")
+
+			Drain()
+			for _, to in ipairs({ KING, unpack(viewers) }) do
+				local sent = state.sentTo[to] and state.sentTo[to].TS
+				assert(sent and sent.msg == snapshot, "the bank snapshot reached " .. to)
+			end
+			eq(Delivered(viewers[1], "TY"), waits - 2, "the councillor's ranking rows that waited went too")
+		end)
+		ns.group, ns.faction = group, faction
+		if not ok then error(err, 0) end
+	end)
+end)

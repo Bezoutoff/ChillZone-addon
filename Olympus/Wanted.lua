@@ -1665,7 +1665,7 @@ local function SaveGlobal(snapshot)
 	if not s then return end
 	s.global = { text = snapshot.text, issuer = snapshot.issuer, at = math.floor(Clock()), relay = snapshot.relay }
 	local heads = {}
-	for who, h in pairs(publisherHeads) do heads[who] = { epoch = h.epoch, seq = h.seq, pk64 = h.pk64 } end
+	for who, h in pairs(publisherHeads) do heads[who] = { epoch = h.epoch, seq = h.seq, pk64 = h.pk64, relay = h.relay } end
 	s.globalHeads = heads
 end
 
@@ -1833,6 +1833,21 @@ function Wanted.IndependentlyPinned(snapshot)
 	return type(pin) == "table" and Whole(pin.epoch, 1, Wanted.GLOBAL_MAX_EPOCH) == snapshot.epoch and pin.pk64 == snapshot.pk64
 end
 
+-- (1.4.0, the owner's rule: every ranking and every frame reaches every client) A relayed word a
+-- current reviewer passes on (W5; ParseSnapshot and AcceptSnapshot check his role now) counts here
+-- when its issuer's key is the one this client pinned from his own word, or when this client never
+-- heard that issuer directly at all: its first pin, and only that. A client that pinned the issuer
+-- from his own word takes no other key of his from a relay (a relay never rotates a direct pin), and
+-- the issuer's own word always replaces a relayed copy made with another key (NewerSnapshot). Before,
+-- a client never online with the publisher refused every relay and showed no Slayers top three, and
+-- no skeletal horse, until the publisher was online with it.
+function Wanted.RelayAnchored(snapshot)
+	if Wanted.IndependentlyPinned(snapshot) then return true end
+	local s = Store(false)
+	local pins = s and type(s.globalDirectPins) == "table" and s.globalDirectPins or nil
+	return not (pins and pins[ns.Fold(snapshot.issuer)] ~= nil)
+end
+
 function Wanted.PinDirectGlobal(snapshot)
 	if snapshot.relay then return false end
 	local s = Store(true)
@@ -1852,7 +1867,14 @@ function Wanted.PinDirectGlobal(snapshot)
 end
 
 local function NewerSnapshot(snapshot)
+	-- (1.4.0) The issuer's own word, with another key than the relayed copy of his shown here: his
+	-- (Wanted.RelayAnchored). A relay first pinned no key a direct word must follow.
+	local held = authenticatedGlobal
+	if not snapshot.relay and held and held.relay and SameName(held.issuer, snapshot.issuer) and held.pk64 ~= snapshot.pk64 then
+		return true
+	end
 	local head = publisherHeads[ns.Fold(snapshot.issuer)]
+	if head and head.relay and not snapshot.relay and head.pk64 ~= snapshot.pk64 then head = nil end
 	if head then
 		if snapshot.epoch < head.epoch then return false, "rollback" end
 		if snapshot.epoch == head.epoch and snapshot.seq <= head.seq then return false, "replay" end
@@ -1901,10 +1923,12 @@ local function AcceptSnapshot(snapshot)
 	-- Recheck every mutable trust input after the asynchronous Ed25519 job. In particular, a
 	-- realm/faction transition while verification yielded must never install the old scope.
 	if snapshot.scope ~= Scope() or not Fresh(snapshot) or not Wanted.CanPublish(snapshot.issuer) then return false, "stale" end
-	if snapshot.relay and (not Wanted.CanPublish(snapshot.relay) or not Wanted.IndependentlyPinned(snapshot)) then return false, "unanchored" end
+	if snapshot.relay and (not Wanted.CanPublish(snapshot.relay) or not Wanted.RelayAnchored(snapshot)) then return false, "unanchored" end
 	local ok, why = NewerSnapshot(snapshot)
 	if not ok then return false, why end
-	publisherHeads[ns.Fold(snapshot.issuer)] = { epoch = snapshot.epoch, seq = snapshot.seq, pk64 = snapshot.pk64 }
+	-- (relay: the key came from a relay, Wanted.RelayAnchored; the issuer's own word replaces it.)
+	publisherHeads[ns.Fold(snapshot.issuer)] = { epoch = snapshot.epoch, seq = snapshot.seq, pk64 = snapshot.pk64,
+		relay = snapshot.relay ~= nil and not Wanted.IndependentlyPinned(snapshot) or nil }
 	stats.globalAccepted = stats.globalAccepted + 1
 	Wanted.PinDirectGlobal(snapshot)
 	Install(snapshot)
@@ -1932,12 +1956,14 @@ local function RestoreGlobal()
 	-- A legacy saved word came directly from its issuer (the old protocol admitted no relays).
 	-- Retain provenance for new relayed copies so restoration cannot turn them into direct pins.
 	snapshot.relay = type(saved.relay) == "string" and saved.relay or nil
-	if snapshot.relay and not Wanted.IndependentlyPinned(snapshot) then return false, "unanchored" end
+	if snapshot.relay and not Wanted.RelayAnchored(snapshot) then return false, "unanchored" end
 	local pins = {}
 	for who, h in pairs(type(s.globalHeads) == "table" and s.globalHeads or {}) do
 		local epoch = type(h) == "table" and Whole(h.epoch, 1, Wanted.GLOBAL_MAX_EPOCH)
 		local seq = type(h) == "table" and Whole(h.seq, 1, Wanted.GLOBAL_MAX_SEQ)
-		if type(who) == "string" and epoch and seq and type(h.pk64) == "string" then pins[who] = { epoch = epoch, seq = seq, pk64 = h.pk64 } end
+		if type(who) == "string" and epoch and seq and type(h.pk64) == "string" then
+			pins[who] = { epoch = epoch, seq = seq, pk64 = h.pk64, relay = h.relay == true or nil }
+		end
 	end
 	local pin = pins[ns.Fold(snapshot.issuer)]
 	if not pin or pin.epoch ~= snapshot.epoch or pin.seq ~= snapshot.seq or pin.pk64 ~= snapshot.pk64 then
@@ -1952,7 +1978,7 @@ local function RestoreGlobal()
 		restoreChecked[snapshot.text] = valid
 		local current = not authenticatedGlobal and globalFloor == floor
 		if valid and current and snapshot.scope == Scope() and Fresh(snapshot) and Wanted.CanPublish(snapshot.issuer)
-			and (not snapshot.relay or Wanted.IndependentlyPinned(snapshot)) then
+			and (not snapshot.relay or Wanted.RelayAnchored(snapshot)) then
 			stats.globalRestored = stats.globalRestored + 1
 			Wanted.PinDirectGlobal(snapshot)
 			return Install(snapshot)
@@ -1979,7 +2005,7 @@ function Wanted.HandleGlobalSnapshot(dist, sender, text, relay)
 	CurrentGlobal() -- expiry/revocation must release its ordering floor before a replacement arrives
 	local snapshot, why = ParseSnapshot(sender, text, relay)
 	if not snapshot or not Fresh(snapshot) then stats.globalRefused = stats.globalRefused + 1 return false, why or "stale" end
-	if relay and not Wanted.IndependentlyPinned(snapshot) then stats.globalRefused = stats.globalRefused + 1 return false, "unanchored" end
+	if relay and not Wanted.RelayAnchored(snapshot) then stats.globalRefused = stats.globalRefused + 1 return false, "unanchored" end
 	local ok
 	ok, why = NewerSnapshot(snapshot)
 	if not ok then
@@ -4066,6 +4092,47 @@ function Share.Resend()
 	return n
 end
 
+-- (1.4.0, the owner's rule: every ranking reaches every client) A row of this client's own that no
+-- reviewer was heard relaying (made while none was online: only reviewers relay rows and answer a
+-- catch-up, so it reached no reviewer's board and never the signed top three) goes again when a
+-- reviewer's client asks for the catch-up (his W4 at login): SHARE_RESEND_MAX of them, the newest
+-- first, while fresh (SHARE_AGE), a part of 20 s of its own after the ask and once per GLOBAL_ASK_GAP
+-- at most. A reviewer's relay of it (live or in a catch-up) marks it reviewed (Share.MarkReviewed),
+-- saved: it goes no more.
+Wanted.SHARE_UNREVIEWED_GAP = Wanted.GLOBAL_ASK_GAP
+Share.unreviewedAt = -math.huge
+function Share.MarkReviewed(digest)
+	local s = Store(false)
+	if not s or type(digest) ~= "string" then return false end
+	local any = false
+	for _, e in ipairs(s.evidence) do
+		if e.own and e.digest == digest and not e.reviewed then e.reviewed, any = true, true end
+	end
+	return any
+end
+function Share.ResendUnreviewed()
+	local s = Store(false)
+	if not s or Wanted.CanPublish(ns.me) then return 0 end
+	local now, n = math.floor(Clock()), 0
+	for i = #s.evidence, 1, -1 do
+		if n >= Wanted.SHARE_RESEND_MAX then break end
+		local e = s.evidence[i]
+		local t = s.targets[e.targetKey]
+		if e.own and e.shared and not e.reviewed and not e.void and type(t) == "table" and t.active == true
+			and now - (tonumber(e.at) or 0) <= Wanted.SHARE_AGE and Share.Send(e) then n = n + 1 end
+	end
+	return n
+end
+-- A reviewer's catch-up ask heard by a member who is none (Share.Answer): true when a resend waits.
+function Share.HeardReviewerAsk(sender)
+	if SameName(sender, ns.me) or Wanted.CanPublish(ns.me) or not Wanted.CanPublish(CleanName(sender)) then return false end
+	local now = math.floor(Clock())
+	if now - Share.unreviewedAt < Wanted.SHARE_UNREVIEWED_GAP then return false, "rate" end
+	Share.unreviewedAt = now
+	if ns.After then ns.After(2 + Share.Offset() % 20, "wanted unreviewed", Share.ResendUnreviewed) else Share.ResendUnreviewed() end
+	return true
+end
+
 function Share.ScheduleResend(gen, wait)
 	if not ns.After then return end
 	ns.After(wait, "wanted resend", function()
@@ -4312,6 +4379,8 @@ function Wanted.HandleShared(dist, sender, text)
 		local from = CleanName(row.from)
 		if from then Share.Heard("p:" .. ns.Fold(from) .. "#" .. row.digest) end
 		if row.via == "C" then Share.catchHeard = math.floor(Clock()) end
+		-- (1.4.0) Our own row in a reviewer's relay: it reached a reviewer (Share.ResendUnreviewed).
+		if from and SameName(from, ns.me) then Share.MarkReviewed(row.digest) end
 	end
 	local ok, e = Share.Take(dist, sender, row)
 	-- (Not noted: our own row coming back, and a relay of a row held already.)
@@ -4410,6 +4479,7 @@ end
 -- after the ask, and not when another reviewer's answer came first; only what Comm's queue has
 -- room for (SHARE_ROOM kept free).
 function Share.Answer(dist, sender, text)
+	if dist == "CHANNEL" and text == "W4~1" and not Wanted.CanPublish(ns.me) then return Share.HeardReviewerAsk(sender) end
 	if dist ~= "CHANNEL" or text ~= "W4~1" or SameName(sender, ns.me) or not Wanted.CanPublish(ns.me) then return false end
 	local now = math.floor(Clock())
 	if now - Share.catchReplied < Wanted.GLOBAL_ASK_GAP then return false, "rate" end
@@ -4957,7 +5027,9 @@ function Bounty.OfficeOf(name, guild)
 	end
 	local master = Bounty.GuildMaster(name, guild)
 	if Is(ns.IsKingCharacter, name) then return "K" end
-	if master and Is(ns.IsKingGuild, master) and type(ns.KingCharacter) == "function" and ns.KingCharacter() == nil then return "K" end
+	-- (1.3.4: its guild master stands for the King only where none is named, and no launch list reaches: ns.KingUnpinned.)
+	if master and Is(ns.IsKingGuild, master) and type(ns.KingCharacter) == "function" and ns.KingCharacter() == nil
+		and not Is(ns.LaunchListHeld) then return "K" end
 	if Is(ns.IsHighCouncillor, name) then return "H" end
 	if master then return "G" end
 	local N, K, W, role = ns.Nominees, ns.King, ns.Workshop, nil
@@ -6533,6 +6605,8 @@ function Wanted.Prune()
 				correctedAt = Whole(e.correctedAt, 0, 4294967295), correctedBy = CleanName(e.correctedBy),
 				correction = Clean(e.correction, 80), from = CleanName(e.from), digest = digest,
 				peer = peer or nil, own = e.own == true and not peer or nil, shared = e.shared == true or nil,
+				-- (1.4.0: a reviewer relayed our own row: Share.ResendUnreviewed sends it no more.)
+				reviewed = e.reviewed == true and e.own == true and not peer or nil,
 				-- Absence means a row saved before the 1.2.4 self-claim path and remains trusted.
 				memberVerified = not peer or e.memberVerified ~= false,
 				earlier = e.earlier == true and not peer or nil,
@@ -6698,7 +6772,7 @@ function Wanted.ResetForTests()
 	for key in pairs(stats) do stats[key] = 0 end
 	Share.rates, Share.days, Share.targets, Share.relayed, Share.relayedOrder = {}, {}, {}, {}, {}
 	Share.log, Share.why, Share.counts, Share.deathRow = {}, {}, {}, nil
-	Share.catchReplied, Share.catchHeard = -math.huge, -math.huge
+	Share.catchReplied, Share.catchHeard, Share.unreviewedAt = -math.huge, -math.huge, -math.huge
 	Share.resendGen = (Share.resendGen or 0) + 1
 	Bounty.session = { gen = (Bounty.session.gen or 0) + 1 }
 end

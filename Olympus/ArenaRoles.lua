@@ -270,7 +270,7 @@ function Roles.WhyText(why) return L["ARENA_WHY_" .. tostring(why):upper()] end
 -- The account's characters (Treasury keeps them in ns.db.myCharacters, in lower case) as the server
 -- writes them: each word of a name capitalised, the realm one this client knows.
 local function KnownRealm(lower)
-	local candidates = { ns.realm, ns.CurrentRealm and ns.CurrentRealm(), ns.KingRealm and ns.KingRealm(), ns.TREASURER_REALM }
+	local candidates = { ns.realm, ns.CurrentRealm and ns.CurrentRealm(), ns.KingRealm and ns.KingRealm(), ns.TreasurerRealm() }
 	for _, r in ipairs(ns.GroupRealms(ns.group or ns.realm)) do candidates[#candidates + 1] = r end
 	for _, r in ipairs(candidates) do
 		if type(r) == "string" and r:lower() == lower then return r end
@@ -307,14 +307,15 @@ end
 -- his pinned characters (the mail goes to Dues.MailTo()); elsewhere the character T1~O names
 -- (feeTo); else nil, and gold is refused there (the owner's answer).
 local function TreasurerGroup(realm)
-	return ns.faction ~= "Horde" and type(ns.TREASURER_REALM) == "string" and ns.GroupOf(realm or ns.realm) == ns.GroupOf(ns.TREASURER_REALM)
+	local home = ns.TreasurerRealm() -- (1.3.4: the signed list's Treasurer where it names one)
+	return ns.faction ~= "Horde" and type(home) == "string" and ns.GroupOf(realm or ns.realm) == ns.GroupOf(home)
 end
 function Roles.FeeReceiver(realm)
 	realm = realm or ns.realm
 	if TreasurerGroup(realm) then
 		local D = ns.Dues
 		local to = type(D) == "table" and type(D.MailTo) == "function" and D.MailTo() or nil
-		return to or ns.FullName(ns.TREASURER, ns.TREASURER_REALM), "treasurer"
+		return to or ns.TreasurerFull(), "treasurer"
 	end
 	local feeTo = Roles.Settings(realm).feeTo
 	if feeTo then return feeTo, "named" end
@@ -753,10 +754,14 @@ function Roles.Councillors()
 	return out
 end
 -- Whether name may publish game's ranking: the King's character, or a High Councillor named for
--- that game (the owner's answer, 2026-10-04: not "the King and his Stewards").
+-- that game (the owner's answer, 2026-10-04: not "the King and his Stewards"). (1.4.0, the owner's
+-- rule for the launch: the King does not work these switches, so the addon's own maker may too, as
+-- King.AuthorMay("rankings") says, never a role he previews or holds. His word is taken, kept, told by
+-- holders and repeated by his client as the King's is, and gives him nothing else of the King's.)
 function Roles.MayPublish(name, game, realm)
 	if type(name) ~= "string" or name == "" or not Roles.GAME_LETTER[game] then return false end
 	if Roles.IsKing(name) then return true end
+	if ns.King.AuthorMay("rankings", name) then return not Barred(name) end
 	if not ns.IsHighCouncillor(ns.FullName(name)) or Barred(name) then return false end
 	local short = ns.ShortName(ns.FullName(name)):lower()
 	for _, e in ipairs(PublishersOf(realm)) do

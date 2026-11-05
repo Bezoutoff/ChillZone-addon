@@ -56,6 +56,17 @@
   fix full-suite ordering regressions and export consented Companion identity evidence.
 - v1.3.3 Deliberate site export: an optional Site Aggregate folder writes a masked own-guild count for the
   Olympus website on /oly site export and /reload, never uploads, and empties at the next logout or reload.
+- v1.5.0 The Olympus chats (the three tiers, the role rooms, the arena's rooms) travel as the player's own text in the hidden channel, which Forever delivers to everyone in it across every sub-realm; the hidden way by the relay stays the fallback (no echo) and the gamepad UI's way. The High Council's relay now carries the whole army: other guilds' reports reach each reporter as a trickle (the newest of each guild, keyed), the relay sends its own global census snapshot every two minutes, a client's own-clock words are fanned out to nobody, and a relay's client sends four parts a pump. The 1.5.0 letter is the dev's own word: sorry for the delay, what broke on launch night, what works now.
+- v1.4.6 Forever's sub-realms of one ruleset are one realm group (every guild sees the same census, the signed lists reach every sub-realm), the Council's relays pass each word to one another (no more islands), a client without the lists finds the launch's relays by code, and the first talk at the innkeeper opens the Bones lesson.
+- v1.4.5 The guild keeps one reporter where the relay carries the channel (the never-heard guard is off there), a chat line reaches the sender's own guild at once over GUILD, and the signed King wears his crown on The Realm whatever his rank.
+- v1.4.4 The morning after: a guild finds a live High Council relay at once (every relay pinged together, the message held for the first answer, the ones that answered preferred), the relay's whispers to offline councillors leave no line in the chat, the duty letters open in a window of their own as plain missives, and the party portraits' borders draw over the game's ring.
+- v1.4.3 Launch night: WoW: Forever delivers nothing an addon says on a chat channel, so everything between guilds (the census, the signed lists, the key, the rankings' words, the chat) travels by addon whispers relayed through the High Council's clients, with no module changed; whispers reach every sub-realm by the plain name.
+- v1.4.2 Launch night: the author's own character may take the army's key back (/oly key off) and his client answers key asks with the clear, so a guild sealed by mistake returns to the public lanes as its members log in.
+- v1.4.1 Launch night: the army's channel moves to the next lane by itself when the game refuses it (WoW: Forever refused every send on OlympusNet), so every guild hears the others again; the signed list loads from the addon's own folder.
+- v1.4.0 Launch: the census agrees across clients and counts every realm group (PvP and PvE, NA and EU)
+  without beta numbers; launch identities from the signed list; the Church top three and the donors reach
+  late clients through the King and the High Council; duty letters from the King for every office; seven
+  languages; the army's key in a form only 1.4.0 reads; the send queue holds through throttles and lockdowns.
 
 ## Next (after the base is proven in game)
 - **Compact reply cards after sending** - keep the existing reply composer, but render a sent reply in

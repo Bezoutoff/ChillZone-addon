@@ -200,7 +200,8 @@ function Decree.Scope(kind)
 	if not ns.IsMember() then return nil end
 	if ns.IsHighCouncillor(ns.me) == true then return "army", "council" end
 	if ns.IsKingGuild(GetGuildInfo("player")) and ns.IsCrown() then return "army", "crown" end
-	if ns.Roster.MyRank() == 0 then return "guild", "lord" end
+	-- (Guild verification, Verify.lua: an overdue guild's master decrees as an officer until verified.)
+	if ns.Roster.MyRank() == 0 and not (ns.MasterHeld and ns.MasterHeld(GetGuildInfo("player"))) then return "guild", "lord" end
 	if GuildHeraldry(ns.me, GetGuildInfo("player")) then return "guild", "heraldry" end
 	return nil
 end

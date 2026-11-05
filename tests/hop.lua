@@ -238,7 +238,7 @@ end)
 
 test("hop: immediate queue rejection and failed transmission end without a response timeout", function()
 	WithHop(function(w, H)
-		w.busy(60)
+		w.busy(ns.Comm.MAX_QUEUE)
 		H.Ask(1453, 8, "full")
 		eq(H.State().phase, "done"); eq(H.State().t, nil); eq(w.count("LQ~"), 0)
 	end)

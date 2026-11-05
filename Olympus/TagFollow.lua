@@ -55,16 +55,18 @@ local L = ns.L
 -- What it does: his own client applies it to himself (his chats, his powers, games, map and
 -- Crafting, as every sanction: WatchChat.Barred) and tells him in Olympus's own pop-up, never who
 -- gave it; a team client hides the followed characters it holds the BattleTag of and marks them in
--- The Watch. Nothing goes out by name on a match alone, and a by-name word shows in every member's
--- Decrees. Only when a followed character's addon shows it does not apply it to itself does a team
--- client that may give that sanction by name give it (DERIVED_REASON): his Olympus chat line
+-- The Watch. Nothing goes out by name on a match alone, and a by-name word reaches every addon
+-- (listed in The Watch since 1.4.0). Only when a followed character's addon shows it does not
+-- apply it to itself does a team client that may give that sanction by name give it
+-- (DERIVED_REASON): his Olympus chat line
 -- (M1, M2, EC: never the game's own guild chat) hidden by the follow, then the follow on the wire
 -- here (sent or heard) within ONLINE_WINDOW after such a line (he was online to receive it; the
 -- giver's client sends it again on his first such line), then still another line EVADE_AFTER
 -- later. At most DERIVE_HOUR an hour, never above the weight the follow reaches him with, never a
 -- guild's timeout, and taken back once the follow ends. Never on the King's game account
 -- (ns.db.kingAccount), never on anyone whose own rank or protection reaches the follow's weight
--- (his own client also remembers it for the account, ns.db.tagShield). An "on" word or a lift on
+-- (his own client also remembers it for the account, ns.db.tagShield, with its realm group: 1.4.0,
+-- a rank held on the beta never shields anyone on a launch realm group). An "on" word or a lift on
 -- the followed character's own name frees him until the sanction he was freed of changes. Never
 -- logged: a tag or a code; the log names the kind, the sanctioned character and the outcome.
 
@@ -95,7 +97,7 @@ TF.CODES_PER_SOURCE = 4     -- codes one client follows a sanctioned character's
 TF.DERIVE_HOUR = 6          -- by-name words one client gives that way in an hour at most
 -- (The author's decision: false gives a by-name word only on that evidence; true gives it on the
 -- match alone, each minute, to every character a follow reaches here, which would list a possibly
--- innocent player, one whose BattleTag a modified addon sent, in every member's Decrees.)
+-- innocent player, one whose BattleTag a modified addon sent, for every addon, by name in The Watch.)
 TF.DERIVE_ON_MATCH = false
 TF.NOTICE_WAIT = 30         -- after login, the player is told
 TF.DERIVED_REASON = "same BattleTag as a sanctioned player" -- (English on the wire, as every reason)
@@ -354,9 +356,19 @@ function TF.Sources(name, kind)
 	return out or NONE
 end
 
+-- (1.4.0, the author: "todos os bans e tudo que tinha do beta tem que ser limpo") The account's
+-- shield names the realm group it was noted on. One noted on the beta's, or by a build before 1.4.0
+-- (none named: the beta's then), never counts on a launch realm group: a rank held on the beta is
+-- nobody's there (Data.BetaOnLaunch). It stays saved, for the beta's own group.
+local function ShieldOfBeta(m)
+	local D = ns.Data
+	return type(D) == "table" and type(D.BetaOnLaunch) == "function" and D.BetaOnLaunch(m.group, ns.group) == true
+end
+
 -- How high `name` stands against a follow of `kind` (a follow applies only above it): his own
 -- rank or protection; on his own client also the King's game account (always) and the highest a
--- character of this account held within the last TEAM_GRACE (ns.db.tagShield).
+-- character of this account held within the last TEAM_GRACE on this kind of realm group
+-- (ns.db.tagShield: never the beta's on a launch realm group, ShieldOfBeta).
 function TF.Shield(name, kind)
 	local M, W = Mod(), WC()
 	local level
@@ -367,11 +379,12 @@ function TF.Shield(name, kind)
 	local m = ns.db.tagShield
 	local age = type(m) == "table" and Now() - (tonumber(m.at) or -math.huge) or math.huge
 	local keep = Acc() and ns.Accord.TEAM_GRACE or 2 * 86400
-	if age >= 0 and age <= keep then level = math.max(level, tonumber(kind == "N" and m.n or m.t) or 0) end
+	if age >= 0 and age <= keep and not ShieldOfBeta(m) then level = math.max(level, tonumber(kind == "N" and m.n or m.t) or 0) end
 	return level
 end
 
--- This account remembers how high its characters stand (the shield of an alt nobody linked).
+-- This account remembers how high its characters stand (the shield of an alt nobody linked), and on
+-- which realm group (1.4.0): a beta's shield is not carried into a launch group's.
 local function NoteShield()
 	if type(ns.db) ~= "table" or not ns.me then return end
 	local M, W = Mod(), WC()
@@ -379,8 +392,10 @@ local function NoteShield()
 	local t = W and tonumber(W.ProtectLevel(ns.me)) or 0
 	if n <= 0 and t <= 0 then return end
 	local m = ns.db.tagShield
-	local fresh = type(m) == "table" and Now() - (tonumber(m.at) or -math.huge) <= (Acc() and ns.Accord.TEAM_GRACE or 2 * 86400)
-	ns.db.tagShield = { n = math.max(n, fresh and tonumber(m.n) or 0), t = math.max(t, fresh and tonumber(m.t) or 0), at = Now() }
+	local fresh = type(m) == "table" and not ShieldOfBeta(m)
+		and Now() - (tonumber(m.at) or -math.huge) <= (Acc() and ns.Accord.TEAM_GRACE or 2 * 86400)
+	ns.db.tagShield = { n = math.max(n, fresh and tonumber(m.n) or 0), t = math.max(t, fresh and tonumber(m.t) or 0), at = Now(),
+		group = ns.group }
 end
 TF.NoteShield = NoteShield
 

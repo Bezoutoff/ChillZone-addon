@@ -187,3 +187,32 @@ function Sign.WithKey(nHex, muHex, k, fn)
 	Sign.N, Sign.MU, Sign.K = n, mu, kk
 	if not ok then error(err, 0) end
 end
+
+-- 1.4.0: a sample of what this client can read that changes from moment to moment, for the
+-- secrets the addon makes for itself (Keys.NewKey's channel password, the Accord's follow key,
+-- the account key of Debts.lua, the bank ledger's secret of Wallet.lua), each mixed with the
+-- clocks and the game's generator and put through SHA-256. It was Olympus Link's
+-- (Link.EntropySample, now in its own addon, Olympus_Link): these four drew on it only while that
+-- file was loaded. Nothing in the game is a cryptographic source: the sub-millisecond clocks
+-- (debugprofilestop, GetTimePreciseSec), the second it is taken, two fresh tables' addresses, the
+-- cursor and the player's GUID are what an attacker can't know or must guess together. A function
+-- the client lacks, or one that fails, is left out; the rest are still sampled.
+function Sign.EntropySample()
+	local parts = {}
+	local function Add(fn, ...)
+		if type(fn) ~= "function" then return end
+		local ok, a, b = pcall(fn, ...)
+		if ok then parts[#parts + 1] = tostring(a) .. "," .. tostring(b) end
+	end
+	Add(_G.debugprofilestop)
+	Add(_G.GetTimePreciseSec)
+	Add(_G.GetTime)
+	Add(_G.GetServerTime)
+	Add(_G.time)
+	parts[#parts + 1] = tostring(math.random()) .. "," .. tostring(math.random())
+	parts[#parts + 1] = tostring({}) .. "," .. tostring({})
+	Add(_G.UnitGUID, "player")
+	Add(_G.GetCursorPosition)
+	Add(_G.debugprofilestop)
+	return table.concat(parts, "~")
+end

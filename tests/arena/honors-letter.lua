@@ -45,7 +45,7 @@ end
 print("HonorsNet: the King's letter (1.2.1)")
 
 test("1.2.4 honour letter previews: every family uses the real framed letter without awarding, consuming or transmitting anything", function()
-	-- All-family author samples stay available with the actual pre-launch race OFF.
+	-- All-family author samples stay available with the race OFF (1.4.0: a realm the launch list does not name).
 	local w, cast = W3.New({ levelRace = false })
 	local author = w:Client(N.author)
 	H.WithUI(function()

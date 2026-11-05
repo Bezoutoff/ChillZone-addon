@@ -1016,6 +1016,15 @@ function Views.Render(content, lines, layout)
 			r.right:Hide()
 			for c = 1, #r.cols do r.cols[c]:Hide() end
 			height = Views.DrawGraph(r, line.graph, width) or height
+		elseif line.panel then
+			-- 1.4.0: a host-owned frame in the row (the Board's Your group, Groups.DrawPanel): its
+			-- function anchors it here and gives its height and the frame.
+			r.left:Hide()
+			r.right:Hide()
+			for c = 1, #r.cols do r.cols[c]:Hide() end
+			local ok, h, frame = pcall(line.panel, r, width) -- gp:board-panel
+			height = ok and tonumber(h) or 0
+			r.panelFrame = ok and frame or nil
 		elseif line.cols then
 			r.left:Hide()
 			r.right:Hide()
@@ -1052,6 +1061,11 @@ function Views.Render(content, lines, layout)
 		if not line.nav then for k = 1, #(r.nav or {}) do r.nav[k]:Hide() end end
 		if not line.filters then for k = 1, #(r.filters or {}) do r.filters[k]:Hide() end end
 		if not line.graph and r.graph then r.graph:Hide() end
+		-- (A panel's frame this row hosted before, now another line's: hidden, unless another row took it.)
+		if not line.panel and r.panelFrame then
+			if r.panelFrame:GetParent() == r then r.panelFrame:Hide() end
+			r.panelFrame = nil
+		end
 		r:SetHeight(height)
 		r:EnableMouse(line.onClick ~= nil or line.tooltip ~= nil)
 		if hd then
@@ -1072,7 +1086,7 @@ end
 -- above the first row and below the last included, measured without drawing: a page that fits its
 -- window ("My profile"'s Icons, ProfileEdit.lua) asks it. An items row is measured as the game's
 -- buttons (ITEM_GAME) unless line.gap gives its cells (line.slot). nil for a row of filters (its
--- buttons' height is theirs).
+-- buttons' height is theirs) or a panel (its frame's, 1.4.0).
 function Views.LinesHeight(lines, hd, width)
 	local rowH = hd and ROW_H_HD or ROW_H
 	local y, input = 2, false
@@ -1081,7 +1095,7 @@ function Views.LinesHeight(lines, hd, width)
 		if line.items then
 			local slot, step, columns, gap = ItemGrid(line, ITEM_GAME, tonumber(width) or 0)
 			height = GridHeight(math.ceil(math.max(1, line.slots or #line.items) / columns), slot, step, gap)
-		elseif line.filters then
+		elseif line.filters or line.panel then
 			return nil
 		elseif line.nav then
 			height = ROW_H_NAV
@@ -1275,6 +1289,16 @@ local function DisputeTooltip(tt, d)
 	tt:AddLine(L.DISPUTE_TIP, 0.6, 0.6, 0.6, true)
 end
 
+-- Guild verification (Verify.lua): its mark before a guild's name ("" for none), and its tooltip line.
+local function VerifyModule()
+	local V = ns.Verify
+	return type(V) == "table" and not V.missing and type(V.Mark) == "function" and V or nil
+end
+local function VerifyMark(name)
+	local V = VerifyModule()
+	return V and V.Mark(name) or ""
+end
+
 ---------------------------------------------------------------------------
 -- Shared tooltips
 ---------------------------------------------------------------------------
@@ -1317,6 +1341,8 @@ local function GuildTooltip(e)
 		tt:AddLine(L.REPORTED_BY:format(g.reporter or "?", ns.Ago(g.t)), 0.6, 0.6, 0.6)
 		if not e.fresh then tt:AddLine(L.STALE, 1, 0.4, 0.4) end
 		DisputeTooltip(tt, ns.Data.Dispute(g))
+		local V = VerifyModule()
+		if V then V.Tooltip(tt, e.name) end
 		-- (Ours is live from our roster; another guild's is its last report, 1.1.2's review.)
 		Why(tt, not e.fresh and "count-grey-rows" or (g.mine and "count-own-guild-live" or "count-other-guild-report"))
 	end
@@ -1470,7 +1496,7 @@ local function CensusRow(e)
 	local g = e.g
 	local leader = g.leader and ((g.leaderOnline and "|cff40ff40" or "|cff9d9d9d") .. Plain(g.leader) .. "|r") or Grey("?")
 	return {
-		cols = { Views.DisputeMark(g) .. Plain(e.name), ns.FormatNumber(g.total), Green(ns.FormatNumber(g.online)), AvgCell(g), leader },
+		cols = { Views.DisputeMark(g) .. VerifyMark(e.name) .. Plain(e.name), ns.FormatNumber(g.total), Green(ns.FormatNumber(g.online)), AvgCell(g), leader },
 		dim = not e.fresh,
 		tooltip = GuildTooltip(e),
 		onClick = function()
@@ -1740,6 +1766,10 @@ local function CensusLines(s, q)
 		return lines
 	end
 	QuietLine(lines)
+	-- Our guild's verification (Verify.lua): its guild master's "GM verification pending", or its
+	-- members' notice once it is overdue; a click opens it.
+	local V = VerifyModule()
+	for _, l in ipairs(V and V.Lines and V.Lines() or {}) do lines[#lines + 1] = l end
 	-- Recruits asking to join our guild (1.1, Recruit.lua): an officer's Invite and Decline.
 	for _, l in ipairs(ns.Recruit and ns.Recruit.RequestLines and ns.Recruit.RequestLines() or {}) do lines[#lines + 1] = l end
 	-- Clear party-invite whispers while the King is online (1.2.5.1): local, short-lived and
@@ -2224,11 +2254,27 @@ local function RealmLines(s, q)
 	-- fresh, each Lord and Captain in the tree carries a ready-check mark.
 	for _, l in ipairs(not q and ns.King and ns.King.RollCallLines and ns.King.RollCallLines() or {}) do lines[#lines + 1] = l end
 	local king = not q and King(s.guilds)
+	-- (1.4.5, the dev's ask: the signed King wears the crown whatever his rank; on Forever the King
+	-- guild's master is not the King.) His name from the signed list; his presence when seen now
+	-- (the King guild's /who, or our own guild's), else unknown.
+	local signed = not q and type(ns.KingCharacter) == "function" and ns.KingCharacter() or nil
+	-- (The built-in pin, unsigned, only names the King guild's master as ever: no line of its own.)
+	if signed and not king and type(ns.KING_CHARACTER) == "table" and signed == ns.KING_CHARACTER[ns.faction or "Alliance"] then signed = nil end
+	local function SignedPresence()
+		local seen = (king and Views.SeenNow(king.name, signed)) or Views.SeenNow(GetGuildInfo("player") or "", signed)
+		if seen then return true, 0, false end
+		return nil, nil, false
+	end
+	if signed and not king then
+		lines[#lines + 1] = { header = true, text = CROWN .. L.KING .. ": " .. Gold(Plain(signed)), right = Presence(SignedPresence()) }
+	end
 	if king then
+		local name, on, days, dim, at = king.g.leader, Views.PresenceNow(king, king.g.leader, king.g.leaderOnline, king.g.leaderDays)
+		if signed and ns.ShortName(king.g.leader or "") ~= signed then name = signed; on, days, dim, at = SignedPresence() end
 		lines[#lines + 1] = {
 			header = true,
-			text = CROWN .. L.KING .. ": " .. Gold(Plain(king.g.leader or "?")),
-			right = Presence(Views.PresenceNow(king, king.g.leader, king.g.leaderOnline, king.g.leaderDays)),
+			text = CROWN .. L.KING .. ": " .. Gold(Plain(name or "?")),
+			right = Presence(on, days, dim, at),
 			tooltip = GuildTooltip(king),
 		}
 		-- The Treasurer of Olympus, under the King: when that guild's report has him (the
@@ -2924,10 +2970,11 @@ local function DecreeLines(q)
 	-- writs, for whoever they are for (Acts.lua).
 	for _, l in ipairs(ns.HeldLines()) do lines[#lines + 1] = l end
 	for _, l in ipairs(ns.Acts and ns.Acts.WritLines and ns.Acts.WritLines() or {}) do lines[#lines + 1] = l end
-	-- Net-off is realm-wide, not the Watch's private guild list. Keep its read-only disclosure and
-	-- the current player's SelfOff reason on this member-visible page; issuers' controls stay on the
-	-- same rows, while Watch may also reuse them for authorized officers.
-	for _, l in ipairs(ns.Moderation.Lines and ns.Moderation.Lines() or {}) do lines[#lines + 1] = l end
+	-- Net-off (1.4.0, the author: the hidden list left this page for The Watch, Moderation.Lines there):
+	-- only the viewer's own notice, when a word hides him or his guild (the reason on hover), or his
+	-- guild's timed word (its parchment again). A hidden officer cannot enter The Watch, so this
+	-- line is where he reads why; nobody else's name shows here.
+	for _, l in ipairs(ns.Moderation.SelfLines and ns.Moderation.SelfLines() or {}) do lines[#lines + 1] = l end
 	lines[#lines + 1] = { header = true, text = L.DECREES }
 	local decrees = ns.Decree.Active()
 	if #decrees == 0 then lines[#lines + 1] = { text = Grey(L.NO_DECREES), gapAfter = true } end

@@ -255,7 +255,7 @@ test("accord: the real transport after I accept: the hello goes on GUILD, the ch
 		for _ = 1, 10 do clock = clock + 2; cns.Comm.Pump() end
 		local hello
 		for _, m in ipairs(sent) do if m:find("^GUILD H1~") then hello = m end end
-		eq(hello, "GUILD H1~" .. ns.VERSION .. "~Realm~p", "the hello")
+		eq(hello, "GUILD H1~" .. ns.VERSION .. "~Realm~p~~~~R", "the hello")
 		eq(sent[1], "GUILD K0~", "and the realm key asked of the guild")
 		eq(#joined, 1, "the channel")
 		local census = false
@@ -612,6 +612,37 @@ test("accord: an ordinary member's client never keeps, sends on or shows a Battl
 		A.HandleAsk("CHANNEL", COUNCILLOR, "BQ~1")
 		w.Run(A.DELAY_MAX)
 		eq(#w.whispers, 1); eq(w.whispers[1].to, COUNCILLOR); eq(#w.sends, 0, "nothing on the channel or GUILD")
+	end, { accepted = true })
+end)
+
+-- (The author, 2026-10-20) The census's people, estimated (CensusStats.PeopleEstimate): a team
+-- client's validated sample, as two numbers.
+test("accord: the census's validated sample (Accord.Sample): on a team client the characters of the guilds counted and how many distinct BattleTags among them, two numbers and nothing else; none on an ordinary member's client or in a role preview", function()
+	Scene(function(w, A)
+		C_ChatInfo = { SendAddonMessageLogged = function() end }
+		A.AskTeam()
+		A.HandleTag("WHISPER", MEMBER, BT())
+		A.HandleTag("WHISPER", "Second Alt-Realm", BT())
+		A.HandleTag("WHISPER", "Brisk Lantern-Realm", BT(nil, nil, "Bob#7777"))
+		A.HandleTag("WHISPER", "Far Rider-Realm", BT(nil, "Olympus Far", "Far#4242"))
+		eq(A.Count(), 4)
+		local out = { A.Sample({ ["olympus ii"] = true }) }
+		eq(#out, 2); eq(out[1], 3, "characters"); eq(out[2], 2, "accounts: one BattleTag on two characters")
+		eq(type(out[1]), "number"); eq(type(out[2]), "number")
+		out = { A.Sample({ ["olympus ii"] = true, ["olympus far"] = true }) }
+		eq(out[1], 4); eq(out[2], 3)
+		out = { A.Sample({}) }
+		eq(out[1], 0); eq(out[2], 0)
+		-- The author's role preview: none.
+		ns.ViewAs = { Available = function() return true end, Role = function() return "member" end }
+		out = { A.Sample({ ["olympus ii"] = true }) }
+		eq(out[1], 0); eq(out[2], 0)
+	end, { accepted = true, team = true })
+	-- An ordinary member's client: nothing counted, even with a store left behind.
+	Scene(function(w, A)
+		ns.rdb.battletags = { v = 1, rows = { ["member7-realm"] = { name = MEMBER, tag = TAG, guild = "Olympus II", last = w.now } } }
+		local c, a = A.Sample({ ["olympus ii"] = true })
+		eq(c, 0); eq(a, 0)
 	end, { accepted = true })
 end)
 
@@ -1389,34 +1420,22 @@ test("accord: the Companion's self section carries only this account's own conse
 	end, { accepted = true, team = true, companion = true })
 end)
 
-test("accord: the private Companion sidecar saves an anonymous self revocation until the separate Companion Accord is accepted, then saves only the consented native identity", function()
+test("accord: the Companion's self section is an anonymous revocation until the separate Companion Accord is accepted, then only the consented native identity", function()
 	Scene(function(w, A)
-		local saved = { db = rawget(_G, "OlympusCompanionDB") }
-		local before = #EVENT_SCRIPTS
-		local ok, err = pcall(function()
-			OlympusCompanionDB = nil
-			assert(loadfile(ROOT .. "OlympusCompanionBridge/Checkpoint.lua"))("OlympusCompanionBridge", {})
-			local OnEvent = assert(EVENT_SCRIPTS[before + 1], "the sidecar's event frame")
-			OnEvent(nil, "ADDON_LOADED", "OlympusCompanionBridge")
-			OnEvent(nil, "PLAYER_LOGOUT")
-			local s = assert(OlympusCompanionDB.sections and OlympusCompanionDB.sections.self,
-				"before either Accord: the relay gets an anonymous revocation")
-			eq(s.data.character, nil); eq(s.data.olympus, false)
-			eq(A.Accept(), true)
-			OnEvent(nil, "PLAYER_LOGOUT")
-			s = assert(OlympusCompanionDB.sections and OlympusCompanionDB.sections.self)
-			eq(s.data.character, nil); eq(s.data.olympus, false,
-				"the Olympus Accord alone does not disclose the identity")
-			assert(ns.Consent.Choose("companionAccord", true))
-			OnEvent(nil, "PLAYER_LOGOUT")
-			s = assert(OlympusCompanionDB.sections and OlympusCompanionDB.sections.self, "after both: saved")
-			eq(s.version, 1); eq(s.data.character, ns.me); eq(s.data.guild, GetGuildInfo("player")); eq(s.data.olympus, true)
-			eq(s.data.battleTag, TAG); eq(s.data.accord, ns.ACCORD_VERSION); eq(s.data.at, w.now)
-		end)
-		for i = #EVENT_SCRIPTS, before + 1, -1 do EVENT_SCRIPTS[i] = nil end
-		OlympusCompanionDB = saved.db
-		if not ok then error(err, 0) end
-		-- The README's privacy table and the sidecar's README name it, as the code does it.
+		-- (1.4.0: what the Companion's bridge addon saves at logout is this section, read through
+		-- OlympusBridge; that addon is kept in its own repository, with its own tests.)
+		local function Self() return assert(OlympusBridge.GetSection("self"), "the self section") end
+		local s = Self()
+		eq(s.data.character, nil); eq(s.data.olympus, false, "before either Accord: an anonymous revocation")
+		eq(A.Accept(), true)
+		s = Self()
+		eq(s.data.character, nil); eq(s.data.olympus, false,
+			"the Olympus Accord alone does not disclose the identity")
+		assert(ns.Consent.Choose("companionAccord", true))
+		s = Self()
+		eq(s.version, 1); eq(s.data.character, ns.me); eq(s.data.guild, GetGuildInfo("player")); eq(s.data.olympus, true)
+		eq(s.data.battleTag, TAG); eq(s.data.accord, ns.ACCORD_VERSION); eq(s.data.at, w.now)
+		-- The README's privacy table names it, as the code does it.
 		local function Read(path)
 			local f = assert(io.open(ROOT .. path, "rb"))
 			local text = f:read("*a")
@@ -1431,9 +1450,5 @@ test("accord: the private Companion sidecar saves an anonymous self revocation u
 		for _, must in ipairs({ "Olympus Accord", "Olympus Companion Accord", "character", "BattleTag", "staff", "`OlympusBridge`" }) do
 			assert(row:find(must, 1, true), "README's self row: " .. must)
 		end
-		local sidecar = Read("OlympusCompanionBridge/README.md"):gsub("%s+", " ")
-		for _, must in ipairs({ "`self`", "character", "battleTag", "guild", "roles", "never another player's" }) do
-			assert(sidecar:find(must, 1, true), "the sidecar's README: " .. must)
-		end
-	end)
+	end, { companion = true }) -- (the Companion's bridge addon attached, as its load says: OlympusBridge.COMPANION_ATTACHED)
 end)
