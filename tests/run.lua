@@ -7328,6 +7328,33 @@ test("1.5.1 a Forever family's ruleset is its name and its region its realms' (m
 	if not ok then error(err, 0) end
 end)
 
+-- 1.5.1 (the dev's PvP character, 2026-11-05: the PvP census showed PvE's 12,000, and the PvE
+-- store was gone): opening a family's store merged every store whose realms were all "inside",
+-- and a family none of whose realms this character met has none. Fails before: ForeverPvE merged
+-- into ForeverPvP and dropped.
+test("1.5.1 opening a Forever family's store takes a plain realm's of its own family, never another family's nor a key with no realm met here, and drops reports heard on another family's realm", function()
+	local saved = { realms = ns.db.realms, links = ns.db.links, rdb = ns.rdb, realm = ns.realm, group = ns.group, faction = ns.faction }
+	local ok, err = pcall(function()
+		local pve = { guilds = { ["olympus prime"] = { guild = "OLYMPUS PRIME", total = 900, t = 10, heardOn = "CAMWOWUS2Realm1PvE" } }, seen = {} }
+		local pvp = { guilds = { ["olympus dads"] = { guild = "Olympus Dads", total = 40, t = 10, heardOn = "CAMWOWUS1Realm8PvP" },
+			["olympus v"] = { guild = "OLYMPUS V", total = 700, t = 9, heardOn = "CAMWOWUS2Realm3PvE" } }, seen = {} }
+		local old = { guilds = { ["olympus ii"] = { guild = "OLYMPUS II", total = 50, t = 8, heardOn = "CAMWOWUS1Realm2PvP" } }, seen = {} }
+		ns.db.realms, ns.db.links = { ForeverPvE = pve, ForeverPvP = pvp, CAMWOWUS1Realm2PvP = old, Whitemane = { guilds = {}, seen = {} } }, {}
+		ns.realm, ns.group = "CAMWOWUS1Realm8PvP", "ForeverPvP"
+		ns.faction = "Horde" -- (not what ns.Faction() says: CheckFaction reopens the group's store)
+		eq(ns.CheckFaction(), true)
+		eq(ns.rdb, ns.db.realms.ForeverPvP, "the family's store")
+		assert(ns.db.realms.ForeverPvE == pve and pve.guilds["olympus prime"], "the PvE family's store stays apart, whole")
+		eq(ns.rdb.guilds["olympus prime"], nil, "nothing of it merged")
+		eq(ns.rdb.guilds["olympus v"], nil, "a PvE report merged before 1.5.1 is dropped")
+		eq(ns.rdb.guilds["olympus dads"].total, 40, "our own stay")
+		eq(ns.rdb.guilds["olympus ii"].total, 50, "a plain PvP realm's store (before 1.4.6) comes in"); eq(ns.db.realms.CAMWOWUS1Realm2PvP, nil)
+		assert(ns.db.realms.Whitemane, "an unrelated realm's store stays")
+	end)
+	ns.db.realms, ns.db.links, ns.rdb, ns.realm, ns.group, ns.faction = saved.realms, saved.links, saved.rdb, saved.realm, saved.group, saved.faction
+	if not ok then error(err, 0) end
+end)
+
 -- 1.4.6 (the dev's ask): the yellow "No player named X" for the relay's own whispers, out of the
 -- chat for good. Fails before: no filter of the relay's.
 test("1.4.6 the relay: the server's no-player line for a relay or a registered reporter is kept out of the chat, any other left alone; installed at login where the gate allows, once", function()
