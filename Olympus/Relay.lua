@@ -343,8 +343,12 @@ local function ToReporters(flag, origin, body, sender)
 			pieces = pieces or Envelope("RM", "RM~" .. flag .. "~" .. origin .. "~" .. body)
 			stats.forwarded = stats.forwarded + 1
 			Quiet(r.name) -- (a reporter gone offline since: the server's line out of the chat)
-			if #pieces == 1 then ns.Comm.Whisper(r.name, pieces[1], nil, false, false)
-			else ns.Comm.SendBatch("WHISPER", pieces, nil, r.name, false) end
+			-- (1.5.0) A word that is not a chat line is keyed by its origin, kind and reporter:
+			-- a newer census of the same guild takes the waiting one's place in the queue
+			-- (Comm's keyed jobs), so a busy relay sends the latest, never a backlog.
+			local key = flag ~= "L" and ("relay " .. r.name .. " " .. Lower(origin) .. " " .. body:sub(1, 2)) or nil
+			if #pieces == 1 then ns.Comm.Whisper(r.name, pieces[1], key, false, false)
+			else ns.Comm.SendBatch("WHISPER", pieces, key, r.name, false) end
 		end
 	end
 	local n = 0
@@ -365,8 +369,9 @@ local function Across(flag, origin, body)
 			pieces = pieces or Envelope("RX", "RX~" .. flag .. "~" .. origin .. "~" .. body)
 			stats.across = (stats.across or 0) + 1
 			Quiet(name)
-			if #pieces == 1 then ns.Comm.Whisper(name, pieces[1], nil, false, false)
-			else ns.Comm.SendBatch("WHISPER", pieces, nil, name, false) end
+			local key = flag ~= "L" and ("across " .. name .. " " .. from .. " " .. body:sub(1, 2)) or nil
+			if #pieces == 1 then ns.Comm.Whisper(name, pieces[1], key, false, false)
+			else ns.Comm.SendBatch("WHISPER", pieces, key, name, false) end
 		end
 	end
 end

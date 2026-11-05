@@ -16,7 +16,7 @@ local PEER_WINDOW = 180  -- the election only trusts peers heard in the last 3 m
 local COUNT_WINDOW = 720 -- quiet members say hello every 10 min: count them for 12
 local BROADCAST_EVERY = 170
 local SEND_INTERVAL = 1.2
-local MAX_QUEUE = 60
+local MAX_QUEUE = 60 -- (Comm.MAX_QUEUE below, for the tests; 1.5.0: a relay keys its forwards instead of widening this)
 local CHAT_QUEUE = 6  -- chat parts waiting in their own lane (two long lines)
 local CHAT_TTL = 30   -- a chat part that waited this long is dropped, not sent late
 local GUARD_AFTER = 400  -- an elected reporter never heard reporting our guild for this long...
@@ -1417,6 +1417,7 @@ end
 
 function Comm.ChannelName() return joinedName end
 function Comm.ChannelIndex() return channelIndex end -- (1.5.0: the chat hall writes its text there)
+Comm.MAX_QUEUE = MAX_QUEUE
 function Comm.DeliveredLogged() return deliveredLogged end
 
 -- Who can read the channel, as the privacy questions tell the player (Layers, Channels):

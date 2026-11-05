@@ -71,8 +71,8 @@ local function WithComm(fn)
 				local before = #w.sent
 				C.Pump()
 				assert(#w.sent - before <= 1, "at most one game send API per pump")
-				assert(C.QueueSize() >= 0 and C.QueueSize() <= 60, "bounded message count")
-				eq(C.QueueRoom(), 60 - C.QueueSize(), "capacity counts unsent messages")
+				assert(C.QueueSize() >= 0 and C.QueueSize() <= C.MAX_QUEUE, "bounded message count")
+				eq(C.QueueRoom(), C.MAX_QUEUE - C.QueueSize(), "capacity counts unsent messages")
 			end
 		end
 		function w.moveChannel(name, id)

@@ -7386,6 +7386,32 @@ test("1.5.0 the chat hall: on Forever a chat line leaves as the player's own tex
 	if not ok then error(err, 0) end
 end)
 
+-- 1.5.0 (the dev's cousin's status, 2026-11-05: "incomplete report dropped" 23 times, the signed
+-- lists never whole): a relay's queue of 60 parts dropped whole forwards. Fails before: both
+-- censuses of one guild wait in the queue, and the lists' three pieces fall behind them.
+test("1.5.0 the relay: a word that is not a chat line is keyed by its origin, kind and reporter, so a newer census of the same guild takes the waiting one's place; chat lines all go", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "Olympus II", "Member", 3 end
+		local R, rdeliver, rsent, _, rpump, rsentOf = RelayWorld("Hildryn Payne-Realm", "Olympus II")
+		rdeliver("WHISPER", "Zed Far-Realm", "RL~P~RR~Olympus Zeus")
+		rdeliver("WHISPER", "Orig Inal-Realm", "RL~P~C1~census one")
+		rdeliver("WHISPER", "Orig Inal-Realm", "RL~P~C1~census two")
+		rdeliver("WHISPER", "Orig Inal-Realm", "RL~L~M1~A~Olympus II~1~~hi")
+		rdeliver("WHISPER", "Orig Inal-Realm", "RL~L~M1~A~Olympus II~2~~there")
+		rpump()
+		local rm = rsentOf("RM~P~")
+		eq(#rm, 1, "the newest census alone"); eq(rm[1].msg, "RM~P~Orig Inal-Realm~C1~census two")
+		eq(#rsentOf("RM~L~"), 2, "every chat line")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
 test("1.4.3 the relay: the election counts only guildmates whose hello carries the relay (R); on Forever a whisper goes by the plain name", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, split = ns.splitNames }
 	local ok, err = pcall(function()
