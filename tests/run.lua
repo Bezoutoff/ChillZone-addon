@@ -7156,6 +7156,41 @@ test("1.4.4 the relay: the first message with no relay answered pings every rela
 	if not ok then error(err, 0) end
 end)
 
+-- 1.4.5 (Daniel, 2026-11-05: a guildmate's line never reached him while the relays were dead or
+-- not yet answered). Fails before: nothing on GUILD until the relay's copy came back.
+test("1.4.5 the relay: a chat line goes to the sender's own guild at once over GUILD (hop 3 from himself), with no relay answered yet or none at all, and still to the relay for the other guilds; the relay's copy counts once", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "Olympus II", "Member", 3 end
+		local O, odeliver, osent, oheard, opump, osentOf = RelayWorld("Orig Inal-Realm", "Olympus II")
+		eq(O.Comm.SendChat("M1~A~Olympus II~1~~hi"), true)
+		opump()
+		local rg = osentOf("RG~L~")
+		eq(#rg, 1, "to the guild at once"); eq(rg[1].dist, "GUILD"); eq(rg[1].msg, "RG~L~Orig Inal-Realm~M1~A~Olympus II~1~~hi")
+		eq(#osentOf("RL~L~M1~"), 0, "the relay's copy held until one answers"); eq(O.Relay.Stats().pending, 1)
+		odeliver("WHISPER", "Max Ran-Realm", "RY~")
+		opump()
+		eq(#osentOf("RL~L~M1~"), 1, "then to the relay"); eq(#osentOf("RG~L~"), 1, "the guild no second time")
+		-- A guildmate takes the GUILD copy once, and a later relay copy once.
+		local G, gdeliver, _, gheard = RelayWorld("Gil Mate-Realm", "Olympus II")
+		gdeliver("GUILD", "Orig Inal-Realm", "RG~L~Orig Inal-Realm~M1~A~Olympus II~1~~hi")
+		eq(#gheard, 1); eq(gheard[1].logged, true); eq(gheard[1].sender, "Orig Inal-Realm")
+		gdeliver("WHISPER", "Max Ran-Realm", "RM~L~Orig Inal-Realm~M1~A~Olympus II~1~~hi")
+		eq(#gheard, 1, "once")
+		-- Not a chat line: the guild hears it only through its reporter, as before.
+		wipe(osent)
+		eq(O.Comm.Send("CHANNEL", "X1~census"), true)
+		opump()
+		eq(#osentOf("RG~"), 0)
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
 test("1.4.3 the relay: the election counts only guildmates whose hello carries the relay (R); on Forever a whisper goes by the plain name", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, split = ns.splitNames }
 	local ok, err = pcall(function()

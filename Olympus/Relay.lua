@@ -233,9 +233,17 @@ Relay.Flush = Flush
 
 -- Hop 1: what a module said "on the channel" goes to our relay. parts: the message's pieces as the
 -- channel would carry them (each one whisper). Returns true when handed to the queue.
+local ToGuild -- (below: hop 3)
 function Relay.Out(parts, logged, done, key, urgent, options, anyway)
 	local relay, sure = Relay.Pick()
 	if not relay then return false end
+	-- (1.4.5) A chat line reaches the sender's own guild at once, over GUILD, as hop 3 from himself,
+	-- whatever the relays do (one dead, none answered yet): guildmates take it once (Seen), and
+	-- the relay's copy that comes back later counts once too. The relay still carries it to the
+	-- other guilds. The flush of a held line sends to the guild no second time.
+	if logged and not anyway and IsInGuild() then
+		for _, p in ipairs(parts) do ToGuild("L", ns.me, p) end
+	end
 	if not sure and not anyway then
 		-- (1.4.4) No relay answered yet: all pinged at once, the message held for the first answer.
 		Sweep()
@@ -309,7 +317,7 @@ local function Deliver(origin, text, logged)
 end
 
 -- A reporter hands a message to its guild once (hop 3).
-local function ToGuild(flag, origin, text)
+ToGuild = function(flag, origin, text)
 	if not IsInGuild() then return false end
 	local pieces = Envelope("RG", "RG~" .. flag .. "~" .. origin .. "~" .. text)
 	if #pieces == 1 then return ns.Comm.Send("GUILD", pieces[1], nil, false, false) ~= false end
