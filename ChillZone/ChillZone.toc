@@ -2,7 +2,7 @@
 ## Title: |cffe6c35cChillZone|r
 ## Notes: Live census of every ChillZone guild: army size, leaders and where everyone is on the map.
 ## Author: ChillZone addon contributors (based on Olympus)
-## Version: 1.5.1
+## Version: 1.5.2
 ## SavedVariables: ChillZoneDB, ChillZoneRecordDB
 ## IconTexture: Interface\AddOns\ChillZone\media\logo64
 ## X-License: MIT

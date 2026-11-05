@@ -2,7 +2,7 @@ local ADDON, ns = ...
 local L = ns.L
 
 ns.NAME = "ChillZone"
-ns.VERSION = "1.5.1"
+ns.VERSION = "1.5.2"
 ns.PREFIX = "CHILLZONE"        -- addon message prefix (max 16 chars)
 ns.CHANNEL = "ChillZoneNet"    -- hidden chat channel shared by every ChillZone guild (Alliance)
 ns.CHANNEL_HORDE = "ChillZoneNetH" -- the Horde's: the two factions never see each other's guilds

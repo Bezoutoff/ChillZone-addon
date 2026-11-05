@@ -29,7 +29,7 @@ master and the officers of the Horde guild named exactly "ChillZone", if there i
 
 ## Recent versions
 
-- **1.5.1**: On a PvP character the census page tells PvP from PvE again (a Forever family's ruleset is its name, not a realm of the signed table), and a family's store never takes another family's census: the PvE census no longer merges into the PvP store when that character met no PvE realm, and reports of another family merged so before are dropped at the next open.
+- **1.5.2**: While no relay of the High Council answers, a guild's census report goes as its reporter's own text in the joined channel (which Forever delivers to everyone in it) and everyone takes it from there, so the census keeps moving in a realm family whose relays are offline; a relay's copy later is the same report again. The dev's second PvP character is a launch pin of that family.
 - **1.3.3**: Deliberate site export: an optional Site Aggregate folder writes a masked own-guild count for the
   ChillZone website on /cz site export and /reload, never uploads, and empties at the next logout or reload.
 - **1.3.2**: Correction: explicitly approximate Census people counts, preserve accepted Treasury rows,

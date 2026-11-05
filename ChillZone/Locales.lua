@@ -189,6 +189,10 @@ Long live the King. Long live ChillZone.]==]
 L.LETTER_1_5_1_TITLE, L.LETTER_1_5_1_HEAD, L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK = L.LETTER_1_5_0_TITLE, L.LETTER_1_5_0_HEAD, L.LETTER_1_5_0_SIGNED, L.LETTER_1_5_0_LINK
 L.LETTER_1_5_1 = (L.LETTER_1_5_0:gsub("in version 1%.5%.0:", "in version 1.5.1:", 1)
 	:gsub("%- {star} Update, then close", "- {guild} 1.5.1: the census page tells PvP from PvE again, and a PvP character's census holds the PvP guilds alone.\n- {star} Update, then close", 1))
+-- 1.5.2 (the census as the reporter's own text while no relay answers; the PvP family's second pin).
+L.LETTER_1_5_2_TITLE, L.LETTER_1_5_2_HEAD, L.LETTER_1_5_2_SIGNED, L.LETTER_1_5_2_LINK = L.LETTER_1_5_1_TITLE, L.LETTER_1_5_1_HEAD, L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK
+L.LETTER_1_5_2 = (L.LETTER_1_5_1:gsub("in version 1%.5%.1:", "in version 1.5.2:", 1)
+	:gsub("%- {star} Update, then close", "- {team} 1.5.2: while no relay of the Council answers, each guild's census goes as its reporter's own text in the channel, so the census keeps moving when nobody signed is online.\n- {star} Update, then close", 1))
 L.LETTER_1_3_3_TITLE = "Your guild on the website"
 L.LETTER_1_3_3 = [==[Version 1.3.3.
 
@@ -293,6 +297,9 @@ Vida longa ao Rei. Vida longa a ChillZone.]==]
 	L.LETTER_1_5_1_TITLE, L.LETTER_1_5_1_HEAD, L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK = L.LETTER_1_5_0_TITLE, L.LETTER_1_5_0_HEAD, L.LETTER_1_5_0_SIGNED, L.LETTER_1_5_0_LINK
 	L.LETTER_1_5_1 = (L.LETTER_1_5_0:gsub("na versão 1%.5%.0:", "na versão 1.5.1:", 1)
 		:gsub("%- {star} Atualize, feche", "- {guild} 1.5.1: a página do censo volta a separar PvP de PvE, e o censo de um personagem PvP guarda só as guildas do PvP.\n- {star} Atualize, feche", 1))
+	L.LETTER_1_5_2_TITLE, L.LETTER_1_5_2_HEAD, L.LETTER_1_5_2_SIGNED, L.LETTER_1_5_2_LINK = L.LETTER_1_5_1_TITLE, L.LETTER_1_5_1_HEAD, L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK
+	L.LETTER_1_5_2 = (L.LETTER_1_5_1:gsub("na versão 1%.5%.1:", "na versão 1.5.2:", 1)
+		:gsub("%- {star} Atualize, feche", "- {team} 1.5.2: enquanto nenhum relé do Conselho responde, o censo de cada guilda vai como texto do próprio repórter no canal, e o censo continua andando quando ninguém assinado está online.\n- {star} Atualize, feche", 1))
 	L.LETTER_1_3_3_TITLE = "Sua guilda no site"
 	L.LETTER_1_3_3 = [==[Versão 1.3.3.
 
