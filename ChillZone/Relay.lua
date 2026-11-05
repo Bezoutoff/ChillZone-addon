@@ -297,6 +297,11 @@ function Relay.Out(parts, logged, done, key, urgent, options, anyway)
 	end
 	if not sure and not anyway then
 		-- (1.4.4) No relay answered yet: all pinged at once, the message held for the first answer.
+		-- (1.5.2) And the guild's census report goes as the reporter's own text in the joined channel
+		-- meanwhile (ChatHall.Carry: a family with no relay online, the PvP one while the dev is away),
+		-- which Forever delivers to everyone in it; a relay's copy later is the same report again.
+		local H = ns.ChatHall
+		if type(H) == "table" and type(H.Carry) == "function" then pcall(H.Carry, parts) end
 		Sweep()
 		Hold(parts, logged, done, key, urgent, options)
 		if not holding then

@@ -7396,7 +7396,10 @@ test("1.4.6 Forever's realm family is the group: every CAMWOW sub-realm of one r
 		O.realm, O.rdb.council = "CAMWOWUS2Realm5PvE", nil
 		local names = table.concat(O.Relay.Names(true), ",")
 		assert(names:find("Developus Olympicus", 1, true) and names:find("Asmongold Thereal", 1, true), "the launch pins: " .. names)
-		assert(not names:find("Twalin Firebraid", 1, true), "not the PvP family's")
+		assert(not names:find("Twalin Firebraid", 1, true) and not names:find("Elrond Oaklance", 1, true), "not the PvP family's")
+		O.realm = "CAMWOWUS1Realm8PvP"
+		names = table.concat(O.Relay.Names(true), ",")
+		assert(names:find("Twalin Firebraid", 1, true) and names:find("Elrond Oaklance", 1, true), "the PvP family's pins (1.5.2: both of the dev's): " .. names)
 		O.realm = "ClassicBetaPvP"
 		assert(not table.concat(O.Relay.Names(true), ","):find("Developus", 1, true), "nothing by code off Forever")
 	end)
@@ -7458,6 +7461,35 @@ test("1.5.1 opening a Forever family's store takes a plain realm's of its own fa
 		assert(ns.db.realms.Whitemane, "an unrelated realm's store stays")
 	end)
 	ns.db.realms, ns.db.links, ns.rdb, ns.realm, ns.group, ns.faction = saved.realms, saved.links, saved.rdb, saved.realm, saved.group, saved.faction
+	if not ok then error(err, 0) end
+end)
+
+-- 1.5.2 (the dev, 2026-11-05: "deve ficar circulando esses dados... não deve parar enquanto eu
+-- estou fora": the PvP family's only relays are his own characters). Fails before: nothing of a
+-- report leaves while no relay answers but the pings.
+test("1.5.2 the relay: while no relay answers, a word's pieces are handed to the chat hall to go as the reporter's own text in the joined channel; once one answered, the relay alone carries them", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "ChillZone II", "Member", 3 end
+		local O, odeliver, _, _, opump = RelayWorld("Orig Inal-Realm", "ChillZone II")
+		local carried = {}
+		O.ChatHall = { Carry = function(parts) for _, p in ipairs(parts) do carried[#carried + 1] = p end return #parts end }
+		O.Accord = { Quiet = function() end }
+		O.After = function(_, _, fn) end
+		eq(O.Comm.Send("CHANNEL", "C5:1:1:abc", "k1"), true)
+		opump()
+		eq(table.concat(carried, ","), "C5:1:1:abc", "no relay answered: the hall carries it")
+		odeliver("WHISPER", "Max Ran-Realm", "RY~")
+		eq(O.Relay.Stats().sure, true)
+		eq(O.Comm.Send("CHANNEL", "C6:1:1:def", "k2"), true)
+		opump()
+		eq(table.concat(carried, ","), "C5:1:1:abc", "a relay answered: the relay alone")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
 	if not ok then error(err, 0) end
 end)
 
@@ -7523,6 +7555,13 @@ test("1.5.0 the chat hall: on Forever a tier's chat line leaves as the player's 
 		eq(H.OnChannel("hello there", "Other-Realm", "", "", "", "", 0, 6, "ChillZoneNet1"), false, "plain text in it")
 		eq(H.OnChannel("EC~room~1~hey", "Other-Realm", "", "", "", "", 0, 6, "ChillZoneNet1"), false, "another kind")
 		eq(#received, 2)
+		-- (1.5.2) A census report's pieces are carried as text (Relay.Out, no relay answering) and taken.
+		eq(H.Carry({ "C12:1:2:abc", "C12:2:2:def", "H3~hello", "X1~one" }), 2, "the report's pieces alone")
+		eq(#said, 3); eq(said[2].text, "C12:1:2:abc"); eq(said[3].text, "C12:2:2:def"); eq(said[3].target, 6)
+		eq(H.OnChannel("C7:1:1:zzz", "Far Away-Realm", "", "", "", "", 0, 6, "ChillZoneNet1"), true)
+		eq(#received, 3); eq(received[3].text, "C7:1:1:zzz"); eq(received[3].dist, "CHANNEL")
+		eq(H.OnChannel("H3~hello", "Far Away-Realm", "", "", "", "", 0, 6, "ChillZoneNet1"), false, "no other kind")
+		eq(H.Stats().carried, 2)
 		-- Off: the chat box gate (the gamepad UI), no channel, off Forever.
 		cns.Gate = { Allowed = function() return false end }
 		eq(H.On(), false); eq(H.Send("M1~A~ChillZone II~1~~x"), false)
