@@ -251,6 +251,34 @@ test("Innkeeper gossip: missing native template or unreadable content extent lea
 	end)
 end)
 
+-- 1.4.6 (the dev's cousin on live Forever): Blizzard hid the NPC panel a frame after our
+-- GOSSIP_CLOSED handler, so the first talk launched nothing and the second talk launched the first
+-- talk's request. Fails before: nothing starts in the first conversation.
+test("Innkeeper gossip: the panel still shown a frame after the close: the lesson waits for it to hide and launches in the same conversation, never from the next one", function()
+	WithGossip(function(g, t)
+		local native = t.a.globals.C_GossipInfo
+		native.CloseGossip = function() t.w:Fire(t.a, "GOSSIP_CLOSED") end -- (the panel hides later)
+		eq(g.ShowRow(), true); eq(g.Open(), true)
+		eq(g.Confirm(), true); eq(#t.starts, 0)
+		eq(#t.pending, 1)
+		t.pending[1]()
+		eq(#t.starts, 0, "the panel is still shown: not yet"); eq(#t.pending, 2, "tried again a frame later")
+		eq(g.State().mode, "closing"); eq(g.Confirm(), false, "no second request meanwhile")
+		t.f:Hide()
+		t.pending[2]()
+		eq(#t.starts, 1, "launched once the panel hid"); eq(t.starts[1].what, "practice")
+		eq(g.State().mode, "inactive"); eq(#t.pending, 2, "nothing left waiting")
+		-- A panel that never hides: the request is given up, not kept for the next conversation.
+		t.f:Show(); wipe(t.pending)
+		eq(g.ShowRow(), true); eq(g.Open(), true); eq(g.Confirm(), true)
+		for i = 1, 25 do local call = t.pending[i]; if not call then break end; call() end
+		eq(#t.starts, 1, "given up"); eq(g.State().mode, "inactive")
+		t.f:Hide(); t.w:Fire(t.a, "GOSSIP_CLOSED")
+		for i = 26, #t.pending do t.pending[i]() end
+		eq(#t.starts, 1, "the next close launches nothing")
+	end)
+end)
+
 test("Innkeeper gossip: explicit confirmation closes NPC panel then launches first lesson", function()
 	WithGossip(function(g, t)
 		eq(g.ShowRow(), true); eq(g.Open(), true)
