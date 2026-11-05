@@ -60,13 +60,12 @@ test("1.2.5 letter content: both languages describe only the shipped reply, offi
 			previous = at
 		end
 		-- (1.4.1: the launch night fix first, the launch letter, then the 1.3 line.)
-		eq(cns.Letters.Versions()[1], "1.4.4", locale .. ": current release first")
-		eq(cns.Letters.Versions()[2], "1.4.3", locale .. ": the relay retained")
-		eq(cns.Letters.Versions()[3], "1.4.2", locale .. ": the key fix retained")
-		eq(cns.Letters.Versions()[4], "1.4.1", locale .. ": the launch night fix retained")
-		eq(cns.Letters.Versions()[5], "1.4.0", locale .. ": the launch letter retained")
-		eq(cns.Letters.Versions()[6], "1.3.3", locale .. ": previous release retained")
-		eq(cns.Letters.Versions()[7], "1.3.2", locale .. ": the 1.3 line retained")
+		eq(cns.Letters.Versions()[1], "1.4.3", locale .. ": current release first")
+		eq(cns.Letters.Versions()[2], "1.4.2", locale .. ": the key fix retained")
+		eq(cns.Letters.Versions()[3], "1.4.1", locale .. ": the launch night fix retained")
+		eq(cns.Letters.Versions()[4], "1.4.0", locale .. ": the launch letter retained")
+		eq(cns.Letters.Versions()[5], "1.3.3", locale .. ": previous release retained")
+		eq(cns.Letters.Versions()[6], "1.3.2", locale .. ": the 1.3 line retained")
 	end
 end)
 
