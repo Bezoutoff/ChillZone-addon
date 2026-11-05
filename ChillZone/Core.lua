@@ -458,6 +458,12 @@ local function OpenStore(db, group)
 			local on = type(g) == "table" and ForeverFamily(g.heardOn) or nil
 			if on and on ~= family then R.guilds[k] = nil; dropped = dropped + 1 end
 		end
+		-- The counts-only rows too (censusGlobal, Data.lua), by the realm of whoever said them.
+		for k, e in pairs(type(R.censusGlobal) == "table" and R.censusGlobal or {}) do
+			local by = type(e) == "table" and type(e.by) == "string" and e.by:match("%-(.+)$") or nil
+			local on = by and ForeverFamily(by) or nil
+			if on and on ~= family then R.censusGlobal[k] = nil; dropped = dropped + 1 end
+		end
 		if dropped > 0 then ns.Log("census of %s: %d reports of another family dropped", group, dropped) end
 	end
 	if #merge == 0 then return R end

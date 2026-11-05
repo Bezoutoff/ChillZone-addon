@@ -1421,6 +1421,12 @@ function Data.GroupInfo(group)
 	-- family ("ForeverPvE", "ForeverPvP") is no realm of the signed table: its ruleset is its name,
 	-- its region the first of its realms this client met or the signed table names.
 	local rules = group:match("^Forever(%a+)$")
+	-- A plain Forever realm, or realms (a group learned before 1.4.6): its family's.
+	if not rules and ns.ForeverFamily then
+		local first = group:match("^[^+]+")
+		local fam = first and ns.ForeverFamily(first)
+		if fam then rules = fam:match("^Forever(%a+)$"); group = fam end
+	end
 	if rules then
 		local kind = ({ pve = "pve", pvp = "pvp", rp = "rp", rppvp = "rppvp", hardcore = "hardcore", hc = "hardcore" })[rules:lower()]
 		local realms = {}
@@ -1639,11 +1645,16 @@ function Data.Groups(s, now)
 	local out = { rows = {}, characters = 0, people = 0, kinds = {}, regions = {}, factions = {} }
 	local seen = {}
 	local function Add(e, counted, ours)
-		local key = GroupKey(e.faction, e.group)
+		-- (1.5.2) A plain Forever realm's row (a group learned before 1.4.6, kept on some client) is
+		-- its family's: one server, not "another" beside it; the newest of them is the one kept.
+		local first = type(e.group) == "string" and e.group:match("^[^+]+") or nil
+		local family = first and ns.ForeverFamily and ns.ForeverFamily(first) or nil
+		local groupName = family or e.group
+		local key = GroupKey(e.faction, groupName)
 		if seen[key] then return end
 		seen[key] = true
-		local kind, region = Data.GroupInfo(e.group)
-		local row = { group = e.group, faction = e.faction, characters = e.characters, people = e.people, guilds = e.guilds,
+		local kind, region = Data.GroupInfo(groupName)
+		local row = { group = groupName, faction = e.faction, characters = e.characters, people = e.people, guilds = e.guilds,
 			observed = e.observed, src = e.src, w = e.w, kind = kind, region = region, counted = counted, ours = ours }
 		out.rows[#out.rows + 1] = row
 		if not counted then return end
