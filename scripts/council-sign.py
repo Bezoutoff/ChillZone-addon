@@ -732,8 +732,22 @@ def sign_council_data(data):
 def lua_string(s):
     return '"' + "".join(chr(b) if 32 <= b < 127 and chr(b) not in '"\\' else "\\%03d" % b for b in s.encode()) + '"'
 
+# (1.4.5) One file, several realm groups: beside the lists just signed (ns.COUNCIL_SIGNED and
+# ns.COUNCIL_TITLES, as ever), the file carries every group's last lists (ns.COUNCIL_BY_GROUP, the
+# group of each HS1 blob as its key), kept in a sidecar next to the file (<OUT>.groups.json), so the
+# dev's client takes the lists of the group it is on (Workshop.CouncilLogin): his PvP character beside
+# his PvE one. Signing a group replaces that group's entry alone.
 def write_out(names, titles=None, authority=None):
     if os.path.dirname(OUT): os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    side = OUT + ".groups.json"
+    groups = {}
+    if os.path.exists(side):
+        try: groups = json.load(open(side))
+        except Exception: groups = {}
+        if not isinstance(groups, dict): groups = {}
+    group = names.split("~")[2] if names.count("~") >= 2 else ""
+    if group: groups[group] = {"names": names, "titles": titles or None}
+    with open(side, "w") as f: json.dump(groups, f, indent=1)
     with open(OUT, "w") as f:
         f.write("-- Local only: the High Council's lists, signed. Never commit or publish this file.\n")
         f.write("local _, ns = ...\nns.COUNCIL_SIGNED = %s\n" % lua_string(names))
@@ -741,6 +755,12 @@ def write_out(names, titles=None, authority=None):
         if authority:
             f.write("ns.COUNCIL_AUTHORITY = {\n")
             for blob in authority: f.write(" %s,\n" % lua_string(blob))
+            f.write("}\n")
+        if len(groups) > 1:
+            f.write("ns.COUNCIL_BY_GROUP = {\n")
+            for g in sorted(groups):
+                e = groups[g]
+                f.write(" [%s] = { %s, %s },\n" % (lua_string(g), lua_string(e["names"]), lua_string(e["titles"]) if e.get("titles") else "nil"))
             f.write("}\n")
 
 # The council file rewritten whole or not at all, readable by its owner as before.

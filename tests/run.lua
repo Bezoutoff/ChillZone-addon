@@ -15292,6 +15292,16 @@ test("0.9.9 the High Council's lists: relayed together, and a relay of both from
 		ns.After = function(_, _, f) f() end
 		ns.Comm.SendChunked = function(msg) sent[#sent + 1] = msg end
 		S.Verify = function(...) checks = checks + 1 return verify(...) end
+		-- (1.4.5) The file carrying several realm groups' lists (ns.COUNCIL_BY_GROUP): our group's
+		-- names taken in place of the file's plain ones, the titles as given where ours names none.
+		local savedGroup = ns.group
+		ns.group = ns.group or "Realm"
+		ns.COUNCIL_SIGNED, ns.COUNCIL_TITLES = COUNCIL_TEST_NAMES2, COUNCIL_TEST_TITLES
+		ns.COUNCIL_BY_GROUP = { [ns.group] = { COUNCIL_TEST_NAMES4, nil }, ["Elsewhere+Else"] = { COUNCIL_TEST_NAMES2, COUNCIL_TEST_TITLES } }
+		W.CouncilLogin()
+		eq(sent[1], "HS~" .. COUNCIL_TEST_NAMES4, "our group's names, not the plain ones"); eq(sent[2], "HT~" .. COUNCIL_TEST_TITLES)
+		ns.COUNCIL_BY_GROUP, ns.group = nil, savedGroup
+		wipe(sent)
 		-- The author's client: both lists from his file at login, and sent on at once.
 		ns.COUNCIL_SIGNED, ns.COUNCIL_TITLES = COUNCIL_TEST_NAMES4, COUNCIL_TEST_TITLES
 		W.CouncilLogin()

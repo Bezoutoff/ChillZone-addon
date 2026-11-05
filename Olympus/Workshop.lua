@@ -2910,9 +2910,17 @@ end
 -- realm at once too, any other client a whole RELAY_EVERY after login at the earliest (RelayGuild).
 function Workshop.CouncilLogin()
 	lastCouncilSent, lastGuildSent = ns.Now(), ns.Now()
-	if ns.COUNCIL_SIGNED then Workshop.TakeCouncil(ns.COUNCIL_SIGNED) end
-	if ns.COUNCIL_TITLES then Workshop.TakeTitles(ns.COUNCIL_TITLES) end
-	if ns.COUNCIL_SIGNED or ns.COUNCIL_TITLES then
+	local names, titles = ns.COUNCIL_SIGNED, ns.COUNCIL_TITLES
+	-- (1.4.5) The file may carry the lists of several realm groups (ns.COUNCIL_BY_GROUP, by the
+	-- group each is signed for: the dev's PvP character beside his PvE one): ours, where it has them.
+	local by = ns.COUNCIL_BY_GROUP
+	if type(by) == "table" and type(ns.group) == "string" and type(by[ns.group]) == "table" then
+		if type(by[ns.group][1]) == "string" then names = by[ns.group][1] end
+		if type(by[ns.group][2]) == "string" then titles = by[ns.group][2] end
+	end
+	if names then Workshop.TakeCouncil(names) end
+	if titles then Workshop.TakeTitles(titles) end
+	if names or titles then
 		ns.After(15, "council", function()
 			Workshop.RelayCouncil(true)
 			Workshop.RelayGuild(true)
