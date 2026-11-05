@@ -59,10 +59,11 @@ test("1.2.5 letter content: both languages describe only the shipped reply, offi
 			assert(not previous or at > previous, locale .. ": release points stay ordered")
 			previous = at
 		end
-		-- (1.4.0: the launch letter first, the 1.3 line after it.)
-		eq(cns.Letters.Versions()[1], "1.4.0", locale .. ": current release first")
-		eq(cns.Letters.Versions()[2], "1.3.3", locale .. ": previous release retained")
-		eq(cns.Letters.Versions()[3], "1.3.2", locale .. ": the 1.3 line retained")
+		-- (1.4.1: the launch night fix first, the launch letter, then the 1.3 line.)
+		eq(cns.Letters.Versions()[1], "1.4.1", locale .. ": current release first")
+		eq(cns.Letters.Versions()[2], "1.4.0", locale .. ": the launch letter retained")
+		eq(cns.Letters.Versions()[3], "1.3.3", locale .. ": previous release retained")
+		eq(cns.Letters.Versions()[4], "1.3.2", locale .. ": the 1.3 line retained")
 	end
 end)
 

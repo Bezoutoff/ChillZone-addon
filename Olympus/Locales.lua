@@ -136,6 +136,11 @@ What's new in version 1.4.0, for the march:
 The gates are open.]==]
 L.LETTER_1_4_0_SIGNED = "Your humble artificer, the Olympus dev"
 L.LETTER_1_4_0_LINK = "https://olympus.roachcouncil.com/"
+-- 1.4.1 (launch night: the army's channel, refused by WoW: Forever, moves to the next lane by itself).
+-- The letter is the launch letter again, with the fix first: most of the army never saw 1.4.0's.
+L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK = L.LETTER_1_4_0_TITLE, L.LETTER_1_4_0_HEAD, L.LETTER_1_4_0_SIGNED, L.LETTER_1_4_0_LINK
+L.LETTER_1_4_1 = (L.LETTER_1_4_0:gsub("What's new in version 1%.4%.0, for the march:\n\n",
+	"What's new in version 1.4.1 (and 1.4.0), for the march:\n\n- {team} Launch night fix: the game refused the army's channel, so each guild saw only itself. Olympus now moves to the next channel by itself the moment the game refuses it, and every updated addon meets there. Update, then close and reopen the game.\n", 1))
 L.LETTER_1_3_3_TITLE = "Your guild on the website"
 L.LETTER_1_3_3 = [==[Version 1.3.3.
 
@@ -199,6 +204,9 @@ O que há de novo na versão 1.4.0, para a marcha:
 
 Os portões estão abertos.]==]
 	L.LETTER_1_4_0_SIGNED = "Seu humilde artífice, o dev do Olympus"
+	L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK = L.LETTER_1_4_0_TITLE, L.LETTER_1_4_0_HEAD, L.LETTER_1_4_0_SIGNED, L.LETTER_1_4_0_LINK
+	L.LETTER_1_4_1 = (L.LETTER_1_4_0:gsub("O que há de novo na versão 1%.4%.0, para a marcha:\n\n",
+		"O que há de novo na versão 1.4.1 (e na 1.4.0), para a marcha:\n\n- {team} Correção da noite do lançamento: o jogo recusou o canal do exército, e cada guilda só via a si mesma. Agora o Olympus muda para o próximo canal sozinho assim que o jogo recusa, e todo addon atualizado se encontra lá. Atualize, feche e abra o jogo.\n", 1))
 	L.LETTER_1_3_3_TITLE = "Sua guilda no site"
 	L.LETTER_1_3_3 = [==[Versão 1.3.3.
 

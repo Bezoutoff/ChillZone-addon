@@ -56,6 +56,7 @@
   fix full-suite ordering regressions and export consented Companion identity evidence.
 - v1.3.3 Deliberate site export: an optional Site Aggregate folder writes a masked own-guild count for the
   Olympus website on /oly site export and /reload, never uploads, and empties at the next logout or reload.
+- v1.4.1 Launch night: the army's channel moves to the next lane by itself when the game refuses it (WoW: Forever refused every send on OlympusNet), so every guild hears the others again; the signed list loads from the addon's own folder.
 - v1.4.0 Launch: the census agrees across clients and counts every realm group (PvP and PvE, NA and EU)
   without beta numbers; launch identities from the signed list; the Church top three and the donors reach
   late clients through the King and the High Council; duty letters from the King for every office; seven

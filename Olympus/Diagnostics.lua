@@ -414,7 +414,7 @@ function ns.StatusText()
 		-- (1.2.1: the sealed channel's name never: see Scrub.)
 		add("channel %s = #%s  sealed=%s  |  peers in guild=%d  |  reporter=%s (me: %s)", c.sealed and "(sealed channel)" or ("'" .. tostring(c.channelName) .. "'"),
 			tostring(c.channel), tostring(c.sealed), c.peers, tostring(c.reporter), tostring(c.isReporter))
-		add("sent=%d recv=%d reports=%d sendFails=%d badMsgs=%d queue=%d lastFail=%s", c.sent, c.recv, c.reports, c.fails, c.bad, c.queue, tostring(c.lastFail))
+		add("sent=%d recv=%d reports=%d sendFails=%d badMsgs=%d queue=%d lastFail=%s lane=%d laneRefused=%d laneMoves=%d", c.sent, c.recv, c.reports, c.fails, c.bad, c.queue, tostring(c.lastFail), tonumber(c.lane) or 0, tonumber(c.laneRefused) or 0, tonumber(c.laneMoves) or 0)
 		local types = {}
 		for k, v in pairs(c.byType or {}) do types[#types + 1] = k .. "=" .. v end
 		table.sort(types)

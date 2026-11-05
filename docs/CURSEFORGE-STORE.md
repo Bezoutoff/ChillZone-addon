@@ -29,10 +29,7 @@ master and the officers of the Horde guild named exactly "Olympus", if there is 
 
 ## Recent versions
 
-- **1.4.0**: Launch: the census agrees across clients and counts every realm group (PvP and PvE, NA and EU)
-  without beta numbers; launch identities from the signed list; the Church top three and the donors reach
-  late clients through the King and the High Council; duty letters from the King for every office; seven
-  languages; the army's key in a form only 1.4.0 reads; the send queue holds through throttles and lockdowns.
+- **1.4.1**: Launch night: the army's channel moves to the next lane by itself when the game refuses it (WoW: Forever refused every send on OlympusNet), so every guild hears the others again; the signed list loads from the addon's own folder.
 - **1.3.3**: Deliberate site export: an optional Site Aggregate folder writes a masked own-guild count for the
   Olympus website on /oly site export and /reload, never uploads, and empties at the next logout or reload.
 - **1.3.2**: Correction: explicitly approximate Census people counts, preserve accepted Treasury rows,

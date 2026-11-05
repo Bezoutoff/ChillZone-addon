@@ -6785,6 +6785,91 @@ local function FreshComm(old)
 	return cns, Deliver, Report, DeliverLogged
 end
 
+-- 1.4.1 (launch night, 2026-11-04: WoW: Forever refused every send on "OlympusNet" with
+-- InvalidChannel while any other channel took them, and no guild heard another). The channel lane:
+-- refused LANE_AFTER times in a row on the channel we are on, a client leaves it for the next lane
+-- (the name with 1, 2 ... after it), kept per realm group, and asks the census there; a success
+-- resets the count, a refusal while off the channel counts nothing; the hello names our lane and a
+-- guild officer's higher lane moves us, a member's does not; the sealed name takes the lane too.
+test("1.4.1 channel lanes: three InvalidChannel refusals on our channel move us to the next lane (left, joined, saved per realm); a success resets, a refusal off the channel counts nothing; the hello names the lane; a Lord's higher lane is taken, a member's noted alone; the sealed name takes it too", function()
+	local saved = { channel = GetChannelName, join = JoinChannelByName, leave = LeaveChannelByName, member = ns.IsMember, roster = ns.Roster }
+	local ok, err = pcall(function()
+		local indexes, joined, left, sent = { OlympusNet = 5, OlympusNet1 = 6, OlympusNet2 = 7 }, {}, {}, {}
+		GetChannelName = function(name) return indexes[name] or 0 end
+		JoinChannelByName = function(name) joined[#joined + 1] = name end
+		LeaveChannelByName = function(name) left[#left + 1] = name end
+		ns.IsMember = function() return true end
+		local cns, Deliver = FreshComm()
+		cns.rdb = {}
+		cns.Roster = setmetatable({ RankOf = function(name) return name == "Lord-Realm" and 0 or (name == "Member-Realm" and 5 or nil) end }, { __index = ns.Roster })
+		local refuse = { [5] = true } -- the first lane's channel refuses everything
+		C_ChatInfo.SendAddonMessage = function(_, msg, dist, target)
+			sent[#sent + 1] = { msg = msg, dist = dist, target = target }
+			if dist == "CHANNEL" and refuse[target] then return 7 end
+			return 0
+		end
+		C_ChatInfo.SendAddonMessageLogged = C_ChatInfo.SendAddonMessage
+		local C = cns.Comm
+		eq((C.ChannelSpec()), "OlympusNet", "the first lane: the usual name")
+		C.JoinChannel()
+		eq(C.ChannelReady(), true); eq(C.Stats().channel, 5)
+		for _ = 1, 200 do if C.Stats().queue == 0 then break end C.Pump() end
+		-- Two refusals, then a success: the count starts again.
+		C.Send("CHANNEL", "X1~r"); C.Pump()
+		C.Send("CHANNEL", "X2~r"); C.Pump()
+		eq(C.LaneStats().refused, 2); eq(C.Lane(), 0, "not yet")
+		refuse[5] = nil
+		C.Send("CHANNEL", "X3~r"); C.Pump()
+		eq(C.LaneStats().refused, 0, "a success resets the count"); eq(C.Lane(), 0)
+		refuse[5] = true
+		-- Three in a row: the next lane. The old channel left, the new one joined (already in: its
+		-- number taken at once), the lane saved for this realm group.
+		for i = 1, 3 do C.Send("CHANNEL", "Y" .. i .. "~r"); C.Pump() end
+		eq(C.Lane(), 1, "the next lane"); eq(cns.rdb.channelLane, 1, "saved per realm group")
+		eq((C.ChannelSpec()), "OlympusNet1"); eq(C.Stats().channelName, "OlympusNet1")
+		eq(left[#left], "OlympusNet", "the refused channel left"); eq(C.Stats().channel, 6)
+		eq(C.LaneStats().refused, 0); eq(C.LaneStats().moves, 1)
+		-- On the new lane the game takes our words: nothing moves again.
+		C.Send("CHANNEL", "Z1~r"); C.Pump()
+		eq(sent[#sent].target, 6, "sent on the new lane's channel"); eq(C.Lane(), 1)
+		-- A refusal while our number is stale (the game renumbered or dropped the channel) counts nothing.
+		refuse[6] = true
+		indexes.OlympusNet1 = 0
+		C.Send("CHANNEL", "Z2~r"); C.Pump()
+		eq(C.LaneStats().refused, 0, "off the channel: no count"); eq(C.Lane(), 1)
+		indexes.OlympusNet1 = 6
+		refuse[6] = nil
+		-- The hello names our lane (its sixth field); older fields as before.
+		local n = #sent
+		C.Hello(true)
+		for _ = 1, 20 do if #sent > n then break end C.Pump() end
+		local hello = sent[#sent]
+		eq(hello.dist, "GUILD")
+		assert(hello.msg:match("^H1~[^~]+~[^~]*~p~~~L1$"), "the lane in the hello: " .. tostring(hello.msg))
+		-- A member's hello naming a higher lane is noted alone; a Lord's moves us.
+		Deliver("GUILD", "Member-Realm", "H1~1.4.1~Realm~p~~~L2")
+		eq(C.Lane(), 1, "a member's word moves nobody")
+		eq(C.Stats().peerLanes[1], "Member:2", "but is noted")
+		Deliver("GUILD", "Lord-Realm", "H1~1.4.1~Realm~p~z~b~L2")
+		eq(C.Lane(), 2, "a Lord's lane is taken"); eq(cns.rdb.channelLane, 2)
+		eq((C.ChannelSpec()), "OlympusNet2"); eq(left[#left], "OlympusNet1"); eq(C.Stats().channel, 7)
+		Deliver("GUILD", "Lord-Realm", "H1~1.4.1~Realm~p~~~L1")
+		eq(C.Lane(), 2, "never back")
+		Deliver("GUILD", "Lord-Realm", "H1~1.4.1~Realm~p~~~L99")
+		eq(C.Lane(), 2, "nor past LANE_MAX")
+		-- The sealed channel's name takes the lane the same way.
+		cns.rdb.realmKey = "secret-one"
+		eq((C.ChannelSpec()), "Oly" .. C.Hash36("secret-one") .. "2")
+		cns.rdb.realmKey = nil
+		-- Older clients read nothing new: a hello without the field names no lane.
+		Deliver("GUILD", "Old-Realm", "H1~1.3.3~Realm~p")
+		eq(table.concat(C.Stats().peerLanes, ","), "Lord:99,Member:2", "each peer's last word noted, the old client none")
+	end)
+	GetChannelName, JoinChannelByName, LeaveChannelByName, ns.IsMember, ns.Roster = saved.channel, saved.join, saved.leave, saved.member, saved.roster
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
 test("runner-up: only a 0.7.11+ peer on the reporter's channel", function()
 	local savedChannel = GetChannelName
 	local ok, err = pcall(function()
@@ -61209,9 +61294,9 @@ end)()
 	end)
 
 	test("1.4.0: the version, the TOC's files in order, the new message types in Comm.lua's list", function()
-		eq(ns.VERSION, "1.4.0") -- the release has one identity in both folders
+		eq(ns.VERSION, "1.4.1") -- the release has one identity in both folders
 		local toc = assert(ReadFile(ADDON_DIR .. "Olympus.toc"))
-		assert(toc:find("## Version: 1.4.0", 1, true))
+		assert(toc:find("## Version: 1.4.1", 1, true))
 		eq(ns.Workshop.Newer("1.4.0", "1.3.3"), true, "the launch release is newer")
 		eq(ns.Workshop.Newer("1.3.3", "1.4.0"), false)
 		eq(ns.Workshop.Newer("1.4.1", "1.4.0"), true, "the next patch remains newer")
@@ -61658,7 +61743,7 @@ end)()
 	end
 
 	test("1.4.0 version letters: release identity agrees across both TOCs and localized letters; reading the old release does not hide the new letter", function()
-		eq(ns.VERSION, "1.4.0")
+		eq(ns.VERSION, "1.4.1")
 		for _, path in ipairs({ "Olympus/Olympus.toc", "Olympus_Arena/Olympus_Arena.toc" }) do
 			local toc = assert(ReadFile(ROOT .. path))
 			eq(toc:match("## Version:%s*(%S+)"), ns.VERSION, path)
@@ -62132,7 +62217,7 @@ end)()
 			eq(f.title:IsShown(), false); eq(f.body:IsShown(), false); eq(f.all:IsShown(), false)
 			local versions = Lt.Versions()
 			eq(#versions, #Lt.LIST, "a letter for every version listed")
-			eq(table.concat(versions, " "), "1.4.0 1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
+			eq(table.concat(versions, " "), "1.4.1 1.4.0 1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
 			for i, v in ipairs(versions) do
 				local r = f.rows[i]
 				eq(r:IsShown(), true); eq(r.version, v)

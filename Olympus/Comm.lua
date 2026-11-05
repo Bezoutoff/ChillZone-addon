@@ -73,9 +73,13 @@ local askTries = 0 -- census requests tried while the channel was not joined (Co
 local heardAsk = -math.huge -- someone else's census request last heard on our channel (Comm.AskCensus)
 local askedAgain = false    -- the second census request is on its way, or went (Comm.AskCensus)
 local joinedName -- name of the channel we joined (set by Comm.JoinChannel)
+-- 1.4.1: the channel lane (declared here: SendNow and Comm.Stats, above the lane's own code, use them).
+local laneRefused, laneProbe = 0, false
+local Lane
 local peerRealm = {} -- guild peer -> realm from its hello, "old" for versions that send none
 local peerVersion = {} -- guild peer -> the addon version its hello named
 local peerSealed = {} -- guild peer -> "s" (on the sealed channel) or "p" (public), from its hello
+local peerLane = {}   -- guild peer -> its channel lane when not the first (1.4.1), from its hello
 local peerZone = {} -- guild peer -> true when its hello says it shares its zone (0.9.1, Comm.SharesZone)
 local peerBank = {} -- guild peer -> true while its hello says it is an arena bank on duty (1.2, Electable)
 -- Short name -> last time we heard it report our guild on the channel. Short: the server may
@@ -195,6 +199,9 @@ function Comm.Stats()
 		-- held back by a lockdown, and whether the queue is held now.
 		retried = stats.retried or 0, lockHeld = stats.locked or 0, held = heldSince ~= nil,
 		reportSt = r and r.st, reportCap = r and r.cap, reportPres = r and r.pres,
+		-- 1.4.1: the channel lane we are on, refusals counted towards the next, moves made.
+		lane = Lane(), laneRefused = laneRefused, laneMoves = stats.lanes or 0,
+		peerLanes = (function() local n = {} for name, l in pairs(peerLane) do n[#n + 1] = ns.DisplayName(name) .. ":" .. l end table.sort(n) return n end)(),
 	}
 end
 
@@ -660,11 +667,25 @@ local function SendNow(dist, msg, logged, whisperTo)
 	if ok and IsSuccess(res) then
 		stats.sent = stats.sent + 1
 		refusedInRow = 0
+		if dist == "CHANNEL" then laneRefused = 0 end -- (1.4.1: the channel takes our words)
 		return true
 	end
 	if ok and RETRYABLE[res] then
 		refusedInRow = refusedInRow + 1
 		waitUntil = GetTime() + RETRY_WAIT[math.min(refusedInRow, #RETRY_WAIT)]
+	end
+	-- (1.4.1) InvalidChannel on the channel we are on (its number still ours): counted towards the
+	-- next lane; the census is asked again a moment later, so the count settles within seconds
+	-- whatever else this client has to say. Not while we are off it (a stale number says nothing).
+	if ok and res == 7 and dist == "CHANNEL" and channelIndex > 0 and joinedName
+		and (GetChannelName(joinedName) or 0) == channelIndex then
+		laneRefused = laneRefused + 1
+		if laneRefused >= Comm.LANE_AFTER then
+			Comm.NextLane(("InvalidChannel x%d on %s"):format(laneRefused, joinedName))
+		elseif not laneProbe then
+			laneProbe = true
+			ns.After(Comm.LANE_PROBE, "channel probe", function() laneProbe = false Comm.AskCensus(true) end)
+		end
 	end
 	stats.fails = stats.fails + 1
 	stats.lastFail = ("%s %s"):format(dist, tostring(res))
@@ -936,14 +957,53 @@ local function Hash36(text)
 end
 Comm.Hash36 = Hash36
 
+-- 1.4.1 (launch night, 2026-11-04: on WoW: Forever the game refused every send on "OlympusNet"
+-- with InvalidChannel (7) while we were on it, and any other channel, new or old, took them; the
+-- whole army was on that one channel and no guild heard another). The channel lane: the name a
+-- client joins is the usual one, then the usual one with 1, 2 ... LANE_MAX after it. A client moves
+-- to the next lane by itself once the game refused LANE_AFTER sends in a row on the channel it is on
+-- (SendNow), and asks the census again there: every client refused moves the same way, so the army
+-- meets again on the next lane with nobody typing anything. The lane is kept per realm group
+-- (ns.rdb.channelLane), so a /reload comes back to the lane that works. A guildmate's hello names
+-- his lane (H1's sixth field): one from a Lord or Captain of our guild naming a higher lane moves us
+-- too (TakeLane: an officer can already move the guild with a key, SetRealmKey), anyone else's is
+-- noted alone (/oly status). The sealed channel's name takes the lane the same way.
+Comm.LANE_AFTER = 3
+Comm.LANE_MAX = 9
+Comm.LANE_PROBE = 5 -- seconds after a refusal before the census is asked again, to settle it
+Lane = function()
+	local n = ns.rdb and tonumber(ns.rdb.channelLane) or 0
+	if n ~= n or n < 0 or n > Comm.LANE_MAX then return 0 end
+	return math.floor(n)
+end
+Comm.Lane = Lane
+local function LaneName(base) return base .. (Lane() > 0 and tostring(Lane()) or "") end
+
 -- Each faction has its own channel (and sealed name), so the Horde and the Alliance never
 -- mix their census, chat or decrees, whether or not the game shares channel names between them.
 function Comm.ChannelSpec()
 	local horde = ns.faction == "Horde"
 	local key = ns.rdb and ns.rdb.realmKey
-	if key and key ~= "" then return (horde and "OlyH" or "Oly") .. Hash36(key), key end
-	return horde and ns.CHANNEL_HORDE or ns.CHANNEL, nil
+	if key and key ~= "" then return LaneName((horde and "OlyH" or "Oly") .. Hash36(key)), key end
+	return LaneName(horde and ns.CHANNEL_HORDE or ns.CHANNEL), nil
 end
+-- To lane n (TakeLane: a higher one a guild officer's hello names) or the next one (NextLane): the
+-- old channel is left and the new one joined (JoinChannel), the census asked there 10 s on.
+local function MoveLane(n, why)
+	if not ns.rdb then return false end
+	n = tonumber(n)
+	if not n or n ~= n or n <= Lane() or n > Comm.LANE_MAX then return false end
+	local was = Lane()
+	ns.rdb.channelLane = math.floor(n)
+	laneRefused, laneProbe = 0, false
+	stats.lanes = (stats.lanes or 0) + 1
+	ns.Log("channel lane %d -> %d (%s)", was, Lane(), tostring(why))
+	if ns.IsMember() then Comm.JoinChannel() end
+	return true
+end
+function Comm.NextLane(why) return MoveLane(Lane() + 1, why or "refused") end
+function Comm.TakeLane(n, who) return MoveLane(n, tostring(who) .. "'s hello") end
+function Comm.LaneStats() return { lane = Lane(), refused = laneRefused, moves = stats.lanes or 0 } end
 
 local function HideChannelFromChat(name) -- gp:chat-channels
 	for i = 1, (NUM_CHAT_WINDOWS or 10) do
@@ -1301,7 +1361,7 @@ function Comm.JoinChannel()
 		LeaveChannelByName(joinedName) -- the key changed: leave the old channel -- gp:chat-channels
 		channelIndex = 0
 	end
-	if joinedName ~= name then watch = nil end -- another channel: the election guard starts again
+	if joinedName ~= name then watch, laneRefused = nil, 0 end -- another channel: the election guard starts again
 	joinedName = name
 	local id = GetChannelName(name)
 	if id and id > 0 then
@@ -1324,6 +1384,9 @@ function Comm.JoinChannel()
 		ns.SafeCall("channel last", Comm.KeepLast)
 		ns.Log("channel %s -> #%d", name, channelIndex)
 		HideChannelFromChat(name)
+		-- (1.4.1) One census request as a probe once we are on it: a client with nothing else to
+		-- say still learns whether the game takes its words here (SendNow's lane count).
+		if channelIndex > 0 then ns.After(Comm.LANE_PROBE, "channel probe", function() Comm.AskCensus(true) end) end
 	end)
 end
 
@@ -1489,10 +1552,13 @@ function Comm.Hello(force)
 	-- And "z" when we share our zone (0.9.1): our guild's reporter may name it then, never
 	-- otherwise. Older versions read the fields before it and ignore the rest.
 	local sealed = ns.rdb and ns.rdb.realmKey and "s" or "p"
-	local zone = ns.Layers and ns.Layers.Sharing and ns.Layers.Sharing() and "~z" or ""
-	-- A sixth "b" field marks an arena bank on duty. Older clients ignore it.
-	if Comm.BankOnDuty() then zone = (zone ~= "" and zone or "~") .. "~b" end
-	Enqueue("GUILD", { "H1~" .. ns.VERSION .. "~" .. tostring(ns.realm) .. "~" .. sealed .. zone }, "hello")
+	-- The fields after it: "z" (our zone shared), "b" (an arena bank on duty), and (1.4.1) "L<n>",
+	-- our channel lane when it is not the first. Empty ones at the end are left out, as before.
+	local tail = { ns.Layers and ns.Layers.Sharing and ns.Layers.Sharing() and "z" or "", Comm.BankOnDuty() and "b" or "",
+		Lane() > 0 and ("L" .. Lane()) or "" }
+	while #tail > 0 and tail[#tail] == "" do tail[#tail] = nil end
+	local extra = #tail > 0 and ("~" .. table.concat(tail, "~")) or ""
+	Enqueue("GUILD", { "H1~" .. ns.VERSION .. "~" .. tostring(ns.realm) .. "~" .. sealed .. extra }, "hello")
 end
 
 -- An arena bank on duty leaves census reporting to a guildmate so event traffic and
@@ -1654,18 +1720,19 @@ end
 -- own (Comm.AskWait), and leaves its ask out when someone else asked within ASK_HELD, since
 -- every guild's answer to that ask reaches the whole channel. A left-out ask counts as ours for
 -- the second one: asked ASK_AGAIN later unless a report came.
-function Comm.AskCensus()
+function Comm.AskCensus(force)
 	if not ns.IsMember() then return end
 	if channelIndex == 0 then
 		askTries = askTries + 1
 		if askTries < 3 then ns.After(20, "census request", Comm.AskCensus) end
 		return
 	end
-	-- Login and a guild change can both ask within seconds: once a minute is enough.
+	-- Login and a guild change can both ask within seconds: once a minute is enough. (1.4.1:
+	-- force, the lane's probe: asked whatever was heard or asked before, to see the game's answer.)
 	local now = ns.Now()
-	if Comm.lastAsk and now - Comm.lastAsk < 60 then return end
+	if not force and Comm.lastAsk and now - Comm.lastAsk < 60 then return end
 	Comm.lastAsk = now
-	if now - heardAsk < ASK_HELD then
+	if not force and now - heardAsk < ASK_HELD then
 		stats.askSkipped = stats.askSkipped + 1
 	else
 		stats.asked = stats.asked + 1
@@ -1955,6 +2022,13 @@ local function OnAddonMessage(prefix, text, dist, sender, target, zoneChannelID,
 		peerSealed[sender] = (sealed == "s" or sealed == "p") and sealed or nil
 		peerZone[sender] = text:match("^H1~[^~]*~[^~]*~[^~]*~([^~]*)") == "z" or nil
 		peerBank[sender] = text:match("^H1~[^~]*~[^~]*~[^~]*~[^~]*~([^~]*)") == "b" or nil
+		-- (1.4.1) His channel lane, and ours after it when a Lord or Captain of our guild is ahead.
+		local lane = tonumber(text:match("^H1~[^~]*~[^~]*~[^~]*~[^~]*~[^~]*~L(%d+)")) or 0
+		peerLane[sender] = lane > 0 and lane or nil
+		if lane > Lane() then
+			local rank = ns.Roster and ns.Roster.RankOf and ns.Roster.RankOf(sender)
+			if type(rank) == "number" and rank <= (ns.CAPTAIN_RANK or 2) then Comm.TakeLane(lane, sender) end
+		end
 		return
 	end
 	local handler = handlers[text:sub(1, 2)]
