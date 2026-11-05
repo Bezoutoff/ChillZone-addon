@@ -2,7 +2,7 @@ local ADDON, ns = ...
 local L = ns.L
 
 ns.NAME = "Olympus"
-ns.VERSION = "1.5.0"
+ns.VERSION = "1.5.1"
 ns.PREFIX = "OLYMPUS"        -- addon message prefix (max 16 chars)
 ns.CHANNEL = "OlympusNet"    -- hidden chat channel shared by every Olympus guild (Alliance)
 ns.CHANNEL_HORDE = "OlympusNetH" -- the Horde's: the two factions never see each other's guilds
@@ -428,16 +428,37 @@ local function OpenStore(db, group)
 	db.realms[group] = R
 	local members = {}
 	for _, realm in ipairs(ns.GroupRealms(group)) do members[realm] = true end
+	local family = ForeverFamily(group) == nil and group:match("^Forever%a+$") or nil
+	-- (1.5.1, the dev's PvP character: his PvE census merged into the PvP store and gone from its
+	-- own, since no PvE realm was met on that character and a key with no realms was "inside")
+	-- A store comes in only when its realms are known here and all of the group's; a Forever
+	-- family's takes a plain realm's of its own family (the 1.4.6 move) and never another family's.
+	local function Inside(key)
+		if family then
+			if key:match("^Forever%a+$") then return false end
+			local realms = ns.GroupRealms(key)
+			if #realms == 0 then return false end
+			for _, realm in ipairs(realms) do if ForeverFamily(realm) ~= family then return false end end
+			return true
+		end
+		local realms = ns.GroupRealms(key)
+		if #realms == 0 then return false end
+		for _, realm in ipairs(realms) do if not members[realm] then return false end end
+		return true
+	end
 	-- Collect first: the merge must not change db.realms while pairs() walks it.
 	local merge = {}
 	for key in pairs(db.realms) do
-		if key ~= group and type(key) == "string" then
-			local inside = true
-			for _, realm in ipairs(ns.GroupRealms(key)) do
-				if not members[realm] then inside = false end
-			end
-			if inside then merge[#merge + 1] = key end
+		if key ~= group and type(key) == "string" and Inside(key) then merge[#merge + 1] = key end
+	end
+	-- A family's store holding another family's reports (merged so before 1.5.1): those go.
+	if family and type(R.guilds) == "table" then
+		local dropped = 0
+		for k, g in pairs(R.guilds) do
+			local on = type(g) == "table" and ForeverFamily(g.heardOn) or nil
+			if on and on ~= family then R.guilds[k] = nil; dropped = dropped + 1 end
 		end
+		if dropped > 0 then ns.Log("census of %s: %d reports of another family dropped", group, dropped) end
 	end
 	if #merge == 0 then return R end
 	table.sort(merge)

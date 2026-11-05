@@ -1410,8 +1410,35 @@ end
 -- first of its realms the signed realm table names; nil, nil while none is known.
 function Data.GroupInfo(group)
 	local info = ns.RealmInfo
+	group = tostring(group or "")
+	-- (1.5.1, the dev on his PvP character: the totals told PvE from PvP on no server) A Forever
+	-- family ("ForeverPvE", "ForeverPvP") is no realm of the signed table: its ruleset is its name,
+	-- its region the first of its realms this client met or the signed table names.
+	local rules = group:match("^Forever(%a+)$")
+	if rules then
+		local kind = ({ pve = "pve", pvp = "pvp", rp = "rp", rppvp = "rppvp", hardcore = "hardcore", hc = "hardcore" })[rules:lower()]
+		local realms = {}
+		for _, r in ipairs(type(ns.GroupRealms) == "function" and ns.GroupRealms(group) or {}) do realms[#realms + 1] = r end
+		local pins = type(ns.SignedPins) == "function" and ns.SignedPins() or nil
+		if pins and type(pins.realms) == "table" then
+			local keys = {}
+			for key in pairs(pins.realms) do if key:find("^camwow%a%a%d+realm%d+" .. rules:lower() .. "$") then keys[#keys + 1] = key end end
+			table.sort(keys)
+			for _, key in ipairs(keys) do realms[#realms + 1] = key end
+		end
+		for _, realm in ipairs(realms) do
+			local ok, i = pcall(type(info) == "function" and info or function() end, realm)
+			local region = ok and type(i) == "table" and i.region or nil
+			if not region then
+				local code = realm:upper():match("^CAMWOW(%u%u)")
+				region = code == "US" and "NA" or code == "EU" and "EU" or nil
+			end
+			if region then return kind, region end
+		end
+		return kind, nil
+	end
 	if type(info) ~= "function" then return nil, nil end
-	for realm in tostring(group or ""):gmatch("[^+]+") do
+	for realm in group:gmatch("[^+]+") do
 		local ok, i = pcall(info, realm)
 		if ok and type(i) == "table" then return i.kind, i.region end
 	end

@@ -185,6 +185,10 @@ I am still fixing things, so expect a few more updates in the coming days. If so
 Again, sorry for the delay. I hope you have fun.
 
 Long live the King. Long live Olympus.]==]
+-- 1.5.1 (the dev's PvP character: the census page tells PvP from PvE again, a PvP census stays PvP's).
+L.LETTER_1_5_1_TITLE, L.LETTER_1_5_1_HEAD, L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK = L.LETTER_1_5_0_TITLE, L.LETTER_1_5_0_HEAD, L.LETTER_1_5_0_SIGNED, L.LETTER_1_5_0_LINK
+L.LETTER_1_5_1 = (L.LETTER_1_5_0:gsub("in version 1%.5%.0:", "in version 1.5.1:", 1)
+	:gsub("%- {star} Update, then close", "- {guild} 1.5.1: the census page tells PvP from PvE again, and a PvP character's census holds the PvP guilds alone.\n- {star} Update, then close", 1))
 L.LETTER_1_3_3_TITLE = "Your guild on the website"
 L.LETTER_1_3_3 = [==[Version 1.3.3.
 
@@ -286,6 +290,9 @@ Ainda estou arrumando algumas coisas, então esperem mais algumas atualizações
 Mais uma vez, desculpem pela demora. Espero que se divirtam.
 
 Vida longa ao Rei. Vida longa a Olympus.]==]
+	L.LETTER_1_5_1_TITLE, L.LETTER_1_5_1_HEAD, L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK = L.LETTER_1_5_0_TITLE, L.LETTER_1_5_0_HEAD, L.LETTER_1_5_0_SIGNED, L.LETTER_1_5_0_LINK
+	L.LETTER_1_5_1 = (L.LETTER_1_5_0:gsub("na versão 1%.5%.0:", "na versão 1.5.1:", 1)
+		:gsub("%- {star} Atualize, feche", "- {guild} 1.5.1: a página do censo volta a separar PvP de PvE, e o censo de um personagem PvP guarda só as guildas do PvP.\n- {star} Atualize, feche", 1))
 	L.LETTER_1_3_3_TITLE = "Sua guilda no site"
 	L.LETTER_1_3_3 = [==[Versão 1.3.3.
 
