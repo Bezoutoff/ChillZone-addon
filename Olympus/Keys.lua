@@ -287,18 +287,26 @@ function Keys.HandleAck(dist, sender, text)
 	ns.King.Changed()
 end
 
+-- (1.4.2) The clear we hold, as the K7 an officer or the author answers a key ask with: the guild is
+-- public since that epoch (nil while a key is held or no clear was taken).
+function Keys.ClearMessage()
+	local e = ns.rdb and ns.rdb.keyEpoch
+	if type(e) ~= "table" or e.clear ~= true or not tonumber(e.at) or (ns.rdb.realmKey ~= nil) then return nil end
+	return ("K7~%d~%s"):format(tonumber(e.at), type(e.retires) == "string" and e.retires or "")
+end
 function Keys.HandleAsk(dist, sender, text)
 	if dist ~= "GUILD" then return end
 	local asked = tonumber(tostring(text):match("^K5~(%d+)$"))
-	if not asked or not ns.Roster.IsOfficer() then return end
+	if not asked or not (ns.Roster.IsOfficer() or Keys.IsAuthor()) then return end
 	local _, at = Keys.HandOut()
+	if not at then at = Latest() end -- (1.4.2: a clear is an epoch too; answered as K7)
 	if not at or at <= asked then return end
 	local now = ns.Now()
 	if now - lastAnswer < Keys.ANSWER_GAP then return end
 	lastAnswer = now
 	stats.answered = stats.answered + 1
 	ns.After(math.random(1, 5), "key answer", function()
-		local msg = Keys.HandOutMessage()
+		local msg = Keys.HandOutMessage() or Keys.ClearMessage()
 		if msg then ns.Comm.Send("GUILD", msg, "key3") end
 	end)
 end
@@ -333,7 +341,10 @@ function Keys.HandleClear(dist, sender, text)
 	if not at then return false end
 	sender = ns.FullName(sender)
 	local rank = ns.Roster.RankOf(sender)
-	if not rank or rank > ns.CAPTAIN_RANK then
+	-- (1.4.2) The author's own character, by his signed name (the server stamps the sender), whatever
+	-- his rank here: he may rotate the army's key, so he may take it back.
+	local author = ns.Workshop ~= nil and type(ns.Workshop.IsAuthorName) == "function" and ns.Workshop.IsAuthorName(sender) == true
+	if not author and (not rank or rank > ns.CAPTAIN_RANK) then
 		stats.refused = stats.refused + 1
 		return false
 	end
@@ -346,8 +357,12 @@ end
 
 -- /oly key off: the same guild officers who may set a private key may remove it. The instruction
 -- goes only through Blizzard's guild channel; it cannot be forged from OlympusNet.
+-- (1.4.2, launch night: the author rotated the army's key before the channel was understood, and
+-- held no rank in the King's guild to take it back) The author's own character may clear it too,
+-- as he may rotate it: his guildmates take his K7 by his signed name (HandleClear), and his client
+-- answers their key asks with the clear (HandleAsk), so each one that logs in follows.
 function Keys.Clear()
-	if not ns.IsMember() or not ns.Roster.IsOfficer() then
+	if not ns.IsMember() or not (ns.Roster.IsOfficer() or Keys.IsAuthor()) then
 		ns.Print(L.KEY_OFFICERS_ONLY)
 		return false
 	end

@@ -1599,7 +1599,11 @@ local function Electable(now)
 	for name, t in pairs(peers) do
 		local realm, stamped = peerRealm[name], ns.RealmOf(name)
 		local ours = (realm == nil or realm == "old" or realm == ns.realm) and (stamped == nil or stamped == ns.realm)
-		if (benched[name] or 0) <= now and (all or ours) and not peerBank[name] then pool[name] = t end
+		-- (1.4.1, launch night: a guild's 1.4.0 clients, stuck on the first lane, were elected by name
+		-- and reported into a channel nobody heard, while its guildmates on the next lane kept quiet.)
+		-- Only a peer on our lane: his hello names it (none named: the first lane).
+		local sameLane = (peerLane[name] or 0) == Lane()
+		if (benched[name] or 0) <= now and (all or ours) and not peerBank[name] and sameLane then pool[name] = t end
 	end
 	return pool
 end

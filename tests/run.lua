@@ -6870,6 +6870,42 @@ test("1.4.1 channel lanes: three InvalidChannel refusals on our channel move us 
 	if not ok then error(err, 0) end
 end)
 
+-- 1.4.1 (launch night): a guild's 1.4.0 clients, stuck on the first lane, were elected reporter by
+-- name and reported into a channel nobody heard, while the guildmates who had moved to the next lane
+-- kept quiet: 123 players on the new lane and no census but one guild's. The election counts only
+-- the guildmates on our lane, as their hello names it (none named: the first lane).
+test("1.4.1 channel lanes: the election counts only guildmates on our lane: a peer on the first lane (a 1.4.0 hello, or none named) never keeps a client on the next lane quiet; one naming our lane does", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 5 end
+		ns.IsMember = function() return true end
+		local ours = { guild = MY_GUILD, total = 1000, online = 300, zones = {} }
+		local cns, Deliver = FreshComm()
+		cns.rdb = { channelLane = 1 }
+		local C = cns.Comm
+		C.loginAt = cns.clock - 1000
+		C.JoinChannel()
+		eq(C.Stats().channelName, "OlympusNet1")
+		assert("Aaa" < cns.me, "the peer comes first by name")
+		Deliver("GUILD", "Aaa", "H1~1.4.0~Realm~p")
+		C.MaybeBroadcast(ours)
+		eq(C.isReporter, true, "a 1.4.0 guildmate on the first lane does not keep us quiet on the next")
+		Deliver("GUILD", "Aaa", "H1~1.4.1~Realm~p~~~L1")
+		C.MaybeBroadcast(ours)
+		eq(C.isReporter, false, "the same guildmate on our lane comes first")
+		Deliver("GUILD", "Aaa", "H1~1.4.1~Realm~p~~~L2")
+		C.MaybeBroadcast(ours)
+		eq(C.isReporter, true, "on another lane again: ours to report")
+		cns.rdb.channelLane = 0
+		Deliver("GUILD", "Aaa", "H1~1.4.1~Realm~p")
+		C.MaybeBroadcast(ours)
+		eq(C.isReporter, false, "both on the first lane: he reports")
+	end)
+	GetChannelName, ns.IsMember = saved.channel, saved.member
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
 test("runner-up: only a 0.7.11+ peer on the reporter's channel", function()
 	local savedChannel = GetChannelName
 	local ok, err = pcall(function()
@@ -38706,6 +38742,56 @@ end)
 		end)
 	end)
 
+	-- 1.4.2 (launch night: the author rotated the army's key before the channel bug was understood
+	-- and held no rank in the King's guild to take it back). The author's own character clears the key
+	-- as an officer does; his guildmates take his K7 by his signed name, whatever his rank; and a key
+	-- ask (K5, at login) is answered with the clear, so each guildmate that logs in follows it.
+	test("1.4.2 realm-key recovery by the author: his own character clears the key without a rank, his guildmates take his K7 by his signed name alone, and a key ask is answered with the clear", function()
+		WithKeys(function(w, K)
+			local W = ns.Workshop
+			local saved = { a = W.IsAuthor, n = W.IsAuthorName }
+			local ok, err = pcall(function()
+				AsSoldier("Developus Olympicus")
+				ns.Roster.Scan()
+				ns.rdb.realmKey = "sealedbymistake"
+				ns.rdb.keyEpoch = { key = ns.Comm.Hash36("sealedbymistake"), at = w.clock - 10 }
+				eq(KY.Clear(), false, "a member who is not the author cannot clear it")
+				eq(KY.ClearMessage(), nil, "no clear held")
+				W.IsAuthor = function() return true end
+				W.IsAuthorName = function(n) return n == "Developus Olympicus-Realm" end
+				w.sent = {}
+				eq(KY.Clear(), true, "the author clears it, rank or no rank")
+				eq(ns.rdb.realmKey, nil); eq(ns.rdb.keyEpoch.clear, true)
+				local clear = Sent(w, "GUILD", "K7~")
+				eq(#clear, 1, "the guild receives the clear")
+				local clearAt = tonumber(clear[1]:match("^K7~(%d+)~"))
+				eq(KY.ClearMessage(), clear[1], "the clear held, as a K7 to answer with")
+				-- A guildmate logging in asks for the key with the rotation's epoch: answered with the clear.
+				KY.HandleAsk("GUILD", "Member4-Realm", ("K5~%d"):format(clearAt - 10))
+				eq(#Sent(w, "GUILD", "K7~"), 2, "the ask answered with the clear")
+				eq(#Sent(w, "GUILD", "K8~"), 0, "never a key: none is held")
+				-- An ask already at the clear's epoch (or past it) gets nothing.
+				w.sent = {}
+				KY.lastAnswer = nil
+				KY.Reset()
+				KY.HandleAsk("GUILD", "Member5-Realm", ("K5~%d"):format(clearAt))
+				eq(#Sent(w, "GUILD", "K7~"), 0, "nothing newer to say")
+				-- On a guildmate's client: the author's K7 by his signed name clears, though the roster gives
+				-- him no officer rank; anyone else's without the rank does not, nor the author's off GUILD.
+				ns.rdb.realmKey = "sealedbymistake"
+				ns.rdb.keyEpoch = { key = ns.Comm.Hash36("sealedbymistake"), at = clearAt }
+				ns.rdb.keyRetired = {}
+				eq(KY.HandleClear("GUILD", "Member9-Realm", ("K7~%d~"):format(clearAt + 1)), false, "no rank, not the author")
+				eq(KY.HandleClear("WHISPER", "Developus Olympicus-Realm", ("K7~%d~"):format(clearAt + 1)), false, "GUILD alone")
+				eq(ns.rdb.realmKey, "sealedbymistake")
+				eq(KY.HandleClear("GUILD", "Developus Olympicus-Realm", ("K7~%d~"):format(clearAt + 1)), true, "the author's, by his signed name")
+				eq(ns.rdb.realmKey, nil, "back on the public lanes")
+			end)
+			W.IsAuthor, W.IsAuthorName = saved.a, saved.n
+			if not ok then error(err, 0) end
+		end)
+	end)
+
 	test("1.1 key rotation (#8): the King's Throne: rotate, how far it got, late Lords handed it, then he moves with his guild after the grace (or now)", function()
 		WithKeys(function(w, K)
 			AsKing()
@@ -61294,9 +61380,9 @@ end)()
 	end)
 
 	test("1.4.0: the version, the TOC's files in order, the new message types in Comm.lua's list", function()
-		eq(ns.VERSION, "1.4.1") -- the release has one identity in both folders
+		eq(ns.VERSION, "1.4.2") -- the release has one identity in both folders
 		local toc = assert(ReadFile(ADDON_DIR .. "Olympus.toc"))
-		assert(toc:find("## Version: 1.4.1", 1, true))
+		assert(toc:find("## Version: 1.4.2", 1, true))
 		eq(ns.Workshop.Newer("1.4.0", "1.3.3"), true, "the launch release is newer")
 		eq(ns.Workshop.Newer("1.3.3", "1.4.0"), false)
 		eq(ns.Workshop.Newer("1.4.1", "1.4.0"), true, "the next patch remains newer")
@@ -61743,7 +61829,7 @@ end)()
 	end
 
 	test("1.4.0 version letters: release identity agrees across both TOCs and localized letters; reading the old release does not hide the new letter", function()
-		eq(ns.VERSION, "1.4.1")
+		eq(ns.VERSION, "1.4.2")
 		for _, path in ipairs({ "Olympus/Olympus.toc", "Olympus_Arena/Olympus_Arena.toc" }) do
 			local toc = assert(ReadFile(ROOT .. path))
 			eq(toc:match("## Version:%s*(%S+)"), ns.VERSION, path)
@@ -62217,7 +62303,7 @@ end)()
 			eq(f.title:IsShown(), false); eq(f.body:IsShown(), false); eq(f.all:IsShown(), false)
 			local versions = Lt.Versions()
 			eq(#versions, #Lt.LIST, "a letter for every version listed")
-			eq(table.concat(versions, " "), "1.4.1 1.4.0 1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
+			eq(table.concat(versions, " "), "1.4.2 1.4.1 1.4.0 1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
 			for i, v in ipairs(versions) do
 				local r = f.rows[i]
 				eq(r:IsShown(), true); eq(r.version, v)
