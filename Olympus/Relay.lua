@@ -52,6 +52,7 @@ Relay.REPORTER_FOR = 600     -- a relay keeps a reporter this long past its last
 Relay.SEEN_FOR = 300         -- a message taken is remembered this long (a second copy counts once)
 Relay.SEEN_MAX = 2000
 Relay.MAX_RELAYS = 40
+Relay.LAUNCH_PINS = { ForeverPvE = { "Developus Olympicus", "Asmongold Thereal" }, ForeverPvP = { "Twalin Firebraid" } }
 
 local offline = {}   -- relay name (lower) -> until (ns.Now())
 local verified = {}  -- relay name (lower) -> when its RA last came
@@ -102,6 +103,10 @@ function Relay.Names(withSelf)
 	end
 	if ns.AuthorCharacters then for _, n in ipairs((ns.AuthorCharacters())) do Add(n) end end
 	if ns.KingCharacter then Add(ns.KingCharacter()) end
+	-- (1.4.6) A client with no signed list yet (a guild nobody handed it to) must still find a
+	-- relay to get it from: the launch's author and King, by code, on their Forever family alone.
+	local family = ns.ForeverFamily and ns.ForeverFamily(ns.realm)
+	if family then for _, p in ipairs(Relay.LAUNCH_PINS[family] or {}) do Add(p) end end
 	if ns.TreasurerPins then for _, n in ipairs((ns.TreasurerPins())) do Add(n) end end
 	table.sort(out)
 	return out
@@ -324,6 +329,48 @@ ToGuild = function(flag, origin, text)
 	return ns.Comm.SendBatch("GUILD", pieces, nil, nil, false) ~= false
 end
 
+-- A word to every guild's reporter we hold (ours included: delivered here and handed to our
+-- guild), and heard here (a relay in a guild whose reporter is elsewhere, or none).
+local function ToReporters(flag, origin, body, sender)
+	local now = Now()
+	local pieces
+	for g, r in pairs(reporters) do
+		if now - r.t > Relay.REPORTER_FOR then
+			reporters[g] = nil
+		elseif r.name == ns.me then
+			if Deliver(origin, body, flag == "L") then ToGuild(flag, origin, body) end
+		else
+			pieces = pieces or Envelope("RM", "RM~" .. flag .. "~" .. origin .. "~" .. body)
+			stats.forwarded = stats.forwarded + 1
+			Quiet(r.name) -- (a reporter gone offline since: the server's line out of the chat)
+			if #pieces == 1 then ns.Comm.Whisper(r.name, pieces[1], nil, false, false)
+			else ns.Comm.SendBatch("WHISPER", pieces, nil, r.name, false) end
+		end
+	end
+	local n = 0
+	for _ in pairs(reporters) do n = n + 1 end
+	if not seen[Lower(origin) .. "|" .. body] then ns.Log("relay: %s's word (%s) to %d reporters", tostring(sender), body:sub(1, 2), n) end
+	Deliver(origin, body, flag == "L")
+end
+
+-- (1.4.6) The same word to every other relay that answered us lately (RX), each to hand to its
+-- own reporters. The origin, when it is a relay itself, is not sent its own word.
+local function Across(flag, origin, body)
+	local now = Now()
+	local mine, from = ns.ShortName(ns.me or ""):lower(), ns.ShortName(origin):lower()
+	local pieces
+	for _, name in ipairs(Relay.Names(false)) do
+		local key = name:lower()
+		if key ~= mine and key ~= from and now - (verified[key] or -math.huge) < Relay.VERIFIED_FOR then
+			pieces = pieces or Envelope("RX", "RX~" .. flag .. "~" .. origin .. "~" .. body)
+			stats.across = (stats.across or 0) + 1
+			Quiet(name)
+			if #pieces == 1 then ns.Comm.Whisper(name, pieces[1], nil, false, false)
+			else ns.Comm.SendBatch("WHISPER", pieces, nil, name, false) end
+		end
+	end
+end
+
 -- Hop 1 heard (we are a relay): a ping is answered, a registration kept, anything else forwarded
 -- to every guild's reporter (ours included: delivered here and handed to our guild).
 function Relay.HandleIn(dist, sender, text)
@@ -345,25 +392,26 @@ function Relay.HandleIn(dist, sender, text)
 		return true
 	end
 	local origin = ns.FullName(sender)
-	local pieces
-	for g, r in pairs(reporters) do
-		if now - r.t > Relay.REPORTER_FOR then
-			reporters[g] = nil
-		elseif r.name == ns.me then
-			if Deliver(origin, body, flag == "L") then ToGuild(flag, origin, body) end
-		else
-			pieces = pieces or Envelope("RM", "RM~" .. flag .. "~" .. origin .. "~" .. body)
-			stats.forwarded = stats.forwarded + 1
-			Quiet(r.name) -- (a reporter gone offline since: the server's line out of the chat)
-			if #pieces == 1 then ns.Comm.Whisper(r.name, pieces[1], nil, false, false)
-			else ns.Comm.SendBatch("WHISPER", pieces, nil, r.name, false) end
-		end
-	end
-	-- A relay in a guild whose reporter is elsewhere, or none: it hears the message itself too.
-	local n = 0
-	for _ in pairs(reporters) do n = n + 1 end
-	if not seen[Lower(origin) .. "|" .. body] then ns.Log("relay: %s's word (%s) to %d reporters", tostring(sender), body:sub(1, 2), n) end
-	Deliver(origin, body, flag == "L")
+	local fresh = not seen[Lower(origin) .. "|" .. body]
+	ToReporters(flag, origin, body, sender)
+	-- (1.4.6) To the other relays that answered our pings too (hop 1b, RX): each hands it to its
+	-- own reporters. Without this every live relay was an island of the guilds registered with it
+	-- (the dev's cousin saw other guilds and other numbers, 2026-11-05). A relay forwards RX no
+	-- further, and a word already taken is not sent across again.
+	if fresh then Across(flag, origin, body) end
+	return true
+end
+
+-- (1.4.6) Hop 1b heard (we are a relay): another relay's copy of a word, from a relay alone,
+-- handed to our reporters and heard here once; never sent across again.
+function Relay.HandleAcross(dist, sender, text)
+	if dist ~= "WHISPER" or not Relay.On() then return false end
+	local flag, origin, body = tostring(text):match("^RX~([LP])~([^~]+)~(.*)$")
+	if not flag then return false end
+	if not Relay.IsRelay(sender) or not Relay.IsRelay(ns.me) then stats.dropped = stats.dropped + 1 return false end
+	verified[ns.ShortName(sender):lower()] = Now()
+	if seen[Lower(origin) .. "|" .. body] then return true end
+	ToReporters(flag, origin, body, sender)
 	return true
 end
 
@@ -416,7 +464,8 @@ ns.Comm.Handle("RL", function(...) Relay.HandleIn(...) end)
 ns.Comm.Handle("RM", function(...) Relay.HandleRelayed(...) end)
 ns.Comm.Handle("RG", function(...) Relay.HandleGuild(...) end)
 ns.Comm.Handle("RY", function(...) Relay.HandleAck(...) end)
-ns.Comm.RelayPieces({ RL = true, RM = true, RG = true })
+ns.Comm.Handle("RX", function(...) Relay.HandleAcross(...) end)
+ns.Comm.RelayPieces({ RL = true, RM = true, RG = true, RX = true })
 
 ns.On("LOGIN", function()
 	if not Relay.On() then return end

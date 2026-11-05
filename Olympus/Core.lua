@@ -237,8 +237,18 @@ local function Learned(db, realm)
 	return type(group) == "string" and group ~= "" and group or nil
 end
 
+-- (1.4.6, launch) WoW: Forever's realms come in families: every "CAMWOW<region><n>Realm<m><rules>"
+-- of one ruleset shares guilds, whispers and the census (nine PvE sub-realms reported to one
+-- client on 2026-11-05), and no client sees them all to learn them: each learned a group of its
+-- own (Realm1 alone here, Realm3+Realm5 there), so their census keys and signed lists disagreed.
+-- The family is the group: "ForeverPvE", "ForeverPvP", ... whatever a client has learned.
+local function ForeverFamily(realm)
+	local rules = type(realm) == "string" and realm:match("^CAMWOW%u%u%d+Realm%d+(%a+)$") or nil
+	return rules and ("Forever" .. rules) or nil
+end
+ns.ForeverFamily = ForeverFamily
 function ns.GroupOf(realm, db)
-	return Learned(db or ns.db, realm) or SEED[realm] or realm
+	return ForeverFamily(realm) or Learned(db or ns.db, realm) or SEED[realm] or realm
 end
 
 -- What kind of realm each known realm is, "pvp" or "pve", by its name in "Name-Realm" form (the
@@ -260,6 +270,20 @@ end
 
 function ns.GroupRealms(group)
 	local out = {}
+	if type(group) == "string" and group:find("^Forever%a+$") then
+		-- (1.4.6) A Forever family: the realms of it this client has met (ours first).
+		local seen = {}
+		local function Add(r) if ForeverFamily(r) == group and not seen[r] then seen[r], out[#out + 1] = true, r end end
+		Add(ns.realm); Add(ns.CurrentRealm and ns.CurrentRealm() or nil)
+		local links = ns.db and ns.db.links
+		if type(links) == "table" then
+			local names = {}
+			for r in pairs(links) do names[#names + 1] = r end
+			table.sort(names)
+			for _, r in ipairs(names) do Add(r) end
+		end
+		return out
+	end
 	for realm in tostring(group or ""):gmatch("[^+]+") do out[#out + 1] = realm end
 	return out
 end
@@ -289,6 +313,8 @@ end
 -- Is this realm one of the realms whose census we share (ours included)?
 function ns.InGroup(realm)
 	if not realm then return false end
+	local family = ForeverFamily(realm)
+	if family then return family == ForeverFamily(ns.realm) end
 	for _, r in ipairs(ns.GroupRealms(ns.group or ns.realm)) do
 		if r == realm then return true end
 	end

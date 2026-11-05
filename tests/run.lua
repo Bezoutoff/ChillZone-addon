@@ -7221,6 +7221,84 @@ test("1.4.5 the relay: where the relay carries the channel, a reporter never hea
 	if not ok then error(err, 0) end
 end)
 
+-- 1.4.6 (the dev's cousin, 2026-11-05: with two live relays each guild saw the other relay's
+-- island). Fails before: a relay sends nothing to the other relays.
+test("1.4.6 the relay: a word heard by one relay goes across to every other relay that answered it lately (RX), each handing it to its own reporters once and never across again; from a stranger, or a word already taken, nothing", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "Olympus II", "Member", 3 end
+		-- Relay 1, Hildryn: Max answered its ping lately; a reporter of Olympus Zeus registered.
+		local R, rdeliver, rsent, rheard, rpump, rsentOf = RelayWorld("Hildryn Payne-Realm", "Olympus II")
+		rdeliver("WHISPER", "Max Ran-Realm", "RY~")
+		rdeliver("WHISPER", "Zed Far-Realm", "RL~P~RR~Olympus Zeus")
+		rdeliver("WHISPER", "Orig Inal-Realm", "RL~P~X1~hello")
+		rpump()
+		eq(#rsentOf("RM~"), 1, "to its reporter"); eq(rsentOf("RM~")[1].target, "Zed Far")
+		local rx = rsentOf("RX~")
+		eq(#rx, 1, "across to the other relay once"); eq(rx[1].target, "Max Ran"); eq(rx[1].msg, "RX~P~Orig Inal-Realm~X1~hello"); eq(rx[1].dist, "WHISPER")
+		eq(#rheard, 1)
+		rdeliver("WHISPER", "Orig Inal-Realm", "RL~P~X1~hello")
+		rpump()
+		eq(#rsentOf("RX~"), 1, "the same word again: not across again")
+		-- Relay 2, Max: a reporter of Olympus Far registered; the word across from Hildryn.
+		local M, mdeliver, msent, mheard, mpump, msentOf = RelayWorld("Max Ran-Realm", "Olympus II")
+		mdeliver("WHISPER", "Hildryn Payne-Realm", "RY~")
+		mdeliver("WHISPER", "Far Away-Realm", "RL~P~RR~Olympus Far")
+		mdeliver("WHISPER", "Hildryn Payne-Realm", "RX~P~Orig Inal-Realm~X1~hello")
+		mpump()
+		eq(#msentOf("RM~"), 1, "to its own reporter"); eq(msentOf("RM~")[1].target, "Far Away"); eq(msentOf("RM~")[1].msg, "RM~P~Orig Inal-Realm~X1~hello")
+		eq(#msentOf("RX~"), 0, "never across again")
+		eq(#mheard, 1); eq(mheard[1].sender, "Orig Inal-Realm"); eq(mheard[1].text, "X1~hello")
+		mdeliver("WHISPER", "Hildryn Payne-Realm", "RX~P~Orig Inal-Realm~X1~hello")
+		mpump()
+		eq(#msentOf("RM~"), 1, "a word already taken: nothing more"); eq(#mheard, 1)
+		mdeliver("WHISPER", "Bob Stranger-Realm", "RX~P~Orig Inal-Realm~X1~other")
+		mpump()
+		eq(#msentOf("RM~"), 1, "a stranger's RX is dropped"); eq(M.Relay.Stats().dropped, 1)
+		-- The origin a relay itself: its own word is not sent back to it.
+		wipe(rsent)
+		rdeliver("WHISPER", "Max Ran-Realm", "RL~P~X1~from max")
+		rpump()
+		eq(#rsentOf("RX~"), 0, "not back to its origin")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
+-- 1.4.6 (the dev's cousin, 2026-11-05): each client learned a realm group of its own among
+-- Forever's sub-realms (Realm1 alone here, Realm3+Realm5 there), so census keys and signed lists
+-- disagreed. Fails before: GroupOf gives the realm itself, InGroup false across sub-realms.
+test("1.4.6 Forever's realm family is the group: every CAMWOW sub-realm of one ruleset is one group, PvE apart from PvP, the beta and other realms as before; a client without the signed list still names the launch's relays by code on its family alone", function()
+	local savedRealm, savedGroup, savedDb = ns.realm, ns.group, ns.db
+	local ok, err = pcall(function()
+		eq(ns.GroupOf("CAMWOWUS2Realm1PvE"), "ForeverPvE"); eq(ns.GroupOf("CAMWOWAU1Realm1PvE"), "ForeverPvE"); eq(ns.GroupOf("CAMWOWUS2Realm5PvE"), "ForeverPvE")
+		eq(ns.GroupOf("CAMWOWUS1Realm8PvP"), "ForeverPvP"); eq(ns.GroupOf("CAMWOWUS1Realm2PvP"), "ForeverPvP")
+		eq(ns.GroupOf("ClassicBetaPvP"), "ClassicBetaPvP+ClassicBetaPvP2", "the beta's seed as before"); eq(ns.GroupOf("Whitemane"), "Whitemane")
+		ns.db = { links = { CAMWOWUS2Realm5PvE = "x", CAMWOWUS1Realm8PvP = "y" } }
+		ns.realm, ns.group = "CAMWOWUS2Realm1PvE", ns.GroupOf("CAMWOWUS2Realm1PvE")
+		eq(ns.group, "ForeverPvE")
+		eq(ns.InGroup("CAMWOWUS2Realm5PvE"), true, "another sub-realm of the family"); eq(ns.InGroup("CAMWOWUS1Realm8PvP"), false, "the PvP family is apart")
+		eq(ns.IsRealmName("CAMWOWUS1Realm3PvE"), true)
+		eq(table.concat(ns.GroupRealms("ForeverPvE"), ","), "CAMWOWUS2Realm1PvE,CAMWOWUS2Realm5PvE", "the family's realms this client met, ours first")
+		eq(ns.GroupOf("CAMWOWUS2Realm5PvE", ns.db), "ForeverPvE", "a learned group never overrides the family")
+		-- The launch's relays by code, on the family alone.
+		local O = select(1, RelayWorld("Lone Member-CAMWOWUS2Realm5PvE", "Olympus Dads"))
+		O.realm, O.rdb.council = "CAMWOWUS2Realm5PvE", nil
+		local names = table.concat(O.Relay.Names(true), ",")
+		assert(names:find("Developus Olympicus", 1, true) and names:find("Asmongold Thereal", 1, true), "the launch pins: " .. names)
+		assert(not names:find("Twalin Firebraid", 1, true), "not the PvP family's")
+		O.realm = "ClassicBetaPvP"
+		assert(not table.concat(O.Relay.Names(true), ","):find("Developus", 1, true), "nothing by code off Forever")
+	end)
+	ns.realm, ns.group, ns.db = savedRealm, savedGroup, savedDb
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
 test("1.4.3 the relay: the election counts only guildmates whose hello carries the relay (R); on Forever a whisper goes by the plain name", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, split = ns.splitNames }
 	local ok, err = pcall(function()

@@ -460,9 +460,9 @@ end
 --   1.4.0, PrivatePresence PP (Private presence on or off, to the player's own guild over GUILD only).
 --   Verify GV (guild verification: a verifier's approval or revocation of a guild and its master,
 --   logged; any member's ask; a verifier's client's answer with the words and the guilds' starts).
---   1.4.3, Relay RL RM RG RY (Relay.lua: what the channel carried, by whisper where Forever delivers
+--   1.4.3, Relay RL RM RG RY RX (Relay.lua: what the channel carried, by whisper where Forever delivers
 --   nothing on it: origin to relay, relay to each guild's reporter, reporter to its guild over GUILD,
---   and the relay's answer to a ping).
+--   the relay's answer to a ping, and 1.4.6 a relay's copy to the other relays).
 local handlers = {}
 -- 1.1 (Moderation.lua): a client the moderators took off (net-off) sends none of what they hide.
 local function Held(msg)

@@ -608,11 +608,14 @@ def read_realms(v):
 def group_conflicts(data, realm):
     if not realm: return
     realms, bad = set(realm.split("+")), []
+    def family(r):
+        m = re.match(r"^CAMWOW[A-Z]{2}\d+Realm\d+([A-Za-z]+)$", r or "")
+        return "Forever" + m.group(1) if m else None
     def look(name, how):
         if isinstance(name, dict): name = name.get("name")
         if isinstance(name, str):
             home = name.strip().partition("-")[2]
-            if home and home not in realms: bad.append("%s (%s)" % (name.strip(), how))
+            if home and home not in realms and family(home) != realm: bad.append("%s (%s)" % (name.strip(), how))
     def items(v): return v if isinstance(v, list) else []
     for what in ("steward", "arbiter", "apostle", "author"):
         for n in items(data.get(what + ("s" if what != "author" else ""))): look(n, "%s --remove" % what)
