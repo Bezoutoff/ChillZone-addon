@@ -53,6 +53,13 @@ Relay.SEEN_FOR = 300         -- a message taken is remembered this long (a secon
 Relay.SEEN_MAX = 2000
 Relay.MAX_RELAYS = 40
 Relay.LAUNCH_PINS = { ForeverPvE = { "Developus Olympicus", "Asmongold Thereal" }, ForeverPvP = { "Twalin Firebraid" } }
+-- (1.5.0) Words every client says on the channel on its own clock (the channel's hello H3, the
+-- census ask Q1, the lists' ask HQ, positions P1, the Wanted list's ask W4, verification asks GV)
+-- are heard by the relay and answered from there, but never fanned out: with 46 guilds registered
+-- (the dev's log, 2026-11-05) each such word became 46 whispers, and the reports and the lists
+-- waited behind them. A guild's census reports, the chats, the signed lists and every other word
+-- go on to every reporter.
+Relay.NO_FORWARD = { H3 = true, Q1 = true, HQ = true, P1 = true, W4 = true, GV = true }
 
 local offline = {}   -- relay name (lower) -> until (ns.Now())
 local verified = {}  -- relay name (lower) -> when its RA last came
@@ -398,6 +405,11 @@ function Relay.HandleIn(dist, sender, text)
 	end
 	local origin = ns.FullName(sender)
 	local fresh = not seen[Lower(origin) .. "|" .. body]
+	if Relay.NO_FORWARD[body:sub(1, 2)] then
+		stats.kept = (stats.kept or 0) + 1
+		Deliver(origin, body, flag == "L") -- (heard and answered here, fanned out to nobody)
+		return true
+	end
 	ToReporters(flag, origin, body, sender)
 	-- (1.4.6) To the other relays that answered our pings too (hop 1b, RX): each hands it to its
 	-- own reporters. Without this every live relay was an island of the guilds registered with it

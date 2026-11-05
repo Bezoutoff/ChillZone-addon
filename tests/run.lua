@@ -7430,6 +7430,35 @@ test("1.5.0 the relay: a relay's client sends PUMP_PARTS_RELAY parts a pump, any
 	if not ok then error(err, 0) end
 end)
 
+-- 1.5.0 (the dev's log: every client's channel hello, census ask, lists' ask, positions became 46
+-- whispers each). Fails before: the hello is forwarded to every reporter and across.
+test("1.5.0 the relay: a client's own-clock words (H3, Q1, HQ, P1, W4, GV) are heard by the relay and fanned out to nobody, not across either; a census report, a chat line and the lists go on", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "Olympus II", "Member", 3 end
+		local R, rdeliver, rsent, rheard, rpump, rsentOf = RelayWorld("Hildryn Payne-Realm", "Olympus II")
+		rdeliver("WHISPER", "Max Ran-Realm", "RY~")
+		rdeliver("WHISPER", "Zed Far-Realm", "RL~P~RR~Olympus Zeus")
+		for _, kind in ipairs({ "H3~hello", "Q1~ask", "HQ~lists", "P1~pos", "W4~wanted", "GV~verify" }) do
+			rdeliver("WHISPER", "Some One-Realm", "RL~P~" .. kind)
+		end
+		rpump()
+		eq(#rsentOf("RM~"), 0, "fanned out to nobody"); eq(#rsentOf("RX~"), 0, "not across")
+		eq(R.Relay.Stats().delivered, 6, "heard here, every one")
+		rdeliver("WHISPER", "Some One-Realm", "RL~P~C1~census")
+		rdeliver("WHISPER", "Some One-Realm", "RL~L~M1~A~Olympus II~1~~hi")
+		rdeliver("WHISPER", "Some One-Realm", "RL~P~HS~lists")
+		rpump()
+		eq(#rsentOf("RM~"), 3, "the report, the line and the lists to the reporter"); eq(#rsentOf("RX~"), 3, "and across")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
 test("1.4.3 the relay: the election counts only guildmates whose hello carries the relay (R); on Forever a whisper goes by the plain name", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, split = ns.splitNames }
 	local ok, err = pcall(function()
