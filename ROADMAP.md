@@ -56,6 +56,7 @@
   fix full-suite ordering regressions and export consented Companion identity evidence.
 - v1.3.3 Deliberate site export: an optional Site Aggregate folder writes a masked own-guild count for the
   Olympus website on /oly site export and /reload, never uploads, and empties at the next logout or reload.
+- v1.4.3 Launch night: WoW: Forever delivers nothing an addon says on a chat channel, so everything between guilds (the census, the signed lists, the key, the rankings' words, the chat) travels by addon whispers relayed through the High Council's clients, with no module changed; whispers reach every sub-realm by the plain name.
 - v1.4.2 Launch night: the author's own character may take the army's key back (/oly key off) and his client answers key asks with the clear, so a guild sealed by mistake returns to the public lanes as its members log in.
 - v1.4.1 Launch night: the army's channel moves to the next lane by itself when the game refuses it (WoW: Forever refused every send on OlympusNet), so every guild hears the others again; the signed list loads from the addon's own folder.
 - v1.4.0 Launch: the census agrees across clients and counts every realm group (PvP and PvE, NA and EU)

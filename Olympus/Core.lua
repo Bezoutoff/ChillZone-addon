@@ -2,7 +2,7 @@ local ADDON, ns = ...
 local L = ns.L
 
 ns.NAME = "Olympus"
-ns.VERSION = "1.4.2"
+ns.VERSION = "1.4.3"
 ns.PREFIX = "OLYMPUS"        -- addon message prefix (max 16 chars)
 ns.CHANNEL = "OlympusNet"    -- hidden chat channel shared by every Olympus guild (Alliance)
 ns.CHANNEL_HORDE = "OlympusNetH" -- the Horde's: the two factions never see each other's guilds
@@ -151,7 +151,11 @@ function ns.TellName(name)
 	name = ns.Normal(name)
 	local base, realm = name:match("^(.+)%-([^%-]+)$")
 	if not realm then return name end
-	if realm == ns.realm or realm == ns.CurrentRealm() or (ns.splitNames and ns.IsRealmName(realm)) then return base end
+	-- (1.4.3) Where the game splits names (Forever), a whisper reaches any player of the faction, on
+	-- any of its sub-realms, by his plain "First Surname": the server refuses "Name-Realm" there
+	-- (measured on launch night: "No player named 'X-CAMWOWUS2Realm7PvE' is currently playing").
+	if ns.splitNames then return base end
+	if realm == ns.realm or realm == ns.CurrentRealm() then return base end
 	return name
 end
 

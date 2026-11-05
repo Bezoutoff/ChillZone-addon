@@ -363,7 +363,9 @@ local function Facts(unit)
 	-- A nominee: named by the master of the guild the server gives him (Nominees.RoleOf).
 	f.nominee = Nominee(who, f.guild)
 	-- (1.3.4: its guild master stands for the King only where none is named, and no launch list reaches: ns.KingUnpinned.)
-	f.king = not f.covered and ns.IsKingGuild(f.guild) and (ns.IsKingCharacter(who) or (ns.KingCharacter() == nil and not ns.LaunchListHeld() and rankIndex == 0))
+	-- (1.4.3: where names split (Forever: one name, one player), the signed King wears his frame in any
+	-- guild; elsewhere his name in another guild is a namesake, as before.)
+	f.king = not f.covered and ((ns.IsKingCharacter(who) and (ns.IsKingGuild(f.guild) or ns.splitNames == true)) or (ns.IsKingGuild(f.guild) and ns.KingCharacter() == nil and not ns.LaunchListHeld() and rankIndex == 0))
 	local guilds = ns.rdb and ns.rdb.guilds
 	local report = type(guilds) == "table" and guilds[f.guild] or nil
 	f.report = report
@@ -533,7 +535,7 @@ function Borders.MarkOfName(who, guild)
 				and ((type(K.IsStewardName) == "function" and K.IsStewardName(who)) or (type(K.IsHandName) == "function" and K.IsHandName(who))))))
 				and true or false
 		end
-		f.king = not f.covered and ns.IsKingGuild(guild) and (ns.IsKingCharacter(who) or (ns.KingCharacter() == nil and not ns.LaunchListHeld() and rank == 0))
+		f.king = not f.covered and ((ns.IsKingCharacter(who) and (ns.IsKingGuild(guild) or ns.splitNames == true)) or (ns.IsKingGuild(guild) and ns.KingCharacter() == nil and not ns.LaunchListHeld() and rank == 0))
 		f.leader = rank == 0
 	end
 	local t = Match(f, true)

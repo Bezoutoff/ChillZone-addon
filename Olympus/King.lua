@@ -98,6 +98,9 @@ end
 -- first to found a guild of that name is nobody's King.
 function King.IsKing()
 	if not ns.IsMember() then return false end
+	-- (1.4.3, launch night: the signed King's character is the King whatever his rank or guild; on
+	-- the live realms he holds a council rank in the King's guild and does not lead it.)
+	if ns.splitNames == true and ns.LaunchListHeld and ns.LaunchListHeld() and ns.KingCharacter() ~= nil then return ns.IsKingCharacter(ns.me) end
 	local guild, _, rank = GetGuildInfo("player")
 	if not (ns.IsKingGuild(guild) and rank == 0) then return false end
 	return (ns.KingCharacter() == nil and not ns.LaunchListHeld()) or ns.IsKingCharacter(ns.me)

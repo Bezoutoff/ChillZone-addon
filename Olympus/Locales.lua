@@ -144,6 +144,11 @@ L.LETTER_1_4_1 = (L.LETTER_1_4_0:gsub("What's new in version 1%.4%.0, for the ma
 -- 1.4.2 (launch night too: the author may take the army's key back): the 1.4.1 letter, its version.
 L.LETTER_1_4_2_TITLE, L.LETTER_1_4_2_HEAD, L.LETTER_1_4_2_SIGNED, L.LETTER_1_4_2_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
 L.LETTER_1_4_2 = (L.LETTER_1_4_1:gsub("version 1%.4%.1 %(and 1%.4%.0%)", "version 1.4.2 (and 1.4.0)", 1))
+-- 1.4.3 (launch night: Forever delivers nothing an addon says on a chat channel; everything between
+-- guilds travels by addon whispers now, Relay.lua): the launch letter, its version, the fix line's words.
+L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
+L.LETTER_1_4_3 = (L.LETTER_1_4_1:gsub("version 1%.4%.1 %(and 1%.4%.0%)", "version 1.4.3 (and 1.4.0)", 1)
+	:gsub("%- {team} Launch night fix:[^\n]*", "- {team} Launch night: we hit technical problems, since the live Forever client differs from the beta's, and part of the network had to be rebuilt. Between guilds, Olympus now travels by addon whispers relayed through the High Council: silent, invisible to you. The census of every guild, the rankings and the Olympus chat come back as people update. Hopefully all good now. Update, then close and reopen the game.", 1))
 L.LETTER_1_3_3_TITLE = "Your guild on the website"
 L.LETTER_1_3_3 = [==[Version 1.3.3.
 
@@ -212,6 +217,9 @@ Os portões estão abertos.]==]
 		"O que há de novo na versão 1.4.1 (e na 1.4.0), para a marcha:\n\n- {team} Correção da noite do lançamento: o jogo recusou o canal do exército, e cada guilda só via a si mesma. Agora o Olympus muda para o próximo canal sozinho assim que o jogo recusa, e todo addon atualizado se encontra lá. Atualize, feche e abra o jogo.\n", 1))
 	L.LETTER_1_4_2_TITLE, L.LETTER_1_4_2_HEAD, L.LETTER_1_4_2_SIGNED, L.LETTER_1_4_2_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
 	L.LETTER_1_4_2 = (L.LETTER_1_4_1:gsub("versão 1%.4%.1 %(e na 1%.4%.0%)", "versão 1.4.2 (e na 1.4.0)", 1))
+	L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
+	L.LETTER_1_4_3 = (L.LETTER_1_4_1:gsub("versão 1%.4%.1 %(e na 1%.4%.0%)", "versão 1.4.3 (e na 1.4.0)", 1)
+		:gsub("%- {team} Correção da noite do lançamento:[^\n]*", "- {team} Noite do lançamento: tivemos problemas técnicos, porque o cliente do Forever ao vivo é diferente do da beta, e parte da rede teve que ser refeita. Entre guildas, o Olympus agora viaja por sussurros de addon repassados pelo Alto Conselho: silenciosos, invisíveis para você. O censo de todas as guildas, os rankings e o chat do Olympus voltam conforme o pessoal atualiza. Espero que agora esteja tudo bem. Atualize, feche e abra o jogo.", 1))
 	L.LETTER_1_3_3_TITLE = "Sua guilda no site"
 	L.LETTER_1_3_3 = [==[Versão 1.3.3.
 

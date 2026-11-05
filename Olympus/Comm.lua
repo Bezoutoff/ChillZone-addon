@@ -59,7 +59,13 @@ local asm = Codec.NewAssembler()
 local guildAsm = Codec.NewAssembler() -- pieces over GUILD (1.0.0)...
 local outsiderAsm = Codec.NewAssembler()
 local whisperAsm = Codec.NewAssembler() -- private signed-authority answers (1.2)
-local GUILD_PIECES = { HS = true, HT = true, XB = true, WZ = true, WU = true } -- ...put together for these types alone: signed lists, loot, War recovery and bounded squad assignments
+local GUILD_PIECES = { HS = true, HT = true, XB = true, WZ = true, WU = true }
+local WHISPER_PIECES = { H2 = true } -- ...and over WHISPER (1.4.3: the relay's RL and RM too, Comm.RelayPieces)
+-- 1.4.3: the relay (Relay.lua) names the kinds its pieces carry over GUILD and WHISPER.
+function Comm.RelayPieces(kinds)
+	for k in pairs(kinds or {}) do GUILD_PIECES[k], WHISPER_PIECES[k] = true, true end
+end
+local function RelayOn() local R = ns.Relay return type(R) == "table" and R.On() == true and R.Pick() ~= nil end -- ...put together for these types alone: signed lists, loot, War recovery and bounded squad assignments
 local msgId = 0
 local lastBroadcast = 0
 local early -- { every, due }: the report due then went out early, as a census answer (see Q1)
@@ -80,6 +86,7 @@ local peerRealm = {} -- guild peer -> realm from its hello, "old" for versions t
 local peerVersion = {} -- guild peer -> the addon version its hello named
 local peerSealed = {} -- guild peer -> "s" (on the sealed channel) or "p" (public), from its hello
 local peerLane = {}   -- guild peer -> its channel lane when not the first (1.4.1), from its hello
+local peerRelay = {}  -- guild peer -> true when its hello says it carries the relay (1.4.3)
 local peerZone = {} -- guild peer -> true when its hello says it shares its zone (0.9.1, Comm.SharesZone)
 local peerBank = {} -- guild peer -> true while its hello says it is an arena bank on duty (1.2, Electable)
 -- Short name -> last time we heard it report our guild on the channel. Short: the server may
@@ -301,6 +308,11 @@ end
 
 local function Enqueue(dist, parts, key, target, urgent, logged, done, options)
 	SyncGuild()
+	-- 1.4.3: on Forever the channel delivers nothing; what was for it goes to our relay by whisper
+	-- (Relay.Out, which comes back here as WHISPER jobs). Without a relay to pick, the channel as before.
+	if dist == "CHANNEL" and RelayOn() and not (options and options.relayed) then
+		if ns.Relay.Out(parts, logged, done, key, urgent, options) then return true end
+	end
 	local job = { dist = dist, parts = parts, i = 1, key = key, target = target,
 		urgent = urgent and true or false, logged = logged == true, done = done,
 		owner = options and options.owner, guard = options and options.guard,
@@ -579,7 +591,7 @@ function Comm.SendChunked(payload, urgent, dist, done, options)
 	return Comm.SendBatch(dist, Codec.Chunk(payload, tostring(msgId)), nil, nil, urgent, done, guarded)
 end
 function Comm.ChannelReady()
-	return channelIndex > 0
+	return channelIndex > 0 or RelayOn()
 end
 -- Messages waiting to go out, one each SEND_INTERVAL (chat lines apart).
 function Comm.QueueSize()
@@ -601,7 +613,7 @@ end
 -- the actual game send, like Comm.Send's options.guard. Returns false when the lane is full,
 -- guard refuses, or while we are on no channel.
 function Comm.SendChat(msg, done, line, guard)
-	if not joinedName or #chatQueue >= CHAT_QUEUE or Held(msg) then return false end
+	if not (joinedName or RelayOn()) or #chatQueue >= CHAT_QUEUE or Held(msg) then return false end
 	if guard ~= nil then
 		if type(guard) ~= "function" then return false end
 		local ok, valid = pcall(guard)
@@ -850,7 +862,12 @@ local function SendChatPart()
 			return
 		end
 	end
-	local sent = SendNow("CHANNEL", item.msg, true)
+	local sent
+	if RelayOn() then
+		sent = ns.Relay.Out({ item.msg }, true, nil, nil, true) -- (1.4.3: a chat line by the relay, logged at hop 1)
+	else
+		sent = SendNow("CHANNEL", item.msg, true)
+	end
 	if item.done then ns.SafeCall("chat sent", item.done, sent, (not sent) and "failed" or nil) end
 end
 
@@ -912,7 +929,7 @@ local function Pump()
 			local valid, why = Valid(current, now)
 			if not valid then Finish(current, false, why) end
 		end
-		local chat = chatQueue[1] and channelIndex > 0
+		local chat = chatQueue[1] and (channelIndex > 0 or RelayOn()) -- (1.4.3: the relay carries the chat too)
 		local job
 		if active then
 			local slot = BATCH_SLOTS[batchSlot]
@@ -1555,7 +1572,7 @@ function Comm.Hello(force)
 	-- The fields after it: "z" (our zone shared), "b" (an arena bank on duty), and (1.4.1) "L<n>",
 	-- our channel lane when it is not the first. Empty ones at the end are left out, as before.
 	local tail = { ns.Layers and ns.Layers.Sharing and ns.Layers.Sharing() and "z" or "", Comm.BankOnDuty() and "b" or "",
-		Lane() > 0 and ("L" .. Lane()) or "" }
+		Lane() > 0 and ("L" .. Lane()) or "", "R" } -- (1.4.3: "R", this client carries the relay)
 	while #tail > 0 and tail[#tail] == "" do tail[#tail] = nil end
 	local extra = #tail > 0 and ("~" .. table.concat(tail, "~")) or ""
 	Enqueue("GUILD", { "H1~" .. ns.VERSION .. "~" .. tostring(ns.realm) .. "~" .. sealed .. extra }, "hello")
@@ -1603,7 +1620,9 @@ local function Electable(now)
 		-- and reported into a channel nobody heard, while its guildmates on the next lane kept quiet.)
 		-- Only a peer on our lane: his hello names it (none named: the first lane).
 		local sameLane = (peerLane[name] or 0) == Lane()
-		if (benched[name] or 0) <= now and (all or ours) and not peerBank[name] and sameLane then pool[name] = t end
+		-- (1.4.3) Where the relay carries the channel, only a peer that carries it too can report.
+		local carries = not (ns.Relay and ns.Relay.On()) or peerRelay[name] == true
+		if (benched[name] or 0) <= now and (all or ours) and not peerBank[name] and sameLane and carries then pool[name] = t end
 	end
 	return pool
 end
@@ -1657,6 +1676,7 @@ function Comm.MaybeBroadcast(report)
 	Comm.isReporter = best == ns.me
 	Comm.reporterName = ns.DisplayName(best)
 	Comm.lastReport = report
+	if Comm.isReporter and ns.Relay and ns.Relay.On() then ns.SafeCall("relay register", ns.Relay.Register) end
 	-- The runner-up of the election reports too, every WITNESS_EVERY: a report never proves
 	-- its own sender's rank, so other guilds trust a reporter who leads the guild (or is an
 	-- officer) only once a second sender names them (Data.KnownRank).
@@ -1726,7 +1746,7 @@ end
 -- the second one: asked ASK_AGAIN later unless a report came.
 function Comm.AskCensus(force)
 	if not ns.IsMember() then return end
-	if channelIndex == 0 then
+	if not Comm.ChannelReady() then
 		askTries = askTries + 1
 		if askTries < 3 then ns.After(20, "census request", Comm.AskCensus) end
 		return
@@ -2029,6 +2049,7 @@ local function OnAddonMessage(prefix, text, dist, sender, target, zoneChannelID,
 		-- (1.4.1) His channel lane, and ours after it when a Lord or Captain of our guild is ahead.
 		local lane = tonumber(text:match("^H1~[^~]*~[^~]*~[^~]*~[^~]*~[^~]*~L(%d+)")) or 0
 		peerLane[sender] = lane > 0 and lane or nil
+		peerRelay[sender] = text:match("^H1~[^~]*~[^~]*~[^~]*~[^~]*~[^~]*~[^~]*~R") ~= nil or nil -- (1.4.3)
 		if lane > Lane() then
 			local rank = ns.Roster and ns.Roster.RankOf and ns.Roster.RankOf(sender)
 			if type(rank) == "number" and rank <= (ns.CAPTAIN_RANK or 2) then Comm.TakeLane(lane, sender) end
@@ -2060,7 +2081,8 @@ local function OnAddonMessage(prefix, text, dist, sender, target, zoneChannelID,
 		-- H2 is the only long private payload. It carries an independently signed authority part;
 		-- Authority.lua still checks the route, signature, complete-set digest and replay boundary.
 		local full = Codec.Feed(whisperAsm, sender, text, now)
-		if full and full:sub(1, 3) == "H2~" and handlers.H2 then handlers.H2(dist, sender, full) end
+		local kind = full and full:sub(1, 2)
+		if kind and WHISPER_PIECES[kind] and full:sub(3, 3) == "~" and handlers[kind] then handlers[kind](dist, sender, full) end
 		return
 	end
 	if dist == "CHANNEL" then
@@ -2139,6 +2161,16 @@ ns.On("LOGIN", function()
 	-- No key yet? Ask our guild once (officers who have it answer).
 	ns.After(20, "key request", Comm.RequestKey)
 	ns.RegisterEvent("CHAT_MSG_ADDON", OnAddonMessage)
+	-- 1.4.3: a message the relay carried, taken as if it had come on the channel from its origin
+	-- (Relay.lua); logged as its origin sent it.
+	function Comm.Inject(dist, sender, text, logged)
+		local was = deliveredLogged
+		deliveredLogged = logged == true
+		local ok, err = pcall(OnAddonMessage, ns.PREFIX, text, dist, sender)
+		deliveredLogged = was
+		if not ok and ns.CaptureError then pcall(ns.CaptureError, "relay inject", err) end
+		return ok
+	end
 	-- Chat lines come through the logged API (the server keeps them, so they can be reported).
 	ns.RegisterEvent("CHAT_MSG_ADDON_LOGGED", function(...)
 		deliveredLogged = true

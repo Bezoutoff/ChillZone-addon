@@ -255,7 +255,7 @@ test("accord: the real transport after I accept: the hello goes on GUILD, the ch
 		for _ = 1, 10 do clock = clock + 2; cns.Comm.Pump() end
 		local hello
 		for _, m in ipairs(sent) do if m:find("^GUILD H1~") then hello = m end end
-		eq(hello, "GUILD H1~" .. ns.VERSION .. "~Realm~p", "the hello")
+		eq(hello, "GUILD H1~" .. ns.VERSION .. "~Realm~p~~~~R", "the hello")
 		eq(sent[1], "GUILD K0~", "and the realm key asked of the guild")
 		eq(#joined, 1, "the channel")
 		local census = false

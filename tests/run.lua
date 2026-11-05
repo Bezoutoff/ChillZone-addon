@@ -6845,7 +6845,7 @@ test("1.4.1 channel lanes: three InvalidChannel refusals on our channel move us 
 		for _ = 1, 20 do if #sent > n then break end C.Pump() end
 		local hello = sent[#sent]
 		eq(hello.dist, "GUILD")
-		assert(hello.msg:match("^H1~[^~]+~[^~]*~p~~~L1$"), "the lane in the hello: " .. tostring(hello.msg))
+		assert(hello.msg:match("^H1~[^~]+~[^~]*~p~~~L1~R$"), "the lane in the hello: " .. tostring(hello.msg))
 		-- A member's hello naming a higher lane is noted alone; a Lord's moves us.
 		Deliver("GUILD", "Member-Realm", "H1~1.4.1~Realm~p~~~L2")
 		eq(C.Lane(), 1, "a member's word moves nobody")
@@ -6905,6 +6905,204 @@ test("1.4.1 channel lanes: the election counts only guildmates on our lane: a pe
 	C_ChatInfo = nil
 	if not ok then error(err, 0) end
 end)
+
+do -- (1.4.3: the relay's tests, their locals scoped)
+-- 1.4.3 (launch night, 2026-11-04). WoW: Forever's live realms accept an addon's messages on any
+-- player-made channel and deliver none of them (0 of 123 members' heard in a minute); the guild and
+-- addon whispers are delivered, to any sub-realm, by the plain "First Surname". Everything a module
+-- says "on the channel" travels by the relay instead (Relay.lua): origin -> a signed relay by whisper
+-- (RL), relay -> each guild's registered reporter by whisper (RM), reporter -> its guild (RG), and each
+-- client takes it once as if from the channel, its origin the sender. A client of each kind here.
+local function RelayWorld(me, guild)
+	local cns, Deliver = FreshComm()
+	cns.me, cns.splitNames = me, true
+	cns.rdb = { council = { names = { ["max ran"] = "Max Ran", ["hildryn payne"] = "Hildryn Payne" }, realm = "Realm" } }
+	cns.KingCharacter, cns.TreasurerPins, cns.AuthorCharacters = function() return nil end, function() return {} end, function() return {} end
+	assert(loadfile(ADDON_DIR .. "Relay.lua"))("Olympus", cns)
+	cns.Relay.Reset()
+	local sent, heard = {}, {}
+	C_ChatInfo.SendAddonMessage = function(_, msg, dist, target) sent[#sent + 1] = { msg = msg, dist = dist, target = target, logged = false } return 0 end
+	C_ChatInfo.SendAddonMessageLogged = function(_, msg, dist, target) sent[#sent + 1] = { msg = msg, dist = dist, target = target, logged = true } return 0 end
+	cns.Comm.Handle("X1", function(dist, sender, text) heard[#heard + 1] = { dist = dist, sender = sender, text = text, logged = cns.Comm.DeliveredLogged() } end)
+	cns.Comm.Handle("M1", function(dist, sender, text) heard[#heard + 1] = { dist = dist, sender = sender, text = text, logged = cns.Comm.DeliveredLogged() } end)
+	local function Pump(n) for _ = 1, n or 30 do cns.Comm.Pump() end end
+	local function Sent(prefix) local out = {} for _, x in ipairs(sent) do if x.msg:sub(1, #prefix) == prefix then out[#out + 1] = x end end return out end
+	return cns, Deliver, sent, heard, Pump, Sent
+end
+
+test("1.4.3 the relay: where names split, a channel message goes to the picked signed relay by whisper (RL), pinged once; a chat line goes logged; the relay registers reporters (RR), forwards to each guild's reporter (RM) and hears it itself; a reporter takes it once and hands it to its guild (RG); a guildmate takes it once; a stranger's RM is dropped", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end -- (no channel at all: the relay alone)
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "Olympus II", "Member", 3 end
+		-- The origin: a member whose module speaks on the channel.
+		local O, _, osent, _, opump, osentOf = RelayWorld("Orig Inal-Realm", "Olympus II")
+		eq(O.Relay.On(), true)
+		local first = O.Relay.Pick()
+		assert(first == "Hildryn Payne" or first == "Max Ran", "the pick: one of the signed relays: " .. tostring(first))
+		local other = first == "Hildryn Payne" and "Max Ran" or "Hildryn Payne"
+		eq(O.Comm.ChannelReady(), true, "ready by the relay, no channel joined")
+		eq(O.Comm.Send("CHANNEL", "X1~hello"), true)
+		opump()
+		local rl = osentOf("RL~")
+		eq(#rl, 2, "the ping and the message")
+		eq(rl[1].msg, "RL~P~RP~"); eq(rl[1].dist, "WHISPER"); eq(rl[1].target, first, "the plain name")
+		eq(rl[2].msg, "RL~P~X1~hello"); eq(rl[2].target, first)
+		eq(#osentOf("X1~"), 0, "nothing on the channel")
+		-- A chat line: logged at hop 1 (the origin's own words on the server's log).
+		eq(O.Comm.SendChat("M1~A~Olympus II~1~~hi"), true)
+		opump()
+		local m = osentOf("RL~L~M1~")
+		eq(#m, 1); eq(m[1].logged, true); eq(m[1].dist, "WHISPER")
+		-- The relay's answer: verified. No answer in PING_WAIT: left out, the next relay picked.
+		local Odeliver = select(2, (function() return nil, nil end)())
+		-- The relay: Hildryn's client. Registrations, then a message in.
+		local R, rdeliver, rsent, rheard, rpump, rsentOf = RelayWorld("Hildryn Payne-Realm", "Olympus II")
+		rdeliver("WHISPER", "Orig Inal-Realm", "RL~P~RP~")
+		rpump()
+		eq(rsentOf("RA~")[1].target, "Orig Inal", "the ping answered, by the plain name")
+		rdeliver("WHISPER", "Orig Inal-Realm", "RL~P~RR~Olympus II")
+		rdeliver("WHISPER", "Zed Far-Realm", "RL~P~RR~Olympus Zeus")
+		eq(R.Relay.Stats().reporters, 2, "two guilds' reporters registered")
+		rdeliver("WHISPER", "Orig Inal-Realm", "RL~P~X1~hello")
+		rpump()
+		local rm = rsentOf("RM~")
+		eq(#rm, 2, "one whisper per reporter")
+		table.sort(rm, function(a, b) return a.target < b.target end)
+		eq(rm[1].target, "Orig Inal"); eq(rm[1].msg, "RM~P~Orig Inal-Realm~X1~hello"); eq(rm[1].dist, "WHISPER")
+		eq(rm[2].target, "Zed Far")
+		eq(#rheard, 1, "the relay hears it itself"); eq(rheard[1].dist, "CHANNEL"); eq(rheard[1].sender, "Orig Inal-Realm"); eq(rheard[1].text, "X1~hello")
+		rdeliver("WHISPER", "Orig Inal-Realm", "RL~P~X1~hello")
+		eq(#rheard, 1, "the same message again: once")
+		-- The reporter of Olympus Zeus: Zed's client takes the relay's copy once and hands it to its guild.
+		local P, pdeliver, psent, pheard, ppump, psentOf = RelayWorld("Zed Far-Realm", "Olympus Zeus")
+		pdeliver("WHISPER", "Bob Stranger-Realm", "RM~P~Orig Inal-Realm~X1~hello")
+		eq(#pheard, 0, "a stranger's RM is dropped"); eq(P.Relay.Stats().dropped, 1)
+		pdeliver("WHISPER", "Hildryn Payne-Realm", "RM~P~Orig Inal-Realm~X1~hello")
+		eq(#pheard, 1); eq(pheard[1].dist, "CHANNEL"); eq(pheard[1].sender, "Orig Inal-Realm"); eq(pheard[1].text, "X1~hello"); eq(pheard[1].logged, false)
+		ppump()
+		local rg = psentOf("RG~")
+		eq(#rg, 1); eq(rg[1].dist, "GUILD"); eq(rg[1].msg, "RG~P~Orig Inal-Realm~X1~hello")
+		pdeliver("WHISPER", "Max Ran-Realm", "RM~P~Orig Inal-Realm~X1~hello")
+		eq(#pheard, 1, "a second relay's copy counts once")
+		pdeliver("WHISPER", "Hildryn Payne-Realm", "RM~L~Orig Inal-Realm~M1~A~Olympus II~1~~hi")
+		eq(#pheard, 2); eq(pheard[2].logged, true, "a chat line is taken as logged"); eq(pheard[2].text, "M1~A~Olympus II~1~~hi")
+		-- A guildmate of Zed's: the guild's copy once, nothing sent on.
+		local G, gdeliver, gsent, gheard, gpump = RelayWorld("Gil Mate-Realm", "Olympus Zeus")
+		gdeliver("GUILD", "Zed Far-Realm", "RG~P~Orig Inal-Realm~X1~hello")
+		gdeliver("GUILD", "Zed Far-Realm", "RG~P~Orig Inal-Realm~X1~hello")
+		eq(#gheard, 1); eq(gheard[1].dist, "CHANNEL"); eq(gheard[1].sender, "Orig Inal-Realm")
+		gpump()
+		eq(#gsent, 0, "a guildmate sends nothing on")
+		-- Back at the origin: the relay's answer verifies it; the server's "No player named" leaves one out.
+		local Od = select(2, FreshComm) -- (unused)
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
+test("1.4.3 the relay: a relay that is offline (the server's word) or never answers the ping is left out and the next one picked; none left: the channel as before; a reporter registers with its relay every REGISTER_EVERY; off Forever nothing runs", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild, nf = ERR_CHAT_PLAYER_NOT_FOUND_S }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 5 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "Olympus II", "Member", 3 end
+		ERR_CHAT_PLAYER_NOT_FOUND_S = "No player named '%s' is currently playing."
+		local O, odeliver, osent, _, opump, osentOf = RelayWorld("Orig Inal-Realm", "Olympus II")
+		local first = O.Relay.Pick()
+		local other = first == "Hildryn Payne" and "Max Ran" or "Hildryn Payne"
+		eq(O.Relay.NotFound(("No player named '%s' is currently playing."):format(first)), true)
+		eq(O.Relay.Pick(), other, "the next one")
+		eq(O.Relay.NotFound("No player named 'Someone Else' is currently playing."), false, "not a relay")
+		O.Comm.JoinChannel()
+		eq(O.Comm.Send("CHANNEL", "X1~a"), true)
+		opump()
+		eq(osentOf("RL~P~X1~a")[1].target, other)
+		-- The ping unanswered: left out (the timer runs at once here).
+		local timers = {}
+		O.After = function(_, _, fn) timers[#timers + 1] = fn end
+		O.Relay.Reset()
+		eq(O.Comm.Send("CHANNEL", "X1~b"), true)
+		opump()
+		eq(#timers, 1, "the ping's wait")
+		local picked = O.Relay.Pick()
+		timers[1]()
+		assert(O.Relay.Pick() ~= picked, "the one that never answered is left out")
+		odeliver("WHISPER", O.Relay.Pick() .. "-Realm", "RA~")
+		eq(O.Relay.Stats().dead, 1)
+		-- Both out: the channel as before.
+		O.Relay.NotFound(("No player named '%s' is currently playing."):format(O.Relay.Pick()))
+		eq(O.Relay.Pick(), nil)
+		eq(O.Comm.ChannelReady(), true, "the channel joined")
+		wipe(osent)
+		eq(O.Comm.Send("CHANNEL", "X1~c"), true)
+		opump()
+		eq(osent[1].dist, "CHANNEL"); eq(osent[1].msg, "X1~c")
+		-- The reporter registers with its relay (MaybeBroadcast calls it) every REGISTER_EVERY.
+		O.Relay.Reset()
+		wipe(osent)
+		eq(O.Relay.Register(), true)
+		opump()
+		assert(osentOf("RL~P~RR~Olympus II")[1].target ~= nil, "registered with a relay")
+		eq(O.Relay.Register(), false, "not again yet")
+		O.clock = O.clock + O.Relay.REGISTER_EVERY
+		eq(O.Relay.Register(), true)
+		opump()
+		-- Off Forever: nothing of the relay.
+		O.splitNames = nil
+		eq(O.Relay.On(), false); eq(O.Relay.Pick(), nil)
+		wipe(osent)
+		eq(O.Comm.Send("CHANNEL", "X1~d"), true)
+		opump()
+		eq(osent[1].dist, "CHANNEL")
+		odeliver("WHISPER", "Hildryn Payne-Realm", "RM~P~Orig Inal-Realm~X1~hello")
+		eq(O.Relay.Stats().delivered, 0, "a relayed message is not taken off Forever")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild, ERR_CHAT_PLAYER_NOT_FOUND_S = saved.channel, saved.member, saved.guild, saved.inGuild, saved.nf
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
+test("1.4.3 the relay: the election counts only guildmates whose hello carries the relay (R); on Forever a whisper goes by the plain name", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, split = ns.splitNames }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 5 end
+		ns.IsMember = function() return true end
+		local ours = { guild = MY_GUILD, total = 1000, online = 300, zones = {} }
+		local cns, Deliver = RelayWorld("Tester-Realm", MY_GUILD)
+		local C = cns.Comm
+		C.loginAt = cns.clock - 1000
+		C.JoinChannel()
+		assert("Aaa" < cns.me)
+		Deliver("GUILD", "Aaa", "H1~1.4.2~Realm~p")
+		C.MaybeBroadcast(ours)
+		eq(C.isReporter, true, "a guildmate without the relay never keeps us quiet")
+		Deliver("GUILD", "Aaa", "H1~1.4.3~Realm~p~~~~R")
+		C.MaybeBroadcast(ours)
+		eq(C.isReporter, false, "one carrying it comes first")
+		-- Our own hello carries it.
+		local out = {}
+		C_ChatInfo.SendAddonMessage = function(_, msg, dist) out[#out + 1] = msg return 0 end
+		C.Hello(true)
+		for _ = 1, 20 do C.Pump() end
+		assert(out[#out]:match("^H1~[^~]+~[^~]*~p~~~~R$"), "our hello: " .. tostring(out[#out]))
+		-- The whisper name on Forever.
+		ns.splitNames = true
+		eq(ns.TellName("Hildryn Payne-CAMWOWUS2Realm7PvE"), "Hildryn Payne")
+		eq(ns.TellName("Max Ran-Realm"), "Max Ran")
+		ns.splitNames = saved.split
+		eq(ns.TellName("Hildryn Payne-Other"), "Hildryn Payne-Other", "elsewhere another realm keeps its suffix")
+	end)
+	GetChannelName, ns.IsMember, ns.splitNames = saved.channel, saved.member, saved.split
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
+end
 
 test("runner-up: only a 0.7.11+ peer on the reporter's channel", function()
 	local savedChannel = GetChannelName
@@ -7140,14 +7338,14 @@ test("hello: guild peers say their realm, older versions count as old", function
 		C_ChatInfo.SendAddonMessage = function(_, msg, dist) sent[#sent + 1] = dist .. " " .. msg end
 		cns.Comm.Hello()
 		cns.Comm.Pump()
-		eq(sent[1], "GUILD H1~" .. ns.VERSION .. "~Realm~p", "ours names our realm and channel (public)")
+		eq(sent[1], "GUILD H1~" .. ns.VERSION .. "~Realm~p~~~~R", "ours names our realm and channel (public)")
 		local savedKey = ns.rdb.realmKey
 		ns.rdb.realmKey = "secret"
 		cns.clock = cns.clock + 600
 		cns.Comm.Hello()
 		cns.Comm.Pump()
 		ns.rdb.realmKey = savedKey
-		eq(sent[2], "GUILD H1~" .. ns.VERSION .. "~Realm~s", "sealed")
+		eq(sent[2], "GUILD H1~" .. ns.VERSION .. "~Realm~s~~~~R", "sealed")
 	end)
 	C_ChatInfo = nil
 	if not ok then error(err, 0) end
@@ -12727,7 +12925,7 @@ test("0.9.1 privacy: what our census sends follows our answer and our guildmates
 		-- Our hello says we share; a hello without it (0.9.0, or a no since) reads as no.
 		C.Hello(true)
 		for _ = 1, 5 do C.Pump() end
-		eq(sent[#sent].msg, "H1~" .. ns.VERSION .. "~Realm~p~z")
+		eq(sent[#sent].msg, "H1~" .. ns.VERSION .. "~Realm~p~z~~~R")
 		Deliver("GUILD", "Member2", "H1~0.9.0~Realm~p")
 		eq(C.SharesZone("Member2"), false)
 		Deliver("GUILD", "Member3", "H1~0.9.1~Realm~p~z")
@@ -61380,9 +61578,9 @@ end)()
 	end)
 
 	test("1.4.0: the version, the TOC's files in order, the new message types in Comm.lua's list", function()
-		eq(ns.VERSION, "1.4.2") -- the release has one identity in both folders
+		eq(ns.VERSION, "1.4.3") -- the release has one identity in both folders
 		local toc = assert(ReadFile(ADDON_DIR .. "Olympus.toc"))
-		assert(toc:find("## Version: 1.4.2", 1, true))
+		assert(toc:find("## Version: 1.4.3", 1, true))
 		eq(ns.Workshop.Newer("1.4.0", "1.3.3"), true, "the launch release is newer")
 		eq(ns.Workshop.Newer("1.3.3", "1.4.0"), false)
 		eq(ns.Workshop.Newer("1.4.1", "1.4.0"), true, "the next patch remains newer")
@@ -61829,7 +62027,7 @@ end)()
 	end
 
 	test("1.4.0 version letters: release identity agrees across both TOCs and localized letters; reading the old release does not hide the new letter", function()
-		eq(ns.VERSION, "1.4.2")
+		eq(ns.VERSION, "1.4.3")
 		for _, path in ipairs({ "Olympus/Olympus.toc", "Olympus_Arena/Olympus_Arena.toc" }) do
 			local toc = assert(ReadFile(ROOT .. path))
 			eq(toc:match("## Version:%s*(%S+)"), ns.VERSION, path)
@@ -62303,7 +62501,7 @@ end)()
 			eq(f.title:IsShown(), false); eq(f.body:IsShown(), false); eq(f.all:IsShown(), false)
 			local versions = Lt.Versions()
 			eq(#versions, #Lt.LIST, "a letter for every version listed")
-			eq(table.concat(versions, " "), "1.4.2 1.4.1 1.4.0 1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
+			eq(table.concat(versions, " "), "1.4.3 1.4.2 1.4.1 1.4.0 1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
 			for i, v in ipairs(versions) do
 				local r = f.rows[i]
 				eq(r:IsShown(), true); eq(r.version, v)
