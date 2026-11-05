@@ -162,6 +162,10 @@ L.LETTER_1_4_5 = (L.LETTER_1_4_4:gsub("version 1%.4%.4 %(and 1%.4%.0%)", "versio
 L.LETTER_1_4_6_TITLE, L.LETTER_1_4_6_HEAD, L.LETTER_1_4_6_SIGNED, L.LETTER_1_4_6_LINK = L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK
 L.LETTER_1_4_6 = (L.LETTER_1_4_5:gsub("version 1%.4%.5 %(and 1%.4%.0%)", "version 1.4.6 (and 1.4.0)", 1)
 	:gsub("(%- {team} Launch night:[^\n]*)", "%1 In 1.4.6 every sub-realm of your ruleset counts as one realm, so every guild sees the same census, and the Council's relays pass each word to one another.", 1))
+-- 1.5.0 (the chats as the player's own text in the hidden channel: everyone in it, every sub-realm).
+L.LETTER_1_5_0_TITLE, L.LETTER_1_5_0_HEAD, L.LETTER_1_5_0_SIGNED, L.LETTER_1_5_0_LINK = L.LETTER_1_4_6_TITLE, L.LETTER_1_4_6_HEAD, L.LETTER_1_4_6_SIGNED, L.LETTER_1_4_6_LINK
+L.LETTER_1_5_0 = (L.LETTER_1_4_6:gsub("version 1%.4%.6 %(and 1%.4%.0%)", "version 1.5.0 (and 1.4.0)", 1)
+	:gsub("(%- {team} Launch night:[^\n]*)", "%1 In 1.5.0 the Olympus chats travel as your own words in a channel of the game, so every soldier in it hears you at once, on every sub-realm; the census and the rankings keep the Council's relay.", 1))
 L.LETTER_1_3_3_TITLE = "Your guild on the website"
 L.LETTER_1_3_3 = [==[Version 1.3.3.
 
@@ -242,6 +246,9 @@ Os portões estão abertos.]==]
 	L.LETTER_1_4_6_TITLE, L.LETTER_1_4_6_HEAD, L.LETTER_1_4_6_SIGNED, L.LETTER_1_4_6_LINK = L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK
 	L.LETTER_1_4_6 = (L.LETTER_1_4_5:gsub("versão 1%.4%.5 %(e na 1%.4%.0%)", "versão 1.4.6 (e na 1.4.0)", 1)
 		:gsub("(%- {team} Noite do lançamento:[^\n]*)", "%1 Na 1.4.6 todo sub-reino do seu conjunto de regras conta como um reino só, então toda guilda vê o mesmo censo, e os relés do Conselho passam cada palavra uns aos outros.", 1))
+	L.LETTER_1_5_0_TITLE, L.LETTER_1_5_0_HEAD, L.LETTER_1_5_0_SIGNED, L.LETTER_1_5_0_LINK = L.LETTER_1_4_6_TITLE, L.LETTER_1_4_6_HEAD, L.LETTER_1_4_6_SIGNED, L.LETTER_1_4_6_LINK
+	L.LETTER_1_5_0 = (L.LETTER_1_4_6:gsub("versão 1%.4%.6 %(e na 1%.4%.0%)", "versão 1.5.0 (e na 1.4.0)", 1)
+		:gsub("(%- {team} Noite do lançamento:[^\n]*)", "%1 Na 1.5.0 os chats do Olympus viajam como suas próprias palavras num canal do jogo, e todo soldado nele ouve você na hora, em todo sub-reino; o censo e os rankings seguem pelo relé do Conselho.", 1))
 	L.LETTER_1_3_3_TITLE = "Sua guilda no site"
 	L.LETTER_1_3_3 = [==[Versão 1.3.3.
 

@@ -615,13 +615,18 @@ end
 -- any value the parts of one line share, for Comm.DropLine. guard is checked now and again at
 -- the actual game send, like Comm.Send's options.guard. Returns false when the lane is full,
 -- guard refuses, or while we are on no channel.
-function Comm.SendChat(msg, done, line, guard)
+function Comm.SendChat(msg, done, line, guard, hidden)
 	if not (joinedName or RelayOn()) or #chatQueue >= CHAT_QUEUE or Held(msg) then return false end
 	if guard ~= nil then
 		if type(guard) ~= "function" then return false end
 		local ok, valid = pcall(guard)
 		if not ok or valid ~= true then return false end
 	end
+	-- (1.5.0) Where the game delivers the player's typed text and not the hidden message
+	-- (Forever), the line goes as his own text in the joined channel (ChatHall.lua); the hidden
+	-- way below when the hall is off, or when its echo never came (hidden: the hall sending it back).
+	local H = ns.ChatHall
+	if not hidden and type(H) == "table" and H.On() and H.Send(msg, done, line, guard) == true then return true end
 	chatQueue[#chatQueue + 1] = { msg = msg, done = done, t = GetTime(), channel = joinedName, line = line, guard = guard }
 	return true
 end
@@ -1411,6 +1416,7 @@ function Comm.JoinChannel()
 end
 
 function Comm.ChannelName() return joinedName end
+function Comm.ChannelIndex() return channelIndex end -- (1.5.0: the chat hall writes its text there)
 function Comm.DeliveredLogged() return deliveredLogged end
 
 -- Who can read the channel, as the privacy questions tell the player (Layers, Channels):
