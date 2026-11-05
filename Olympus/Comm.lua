@@ -897,7 +897,7 @@ local function DropStale(now)
 	return #stale
 end
 
-local function Pump()
+local function PumpOnce()
 	SyncGuild()
 	if queueSize == 0 and not chatQueue[1] then return end
 	if not ns.IsMember() then
@@ -954,6 +954,19 @@ local function Pump()
 		if not job then return end
 		lastWasChat = false
 		if SendJob(job, now) then return end
+	end
+end
+-- One part a pump as ever; a relay's client (Relay.lua: it forwards every word to every guild's
+-- reporter and the other relays) PUMP_PARTS_RELAY a pump (1.5.0: at one part every 1.2 s the
+-- dev's relay fell behind, whole reports and the signed lists waited and fell out of the queue;
+-- four parts a pump is 3.3 a second, under the server's limit of ten).
+Comm.PUMP_PARTS_RELAY = 4
+local function Pump()
+	local R = ns.Relay
+	local parts = (type(R) == "table" and R.On() and R.IsRelay(ns.me)) and Comm.PUMP_PARTS_RELAY or 1
+	for _ = 1, parts do
+		if queueSize == 0 and not chatQueue[1] then return end
+		PumpOnce()
 	end
 end
 Comm.Pump = Pump -- for tests

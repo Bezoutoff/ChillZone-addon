@@ -7401,6 +7401,35 @@ test("1.5.0 the relay: a word that is not a chat line is keyed by its origin, ki
 	if not ok then error(err, 0) end
 end)
 
+-- 1.5.0 (the dev's cousin's status): at one part every 1.2 s the dev's relay fell behind its
+-- forwards. Fails before: one part a pump on the relay's client too.
+test("1.5.0 the relay: a relay's client sends PUMP_PARTS_RELAY parts a pump, any other client one", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "Olympus II", "Member", 3 end
+		-- The relay, Hildryn: six guilds' reporters registered, one word to forward to each.
+		local R, rdeliver, rsent = RelayWorld("Hildryn Payne-Realm", "Olympus II")
+		for i = 1, 6 do rdeliver("WHISPER", ("Rep Orter%d-Realm"):format(i), "RL~P~RR~Olympus " .. i) end
+		rdeliver("WHISPER", "Orig Inal-Realm", "RL~P~X1~hello")
+		R.Comm.Pump()
+		eq(#rsent, R.Comm.PUMP_PARTS_RELAY, "four parts in one pump on the relay's client")
+		R.Comm.Pump()
+		eq(#rsent, 6, "the rest in the next, no more than there is")
+		-- Any other client: one a pump.
+		local O, odeliver, osent = RelayWorld("Orig Inal-Realm", "Olympus II")
+		odeliver("WHISPER", "Max Ran-Realm", "RY~")
+		eq(O.Comm.Send("CHANNEL", "X1~a"), true); eq(O.Comm.Send("CHANNEL", "X1~b"), true)
+		O.Comm.Pump()
+		eq(#osent, 1, "one part a pump")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
 test("1.4.3 the relay: the election counts only guildmates whose hello carries the relay (R); on Forever a whisper goes by the plain name", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, split = ns.splitNames }
 	local ok, err = pcall(function()
