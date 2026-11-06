@@ -1452,3 +1452,46 @@ test("accord: the Companion's self section is an anonymous revocation until the 
 		end
 	end, { companion = true }) -- (the Companion's bridge addon attached, as its load says: ChillZoneBridge.COMPANION_ATTACHED)
 end)
+
+-- ChillZone's launch audit (2026-11-07, B5): the letter's headings, its title and its band were sized
+-- again from their font's raw path (GetFont, then SetFont at that path). Where the client's font is a
+-- family (Russian texts on an English client), that path is its Latin member alone, and the Russian
+-- words may draw as squares. While the texts' language is not the client's, the size stays the
+-- client's. Fails before: SetFont called on an English client with the Russian texts.
+test("accord: the letter's sizes are set from the font's own path only where the texts' language is the client's; Russian texts on an English client keep the client's font", function()
+	local saved = { locale = rawget(_G, "GetLocale"), text = rawget(ns, "TEXT_LOCALE") }
+	-- The sizes the letter set (font strings that answer GetFont), the texts and the client as given.
+	local function Sized(text, client)
+		local sizes = {}
+		ns.TEXT_LOCALE = text
+		GetLocale = function() return client end
+		H.WithUI(function() Scene(function(w, A)
+			local make = CreateFrame
+			CreateFrame = function(...)
+				local f = make(...)
+				local fontString = f.CreateFontString
+				f.CreateFontString = function(self, ...)
+					local fs = fontString(self, ...)
+					fs.GetFont = function() return "Fonts\\MORPHEUS.TTF", 10, "" end
+					fs.SetFont = function(_, _, px) sizes[#sizes + 1] = px return true end
+					return fs
+				end
+				return f
+			end
+			ChillZoneAccordFrame = nil
+			A.Reset() -- (a letter of its own, built now)
+			local ok, err = pcall(A.Show, "slash")
+			CreateFrame = make
+			if not ok then error(err, 0) end
+			A.Hide()
+		end) end)
+		return sizes
+	end
+	local ok, err = pcall(function()
+		eq(#Sized("ruRU", "enUS"), 0, "Russian texts on an English client: the client's font, never its path")
+		assert(#Sized("enUS", "enUS") > 0, "the client's own language: sized as before")
+		assert(#Sized(nil, "ruRU") > 0, "no text language of its own (the client's): sized as before")
+	end)
+	ns.TEXT_LOCALE, GetLocale = saved.text, saved.locale
+	if not ok then error(err, 0) end
+end)
