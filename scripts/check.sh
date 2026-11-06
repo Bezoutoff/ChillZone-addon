@@ -34,6 +34,11 @@ else
 	printf 'python3 not found: Python checks skipped.\n'
 fi
 
+if command -v python3 >/dev/null 2>&1 && [ -f tests/rebrand_test.py ]; then
+	printf 'Checking the rebranding rules...\n'
+	python3 tests/rebrand_test.py
+fi
+
 printf 'Checking files listed in addon TOCs...\n'
 luajit - <<'LUA'
 local failed = false
