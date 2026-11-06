@@ -1061,8 +1061,11 @@ end
 -- The King's name on the lines and the crown: the army's name for him on the Alliance side,
 -- his character's on the Horde (whose <ChillZone> has a guild master of its own).
 function ns.KingName(leader)
-	if ns.faction == "Horde" or not ns.KING_NAME then return leader and ns.ShortName(leader) or "?" end
-	return ns.KING_NAME
+	if ns.faction == "Horde" then return leader and ns.ShortName(leader) or "?" end
+	if ns.KING_NAME then return ns.KING_NAME end
+	-- (ChillZone: no name in the code. The leader named, else the signed King's character, else the word.)
+	if leader then return ns.ShortName(leader) end
+	return ns.KingCharacter() or ns.L.KING
 end
 ns.CROWN_ICON = "Interface\\GroupFrame\\UI-Group-LeaderIcon"
 
