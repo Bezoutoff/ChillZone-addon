@@ -73,6 +73,42 @@ test("languages (1.4.0): lines whispered to another player are Russian in ruRU a
 	assert(n >= 10, "whispered lines: " .. n)
 end)
 
+-- Task 22 fix 1: Cyrillic is two bytes a letter, and these lines are sent without a player pressing
+-- anything: a whisper edit box takes 256 bytes (UI.WhisperText), Say() cuts at 255 (ns.Cut)
+-- and SendChatMessage drops the rest. Each ruRU line fits 255 bytes with worst-case placeholders.
+test("languages (Task 22): the Russian lines sent to other players fit 255 bytes with the longest names", function()
+	local ru = Load("ruRU")
+	local NAME = ("Ж"):rep(24)                  -- a 24-letter Cyrillic name: 48 bytes
+	local GUILD = "Чиллзон Навсегда"            -- 31 bytes
+	local URL = "https://github.com/Bezoutoff/ChillZone-addon/releases" -- 53 bytes
+	assert(#URL == 53 and #GUILD == 31 and #NAME == 48)
+	local ARGS = {
+		CHARTER_LETTER_TEXT = { NAME, NAME }, JOIN_POINT_TEXT = { NAME },
+		MENTOR_TO_CAPTAIN = { NAME, NAME }, MENTOR_TO_RECRUIT = { NAME, NAME },
+		VERIFY_WHISPER_TEXT = { NAME, "ABCDEFGHIJKL" }, VERIFY_ASK_TEXT = { NAME, "ABCDEFGHIJKL" },
+		VERIFY_NUDGE_TEXT = { NAME }, VERSION_ASK_WHISPER = { "1.10.10", "1.10.10", URL },
+		WANTED_THANK_TEXT = {},
+	}
+	local WORDS = { place = ("П"):rep(15), zone = ("З"):rep(10), x = "99", y = "99", game = "" }
+	local checked = 0
+	for k in pairs(english.L) do
+		if Whisper(k) and not k:match("^MATCH_SAY_GAME_") then
+			local text = assert(ru.L[k], k)
+			if k:match("^MATCH_SAY_") then
+				-- {place}: 30 bytes, {zone}: 20 bytes (15 and 10 Cyrillic letters); {game}: the longer of the two game words.
+				local game = #ru.L.MATCH_SAY_GAME_BONE > #ru.L.MATCH_SAY_GAME_DUEL and ru.L.MATCH_SAY_GAME_BONE or ru.L.MATCH_SAY_GAME_DUEL
+				text = text:gsub("{(%w+)}", function(w) return w == "game" and game or assert(WORDS[w], w) end)
+			else
+				local args = assert(ARGS[k], "arguments for " .. k)
+				text = text:format(unpack(args))
+			end
+			assert(#text <= 255, ("ruRU %s is %d bytes (255 at most): %s"):format(k, #text, text))
+			checked = checked + 1
+		end
+	end
+	assert(checked == 19, "lines checked: " .. checked)
+end)
+
 test("languages (1.4.0): an English or Portuguese game builds no other language's table", function()
 	for _, code in ipairs({ "enUS", "enGB", "ptBR" }) do
 		local calls = 0
