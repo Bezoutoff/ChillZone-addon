@@ -2,6 +2,9 @@
 -- them, not tests/fixtures/identity.lua's) and what the fork changed.
 local ns, test, eq, h = ...
 
+-- The first 32 hex digits of ChillZone's public N (ChillZone/Sign.lua).
+local CHILLZONE_N_PREFIX = "8c3e3436516bc7c5846363269e111fbe"
+
 local function ReadFile(path)
 	local f = assert(io.open(path, "rb"))
 	local s = f:read("*a")
@@ -44,4 +47,10 @@ test("ChillZone release: no person is named in the code (the author's signed lis
 	eq(r.KingName("Lead Chill-Realm"), "Lead Chill", "the King by his character's name")
 	assert(ReadFile(h.ADDON_DIR .. "Relay.lua"):find("Relay.LAUNCH_PINS = {}", 1, true), "no relays pinned")
 	assert(ReadFile(h.ADDON_DIR .. "API.lua"):find("API.AUTHORIZED = {}", 1, true), "no partner addon trusted")
+end)
+
+test("ChillZone release: the signed lists are checked with ChillZone's key, not Olympus's", function()
+	local text = ReadFile(h.ADDON_DIR .. "Sign.lua")
+	assert(not text:find("84a62410ffd1872739d169af98d461de", 1, true), "Olympus's key is gone")
+	assert(text:find('Sign.N = FromHex("' .. CHILLZONE_N_PREFIX, 1, true), "ChillZone's key")
 end)
