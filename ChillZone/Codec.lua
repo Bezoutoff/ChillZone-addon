@@ -402,7 +402,7 @@ function Codec.DecodeShame(s)
 		-- Shown on every screen (The Watch's Tabards): a character name and a guild name, never
 		-- colour or link codes.
 		name, g = name:gsub("[|%c]", ""), g:gsub("[|%c]", "")
-		if name ~= "" then list[#list + 1] = { name = name:sub(1, 48), guild = g:sub(1, 24) } end
+		if name ~= "" then list[#list + 1] = { name = name:sub(1, 48), guild = ns.Cut(g, 72) } end
 	end
 	return { guild = guild, rank = tonumber(rank), list = list }
 end

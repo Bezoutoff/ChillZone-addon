@@ -122,7 +122,7 @@ local function Person(s, realm)
 	s = Trim(ns.Normal(Trim(s)))
 	local short, theirs = s:match("^([^%-]+)%-([^%-]+)$")
 	short = short or s
-	if #short > 30 or not short:match("^[%a\128-\255]+ ?[%a\128-\255]*$") then return nil end
+	if #short > 90 or select(2, short:gsub("[^\128-\191]", "")) > 30 or not short:match("^[%a\128-\255]+ ?[%a\128-\255]*$") then return nil end
 	if theirs and (#theirs > 40 or not theirs:match("^[%w\128-\255]+$")) then return nil end
 	return ns.FullName(short, theirs or realm)
 end
@@ -153,7 +153,7 @@ end
 -- An ChillZone guild's name as a list may give it, or nil.
 local function GuildName(s)
 	s = tostring(s or ""):gsub("[%c|]", "")
-	if s == "" or #s > 24 or not s:match("^[%w\128-\255 ]+$") or not ns.IsFederation(s) then return nil end
+	if s == "" or #s > 72 or select(2, s:gsub("[^\128-\191]", "")) > 24 or not s:match("^[%w\128-\255 ]+$") or not ns.IsFederation(s) then return nil end
 	return s
 end
 

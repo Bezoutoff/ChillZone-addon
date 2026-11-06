@@ -2066,7 +2066,7 @@ function Bank.SharePublic(force)
 	local guild = Clean(GetGuildInfo("player"), 40)
 	local entries = {}
 	for _, e in ipairs(Bank.Requests()) do
-		if Open(e.state) then entries[#entries + 1] = ("%d:%d:%d:%s:%s"):format(e.id, e.item, e.n, Field(e.from, 60), Field(e.guild, 24)) end
+		if Open(e.state) then entries[#entries + 1] = ("%d:%d:%d:%s:%s"):format(e.id, e.item, e.n, Field(e.from, 60), Field(e.guild, 72)) end
 	end
 	local msgs, cur = {}, ("TL~%s~"):format(guild)
 	local head = cur

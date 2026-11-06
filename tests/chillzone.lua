@@ -140,6 +140,70 @@ test("ChillZone: the officers' names, Cyrillic and Latin, pass the addon's name 
 	end
 end)
 
+-- The launch audit (2026-11-07, A2): these checks counted bytes, and a Cyrillic letter takes two.
+-- <Чиллзон Навсегда> (16 letters, 31 bytes) was over a guild's 24 and "Татарин Уфимский" (16
+-- letters, 31 bytes) over a name's 30: that guild's Legates and correspondents never left, its Lords'
+-- answers to the Throne were dropped, such an officer could be no Hand, Legate or Apostle, and the
+-- guild's open bank requests and Wall of Shame entries lost the end of its name. Now they count
+-- letters, as Codec.LongGuild does: 30 and 24, as for Latin names. Fails before: nil, or the name
+-- cut. (The guild approved here as the release ships it: the tests' identity approves others.)
+test("ChillZone: <Чиллзон Навсегда> and the officers' Cyrillic names pass the guild and name checks by their letters, as Latin ones do; longer ones are refused as before", function()
+	local GUILD, REALM = "Чиллзон Навсегда", "CAMWOWEU1Realm3PvP"
+	local G24, G25 = ("Ж"):rep(24), ("Ж"):rep(25)
+	local saved = { builtin = ns.APPROVED_BUILTIN, me = ns.me, popups = {} }
+	for k, v in pairs(StaticPopupDialogs) do saved.popups[k] = v end
+	-- (The approved set is kept per character: asked once as another, it is read anew.)
+	local function Fresh() ns.me = "Approved Anew-Realm"; ns.IsApprovedGuild(GUILD); ns.me = saved.me end
+	ns.APPROVED_BUILTIN = { Alliance = { GUILD, G24, G25 } }
+	Fresh()
+	local ok, err = pcall(function()
+		eq(ns.IsFederation(GUILD), true, "approved, as the release ships it")
+		-- The guild: the Throne's checks (roll call, inspection, the Week, the bank's lists) and the Legates' lists.
+		eq(ns.King.CleanGuild(GUILD), GUILD)
+		eq(ns.King.CleanGuild(G24), G24, "24 letters"); eq(ns.King.CleanGuild(G25), nil, "25 letters: refused as before")
+		local parts = ns.Nominees.Parts(GUILD, 1, { { role = "centurion", name = "Татарин Уфимский-" .. REALM } })
+		assert(#parts >= 1 and parts[1]:find(GUILD, 1, true), "its Legates and correspondents go out")
+		eq(#ns.Nominees.Parts(G25, 1, {}), 0, "25 letters: refused as before")
+		-- The officers' names: a Hand (King), a Legate or correspondent (Nominees), an Apostle (Church).
+		local cns = setmetatable({ On = function() end, Comm = setmetatable({ Handle = function() end }, { __index = ns.Comm }) }, { __index = ns })
+		assert(loadfile(h.ADDON_DIR .. "Church.lua"))("ChillZone", cns)
+		for _, name in ipairs(OFFICERS) do
+			eq(ns.King.CleanName(name), name, name)
+			eq(ns.Nominees.Person(name .. "-" .. REALM), name .. "-" .. REALM, name)
+			eq(cns.Church.WireName(name .. "-" .. REALM), name .. "-" .. REALM, name)
+		end
+		local long = ("Ж"):rep(15) .. " " .. ("Ж"):rep(14)
+		eq(ns.King.CleanName(long), long, "30 letters")
+		eq(ns.King.CleanName(long .. "Ж"), nil, "31 letters: refused as before")
+		eq(ns.Nominees.Person(long .. "Ж-" .. REALM), nil); eq(cns.Church.WireName(long .. "Ж-" .. REALM), nil)
+		eq(ns.King.CleanName(("a"):rep(15) .. " " .. ("b"):rep(15)), nil, "31 Latin letters: as before")
+		-- The Wall of Shame's entries and the bank's open requests carry the guild's name whole.
+		eq(ns.Codec.DecodeShame("S1~ChillZone~0~Татарин Уфимский:" .. GUILD).list[1].guild, GUILD)
+		local now, said = 1800000000, {}
+		local bns = setmetatable({
+			On = function() end, RegisterEvent = function() end, After = function() end, Every = function() end, Fire = function() end,
+			Now = function() return now end,
+			Comm = setmetatable({ Handle = function() end }, { __index = ns.Comm }),
+			Treasury = setmetatable({ OnPrivate = function() end, CanSend = function() return true end, PublicShows = function() return true end,
+				IsInsider = function() return true end, IsKeeperName = function() return true end, KeeperByName = function() return true end,
+				SendPublic = function(m) said[#said + 1] = m end }, { __index = ns.Treasury }),
+			rdb = { bankRequests = { ["Татарин Уфимский-Realm#1"] = { id = 1, item = 2589, n = 2, from = "Татарин Уфимский-Realm",
+				guild = GUILD, state = "open", t = now, at = now } } },
+		}, { __index = ns })
+		assert(loadfile(h.ADDON_DIR .. "Bank.lua"))("ChillZone", bns)
+		eq(bns.Bank.SharePublic(true), true)
+		eq(#said, 1); assert(said[1]:find(":" .. GUILD, 1, true), "the keeper's list: " .. said[1])
+		bns.Bank.HandlePublic("CHANNEL", "Keeper One-Realm", said[1])
+		local open = bns.Bank.PublicRequests()
+		eq(#open, 1, "a soldier's client shows it"); eq(open[1].guild, GUILD); eq(open[1].from, "Татарин Уфимский-Realm")
+	end)
+	ns.APPROVED_BUILTIN = saved.builtin
+	Fresh()
+	for k in pairs(StaticPopupDialogs) do if saved.popups[k] == nil then StaticPopupDialogs[k] = nil end end
+	for k, v in pairs(saved.popups) do StaticPopupDialogs[k] = v end
+	if not ok then error(err, 0) end
+end)
+
 test("ChillZone release: the addon speaks Russian on any client (ns.TEXT_LOCALE), the tests the client's language", function()
 	eq(ns.TEXT_LOCALE, nil, "the tests' identity: the client's language")
 	local savedLocale = GetLocale
