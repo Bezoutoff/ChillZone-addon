@@ -34,7 +34,8 @@ class Rules(unittest.TestCase):
 
     def test_protected(self):
         for text in ("https://github.com/dnl-gentile/olympus-addon", '"olympus-record-1|"',
-                     'S.SALT = "olympus-strike-1:"', '"olympus-api-authorized:"'):
+                     'S.SALT = "olympus-strike-1:"', '"olympus-api-authorized:"',
+                     'link:match("^https://github%.com/dnl%-gentile/olympus%-addon#(.+)$")'):
             self.assertEqual(rebrand.rebrand(text), text)
 
     def test_other_words_untouched(self):

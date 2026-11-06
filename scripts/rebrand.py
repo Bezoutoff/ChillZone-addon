@@ -13,7 +13,7 @@ import sys
 
 # Left as they are: the original's address, and the format and hash words ("olympus-record-1|",
 # "olympus-strike-1:", "olympus-api-authorized:"...) that tests and saved data pin.
-PROTECTED = re.compile(r"dnl-gentile/olympus-addon|olympus-(?=[a-z0-9])")
+PROTECTED = re.compile(r"dnl-gentile/olympus-addon|dnl%-gentile/olympus%-addon|olympus-(?=[a-z0-9])")
 # The slash commands with no "olympus" in them, whole words only ("/oly" is not "/olympus").
 SLASH = [
     (re.compile(r"/oly\b"), "/cz"),
