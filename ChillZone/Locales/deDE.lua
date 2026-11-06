@@ -58,7 +58,7 @@ ns.Locale("deDE", {
 	ACCORD_T2_2 = "Die ChillZone-Chats werden protokolliert; Blizzard kann danach handeln.",
 	ACCORD_T2_HEAD = "Blizzards Regeln gehen vor",
 	ACCORD_T3_1 = "Beleidigungen, Beschimpfungen, Belästigung, Spam oder Betrug.",
-	ACCORD_T3_2 = "Jede andere Sprache als Englisch in den ChillZone-Chats.",
+	ACCORD_T3_2 = "Jede andere Sprache als Russisch in den ChillZone-Chats.",
 	ACCORD_T3_3 = "Wetten oder Goldeinsätze: Spiele sind nur für Punkte.",
 	ACCORD_T3_4 = "Nach BattleTags oder persönlichen Daten anderer fragen oder sie weitergeben.",
 	ACCORD_T3_5 = "Eine Sanktion mit einem anderen Charakter umgehen.",

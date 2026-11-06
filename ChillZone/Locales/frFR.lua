@@ -58,7 +58,7 @@ ns.Locale("frFR", {
 	ACCORD_T2_2 = "Les chats d'ChillZone sont journalisés ; Blizzard peut agir sur leur base.",
 	ACCORD_T2_HEAD = "Les règles de Blizzard passent d'abord",
 	ACCORD_T3_1 = "Insultes, propos haineux, harcèlement, spam ou arnaques.",
-	ACCORD_T3_2 = "Toute autre langue que l'anglais dans les chats d'ChillZone.",
+	ACCORD_T3_2 = "Toute autre langue que le russe dans les chats de ChillZone.",
 	ACCORD_T3_3 = "Paris ou mises en or : les jeux se jouent uniquement pour des points.",
 	ACCORD_T3_4 = "Demander ou partager les BattleTags ou les informations personnelles d'autrui.",
 	ACCORD_T3_5 = "Contourner une sanction avec un autre personnage.",

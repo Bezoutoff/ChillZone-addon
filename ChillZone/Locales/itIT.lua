@@ -58,7 +58,7 @@ ns.Locale("itIT", {
 	ACCORD_T2_2 = "Le chat di ChillZone vengono registrate; Blizzard può intervenire in base ad esse.",
 	ACCORD_T2_HEAD = "Le regole di Blizzard vengono prima",
 	ACCORD_T3_1 = "Abusi, insulti, molestie, spam o truffe.",
-	ACCORD_T3_2 = "Qualsiasi lingua diversa dall'inglese nelle chat di ChillZone.",
+	ACCORD_T3_2 = "Qualsiasi lingua diversa dal russo nelle chat di ChillZone.",
 	ACCORD_T3_3 = "Scommesse o puntate in oro: i giochi sono solo a punti.",
 	ACCORD_T3_4 = "Chiedere o condividere BattleTag o dati personali altrui.",
 	ACCORD_T3_5 = "Eludere una sanzione con un altro personaggio.",
