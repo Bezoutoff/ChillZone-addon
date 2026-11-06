@@ -11,6 +11,8 @@
 - Relay verification decisions to their intended recipients.
 - Recover Church records from successive available keepers promptly and retry silent sources.
 - Request missing game/crafting inventories when their ranking is opened, with bounded retries.
+- Let unchanged inventories circulate between relays again after the duplicate window expires,
+  while preserving suppression of recent copies and the existing sender and traffic checks.
 - Prefer a fully valued bank observation once two independent holders confirm it. Preserve its
   original time, even when the corrected value is lower.
 - Fix the innkeeper's first Bones lesson and multiplayer simultaneous opening rolls.

@@ -348,11 +348,18 @@ function Relay.Register(force)
 	return Relay.Out({ "RR~" .. guild }, false, nil, "relay register", false)
 end
 
+-- Taking a message and deciding whether to forward it use the same age limit. An expired
+-- key may remain in this bounded table until cleanup; its presence alone is not a duplicate.
+local function Remembered(origin, text, now)
+	local at = seen[Lower(origin) .. "|" .. text]
+	return at ~= nil and (now or Now()) - at < Relay.SEEN_FOR
+end
+
 -- Taken once: a message by its origin and text (the relay's copy and the guild's count once).
 local function Seen(origin, text)
 	local now = Now()
 	local key = Lower(origin) .. "|" .. text
-	if seen[key] and now - seen[key] < Relay.SEEN_FOR then return true end
+	if Remembered(origin, text, now) then return true end
 	if seenCount >= Relay.SEEN_MAX then
 		for k, t in pairs(seen) do
 			if now - t >= Relay.SEEN_FOR then seen[k] = nil seenCount = seenCount - 1 end
@@ -428,7 +435,7 @@ local function ToReporters(flag, origin, body, sender)
 	end
 	local n = 0
 	for _ in pairs(reporters) do n = n + 1 end
-	if not seen[Lower(origin) .. "|" .. body] then ns.Log("relay: %s's word (%s) to %d reporters", tostring(sender), body:sub(1, 2), n) end
+	if not Remembered(origin, body) then ns.Log("relay: %s's word (%s) to %d reporters", tostring(sender), body:sub(1, 2), n) end
 	Deliver(origin, body, flag == "L")
 end
 
@@ -514,7 +521,7 @@ function Relay.HandleRelayed(dist, sender, text)
 	if not flag then return false end
 	if not Relay.IsRelay(sender) then stats.dropped = stats.dropped + 1 return false end
 	verified[ns.ShortName(sender):lower()] = Now()
-	if not seen[Lower(origin) .. "|" .. body] then ns.Log("relay: %s's word (%s) by %s", tostring(origin), body:sub(1, 2), tostring(sender)) end
+	if not Remembered(origin, body) then ns.Log("relay: %s's word (%s) by %s", tostring(origin), body:sub(1, 2), tostring(sender)) end
 	if Deliver(origin, body, flag == "L") then ToGuild(flag, origin, body) end
 	return true
 end

@@ -48,6 +48,9 @@ suppresses these requests. Opening a tab without a visible ranking sends none.
 Each attempt carries a bounded time/attempt tag so the relay's five-minute duplicate window
 does not swallow the ninety-second retry. Copies of the same attempt still count once;
 receivers also accept older two-field requests, with the same reply budgets.
+The relay applies its duplicate window to both local delivery and forwarding between relays;
+an unchanged inventory can circulate again after that window expires. Recent copies remain
+suppressed, so discovery is eventual and still depends on inventory rounds, budgets and peers.
 
 Holders schedule replies using the existing spaced digest rounds and low-priority queue. Each
 holder begins at most one reply round per type per minute, even if many players ask; equivalent

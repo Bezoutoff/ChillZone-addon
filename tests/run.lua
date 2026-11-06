@@ -7387,6 +7387,74 @@ test("ChillZone launch, the relay: a relay's own word of several pieces reaches 
 	if not ok then error(err, 0) end
 end)
 
+-- Identical periodic inventories must circulate again after the transport dedupe window,
+-- even when fewer than SEEN_MAX distinct words have ever arrived. These use the actual
+-- Comm receive path and Relay envelopes; the payload handler only counts delivered words.
+test("1.5.2 the relay expiry: an unchanged RD crosses to another relay again at SEEN_FOR; recent copies do not extend the window and local-only asks never cross", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "ChillZone II", "Member", 3 end
+		local R, deliver, _, _, pump, sentOf = RelayWorld("Hildryn Payne-Realm", "ChillZone II")
+		local origin, body, heard = "Orig Inal-Realm", "RD~L1~b~1.1.a~", 0
+		R.Comm.Handle("RD", function(dist, sender, text)
+			eq(dist, "CHANNEL"); eq(sender, origin); eq(text, body); heard = heard + 1
+		end)
+		deliver("WHISPER", "Max Ran-Realm", "RY~")
+		deliver("WHISPER", "Zed Far-Realm", "RL~P~RR~ChillZone Zeus")
+		local start = R.clock
+		for _, step in ipairs({ { 0, 1 }, { 299, 1 }, { 300, 2 }, { 599, 2 }, { 600, 3 } }) do
+			R.clock = start + step[1]
+			deliver("WHISPER", origin, "RL~P~" .. body)
+			deliver("WHISPER", origin, "RL~P~H3~hello")
+			pump()
+			local across = sentOf("RX~P~" .. origin .. "~RD~")
+			eq(#across, step[2], "the same inventory crosses again only when its original seen time expires, at " .. step[1])
+			eq(across[#across].target, "Max Ran"); eq(across[#across].msg, "RX~P~" .. origin .. "~" .. body)
+			eq(heard, step[2], "local delivery uses the same expiry boundary")
+			eq(#sentOf("RX~P~" .. origin .. "~H3~"), 0, "NO_FORWARD is unchanged after expiry")
+		end
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
+test("1.5.2 the relay expiry: an unchanged RD arriving across reaches the remote reporter again after SEEN_FOR, but recent copies and unsigned relay senders never do", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "ChillZone II", "Member", 3 end
+		local R, deliver, _, _, pump, sentOf = RelayWorld("Max Ran-Realm", "ChillZone II")
+		local origin, body, heard = "Orig Inal-Realm", "RD~L1~b~1.1.a~", 0
+		R.Comm.Handle("RD", function(dist, sender, text)
+			eq(dist, "CHANNEL"); eq(sender, origin); eq(text, body); heard = heard + 1
+		end)
+		deliver("WHISPER", "Far Away-Realm", "RL~P~RR~ChillZone Far")
+		local start = R.clock
+		for _, step in ipairs({ { 0, 1 }, { 299, 1 }, { 301, 2 }, { 599, 2 } }) do
+			R.clock = start + step[1]
+			deliver("WHISPER", "Bob Stranger-Realm", "RX~P~" .. origin .. "~" .. body)
+			pump()
+			eq(#sentOf("RM~"), heard, "an untrusted relay cannot use an expired entry")
+			deliver("WHISPER", "Hildryn Payne-Realm", "RX~P~" .. origin .. "~" .. body)
+			pump()
+			local forwarded = sentOf("RM~")
+			eq(#forwarded, step[2], "the same inventory reaches the reporter again after expiry, at " .. step[1])
+			eq(forwarded[#forwarded].target, "Far Away"); eq(forwarded[#forwarded].msg, "RM~P~" .. origin .. "~" .. body)
+			eq(heard, step[2]); eq(#sentOf("RX~"), 0, "RX never fans across again")
+		end
+		eq(R.Relay.Stats().dropped, 4, "sender authentication remains in force on every arrival")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
 -- 1.4.6 (the dev's cousin, 2026-11-05): each client learned a realm group of its own among
 -- Forever's sub-realms (Realm1 alone here, Realm3+Realm5 there), so census keys and signed lists
 -- disagreed. Fails before: GroupOf gives the realm itself, InGroup false across sub-realms.
