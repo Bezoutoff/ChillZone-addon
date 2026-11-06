@@ -55609,6 +55609,7 @@ do
 			hand = ns.King.IsHandName, hides = ns.Moderation.Hides, tex = C_Texture, known = ns.Data.KnownRank }
 		local ok, err = pcall(function()
 			local filters, printed, gamepad = {}, {}, true
+			local queenActive = true
 			ChatFrameUtil = { AddSenderNameFilter = function(cb) filters[#filters + 1] = cb end }
 			GamepadStyle(function() return gamepad end)
 			ns.Print = function(m) printed[#printed + 1] = m end
@@ -55635,10 +55636,12 @@ do
 			local GOLD = "|A:nameplates-icon-elite-gold:14:14|a"
 			local SILVER = "|A:nameplates-icon-elite-silver:14:14|a"
 			local BRONZE = "|A:nameplates-icon-elite-gold:14:14:0:0:158:118:86|a"
+			local QUEEN = "|TInterface\\AddOns\\ChillZone\\media\\borders\\queen-dragon:14:20:0:0:256:256:44:114:24:73|t"
 			local STAR = "|TInterface\\AddOns\\ChillZone\\media\\borders\\star:14:14|t"
 			-- Borders.lua's own handlers, recorded so the test drives them as the game would.
 			local on, events, every, after = {}, {}, {}, {}
 			local bns = setmetatable({
+				IsQueenCharacter = function(who) return queenActive and who == "Queen Test-Realm" end,
 				On = function(n, f) on[n] = on[n] or {}; table.insert(on[n], f) end,
 				RegisterEvent = function(e, f) events[e] = events[e] or {}; table.insert(events[e], f) end,
 				Every = function(sec, what, f) every[#every + 1] = { sec = sec, f = f } end,
@@ -55671,6 +55674,8 @@ do
 			-- officer chat's: the dragons, never the star.
 			local cases = {
 				{ "Asmongold Asmongler-Realm", GOLD, "the King (his pinned name)", GOLD },
+				{ "Queen Test-Realm", QUEEN, "the exact signed Queen, without a guild claim", QUEEN },
+				{ "Queen Test-Elsewhere", nil, "a Queen namesake on another realm", nil },
 				{ "Sage Owl-Realm", SILVER .. "|T134400:0|t", "a High Councillor, then his icon", SILVER .. "|T134400:0|t" },
 				{ "Zeta Prime-Realm", BRONZE, "another ChillZone guild's master, as its census names him", BRONZE },
 				{ "Guild Boss-Realm", BRONZE, "our own guild master, by our roster", BRONZE },
@@ -55700,6 +55705,25 @@ do
 					eq(cb(event, name, "hello", c[1]), nil, c[3] .. ", " .. event)
 				end
 			end
+			-- A display title grants no authority or nameplate mark. Its signed identity, cover,
+			-- moderation and existing consent/input gates still own the native chat decoration.
+			local queenIdentity = bns.IsQueenCharacter
+			bns.IsQueenCharacter = function(who) return queenIdentity(who) or who == "Asmongold Asmongler-Realm" end
+			B.ChatForget()
+			eq(cb("CHAT_MSG_SAY", "King", "hi", "Asmongold Asmongler-Realm"), GOLD .. "King", "King wins even when both signed titles match")
+			bns.IsQueenCharacter = queenIdentity; B.ChatForget()
+			eq(B.MarkOfName("Queen Test-Realm", nil), nil, "chat-only icon leaves nameplate marks unchanged")
+			queenActive = false; Fire(on, "DATA_CHANGED")
+			eq(cb("CHAT_MSG_GUILD", "Queen Test", "hi", "Queen Test-Realm"), nil, "revoked title loses its cached icon")
+			queenActive = true; Fire(on, "DATA_CHANGED")
+			bns.Cover = { AliasOf = function(who) return who == "Queen Test-Realm" and "Covered" or nil end }
+			Fire(on, "COVER_CHANGED")
+			eq(cb("CHAT_MSG_SAY", "Queen Test", "hi", "Queen Test-Realm"), nil, "cover hides Queen identity")
+			bns.Cover = nil; Fire(on, "COVER_CHANGED")
+			ns.Moderation.Hides = function(who) if who == "Queen Test-Realm" then return { kind = "c" } end end
+			B.ChatForget()
+			eq(cb("CHAT_MSG_GUILD", "Queen Test", "hi", "Queen Test-Realm"), nil, "net-off hides Queen identity")
+			ns.Moderation.Hides = saved.hides; B.ChatForget()
 			-- A star member's line in guild chat first: none there, and the star all the same on his next
 			-- line in Trade (one worked-out mark for both).
 			B.ChatForget()
@@ -55844,11 +55868,13 @@ do
 			eq(cb("CHAT_MSG_GUILD", "Zeta Prime", "hi", "Zeta Prime-Realm"), nil, "kept mark, guild chat")
 			eq(cb("CHAT_MSG_SAY", "Capt", "hi", "Capt Prime-Realm"), nil, "new sender")
 			eq(B.ChatName("Sage Owl-Realm"), false)
+			eq(cb("CHAT_MSG_SAY", "Queen Test", "hi", "Queen Test-Realm"), nil, "Queen hidden outside membership")
 			ns.IsMember = saved.member
 			B.ChatForget()
 			-- /cz chatmarks off: nothing, until on again; registered once all along.
 			B.ChatSlash("off")
 			eq(ns.db.chatMarks, false); eq(printed[#printed], ns.L.CHATMARKS_OFF)
+			eq(cb("CHAT_MSG_SAY", "Queen Test", "hi", "Queen Test-Realm"), nil, "Queen obeys chat marks off")
 			eq(cb("CHAT_MSG_SAY", "Zeta Prime", "hi", "Zeta Prime-Realm"), nil)
 			eq(cb("CHAT_MSG_GUILD", "Guild Boss", "hi", "Guild Boss-Realm"), nil, "off: guild chat too")
 			B.ChatSlash("on")
@@ -55858,6 +55884,7 @@ do
 			-- Switched to the gamepad UI later: the callback returns at once.
 			gamepad = true
 			B.ChatRefresh()
+			eq(cb("CHAT_MSG_SAY", "Queen Test", "hi", "Queen Test-Realm"), nil, "Queen obeys gamepad parking")
 			eq(cb("CHAT_MSG_SAY", "Zeta Prime", "hi", "Zeta Prime-Realm"), nil)
 			eq(cb("CHAT_MSG_GUILD", "Guild Boss", "hi", "Guild Boss-Realm"), nil, "the gamepad UI: guild chat too")
 			gamepad = false

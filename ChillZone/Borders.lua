@@ -131,9 +131,9 @@ ns.Borders = Borders
 --            very guild (GetGuildInfo): nobody outside it can borrow it. In the King's guild,
 --            Legates are explicitly appointed, not derived from the council; a separate actual
 --            council title still has its own precedence and portrait frame.
--- The supplied Queen and primary federal Treasurer dragons are portrait-only (the Treasurer's:
--- TreasurerPin == 1, never the mail alternate). The King takes precedence. Existing chat/nameplate
--- marks stay unchanged.
+-- The primary federal Treasurer's supplied dragon is portrait-only (TreasurerPin == 1, never
+-- the mail alternate). The Queen's head also identifies her in native chat; nameplate marks
+-- stay unchanged. The King takes precedence.
 -- Portrait order: the King, the Queen, the primary Treasurer, the High Council, the dev, a guild master, a nominee
 -- (then, on nameplates and in the game's chat, the star).
 -- (1.0.1's Max's second option, ns.BORDERS_COUNCIL_GOLD, the High Council in the King's gold
@@ -1540,7 +1540,7 @@ Borders.CHAT_SIZE = 14
 Borders.CHAT_STAR = "|T" .. CHAT_STAR_FILE .. ":14:14|t"
 local CHAT_ATLAS = { gold = "nameplates-icon-elite-gold", silver = "nameplates-icon-elite-silver", bronze = "nameplates-icon-elite-gold" }
 local CHAT_BRONZE_TINT = ":0:0:158:118:86" -- (Nameplates.BRONZE x 255)
-local CHAT_RANK = { gold = 4, silver = 3, bronze = 2, member = 1 }
+local CHAT_RANK = { gold = 4, queen = 3.5, silver = 3, bronze = 2, member = 1 }
 for key in pairs(Borders.ROLE_BADGES) do CHAT_RANK["role-" .. key] = 1.5 end
 Borders.CHAT_PREVIEWS = { gold = true, silver = true, bronze = true, member = true }
 
@@ -1549,6 +1549,11 @@ Borders.CHAT_PREVIEWS = { gold = true, silver = true, bronze = true, member = tr
 local function ChatArt(mark, size)
 	size = math.floor(tonumber(size) or Borders.CHAT_SIZE)
 	if mark == "member" then return ("|T%s:%d:%d|t"):format(CHAT_STAR_FILE, size, size) end
+	if mark == "queen" then
+		-- The head and halo in the existing 256px portrait texture: no new art or file.
+		-- Its 70x49 crop keeps its proportions at the normal 14px chat height.
+		return ("|T%s:%d:%d:0:0:256:256:44:114:24:73|t"):format(MEDIA .. "queen-dragon", size, math.floor(size * 70 / 49 + 0.5))
+	end
 	local role = Borders.RoleBadgeTexture(mark)
 	if role then return ("|T%s:%d:%d|t"):format(role, size, size) end
 	local atlas = CHAT_ATLAS[mark]
@@ -1561,7 +1566,7 @@ end
 -- (Workshop.lua's council icon picker shows the silver with the icon it picks.)
 local function ChatText(mark, who)
 	if mark == "member" then return Borders.CHAT_STAR, "member" end
-	if not CHAT_ATLAS[mark] and not Borders.RoleBadgeTexture(mark) then return nil end
+	if mark ~= "queen" and not CHAT_ATLAS[mark] and not Borders.RoleBadgeTexture(mark) then return nil end
 	local text = ChatArt(mark)
 	if not text then return Borders.CHAT_STAR, "member" end
 	if mark == "silver" and who then text = text .. ns.CouncilIcon(who) end
@@ -1617,7 +1622,8 @@ function Borders.ChatName(sender)
 		return text, false, drawn
 	end
 	if ns.IsMember() ~= true then return false end
-	local best = Borders.MarkOfName(who, nil) -- (a High Councillor's: no guild needed)
+	local best, facts = Borders.MarkOfName(who, nil) -- signed identities need no guild claim
+	if facts and facts.queen and not facts.off then best = "queen" end
 	for _, guild in ipairs(ChatGuilds(who)) do
 		local mark = Borders.MarkOfName(who, guild)
 		if mark and (not best or CHAT_RANK[mark] > CHAT_RANK[best]) then best = mark end
