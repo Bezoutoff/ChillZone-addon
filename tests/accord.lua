@@ -1001,7 +1001,7 @@ test("accord: its words in English and pt-BR, the same format codes; the name in
 	for k in src:sub(1, ptAt):gmatch("\nL%.(ACCORD_[%w_]+) = ") do enKeys[#enKeys + 1] = k end
 	for k in src:sub(ptAt):gmatch("\n\tL%.(ACCORD_[%w_]+) = ") do ptKeys[#ptKeys + 1] = k end
 	eq(table.concat(ptKeys, " "), table.concat(enKeys, " "), "the pt-BR block has every English key, in order")
-	assert(en.ACCORD_T3_2:find("English", 1, true))
+	assert(en.ACCORD_T3_2:find("Russian", 1, true))
 	local watch = assert(io.open(ROOT .. "ChillZone/Watch.lua", "rb")):read("*a")
 	assert(watch:find("Watch.TIMEOUTS = { 0, 60 * 60, 24 * 60 * 60, 7 * 24 * 60 * 60 }", 1, true), "the ladder the letter states")
 	assert(watch:find("Watch.WARNING_KEEP = 30 * 86400", 1, true))

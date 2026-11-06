@@ -7,8 +7,8 @@ local ROOT = assert(extra and extra.ROOT, "tests/run.lua hands ROOT to this file
 local ADDON = ROOT .. "ChillZone/"
 
 local LANGS = { deDE = "deDE", esES = "esES", esMX = "esES", frFR = "frFR", itIT = "itIT", ruRU = "ruRU" }
--- Lines whispered to another player stay English, the network's own language: the one who reads
--- them may not share the sender's. Every language file leaves them out.
+-- Lines whispered to another player: Russian is the network's own language (the launch), so the
+-- Russian file carries them (Task 22); the other language files leave them out, English as before.
 local WHISPERS = { MENTOR_TO_CAPTAIN = true, MENTOR_TO_RECRUIT = true, JOIN_POINT_TEXT = true,
 	CHARTER_LETTER_TEXT = true, VERSION_ASK_WHISPER = true, WANTED_THANK_TEXT = true,
 	-- (1.4.0, the guild verification: the guild master's whisper to a verifier, the ask to the High
@@ -55,12 +55,19 @@ test("languages (1.4.0): each language file takes every line it carries, nearly 
 	end
 end)
 
-test("languages (1.4.0): lines whispered to another player stay English in every language", function()
+test("languages (1.4.0): lines whispered to another player are Russian in ruRU and stay English in the other languages", function()
 	local n = 0
+	local ru = Load("ruRU")
 	for k, v in pairs(english.L) do
 		if type(v) == "string" and Whisper(k) then
 			n = n + 1
-			for code, file in pairs(LANGS) do eq(Load(code).L[k], v, file .. " " .. k) end
+			for code, file in pairs(LANGS) do
+				if code == "ruRU" then
+					assert(ru.L[k] ~= v and ru.L[k]:find("[\208\209]"), file .. " " .. k .. " is Russian")
+				else
+					eq(Load(code).L[k], v, file .. " " .. k)
+				end
+			end
 		end
 	end
 	assert(n >= 10, "whispered lines: " .. n)
