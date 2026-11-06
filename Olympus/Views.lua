@@ -2280,7 +2280,7 @@ local function RealmLines(s, q)
 		-- The Treasurer of Olympus, under the King: when that guild's report has him (the
 		-- Horde's <Olympus> and other realms' have no Treasurer of theirs).
 		local t
-		for _, o in ipairs(king.name:lower() == "olympus" and king.g.officers or {}) do -- (the Treasurer: <Olympus>, the Alliance's)
+		for _, o in ipairs(ns.IsMainGuildName(king.name) and king.g.officers or {}) do -- (the Treasurer: <Olympus>, the Alliance's)
 			if ns.IsTreasurer(o.name, king.name) then t = o end
 		end
 		if t then

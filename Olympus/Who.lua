@@ -49,11 +49,9 @@ Who.AUTO_GAP = 60      -- the quiet Auto sequence advances at most once a minute
 Who.lastAuto = -math.huge
 Who.MAX = 50       -- players per answer, MAX_WHOS_FROM_SERVER
 Who.BRACKETS = 5   -- level ranges searched after a capped answer
-Who.QUERY = 'g-"Olympus"'
--- Guild names with Olympus misspelled (ns.IsFederation takes them): the broad search can't
--- see them, so a round ends with one search for each, one per click. The server matches any
--- part of the name: "Olimp" finds Olimpus, Olimpvs and Olimpo, "Olmp" Olmpus, Olmpvs and Olmps.
-Who.VARIANTS = { "Olympvs", "Olympuz", "Olympo", "Olimp", "Olmp" }
+Who.QUERY = ('g-"%s"'):format(tostring(ns.WHO_WORD or ""))
+-- ChillZone: no misspelled names to search, the network is a list of exact names (Core.lua).
+Who.VARIANTS = {}
 Who.lastSend = 0   -- GetTime() of our last search, 0 = none yet
 Who.lastPlain = 0  -- GetTime() of the last SendPlain, 0 = none yet
 

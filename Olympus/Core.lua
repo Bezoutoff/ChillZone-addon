@@ -1022,7 +1022,7 @@ function ns.TreasurerRealm()
 	return pin and ns.RealmOf(pin) or nil
 end
 function ns.IsTreasurer(name, guild)
-	if type(name) ~= "string" or type(guild) ~= "string" or guild:lower() ~= "olympus" then return false end
+	if type(name) ~= "string" or not ns.IsMainGuildName(guild) then return false end
 	local pin = ns.TreasurerFull()
 	return pin ~= nil and ns.ShortName(name) == ns.ShortName(pin) and OfGroup(name, ns.RealmOf(pin))
 end
@@ -1069,12 +1069,33 @@ ns.CROWN_ICON = "Interface\\GroupFrame\\UI-Group-LeaderIcon"
 -- The King's guild on each side: the guild master of this exact name is the King, its officers
 -- are of the Crown. The Alliance's is <Olympus>; the Horde's is set here once Asmongold founds
 -- it (a guild name is one per realm, so it can't be "Olympus" there).
-ns.KING_GUILD = { Alliance = "olympus", Horde = "mudhutters" } -- (the Horde's: <Mudhutters>, 0.9.4)
+ns.KING_GUILD = { Alliance = "Olympus", Horde = "Mudhutters" } -- (the Horde's: <Mudhutters>, 0.9.4)
+-- (ChillZone: each name as the game writes it, matched folded, ns.Fold. Lua's lower() leaves
+-- Cyrillic letters alone, so a name is never kept lowercased here.)
+-- (Asked of every guild on every rebuild of a list: ns.Fold is not run again for a name it has met.)
+local kingFolded, kingFoldedCount = {}, 0
+local function KingFold(name)
+	local folded = kingFolded[name]
+	if folded == nil then
+		if kingFoldedCount >= 500 then kingFolded, kingFoldedCount = {}, 0 end
+		folded = ns.Fold(name)
+		kingFolded[name], kingFoldedCount = folded, kingFoldedCount + 1
+	end
+	return folded
+end
 function ns.IsKingGuild(guild)
 	if type(guild) ~= "string" then return false end
 	local want = ns.KING_GUILD[ns.faction or "Alliance"]
-	return want ~= nil and guild:lower() == want
+	return want ~= nil and KingFold(guild) == KingFold(want)
 end
+-- The Alliance King's guild by its exact name, on either side: the Treasurer's guild and the
+-- census's standard-bearer (Olympus's <Olympus>, on both sides).
+function ns.IsMainGuildName(guild)
+	local main = ns.KING_GUILD.Alliance
+	return type(guild) == "string" and type(main) == "string" and KingFold(guild) == KingFold(main)
+end
+-- The /who search for the network's players (Who.QUERY): a part of every guild's name.
+ns.WHO_WORD = "Olympus"
 
 -- The King himself, by his character's name, like the Treasurer: sender names are set by the
 -- server, so nobody else can speak as him, and no census vote (anyone on the channel can
@@ -1669,8 +1690,7 @@ end
 function ns.KingGuildName()
 	local mine = GetGuildInfo and GetGuildInfo("player")
 	if ns.IsKingGuild(mine) then return mine end
-	local want = ns.KING_GUILD[ns.faction or "Alliance"] or ""
-	return want:sub(1, 1):upper() .. want:sub(2)
+	return ns.KING_GUILD[ns.faction or "Alliance"] or ""
 end
 
 -- The King's own screen (0.9.9, the author's, for Asmon's stream): the King's client, or the
@@ -1789,113 +1809,17 @@ function ns.IsCrown()
 	return ns.IsFederation(guild) and ns.IsCrownRank(guild, rankIndex)
 end
 
--- Fixed on purpose: only guilds with "Olympus" in their name belong to the realm, however
--- they spelled it. Guilds were made with the word misspelled (OLYMPVS the Roman way, Olimpvs,
--- Olmps, Olympuz...). Each word of the name is read the way it sounds (v as u, i as y, z as s,
--- 0 as o, a doubled letter once); then one slip anywhere in a word counts (a letter changed,
--- missing or added, or two swapped), and two at the start of a word that starts with an O
--- (Olmps, Olymp, Olympe, Oymps). Olimpo/Olympo/Olympos count the same way. Words are never
--- joined: "Holy Mpulse" is not Olympus. Olympia, Olympic, Olympian, Olympiad and the like in
--- other languages (Olympique, olympisch) are other words and are left out, and so is polyp.
--- The main guild itself (the King's, the Treasurer's) is still the exact name, see IsCrownRank.
-local REALM_WORDS = { "olympus", "olympo" } -- as they sound: Olympus, Olympo, Olimpo, Olympos
-local OTHER = { "olympy[aceoq]", "olympysch", "polyp" } -- as they sound: Olympia, Olympic...
-
--- How many slips from a to b (a letter changed, missing or added, or two neighbours
--- swapped), counted up to limit + 1.
-local function Slips(a, b, limit)
-	local la, lb = #a, #b
-	if la - lb > limit or lb - la > limit then return limit + 1 end
-	local prev2, prev, row = nil, {}, nil
-	for j = 0, lb do prev[j] = j end
-	for i = 1, la do
-		row = { [0] = i }
-		local best = i
-		local ca = a:byte(i)
-		for j = 1, lb do
-			local cost = (ca == b:byte(j)) and 0 or 1
-			local v = math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + cost)
-			if prev2 and i > 1 and j > 1 and ca == b:byte(j - 1) and a:byte(i - 1) == b:byte(j) then
-				v = math.min(v, prev2[j - 2] + 1)
-			end
-			row[j] = v
-			if v < best then best = v end
-		end
-		if best > limit then return limit + 1 end
-		prev2, prev = prev, row
-	end
-	return prev[lb]
-end
-ns.Slips = Slips -- tests
-
--- A word as it sounds: v as u, i as y, z as s, a doubled letter once.
-local function Sounds(word)
-	word = word:gsub("v", "u"):gsub("i", "y"):gsub("z", "s")
-	local out, last = {}, nil
-	for c in word:gmatch(".") do
-		if c ~= last then out[#out + 1] = c end
-		last = c
-	end
-	return table.concat(out)
-end
-ns.Sounds = function(guild) return Sounds(guild:lower():gsub("0", "o"):gsub("[^%a]", "")) end -- tests
-
-local function OlympusWord(word)
-	for _, other in ipairs(OTHER) do
-		if word:find(other) then return false end
-	end
-	for _, target in ipairs(REALM_WORDS) do
-		if word:find(target, 1, true) then return true end
-		-- One slip anywhere in the word (Olympo's no shorter than itself: "olymo" is in polymorph).
-		for len = target == "olympo" and #target or #target - 1, #target + 1 do
-			for i = 1, #word - len + 1 do
-				if Slips(word:sub(i, i + len - 1), target, 1) <= 1 then return true end
-			end
-		end
-		-- Two at its start, if it starts with an O.
-		if word:sub(1, 1) == "o" then
-			for len = #target - 2, #target + 2 do
-				if len >= 5 and len <= #word and Slips(word:sub(1, len), target, 2) <= 2 then return true end
-			end
-		end
-	end
-	return false
-end
-
--- A guild against Olympus is none of it: "ANTI OLYMPUS", "Against Olympus", "Down with
--- Olympus", "AntiOlympus", "Olympus Haters". The word before (or the one before "with", "to",
--- "the", "of"), glued in front, or the word after.
-local AGAINST = { anti = true, against = true, no = true, ["not"] = true, never = true, down = true,
-	death = true, kill = true, hate = true, hates = true, haters = true, destroy = true,
-	ruin = true, ruins = true, ruined = true, ruining = true, raze = true, burn = true, crush = true,
-	doom = true, wreck = true } -- "Ruin Olympus", "Ruins of Olympus", "Burn Olympus" (1.0.1)
-local LINKS = { with = true, to = true, the = true, of = true }
-local AGAINST_AFTER = { haters = true, hater = true, sucks = true, ruined = true, burns = true, falls = true }
--- ...or after one or two linking words: "Olympus in Ruins", "Olympus in the Ruins" (1.1).
-local LINKS_AFTER = { ["in"] = true, of = true, on = true, to = true, the = true }
-local RUIN_AFTER = { ruin = true, ruins = true, ruined = true, ashes = true }
-
-local function Against(words, i)
-	if words[i]:find("^anti") then return true end -- glued: AntiOlympus
-	local before, before2 = words[i - 1], words[i - 2]
-	if before and AGAINST[before] then return true end
-	if before and LINKS[before] and before2 and AGAINST[before2] then return true end
-	local after = words[i + 1]
-	if after ~= nil and AGAINST_AFTER[after] then return true end
-	for j = i + 1, i + 2 do
-		if not (words[j] and LINKS_AFTER[words[j]]) then break end
-		local w = words[j + 1]
-		if w and (RUIN_AFTER[w] or AGAINST_AFTER[w]) then return true end
-	end
-	return false
-end
-
+-- ChillZone: the network is a list of guilds by their exact names: the King's (ns.KING_GUILD), those
+-- the addon ships with (ns.APPROVED_BUILTIN) and the author's signed list. A word of a guild's name
+-- makes it ours only where ns.NAME_WORD is set (folded, a whole word): the offline tests' made-up
+-- guilds (tests/fixtures/identity.lua). A release leaves it nil.
+ns.NAME_WORD = "olympus"
 local federation, federationSize = {}, 0 -- [name] = true|false, asked often: kept
 local function Federation(guild)
-	local words = {}
-	for word in guild:lower():gsub("0", "o"):gsub("1", "l"):gmatch("%a+") do words[#words + 1] = word end
-	for i, word in ipairs(words) do
-		if (word:find("olympus", 1, true) or OlympusWord(Sounds(word))) and not Against(words, i) then return true end
+	local want = ns.NAME_WORD
+	if type(want) ~= "string" or want == "" then return false end
+	for word in ns.Fold(guild):gmatch("%a+") do
+		if word == want then return true end
 	end
 	return false
 end

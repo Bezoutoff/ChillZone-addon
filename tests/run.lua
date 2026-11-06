@@ -278,36 +278,27 @@ end
 
 local Codec = ns.Codec
 
-test("federation filter matches any guild with 'olympus' in the name", function()
+test("federation filter: a whole word of the name (ns.NAME_WORD), the main guild by its exact name", function()
 	eq(ns.IsFederation("Olympus"), true)
 	eq(ns.IsFederation("OLYMPUS IV"), true)
 	eq(ns.IsFederation("Sons of olympus"), true)
 	eq(ns.IsFederation("Olympia"), false)
+	eq(ns.IsFederation("OLYMPVS"), false, "no misspellings: the network is a list of names")
+	eq(ns.IsFederation("Olympian Might"), false, "Olympian is another word")
 	eq(ns.IsFederation(nil), false)
-end)
-
-test("federation filter against 250 misspellings and 400 look-alike guild names (tests/fixtures)", function()
-	local function Read(file)
-		local out = {}
-		for line in io.lines("tests/fixtures/" .. file) do if line ~= "" then out[#out + 1] = line end end
-		return out
-	end
-	-- Known and accepted: a P for the O plus another slip; Olympe is French for Olympus;
-	-- Oympia is Olympia misspelled. Olympians: not by the name rule, but <OLYMPIANS> ships approved
-	-- with the addon on the Alliance since 1.1.5 (the author's call; its own test below).
-	local expected = { ["Plympys III"] = false, ["Olympe"] = true, ["Oympia"] = true, ["Olympians"] = true }
-	local wrong = {}
-	for _, name in ipairs(Read("olympus-yes.txt")) do
-		local want = expected[name]
-		if want == nil then want = true end
-		if ns.IsFederation(name) ~= want then wrong[#wrong + 1] = name end
-	end
-	for _, name in ipairs(Read("olympus-no.txt")) do
-		local want = expected[name]
-		if want == nil then want = false end
-		if ns.IsFederation(name) ~= want then wrong[#wrong + 1] = name end
-	end
-	eq(table.concat(wrong, ", "), "")
+	eq(ns.IsMainGuildName("OLYMPUS"), true); eq(ns.IsMainGuildName("Olympus II"), false)
+	local savedFaction = ns.faction
+	ns.faction = "Horde"
+	eq(ns.IsKingGuild("MUDHUTTERS"), true, "the King's guild in any case")
+	eq(ns.KingGuildName(), "Mudhutters", "as the game writes it")
+	eq(ns.IsMainGuildName("Olympus"), true, "the Alliance's main guild on either side")
+	ns.faction = savedFaction
+	local savedGuild = GetGuildInfo
+	GetGuildInfo = function() return "Olympus", "Knight", 3 end
+	local crowned = { ns.IsCrownRank("Olympus VI", 1), ns.IsCrownRank("Olympus", 1) }
+	GetGuildInfo = savedGuild
+	eq(crowned[1], false, "an officer of another guild of the network is no Crown officer")
+	eq(crowned[2], true)
 end)
 
 test("WoW: Forever names: first name and surname, never taken for a realm", function()
@@ -347,44 +338,6 @@ test("WoW: Forever names: first name and surname, never taken for a realm", func
 	if not ok then error(err, 0) end
 end)
 
-test("federation filter: Olympus however it was spelled, but not other words", function()
-	for _, name in ipairs({ "OLYMPVS", "Olympvs II", "Olimpus", "Olmpus", "Olympos", "Olypmus", "Olyympus", "0lympus",
-		"Lympus", "OlimpusII", "Knights of Olmpus", "Olimpo", "Olympo Brasil", "Ólympus",
-		"Olimpvs", "OLMPVS", "Olmps", "Olympuz", "OLIMPUZ", "Olymppus", "Olymp", "Olympia Olympus",
-		"Olypmvs", "Olmypus", "Oympus", "Olumpus", "Olympe", "Oylmpus", "Olyompus" }) do
-		eq(ns.IsFederation(name), true, name)
-	end
-	for _, name in ipairs({ "Olympia", "Olympic Heroes", "Olympiad", "Olimpia", "Olimpico", "Polymath",
-		"Holy Light", "Oly", "Olmo", "The Pumpkins", "Glyphs R Us", "Lumps", "Oblivion", "Polymer", "Lymph" }) do
-		eq(ns.IsFederation(name), false, name)
-	end
-	-- (1.1.5, the author's call: <OLYMPIANS> ships approved with the addon on the Alliance, as
-	-- <OLYMPIAN> does since 1.1, so it left the list above; the name rule still leaves it out.)
-	eq(ns.NamedOlympus("Olympians"), false, "Olympians: not by the name rule")
-	-- Guilds against Olympus are not Olympus.
-	for _, name in ipairs({ "ANTI OLYMPUS", "Anti-Olympus", "AntiOlympus", "Anti Olimpvs", "Against Olympus", "No Olympus",
-		"Down with Olympus", "Death to Olympus", "Olympus Haters", "Olympus Sucks", "Kill Olympus",
-		"Ruin Olympus", "RUIN OLYMPUS", "Ruins of Olympus", "Ruined Olympus", "Olympus Ruined", "Burn Olympus",
-		"Crush Olympus", "Raze Olympus", "Doom of Olympus", "Olympus Falls",
-		"Olympus in Ruins", "Olympus In Ruin", "Olympus in the Ruins", "Olympus to Ashes", "Olympus of Ruin" }) do
-		eq(ns.IsFederation(name), false, name)
-	end
-	for _, name in ipairs({ "Knights of Olympus", "Sons of Olympus", "Olympus No Mercy", "OLYMPUS NULLA", "Order of the Olympus",
-		"Olympus Killers", "Anti Horde Olympus", "Olympus Rising", "Olympus Reborn", "Rise of Olympus", "Dark Olympus", "DARK OLYMPUS",
-		"Olympus in Stormwind", "Olympus of Zeus", "Olympus on Top", "Olympus to Victory" }) do
-		eq(ns.IsFederation(name), true, name)
-	end
-	eq(ns.Slips("olmps", "olympus", 2), 2); eq(ns.Slips("olympia", "olympus", 2), 2); eq(ns.Slips("abcdefg", "olympus", 2), 3)
-	eq(ns.Slips("olypmus", "olympus", 2), 1, "two neighbours swapped: one slip")
-	-- The main guild is still the exact name: the King and the Crown's officers (these on its own
-	-- members' clients since 1.0.0: see "crown permissions").
-	local savedGuild = GetGuildInfo
-	GetGuildInfo = function() return "Olympus", "Knight", 3 end
-	local crowned = { ns.IsCrownRank("OLYMPVS", 1), ns.IsCrownRank("Olympus", 1) }
-	GetGuildInfo = savedGuild
-	eq(crowned[1], false, "an officer of a look-alike guild is no Crown officer")
-	eq(crowned[2], true)
-end)
 
 test("number formatting", function()
 	eq(ns.FormatNumber(0), "0")
@@ -5025,16 +4978,6 @@ test("who Auto: Refresh's quiet sequence searches range by range, not again for 
 			server.Run(ns.Who.SETTLE)
 		end
 		eq(ns.Who.sweep.done, true)
-		-- Then the misspelled names, one per click: a player of <OLYMPVS> counts.
-		for k, variant in ipairs(ns.Who.VARIANTS) do
-			server.clock = server.clock + ns.Who.COOLDOWN + 1
-			eq(ns.Who.Auto(), true, "the spelling " .. variant)
-			eq(server.sent[#server.sent], ('g-"%s"'):format(variant))
-			server.Answer(k == 1 and { { "Romanus", "OLYMPVS", 12, "MAGE" }, { "Olaf", "Olympiad Fans", 12, "MAGE" } } or {})
-			server.Run(ns.Who.SETTLE)
-		end
-		assert(ns.Who.sweep.byName.Romanus, "a player of <OLYMPVS> joins the round")
-		eq(ns.Who.sweep.byName.Olaf, nil, "a guild that is not Olympus does not")
 		eq(ns.Who.sweep.done, true, "still complete")
 		server.clock = server.clock + ns.Who.COOLDOWN + 1
 		eq(ns.Who.Auto(), false, "a complete round is not searched again at once")
@@ -14828,7 +14771,7 @@ do
 				LFGWhoListFrame = ListenerFrame("LFGWhoListFrame", true)
 				eq(server.Click(), true)
 				eq(table.concat(LFGWhoListFrame.calls, " "), "unregister")
-				server.Answer(Players(1, 3)); server.Run()
+				server.Answer(Players(1, 50)); server.Run() -- (a capped answer: level ranges still to search; ChillZone has no misspelled names to search after a short one)
 				eq(table.concat(LFGWhoListFrame.calls, " "), "unregister register")
 				eq(ns.Who.Auto(), false, "within the cooldown")
 				server.clock = server.clock + ns.Who.COOLDOWN + 1

@@ -851,17 +851,23 @@ local function GuildSortName(name)
 	end
 	return folded
 end
--- The standard-bearer: the exact <OLYMPUS> (any case), first on a tie of any order of guilds, the
--- default one's and a column's whichever way it runs, before the average level (the author's ask).
+-- The standard-bearer: the Alliance King's guild by its exact name (any case, ns.IsMainGuildName),
+-- first on a tie of any order of guilds, the default one's and a column's whichever way it runs,
+-- before the average level (the author's ask).
+local function MainSortName()
+	local main = ns.KING_GUILD and ns.KING_GUILD.Alliance
+	return type(main) == "string" and GuildSortName(main) or nil
+end
 function Data.IsStandardBearer(name)
-	return type(name) == "string" and GuildSortName(name) == "olympus"
+	return type(name) == "string" and GuildSortName(name) == MainSortName()
 end
 function Data.GuildDefaultLess(a, b)
 	if a.fresh ~= b.fresh then return a.fresh end
 	local totalA, totalB = a.g.total or 0, b.g.total or 0
 	if totalA ~= totalB then return totalA > totalB end
 	local nameA, nameB = GuildSortName(a.name), GuildSortName(b.name)
-	local olympusA, olympusB = nameA == "olympus", nameB == "olympus"
+	local main = MainSortName()
+	local olympusA, olympusB = nameA == main, nameB == main
 	if olympusA ~= olympusB then return olympusA end
 	local levelA, levelB = Data.AvgTenths(a.g) or 0, Data.AvgTenths(b.g) or 0
 	if levelA ~= levelB then return levelA > levelB end
