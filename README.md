@@ -2,34 +2,19 @@
 
 # ChillZone
 
-**The whole ChillZone army in one window, inside World of Warcraft: Forever.**
+**The whole ChillZone network in one window, inside World of Warcraft: Forever.**
 
-ChillZone is Asmongold's guild for *World of Warcraft: Forever*: Alliance, PvP ruleset, a
-place to find dungeon groups, organize raids, share class knowledge and build the guild
-together. It grew past **10,000 members during the beta**. A WoW guild caps at 1,000
-members, so ChillZone is really a *realm* of many ChillZone guilds. In game each player
-only ever sees the roster of their own guild. Nobody could tell how many ChillZone guilds
-exist, who leads them, or where the army is.
+ChillZone is a family of guilds on WoW: Forever (Alliance): <Чиллзон> and <Чиллзон Навсегда>. In
+game each player only sees the roster of their own guild; this addon adds up every ChillZone guild
+live, in a window that looks like Blizzard's Guild window and docks right next to it.
 
-This addon answers exactly that. It adds up every ChillZone guild live, in a window that
-looks like Blizzard's Guild window and docks right next to it.
+ChillZone is a fork of [Olympus](https://github.com/dnl-gentile/olympus-addon) (MIT). The rest of
+this manual is Olympus's with the names changed. Where it differs: the guilds are those the code
+names (<Чиллзон>, the King's, and <Чиллзон Навсегда>) and those the author's signed list adds, never
+a guild for a word in its name; the King, the Treasurer and the author are named by that signed
+list alone; the logo is ChillZone's. See UPSTREAM.md for the commits taken from Olympus since.
 
-<p align="center"><img src="docs/olympus-1.jpg" alt="The whole army at a glance: every ChillZone guild, live"></p>
-
-<table>
-<tr>
-<td><img src="docs/olympus-2.jpg" alt="The Realm: the King, the Treasurer and every Lord and Captain"></td>
-<td><img src="docs/olympus-3.jpg" alt="Every guild in detail: hover a guild for members, online, Lord, free slots, level and classes"></td>
-</tr>
-<tr>
-<td><img src="docs/olympus-4.jpg" alt="One click to anyone: whisper, invite or find a Lord or Captain"></td>
-<td><img src="docs/olympus-5.jpg" alt="Where the army stands: soldiers per zone on the world map"></td>
-</tr>
-</table>
-
-> **Status:** built for WoW: Forever and running on the Forever beta (1.60.1), where the
-> census already adds up reports from many ChillZone guilds. Also tested on Classic Era (1.15)
-> and Anniversary (2.5). Please report anything that looks wrong (`/cz bug`).
+> **Status:** a fork in progress, not released yet.
 
 ---
 

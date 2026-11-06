@@ -35,7 +35,7 @@ Brief.RULE = 1
 Brief.MAX = 48
 Brief.PAPER_WRAP = 48
 Brief.LAUNCH_VERSION = "1.4.0"
-Brief.SITE = "https://chillzone.roachcouncil.com/"
+Brief.SITE = "https://github.com/Bezoutoff/ChillZone-addon"
 Brief.LAUNCH_DAYS = 7
 Brief.SCAN_WAIT = 2 -- the change events' scans, gathered into one this long after the first
 

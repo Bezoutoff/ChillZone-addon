@@ -5,5 +5,5 @@
 ## Dependencies: ChillZone
 ## SavedVariables: ChillZoneSiteAggregate
 ## X-License: MIT
-## X-Website: https://github.com/dnl-gentile/olympus-addon
+## X-Website: https://github.com/Bezoutoff/ChillZone-addon
 SiteAggregate.lua

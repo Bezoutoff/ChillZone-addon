@@ -3259,9 +3259,9 @@ end
 
 -- Where the addon lives: its code and issues (the toc's X-Website), its CurseForge page.
 UI.LINKS = {
-	github = "https://github.com/dnl-gentile/olympus-addon",
-	issues = "https://github.com/dnl-gentile/olympus-addon/issues",
-	curseforge = "https://www.curseforge.com/wow/addons/olympus-guild",
+	github = "https://github.com/Bezoutoff/ChillZone-addon",
+	issues = "https://github.com/Bezoutoff/ChillZone-addon/issues",
+	curseforge = "https://github.com/Bezoutoff/ChillZone-addon/releases",
 }
 
 -- The help button's page: the version, the tabs in a line each, then the lines /cz help prints

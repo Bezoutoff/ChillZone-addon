@@ -1,13 +1,12 @@
 ## Interface: 11509, 11510, 16001, 16002, 16003, 16004, 16005, 16010, 16100, 20506, 20507
 ## Title: |cffe6c35cChillZone|r
 ## Notes: Live census of every ChillZone guild: army size, leaders and where everyone is on the map.
-## Author: ChillZone addon contributors
+## Author: ChillZone addon contributors (based on Olympus)
 ## Version: 1.5.1
 ## SavedVariables: ChillZoneDB, ChillZoneRecordDB
 ## IconTexture: Interface\AddOns\ChillZone\media\logo64
 ## X-License: MIT
-## X-Curse-Project-ID: 1708200
-## X-Website: https://github.com/dnl-gentile/olympus-addon
+## X-Website: https://github.com/Bezoutoff/ChillZone-addon
 
 Bootstrap.lua
 libs\LibStub\LibStub.lua

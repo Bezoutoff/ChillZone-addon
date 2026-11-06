@@ -212,8 +212,8 @@ test("role briefings: the launch letter's button copies the site's link in a cop
 		RB.Preview("launch")
 		local button = assert(Row(RB.Page(), "> " .. L.LETTERS_COPY_LINK))
 		button.onClick()
-		eq(w.opened[#w.opened], "copy:https://chillzone.roachcouncil.com/")
-		eq(RB.SITE, "https://chillzone.roachcouncil.com/")
+		eq(w.opened[#w.opened], "copy:https://github.com/Bezoutoff/ChillZone-addon")
+		eq(RB.SITE, "https://github.com/Bezoutoff/ChillZone-addon")
 	end)
 end)
 

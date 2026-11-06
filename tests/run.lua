@@ -16010,9 +16010,9 @@ end)
 -- The help button (0.9.9, Max): in the title bar, left of the close button; a click opens the
 -- copy box with the help, the links and Report a bug.
 local HELP_LINKS = {
-	"https://github.com/dnl-gentile/olympus-addon",
-	"https://github.com/dnl-gentile/olympus-addon/issues",
-	"https://www.curseforge.com/wow/addons/olympus-guild",
+	"https://github.com/Bezoutoff/ChillZone-addon",
+	"https://github.com/Bezoutoff/ChillZone-addon/issues",
+	"https://github.com/Bezoutoff/ChillZone-addon/releases",
 }
 local function CheckHelpBox(box)
 	eq(box:IsShown(), true, "the copy box")
@@ -60229,7 +60229,7 @@ end)()
 					ns.UI = { ShowCopy = function(title, text, action, opts) w.copies[#w.copies + 1] = { title = title, text = text, opts = opts } end,
 						-- (ChillZone's whisper window with its text, UI.WhisperText: recorded, nothing sent.)
 						WhisperText = function(name, text) w.whispers[#w.whispers + 1] = { name = name, text = text } return {} end,
-						LINKS = { curseforge = "https://www.curseforge.com/wow/addons/olympus-guild" } }
+						LINKS = { curseforge = "https://github.com/Bezoutoff/ChillZone-addon/releases" } }
 				end
 				fn(w, W)
 			end)
@@ -61012,7 +61012,7 @@ end)()
 						assert(body:find(L.VERSION_UPDATE_PUBLIC_114, 1, true), body)
 						assert(not body:find("9.9.9", 1, true) and not body:lower():find("commit", 1, true), body)
 						letter.copy:Click()
-						eq(w.copies[#w.copies].text, "https://www.curseforge.com/wow/addons/olympus-guild")
+						eq(w.copies[#w.copies].text, "https://github.com/Bezoutoff/ChillZone-addon/releases")
 						letter.done:Click()
 					end)
 					ns.VERSION = mine
@@ -62127,8 +62127,8 @@ end)()
 		assert(not en.HEADER_TIP_DIFFER:find("converges", 1, true))
 		assert(en.THRONE_INSPECT_TIP:find("30 minutes", 1, true) and en.THRONE_INSPECT_TIP:find("said yes", 1, true))
 		eq(ns.King.INSPECT_GAP, 30 * 60, "what the tip says")
-		assert(#en.VERSION_INVITE_TEXT:format("https://www.curseforge.com/wow/addons/olympus-guild") <= 255)
-		assert(#pt.VERSION_INVITE_TEXT:format("https://www.curseforge.com/wow/addons/olympus-guild") <= 255)
+		assert(#en.VERSION_INVITE_TEXT:format("https://github.com/Bezoutoff/ChillZone-addon/releases") <= 255)
+		assert(#pt.VERSION_INVITE_TEXT:format("https://github.com/Bezoutoff/ChillZone-addon/releases") <= 255)
 	end)
 
 	test("1.4.0: the version, the TOC's files in order, the new message types in Comm.lua's list", function()
@@ -62603,7 +62603,7 @@ end)()
 				assert(lns.Letters.Has("1.2.1"), code .. ": the published 1.2.1 letter retained")
 				assert(lns.Letters.Has("1.2.2"), code .. ": the published 1.2.2 letter retained")
 				-- (1.4.0: the launch letter, the dev's to the King and the army, with the site's link to copy.)
-				eq(rawget(lns.L, "LETTER_1_4_0_LINK"), "https://chillzone.roachcouncil.com/", code .. ": the launch letter's link")
+				eq(rawget(lns.L, "LETTER_1_4_0_LINK"), "https://github.com/Bezoutoff/ChillZone-addon", code .. ": the launch letter's link")
 				assert(type(rawget(lns.L, "LETTER_1_4_0_SIGNED")) == "string", code .. ": the launch letter's own signature")
 				local siteTitle, siteBody = lns.Letters.Text("1.3.3")
 				assert(siteTitle and siteBody and siteBody:find("/cz site export", 1, true), code .. ": the 1.3.3 site export retained")

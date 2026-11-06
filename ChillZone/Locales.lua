@@ -135,7 +135,7 @@ What's new in version 1.4.0, for the march:
 
 The gates are open.]==]
 L.LETTER_1_4_0_SIGNED = "Your humble artificer, the ChillZone dev"
-L.LETTER_1_4_0_LINK = "https://chillzone.roachcouncil.com/"
+L.LETTER_1_4_0_LINK = "https://github.com/Bezoutoff/ChillZone-addon"
 -- 1.4.1 (launch night: the army's channel, refused by WoW: Forever, moves to the next lane by itself).
 -- The letter is the launch letter again, with the fix first: most of the army never saw 1.4.0's.
 L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK = L.LETTER_1_4_0_TITLE, L.LETTER_1_4_0_HEAD, L.LETTER_1_4_0_SIGNED, L.LETTER_1_4_0_LINK
