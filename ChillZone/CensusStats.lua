@@ -395,6 +395,11 @@ local function RegionLabel(region)
 	return (region == "NA" or region == "EU") and L["CENSUS_STATS_REGION_" .. region] or L.CENSUS_STATS_REGION_UNKNOWN
 end
 local function ServerName(group) return (tostring(group):gsub("%+", " + ")) end
+local function ObservationText(observed)
+	local at = tonumber(observed)
+	if not at or at <= 0 then return nil end
+	return L.CENSUS_STATS_SEEN:format(date("%Y-%m-%d %H:%M", at))
+end
 local expandedGroup
 function CS.ServerLines(lines, s, now)
 	local D = ns.Data
@@ -411,7 +416,7 @@ function CS.ServerLines(lines, s, now)
 	-- (Each server's people as its reports give them, not this client's estimate: the servers' words,
 	-- never the plain count's beside a team client's ~ estimate.)
 	lines[#lines + 1] = Row(L.CENSUS_STATS_ALL_PEOPLE, White(L.CENSUS_STATS_APPROX:format(F(g.people))), L.CENSUS_STATS_SERVERS_TIP)
-	local function Split(title, order, totals, label)
+	local function Split(title, order, totals, label, field)
 		local any = 0
 		for _, key in ipairs(order) do if totals[key] then any = any + 1 end end
 		if any == 0 or (any == 1 and totals["?"]) then return any == 1 end
@@ -426,17 +431,23 @@ function CS.ServerLines(lines, s, now)
 						tt:AddLine(label(key), 1, 0.82, 0)
 						tt:AddDoubleLine(L.CENSUS_STATS_CHARACTERS, F(t.characters), 1, 0.82, 0, 1, 1, 1)
 						tt:AddDoubleLine(L.CENSUS_STATS_PEOPLE, L.CENSUS_STATS_APPROX:format(F(t.people)), 1, 0.82, 0, 1, 1, 1)
+						for _, origin in ipairs(g.rows) do
+							if origin.counted and (origin[field] or "?") == key then
+								local observed = ObservationText(origin.observed)
+								if observed then tt:AddLine(ServerName(origin.group) .. ": " .. observed, 0.75, 0.75, 0.75, true) end
+							end
+						end
 					end }
 			end
 		end
 		return false
 	end
-	local unknownKind = Split(L.CENSUS_STATS_BY_KIND, CS.KIND_ORDER, g.kinds, KindLabel)
-	local unknownRegion = Split(L.CENSUS_STATS_BY_REGION, CS.REGION_ORDER, g.regions, RegionLabel)
+	local unknownKind = Split(L.CENSUS_STATS_BY_KIND, CS.KIND_ORDER, g.kinds, KindLabel, "kind")
+	local unknownRegion = Split(L.CENSUS_STATS_BY_REGION, CS.REGION_ORDER, g.regions, RegionLabel, "region")
 	if g.factions.Alliance and g.factions.Horde then
 		Split(L.CENSUS_STATS_BY_FACTION, { "Alliance", "Horde" }, g.factions, function(f)
 			return f == "Horde" and L.CENSUS_STATS_FACTION_HORDE or L.CENSUS_STATS_FACTION_ALLIANCE
-		end)
+		end, "faction")
 	end
 	if unknownKind or unknownRegion then lines[#lines + 1] = { text = Grey(L.CENSUS_STATS_KIND_WAIT), indent = 1 } end
 	lines[#lines + 1] = { text = L.CENSUS_STATS_EACH_SERVER, indent = 1 }
@@ -459,7 +470,8 @@ function CS.ServerLines(lines, s, now)
 				tt:AddDoubleLine(L.CENSUS_STATS_CHARACTERS, F(r.characters), 1, 0.82, 0, 1, 1, 1)
 				tt:AddDoubleLine(L.CENSUS_STATS_PEOPLE, L.CENSUS_STATS_APPROX:format(F(r.people)), 1, 0.82, 0, 1, 1, 1)
 				tt:AddDoubleLine(L.CENSUS_STATS_GUILDS, F(r.guilds or 0), 1, 0.82, 0, 1, 1, 1)
-				if r.src ~= "live" then tt:AddLine(L.CENSUS_STATS_SEEN:format(ns.Ago and ns.Ago(r.observed) or ""), 0.75, 0.75, 0.75) end
+				local observed = ObservationText(r.observed)
+				if observed then tt:AddLine(observed, 0.75, 0.75, 0.75) end
 				local src = r.src == "live" and L.CENSUS_STATS_SRC_LIVE or ({ own = L.CENSUS_STATS_SRC_OWN, relay = L.CENSUS_STATS_SRC_RELAY,
 					witnessed = L.CENSUS_STATS_SRC_WITNESSED, heard = L.CENSUS_STATS_SRC_HEARD })[r.src or ""] or ""
 				if src ~= "" then tt:AddLine(src, 0.75, 0.75, 0.75, true) end
@@ -480,7 +492,8 @@ function CS.ServerLines(lines, s, now)
 					tooltip = function(tt)
 						tt:AddLine(guild.name, 1, 0.82, 0)
 						tt:AddDoubleLine(L.CENSUS_STATS_CHARACTERS, F(guild.characters), 1, 0.82, 0, 1, 1, 1)
-						tt:AddLine(L.CENSUS_STATS_SEEN:format(ns.Ago and ns.Ago(guild.observed) or ""), 0.75, 0.75, 0.75)
+						local observed = ObservationText(guild.observed)
+						if observed then tt:AddLine(observed, 0.75, 0.75, 0.75) end
 						local src = ({ own = L.CENSUS_STATS_SRC_OWN, relay = L.CENSUS_STATS_SRC_RELAY,
 							witnessed = L.CENSUS_STATS_SRC_WITNESSED, heard = L.CENSUS_STATS_SRC_HEARD })[guild.source]
 						if src then tt:AddLine(src, 0.75, 0.75, 0.75, true) end

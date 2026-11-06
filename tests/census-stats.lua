@@ -82,6 +82,35 @@ test("census continuity: clicking a server exposes scoped guild details and thei
 	assert(table.concat(tip, " "):find(L.CENSUS_STATS_SRC_WITNESSED, 1, true))
 end)
 
+test("census continuity: server and ruleset hovers retain the original date and time", function()
+	local w = World()
+	local rows = {
+		{ group = "ForeverPvE", faction = "Alliance", kind = "pve", characters = 700, people = 700, guilds = 2,
+			observed = T0 - 7200, src = "live", counted = true, ours = true },
+		{ group = "ForeverPvP", faction = "Alliance", kind = "pvp", characters = 500, people = 500, guilds = 1,
+			observed = T0 - 3600, src = "relay", counted = true },
+		{ group = "ForeverRP", faction = "Alliance", kind = "rp", characters = 20, people = 20, guilds = 1,
+			observed = T0 - 600, src = "own", counted = true },
+	}
+	w.ns.Data.Groups = function() return { characters = 1220, people = 1220, rows = rows, regions = {}, factions = {},
+		kinds = { pve = rows[1], pvp = rows[2], rp = rows[3] } } end
+	for _, clock in ipairs({ T0, T0 + 600 }) do
+		w.clock = clock
+		local lines = {}; w.CS.ServerLines(lines, w.census, clock)
+		for i, label in ipairs({ L.CENSUS_STATS_KIND_PVE, L.CENSUS_STATS_KIND_PVP, L.CENSUS_STATS_KIND_RP }) do
+			local found = 0
+			for _, line in ipairs(lines) do
+				if line.tooltip and (line.text == label or Bare(line.text):find(rows[i].group, 1, true)) then
+					local tip = {}; line.tooltip({ AddLine = function(_, text) tip[#tip + 1] = text end, AddDoubleLine = function() end })
+					assert(table.concat(tip, " "):find(os.date("%Y-%m-%d %H:%M", rows[i].observed), 1, true), "missing original time for " .. label)
+					found = found + 1
+				end
+			end
+			eq(found, 2, "both ruleset and server show time")
+		end
+	end
+end)
+
 test("census history: a sample every 15 minutes once the census is rebuilt after login, the day's highest counts kept; nothing sent", function()
 	local w = World({ loginAt = T0 - 60 })
 	local CS = w.CS
