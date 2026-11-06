@@ -157,6 +157,149 @@ test("treasury ranking relay: unconfirmed newer candidates cannot evict a row al
 	end)
 end)
 
+test("treasury ranking relay: a completed value supersedes a partial value of the same observation after two holders agree", function()
+	local w = World.New({ compliance = "shipped" })
+	local late = Client(w, "Quillon Scribe")
+	local first, second = "Brannoc Weald-Emberfall", "Idris Vane-Emberfall"
+	w:As(late, function()
+		late.rankAllowed[late.ns.Fold(first)], late.rankAllowed[late.ns.Fold(second)] = true, true
+		local T = late.ns.Treasury
+		local partial = { guild = "ChillZone Ash", by = "Aster Officer-Emberfall", t = w.clock - 20,
+			money = 120000, units = 41, stacks = 12, value = 100, pending = 2, unpriced = 1,
+			total = 120100, level = 57, home = false }
+		-- Both values sort after "100" in the old wire tie-break. The lower completed value also
+		-- proves this is completion of the same observation, not a preference for higher totals.
+		for _, value in ipairs({ 900, 90 }) do
+			for _, completeFirst in ipairs({ false, true }) do
+				late.rdb.treasuryRankRelay = nil
+				local complete = World.Copy(partial)
+				complete.value, complete.total, complete.pending, complete.unpriced = value, partial.money + value, 0, 3
+				local a, b = partial, complete
+				if completeFirst then a, b = complete, partial end
+				local wa, wb = assert(T.RankRelayWire(a)), assert(T.RankRelayWire(b))
+				eq(select(2, T.HandleRankRelay("WHISPER", first, wa)), "witness")
+				eq(select(2, T.HandleRankRelay("WHISPER", second, wa)), "accepted")
+				eq(select(2, T.HandleRankRelay("WHISPER", first, wb)), "witness")
+				eq(select(2, T.HandleRankRelay("WHISPER", first, wb)), "witness", "repeating a holder does not corroborate a new value")
+				eq(T.RelayedRanking()[1].value, a.value, "one holder cannot replace the corroborated value")
+				eq(select(2, T.HandleRankRelay("WHISPER", second, wb)), "accepted")
+				local row = T.RelayedRanking()[1]
+				eq(row.value, complete.value, "the completed value wins in either arrival order")
+				eq(row.pending, 0); eq(row.unpriced, 3, "items no vendor buys do not make the value incomplete")
+				eq(row.t, partial.t, "completion does not refresh the bank observation time")
+				eq(T.Ranking().rows[1].total, complete.total, "the displayed ranking uses the completed total")
+			end
+		end
+	end)
+end)
+
+test("treasury ranking relay: completion applies only to the same observation and never outranks a newer observation", function()
+	local w = World.New({ compliance = "shipped" })
+	local late = Client(w, "Quillon Scribe")
+	local first, second = "Brannoc Weald-Emberfall", "Idris Vane-Emberfall"
+	w:As(late, function()
+		late.rankAllowed[late.ns.Fold(first)], late.rankAllowed[late.ns.Fold(second)] = true, true
+		local T = late.ns.Treasury
+		local partial = { guild = "ChillZone Ash", by = "Aster Officer-Emberfall", t = w.clock - 20,
+			money = 120000, units = 41, stacks = 12, value = 100, pending = 2, unpriced = 1,
+			total = 120100, level = 57, home = false }
+		local different = World.Copy(partial)
+		different.units, different.value, different.total, different.pending = 42, 900, 120900, 0
+		for _, row in ipairs({ partial, different }) do
+			local wire = assert(T.RankRelayWire(row))
+			eq(select(2, T.HandleRankRelay("WHISPER", first, wire)), "witness")
+			eq(select(2, T.HandleRankRelay("WHISPER", second, wire)), "accepted")
+		end
+		eq(T.RelayedRanking()[1].units, 41, "a different item count is not a completion of the selected observation")
+		late.rdb.treasuryRankRelay = nil
+		local complete, newer = World.Copy(partial), World.Copy(partial)
+		complete.value, complete.total, complete.pending = 900, 120900, 0
+		newer.t = partial.t + 1
+		for _, row in ipairs({ complete, newer }) do
+			local wire = assert(T.RankRelayWire(row))
+			eq(select(2, T.HandleRankRelay("WHISPER", first, wire)), "witness")
+			eq(select(2, T.HandleRankRelay("WHISPER", second, wire)), "accepted")
+		end
+		local row = T.RelayedRanking()[1]
+		eq(row.t, newer.t); eq(row.pending, newer.pending, "a newer corroborated partial row still replaces older complete history")
+	end)
+end)
+
+test("treasury ranking relay: pruning and saved history preserve the completed same-observation value", function()
+	local w = World.New({ compliance = "shipped" })
+	local late = Client(w, "Quillon Scribe")
+	local first, second = "Brannoc Weald-Emberfall", "Idris Vane-Emberfall"
+	w:As(late, function()
+		late.rankAllowed[late.ns.Fold(first)], late.rankAllowed[late.ns.Fold(second)] = true, true
+		local T = late.ns.Treasury
+		local complete = { guild = "ChillZone Ash", by = "Aster Officer-Emberfall", t = w.clock - 20,
+			money = 120000, units = 41, stacks = 12, value = 900, pending = 0, unpriced = 3,
+			total = 120900, level = 57, home = false }
+		local wire = assert(T.RankRelayWire(complete))
+		eq(select(2, T.HandleRankRelay("WHISPER", first, wire)), "witness")
+		eq(select(2, T.HandleRankRelay("WHISPER", second, wire)), "accepted")
+		local partial = World.Copy(complete)
+		partial.value, partial.total, partial.pending, partial.unpriced = 100, 120100, 2, 1
+		wire = assert(T.RankRelayWire(partial))
+		eq(select(2, T.HandleRankRelay("WHISPER", first, wire)), "witness")
+		eq(select(2, T.HandleRankRelay("WHISPER", second, wire)), "accepted")
+		for i = 1, T.RANK_RELAY_CANDIDATES do
+			partial.level = partial.level + 1
+			eq(select(2, T.HandleRankRelay("WHISPER", first, assert(T.RankRelayWire(partial)))), "accepted")
+		end
+		local count = 0
+		for _ in pairs(late.rdb.treasuryRankRelay.rows[late.ns.Fold(complete.guild)]) do count = count + 1 end
+		assert(count <= T.RANK_RELAY_CANDIDATES, "the existing candidate bound still holds")
+		eq(T.RelayedRanking()[1].value, complete.value, "partial annotation variants cannot evict the completed row")
+		late.rdb.treasuryRankRelay = World.Copy(late.rdb.treasuryRankRelay)
+		local row = T.RelayedRanking()[1]
+		eq(row.value, complete.value, "the same choice applies to existing saved rows without new testimony")
+		eq(row.t, complete.t, "retained history is not made fresh by loading it")
+	end)
+end)
+
+test("treasury ranking relay: corroborated annotation variants leave room to corroborate completion", function()
+	local w = World.New({ compliance = "shipped" })
+	local late = Client(w, "Quillon Scribe")
+	local first, second = "Brannoc Weald-Emberfall", "Idris Vane-Emberfall"
+	w:As(late, function()
+		late.rankAllowed[late.ns.Fold(first)], late.rankAllowed[late.ns.Fold(second)] = true, true
+		local T = late.ns.Treasury
+		local partial = { guild = "ChillZone Ash", by = "Aster Officer-Emberfall", t = w.clock - 20,
+			money = 120000, units = 41, stacks = 12, value = 100, pending = 2, unpriced = 1,
+			total = 120100, level = 57, home = false }
+		-- Each of the first two variants holds one of the witnesses. Their established agreement
+		-- on the observation and copper must survive collapsing redundant annotations at the cap.
+		eq(select(2, T.HandleRankRelay("WHISPER", first, assert(T.RankRelayWire(partial)))), "witness")
+		partial.level = 58
+		eq(select(2, T.HandleRankRelay("WHISPER", second, assert(T.RankRelayWire(partial)))), "accepted")
+		partial.level = 59
+		eq(select(2, T.HandleRankRelay("WHISPER", first, assert(T.RankRelayWire(partial)))), "accepted")
+		local complete = World.Copy(partial)
+		complete.value, complete.total, complete.pending = 900, 120900, 0
+		local completeWire = assert(T.RankRelayWire(complete))
+		eq(select(2, T.HandleRankRelay("WHISPER", first, completeWire)), "witness")
+		local set = late.rdb.treasuryRankRelay.rows[late.ns.Fold(partial.guild)]
+		assert(set[completeWire], "three corroborated annotation variants must not discard the first completion witness")
+		eq(set[completeWire].accepted, nil, "the earlier partial value cannot corroborate different copper")
+		eq(T.RelayedRanking()[1].value, partial.value, "the partial value remains visible until completion is corroborated")
+		local other = World.Copy(partial)
+		other.t, other.money, other.total = other.t + 1, other.money + 1, other.total + 1
+		local otherWire = assert(T.RankRelayWire(other))
+		eq(select(2, T.HandleRankRelay("WHISPER", first, otherWire)), "witness")
+		assert(set[otherWire], "a pending different observation is not collapsed with accepted variants")
+		eq(select(2, T.HandleRankRelay("WHISPER", second, completeWire)), "accepted")
+		eq(T.RelayedRanking()[1].value, complete.value)
+		eq(set[otherWire].accepted, nil, "completion does not endorse a different observation")
+		local keptPartial
+		for wire, entry in pairs(set) do
+			if wire ~= completeWire and entry.accepted then keptPartial = entry end
+		end
+		assert(keptPartial and keptPartial.seen[late.ns.Fold(first)] and keptPartial.seen[late.ns.Fold(second)],
+			"the retained equivalent partial row keeps both existing witnesses")
+	end)
+end)
+
 -- 1.4.0: the census keeps a guild's average level to the tenth (Data.AvgTenths), and the direct
 -- ranking row carries it as it is (47.9). The TY row is whole levels: a fractional level made
 -- RankRelayWire refuse the row, so a guild whose census average was not a whole number was never

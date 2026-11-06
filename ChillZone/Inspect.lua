@@ -1079,6 +1079,7 @@ function Inspect.TooltipUnit(tooltip) -- gp:tooltip-unit
 	local guild = GetGuildInfo and GetGuildInfo(unit)
 	if not SecretTooltipValue(guild) and not Inspect.CoverOf(name) and ns.IsTreasurer(name, guild) then tooltip:AddLine(ns.COIN .. L.TREASURER_TITLE, 1, 0.82, 0) end
 	Inspect.CouncilTooltip(tooltip, name, not SecretTooltipValue(guild) and guild or nil)
+	if ns.PlayerTooltip then ns.PlayerTooltip.Apply(tooltip, unit, name, guild) end
 	if patrol then Enqueue(unit) end
 	return true
 end

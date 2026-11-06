@@ -65,6 +65,7 @@ Verify.TICK = 60                 -- the guilds seen and the notices, every minut
 Verify.ASK_AFTER, Verify.ASK_SPREAD = 25, 35 -- the login's ask, 25 to 60 s after it
 Verify.ASK_EVERY = 30 * 60       -- and every half hour
 Verify.ANSWER_GAP = 180          -- a verifier's client answers asks this often at most
+Verify.REQUEST_GAP = 300         -- a guild master's queued request, kept across reloads
 Verify.REVOKE_KEEP = 30 * 86400  -- a revocation is kept (and relayed) this long
 Verify.START_KEEP = 90 * 86400   -- a guild's start, this long after it was last seen or heard
 Verify.SEEN_KEEP = 30 * 86400    -- a guild's own first sighting, this long after it was last seen
@@ -103,7 +104,7 @@ local function Store()
 		s = {}
 		rdb.verify = s
 	end
-	for _, k in ipairs({ "list", "start", "seen", "told" }) do
+	for _, k in ipairs({ "list", "start", "seen", "told", "requests" }) do
 		if type(s[k]) ~= "table" then s[k] = {} end
 	end
 	return s
@@ -335,6 +336,11 @@ function Verify.Prune(now)
 	Trim(s.start, Verify.MAX_STARTS, Last)
 	Trim(s.seen, Verify.MAX_STARTS, Last)
 	Trim(s.told, Verify.MAX_STARTS, Last)
+	for key, e in pairs(s.requests) do
+		local at = type(e) == "table" and TimeField(e.at)
+		if not at or now - at > Verify.SEEN_KEEP then s.requests[key] = nil end
+	end
+	Trim(s.requests, Verify.MAX_STARTS, Last)
 end
 
 ---------------------------------------------------------------------------
@@ -710,6 +716,7 @@ function Verify.NoticeText(who, guild, status, info)
 			if ns.VERIFY_HOLD == true then parts[#parts + 1] = L.VERIFY_NOTICE_HOLD end
 		end
 		parts[#parts + 1] = L.VERIFY_WHISPER_LABEL .. "\n" .. Verify.WhisperText(guild)
+		parts[#parts + 1] = L.VERIFY_RESEND_NOTE
 	else
 		parts[#parts + 1] = L.VERIFY_NOTICE_MEMBER:format(guild, Shown(info.gm))
 	end
@@ -753,11 +760,34 @@ function Verify.WhisperVerifier(guild)
 	return UI.WhisperText(ns.TellName(list[1]), Verify.WhisperText(guild)) ~= nil
 end
 
--- Ask the High Council: the councillors' own help request (Workshop.AskCouncil), with the code.
+-- Request timing is separate from the guild's earliest observation/start. It limits queued
+-- requests across reloads without renewing the 48-hour verification deadline.
+function Verify.RequestWait(guild, now)
+	now = now or Verify.Clock()
+	local s = Store()
+	local e = s and s.requests[Key(guild)]
+	local at = type(e) == "table" and TimeField(e.at)
+	return at and math.max(0, at + Verify.REQUEST_GAP - now) or 0
+end
+
+-- Reuse the councillors' existing help request (Workshop.AskCouncil), with the same code.
+-- A stale button cannot request for a former guild, a new master or an already approved guild.
 function Verify.AskCouncil(guild)
+	local now = Verify.Clock()
+	local who, mine = Verify.Mine(now)
+	if who ~= "master" or type(guild) ~= "string" or Key(guild) ~= Key(mine) then return false, "master" end
+	local wait = Verify.RequestWait(guild, now)
+	if wait > 0 then
+		ns.Print(L.VERIFY_RETRY_WAIT:format(math.ceil(wait / 60)))
+		return false, "cooldown"
+	end
 	local W = ns.Workshop
 	if type(W) ~= "table" or W.missing or type(W.AskCouncil) ~= "function" then return false end
-	W.AskCouncil(L.VERIFY_ASK_TEXT:format(guild, Verify.Code(guild, ns.me) or "?"))
+	Verify.Observe(now) -- establish a missing first sighting once; an existing start is untouched
+	if W.AskCouncil(L.VERIFY_ASK_TEXT:format(guild, Verify.Code(guild, ns.me) or "?")) ~= true then return false, "unavailable" end
+	local s = Store()
+	if s then s.requests[Key(guild)] = { at = now } end
+	ns.Print(L.VERIFY_RETRY_WAIT:format(math.ceil(Verify.REQUEST_GAP / 60)))
 	return true
 end
 

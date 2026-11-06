@@ -61,7 +61,7 @@ local L = ns.L
 --     (never ChillZone's error report) and never stops ChillZone or the other callbacks; one that keeps
 --     failing (CALLBACK_FAILS) is dropped.
 --   - Reserved (Daniel, 2026-10-19: no third-party addon may keep a log of where the King has been).
---     The leader's presence, the sightings searches, the quiet presence and the profile presentation
+--     The signed Queen's identity, the leader's presence, the sightings searches, the quiet presence and the profile presentation
 --     answer only the addons the ChillZone team authorized (API.AUTHORIZED: a digest of each one's
 --     folded name, so the list names nobody). Any other addon gets "unauthorized" from those methods
 --     (RESERVED_METHODS), cannot listen to their events (RESERVED_EVENTS), and its privacy line says
@@ -94,7 +94,9 @@ API.VERSION = 1
 -- live unit token names is in an ChillZone guild). What a Yes gives grew again (one step for both,
 -- the same release), and the line says so (both texts, Locales/APIText.lua): every addon is asked
 -- again.
-API.CONSENT_VERSION = 10
+-- Version 11 adds the signed Queen's exact identity, for authorized companion addons only.
+-- Identity is presentation metadata: no presence, location, authority or automatic search.
+API.CONSENT_VERSION = 11
 API.MAX_ADDONS = 16       -- addons registered in one session
 API.SURFACE_LIMIT = 1     -- one client-owned page in the shared tab rail per session
 API.RATE_MAX = 20         -- data calls one addon makes...
@@ -133,6 +135,7 @@ API.RANKINGS = { "slayers", "donors", "church", "games" }
 -- a setter, the profile session's start and stop, a cancel or a map call), and their events.
 -- A method a reserved feature adds later belongs here too (the tests look for it).
 API.RESERVED_METHODS = {
+	GetQueenIdentity = "nil",
 	GetLeaderPresence = "nil", StartPlayerSearch = "nil", GetPlayerSearch = "nil", GetPlayerSearches = "nil",
 	StartAreaSearch = "nil", GetAreaSearch = "nil", GetAreaSearches = "nil",
 	CancelPlayerSearch = "false", CancelAreaSearch = "false", ShowAreaSearchOnMap = "false", ClearAreaSearchMap = "false",
@@ -1437,6 +1440,14 @@ function METHODS.GetRankings(c, kind)
 	return Read(c, true, API.Rankings, kind)
 end
 function METHODS.GetProfile(c) return Read(c, false, API.Profile) end
+function METHODS.GetQueenIdentity(c)
+	if type(ns.QueenFullName) ~= "function" then return nil, "unavailable" end
+	return Read(c, true, function()
+		local name = ns.QueenFullName()
+		if not name then return nil, "unknown" end
+		return name
+	end)
+end
 -- (1.4.0) true or false, or nil and why: "unit" (not a unit token it takes, checked first and free),
 -- the usual "pending", "refused", "guild" and "busy" (its own budget, UNIT_RATE_MAX), or "unknown"
 -- (API.IsChillZoneMember's nil: this client cannot tell).
@@ -2237,6 +2248,7 @@ local FEATURES = {
 	["rankings.church"] = function() return Has("HonorsNet", "ChurchTop") end,
 	["rankings.games"] = function() return Has("ArenaHome", "RankingsPublic") end,
 	profile = function() return true end,
+	["queen.identity"] = function() return type(ns.QueenFullName) == "function" end,
 	["unit.member"] = function() return type(ns.IsFederation) == "function" end,
 	leader = function() return Has("Hop", "King") and Has("King", "Location") and Has("Layers", "ForMap") end,
 	callbacks = function() return true end,

@@ -1,6 +1,6 @@
 local ns, test, eq = ...
 
-test("1.2.4 profile menu: own name offers only View profile; others open the main person page", function()
+test("1.2.4 profile menu: own name offers View profile and collapse; others open the main person page", function()
 	local P = ns.PlayerMenu
 	local old = { member = ns.IsMember, me = ns.me, ui = ns.UI, edit = ns.ProfileEdit, profile = ns.PlayerProfile, pad = ns.GamepadUI }
 	local own, other = 0, nil
@@ -19,13 +19,14 @@ test("1.2.4 profile menu: own name offers only View profile; others open the mai
 		eq(P.Build("FRIEND", root, { name = "Other-Realm", isSelf = true }), 0)
 		eq(#root.buttons, 0, "inconsistent native self context adds no buttons")
 		eq(P.Build("FRIEND", root, { name = ns.me, isSelf = true }), 1)
-		eq(#root.buttons, 1, "no self challenge or version request")
+		eq(#root.buttons, 2, "profile and collapse only: no self challenge, version request or portrait settings")
 		eq(root.buttons[1].text, ns.L.ARENA_MENU_PROFILE)
+		eq(root.buttons[2].text, ns.L.PLAYERMENU_COLLAPSE)
 		root.buttons[1].click(); eq(own, 1); eq(other, nil)
 		eq(P.OpenProfile("Other-Realm"), true); eq(other, "Other-Realm")
 		ns.GamepadUI = function() return true end
 		eq(P.Build("FRIEND", root, { name = ns.me, isSelf = true }), 0, "no native menu integration with gamepad")
-		eq(#root.buttons, 1)
+		eq(#root.buttons, 2)
 		ns.IsMember = function() return false end
 		eq(P.OpenProfile("Other-Realm"), false)
 	end)

@@ -345,6 +345,26 @@ ChillZoneBridge.RegisterSection("guilds", 1, function()
 	return { people = Whole(s.total), characters = Whole(s.characters or s.total), alts = Whole(s.alts), guilds = rows }
 end)
 
+-- Counts-only cross-origin view. Every group is explicit; a carrier is never represented as
+-- local authority or as a global unique-person count. The private sidecar may adopt this section
+-- independently of the existing local census checkpoint.
+ChillZoneBridge.RegisterSection("censusOrigins", 1, function()
+	if not Open() then return nil end
+	local D = ns.Data
+	if type(D) ~= "table" or type(D.Groups) ~= "function" then return nil end
+	local groups = D.Groups()
+	local out = { characters = groups.characters, peoplePerOrigin = groups.people, origins = {} }
+	for _, r in ipairs(groups.rows or {}) do
+		if #out.origins >= (D.GROUP_MAX or 64) * 2 then break end
+		local entry = { group = r.group, faction = r.faction, characters = r.characters, people = r.people,
+			guildCount = r.guilds, observed = r.observed, source = r.src, witnesses = r.w,
+			counted = r.counted, fresh = r.fresh, kind = r.kind, region = r.region }
+		if not r.ours and D.GroupGuilds then entry.guilds = D.GroupGuilds(r.group, r.faction) end
+		out.origins[#out.origins + 1] = entry
+	end
+	return out
+end, { values = 30000 })
+
 -- The Wanted tab's list (the API's rows: place, name, bounty, kills, cycle), its first 100, and
 -- where it comes from: this character's realm group and whether his realm is a PvP realm
 -- (Kit.Realm, as the membership section's), so the Companion can show a PvP realm group's list to
@@ -489,10 +509,10 @@ ChillZoneBridge.RegisterSection("stats", 1, function()
 	}
 	local avg = Call("CensusStats", "AverageLevel", s)
 	if type(avg) == "string" then out.avgLevel = avg end
-	-- The people as the header shows them (CensusStats.PeopleEstimate): while they are a moderation
+	-- The people on the internal census page (CensusStats.PeopleEstimate): while they are a moderation
 	-- team client's BattleTag estimate, peopleEstimate is that number, whole, so the Companion shows
 	-- the same "~" figure; anywhere else it is absent and the Companion shows `people`, the plain
-	-- count a member's header shows. The estimate itself goes on the King's stream too; its rate and
+	-- count a member's census page shows. The estimate itself goes on the King's stream too; its rate and
 	-- the counted validated figures below are the staff's, as on the page: never on the King's stream
 	-- (CensusStats.StaffShown).
 	local est = Call("CensusStats", "PeopleEstimate", s)

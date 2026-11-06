@@ -168,7 +168,7 @@ end
 -- Load addon files like WoW does: each gets (addonName, sharedTable)
 ---------------------------------------------------------------------------
 local ns = {}
-for _, file in ipairs({ "Bootstrap", "Locales", "Locales/deDE", "Locales/esES", "Locales/frFR", "Locales/DuesGraceText", "Locales/DuesRosterText", "Locales/JusticeResponseText", "Locales/CarryText", "Locales/CarryMergerText", "Locales/CampaignText", "Locales/GuildFinanceText", "Locales/RankingRulesText", "Locales/AccordText", "Core", "RankingRules", "GamepadRegistry", "Gamepad", "Diagnostics", "Dialog", "PlayerMenu", "Codec", "Sign", "Authority", "Zones", "Who", "Data", "Roster", "Comm", "Map", "Layers", "Hop", "Positions", "Decree", "Channels", "Filter", "Inspect", "King", "HopSightings", "Vox", "Court", "Board", "Groups", "Week", "Treasury", "Dues", "Bank", "Acts", "Loot", "War", "Crafters", "Chronicle", "Workshop", "Versions", "Ed25519", "libs/QREncode/qrencode", "LinkLoader", "ArmyExport", "Recruit", "PartyGuard", "AnswerBank", "Answers", "Views", "Accord", "Consent", "ChatRooms", "CraftRequests", "ViewAs", "TabardsV2", "Members", "Nominees", "CensusClean", "Bridge", "BridgeSections", "BridgePeople", "BridgeAffairs" }) do
+for _, file in ipairs({ "Bootstrap", "Locales", "Locales/MapNamesText", "Locales/PlayerTooltipText", "Locales/deDE", "Locales/esES", "Locales/frFR", "Locales/DuesGraceText", "Locales/DuesRosterText", "Locales/JusticeResponseText", "Locales/CarryText", "Locales/CarryMergerText", "Locales/CampaignText", "Locales/GuildFinanceText", "Locales/RankingRulesText", "Locales/AccordText", "Core", "RankingRules", "GamepadRegistry", "Gamepad", "Diagnostics", "Dialog", "PlayerMenu", "Codec", "Sign", "Authority", "Zones", "Who", "Data", "Roster", "Comm", "Map", "Layers", "Hop", "Positions", "Decree", "Channels", "Filter", "MapNames", "Inspect", "PlayerTooltip", "King", "HopSightings", "Vox", "Court", "Board", "Groups", "Week", "Treasury", "Dues", "Bank", "Acts", "Loot", "War", "Crafters", "Chronicle", "Workshop", "Versions", "Ed25519", "libs/QREncode/qrencode", "LinkLoader", "ArmyExport", "Recruit", "PartyGuard", "AnswerBank", "Answers", "Views", "Accord", "Consent", "ChatRooms", "CraftRequests", "ViewAs", "TabardsV2", "Members", "Nominees", "CensusClean", "Bridge", "BridgeSections", "BridgePeople", "BridgeAffairs" }) do
 	local chunk = assert(loadfile(ADDON_DIR .. file .. ".lua"))
 	chunk("ChillZone", ns)
 end
@@ -1485,6 +1485,14 @@ test("map refresh runs end to end with a map library (continent totals included)
 		return f
 	end
 	WorldMapFrame = deep()
+	-- WorldMapFrame's ScrollContainer is a frame, not a generated method. Model the
+	-- native canvas values so both the continent totals and name-label layout run.
+	local canvas = deep()
+	canvas.GetWidth, canvas.GetHeight = function() return 1000 end, function() return 800 end
+	canvas.GetScale, canvas.GetFrameLevel = function() return 1 end, function() return 0 end
+	WorldMapFrame.GetCanvas = function() return canvas end
+	WorldMapFrame.GetMapID, WorldMapFrame.IsShown = function() return 947 end, function() return true end
+	WorldMapFrame.ScrollContainer = { GetCanvasScale = function() return 1 end }
 	C_Map.GetMapRectOnMap = function() return 0.1, 0.3, 0.2, 0.8 end
 	MAPS[947] = { "Azeroth", 1 }; MAPS[1415] = { "Eastern Kingdoms", 2, 947 }
 	local oldInfo = C_Map.GetMapInfo
@@ -1508,6 +1516,10 @@ test("map refresh runs end to end with a map library (continent totals included)
 	assert(calls.world >= 2, "zone pins were not added")
 	local totals = ns.Map.ContinentTotals(ns.Data.Summary())
 	eq(totals[1415], 10, "continent total")
+	local continent
+	for _, f in ipairs(made) do if rawget(f, "key") == "m1415" then continent = f end end
+	assert(continent, "continent total is actually drawn on the Azeroth canvas")
+	eq(continent.count, 10)
 	-- (1.1.2's review: a zone pin's tooltip says why its soldiers add up to less than the army online.)
 	local pin
 	for _, f in ipairs(made) do if rawget(f, "scriptOnEnter") and rawget(f, "key") then pin = f end end
@@ -7656,7 +7668,7 @@ test("1.5.0 the relay: a client's own-clock words (H3, Q1, HQ, P1, W4, GV) are h
 		local R, rdeliver, rsent, rheard, rpump, rsentOf = RelayWorld("Hildryn Payne-Realm", "ChillZone II")
 		rdeliver("WHISPER", "Max Ran-Realm", "RY~")
 		rdeliver("WHISPER", "Zed Far-Realm", "RL~P~RR~ChillZone Zeus")
-		for _, kind in ipairs({ "H3~hello", "Q1~ask", "HQ~lists", "P1~pos", "W4~wanted", "GV~verify" }) do
+		for _, kind in ipairs({ "H3~hello", "Q1~ask", "HQ~lists", "P1~pos", "W4~wanted", "GV~1~Q~0~0~0" }) do
 			rdeliver("WHISPER", "Some One-Realm", "RL~P~" .. kind)
 		end
 		rpump()
@@ -7667,6 +7679,46 @@ test("1.5.0 the relay: a client's own-clock words (H3, Q1, HQ, P1, W4, GV) are h
 		rdeliver("WHISPER", "Some One-Realm", "RL~P~HS~lists")
 		rpump()
 		eq(#rsentOf("RM~"), 3, "the report, the line and the lists to the reporter"); eq(#rsentOf("RX~"), 3, "and across")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
+-- Decisions must use the same verified-origin transport as every other authorizing word.
+-- The old prefix-wide GV suppression delivered them only to the relay, never the guild.
+test("1.5.2 verification relay: approvals, revocations and snapshots reach guild reporters with the original sender; only asks stay local", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "ChillZone II", "Member", 3 end
+		local R, deliver, _, _, pump, sentOf = RelayWorld("Hildryn Payne-Realm", "ChillZone II")
+		deliver("WHISPER", "Max Ran-Realm", "RY~")
+		deliver("WHISPER", "Zed Far-Realm", "RL~P~RR~ChillZone Zeus")
+		local origin = "Verifier Origin-Realm"
+		local words = {
+			"GV~1~A~1800000000~ChillZone Zeus~Guild Master-Realm",
+			"GV~1~R~1800000001~ChillZone Zeus~Guild Master-Realm",
+			"GV~1~S~1800000002~A,1800000002,ChillZone Zeus,Guild Master,Verifier Origin",
+		}
+		deliver("WHISPER", origin, "RL~P~GV~1~Q~0~0~0")
+		for _, word in ipairs(words) do deliver("WHISPER", origin, "RL~L~" .. word) end
+		pump()
+		local forwarded = sentOf("RM~L~" .. origin .. "~GV~1~")
+		eq(#forwarded, 3, "the guild reporter receives each decision and recovery snapshot")
+		eq(#sentOf("RX~L~" .. origin .. "~GV~1~"), 3, "other signed relays receive them too")
+		eq(#sentOf("RM~P~" .. origin .. "~GV~1~Q~"), 0, "periodic asks remain local")
+		local receiver, receive = RelayWorld("Zed Far-Realm", "ChillZone Zeus")
+		local heard = {}
+		receiver.Comm.Handle("GV", function(dist, sender, text) heard[#heard + 1] = { dist = dist, sender = sender, text = text } end)
+		for _, packet in ipairs(forwarded) do receive("WHISPER", "Hildryn Payne-Realm", packet.msg) end
+		eq(#heard, 3)
+		for i, word in ipairs(heard) do
+			eq(word.dist, "CHANNEL"); eq(word.sender, origin, "the verifier is never replaced by the relay")
+			eq(word.text, words[i])
+		end
 	end)
 	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
 	C_ChatInfo = nil
@@ -11569,7 +11621,11 @@ test("the soldier count explains the census on hover; the minimap logo sits on i
 		assert(main.headerHover, "a hover region over the count")
 		main.headerHover:Fire("OnEnter")
 		eq(GameTooltip.owner, main.headerHover)
-		eq(GameTooltip.lines[1], ns.L.HEADER_TIP_TITLE); eq(GameTooltip.lines[2], ns.L.HEADER_TIP); eq(GameTooltip.lines[4], ns.L.HEADER_TIP_DIFFER)
+		eq(GameTooltip.lines[1], ns.L.HEADER_TIP_TITLE); eq(GameTooltip.lines[2], ns.L.HEADER_TIP)
+		eq(GameTooltip.lines[3], ns.L.CENSUS_HEADER_ALL_TIP, "the smaller count explains its all-server scope")
+		local differ
+		for _, line in ipairs(GameTooltip.lines) do if line == ns.L.HEADER_TIP_DIFFER then differ = true end end
+		assert(differ, "the differing-count explanation remains after optional saved-observation details")
 		assert(main.headerHover.w > 100, "as wide as the header")
 		local b = ns.MakeRoundButton("ChillZoneTestRound", UIParent, 31)
 		eq(b.icon.w, 18)
@@ -14602,7 +14658,7 @@ test("0.9.7 the High Council: a list the author signs on his computer, checked b
 	local sent, whispered = {}, {}
 	local ok, err = pcall(function()
 		ns.Comm.SendChunked = function(msg) sent[#sent + 1] = msg end
-		ns.Comm.Whisper = function(to, msg) whispered[#whispered + 1] = to .. " " .. msg end
+		ns.Comm.Whisper = function(to, msg) whispered[#whispered + 1] = to .. " " .. msg; return true end
 		ns.rdb.council = nil
 		eq(ns.IsHighCouncillor("Test Councillor-Realm"), false, "nobody until a signed list arrives")
 		-- Forged or changed lists: refused, whoever sends them.
@@ -14789,7 +14845,7 @@ test("0.9.8 a help request is cut between two letters, never inside one", functi
 		local clock = os.time() + 100000 -- (past the gap any earlier request left)
 		ns.Now = function() return clock end
 		ns.Print = function() end
-		ns.Comm.Whisper = function(to, msg) whispered[#whispered + 1] = msg end
+		ns.Comm.Whisper = function(to, msg) whispered[#whispered + 1] = msg; return true end
 		ns.rdb.council = { at = 1, names = { ["test councillor"] = "Test Councillor" }, realm = "Realm" }
 		W.HandleAvailable("CHANNEL", "Test Councillor-Realm")
 		ns.me = "Player One-Realm"
@@ -15484,21 +15540,34 @@ end)
 test("0.9.8 help requests: 'sent' only once a councillor says got it; a councillor who stops is withdrawn at once", function()
 	local W = ns.Workshop
 	local saved = { council = ns.rdb.council, whisper = ns.Comm.Whisper, send = ns.Comm.Send, after = ns.After, print = ns.Print, me = ns.me, help = ns.db.councilHelp }
-	local whispered, printed, timers = {}, {}, {}
+	local whispered, printed, timers, queueAccepts = {}, {}, {}, false
 	local ok, err = pcall(function()
 		ns.rdb.council = { at = 1, names = { ["test councillor"] = "Test Councillor" }, realm = "Realm" }
-		ns.Comm.Whisper = function(to, msg) whispered[#whispered + 1] = to .. " " .. msg end
+		-- Comm.Whisper returns whether its bounded queue accepted the word; that is not an ACK.
+		ns.Comm.Whisper = function(to, msg)
+			if not queueAccepts then return false end
+			whispered[#whispered + 1] = to .. " " .. msg
+			return true
+		end
 		ns.Comm.Send = function() end
 		ns.After = function(_, _, fn) timers[#timers + 1] = fn end
 		ns.Print = function(m) printed[#printed + 1] = m end
 		W.ResetHelp()
+		eq(W.AskCouncil("nobody available"), false)
+		eq(#timers, 0, "no delivery wait for an unavailable councillor")
 		W.HandleAvailable("CHANNEL", "Test Councillor-Realm", "HA~1")
 		eq(#W.Available(), 1)
 		W.HandleAvailable("CHANNEL", "Test Councillor-Realm", "HA~0")
 		eq(#W.Available(), 0, "withdrawn at once")
 		W.HandleAvailable("CHANNEL", "Test Councillor-Realm", "HA~1")
 		ns.me = "Player One-Realm"
-		W.AskCouncil("help please")
+		eq(W.AskCouncil("queue refused"), false)
+		eq(#timers, 0, "a refused queue does not start a delivery wait")
+		eq(#whispered, 0)
+		queueAccepts = true
+		eq(W.AskCouncil("help please"), true, "queue refusal does not consume the retry cooldown")
+		eq(W.AskCouncil("too soon"), false, "an accepted request starts the cooldown")
+		eq(#whispered, 1)
 		assert(not printed[#printed] or printed[#printed] ~= ns.L.COUNCIL_ASK_SENT, "not 'sent' before the ack")
 		W.HandleCouncilAck("WHISPER", "Random Guy-Realm", "HK~1")
 		assert(printed[#printed] ~= ns.L.COUNCIL_ASK_SENT, "an ack from a non-councillor counts for nothing")
@@ -23914,7 +23983,7 @@ test("1.0.1 borders: each tier's art (the game's atlases, Max's files) at its si
 		-- Then the plain silver (the dev's) and Max's plain bronze (the people a guild master names)
 		-- came back as tiers: five borders; the plain gold alone is kept for later. 1.2: and one
 		-- plain metal underlay per frame.)
-		eq(#w.textures, 21, "six borders (1.1.6: the primary Treasurer's dragon) and one underlay on three frames")
+		eq(#w.textures, 24, "seven borders (the Queen's and Treasurer's dragons) and one underlay on three frames")
 		for _, t in ipairs(w.B.RESERVED) do
 			for _, tex in ipairs(w.textures) do
 				-- (The underlay's plain metal is the plain gold's atlas: no border of its own.)
@@ -23962,6 +24031,7 @@ test("1.0.1 borders: each tier's art (the game's atlases, Max's files) at its si
 		local want = {
 			-- tier, art, size (nil: the atlas's own), target: coords, x y; your own: coords, x y
 			{ "gold-elite", "atlas UI-HUD-UnitFrame-Target-PortraitOn-Boss-Gold-Winged", nil, nil, "11 -4", "1 0 0 1", "-13 -4" },
+			{ "queen-dragon", "file " .. MEDIA .. "queen-dragon", "100 95", "0 0.78125 0 0.7421875", "0 1", "0.78125 0 0 0.7421875", "-2 1" },
 			{ "treasurer-dragon", "file " .. MEDIA .. "treasurer-dragon", "100 95", "0 0.78125 0 0.7421875", "0 1", "0.78125 0 0 0.7421875", "-2 1" },
 			{ "silver-elite", "atlas UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Silver-Winged", nil, nil, "8 -7", "1 0 0 1", "-10 -7" },
 			{ "bronze-elite", "file " .. MEDIA .. "bronze-winged", "110 90", "0 0.859375 0 0.703125", "11 -4", "0.859375 0 0 0.703125", "-13 -4" },
@@ -24128,7 +24198,7 @@ test("1.2 borders: an ChillZone portrait (the Arena's) is your own frame's portr
 			end
 			local n = 0
 			for _ in pairs(own) do n = n + 1 end
-			eq(n, 7, "the underlay and the six tiers (1.1.6), as on your frame")
+			eq(n, 8, "the underlay and the seven tiers, as on your frame")
 			eq(own["gold-elite"].point, "TOPLEFT " .. container.label .. " TOPLEFT -13 -4", "the gold wings 37 left and 15 above the portrait")
 			-- A tier shown: its art alone, over its metal turned round, as round your own portrait (1.1.5:
 			-- a Captain has no border of his rank any more; a High Councillor's silver wings, yours here).
@@ -24229,9 +24299,11 @@ test("1.0.1 borders: applied through the hooked CheckClassification after the ga
 			assert(entry:find(":CreateTexture$"), "only CreateTexture on the game's objects: " .. entry)
 			made[entry] = (made[entry] or 0) + 1
 		end
-		-- (1.1.5: one per tier, five with the two without wings; 1.2: and the metal underlay.)
-		eq(made["TargetFrame.TargetFrameContainer:CreateTexture"], 7); eq(made["FocusFrame.TargetFrameContainer:CreateTexture"], 7)
-		eq(made["PlayerFrame.PlayerFrameContainer:CreateTexture"], 7)
+		-- One per tier (including the Queen's and Treasurer's dragons), and the metal underlay.
+		local texturesPerFrame = #w.B.TIERS + 1
+		eq(made["TargetFrame.TargetFrameContainer:CreateTexture"], texturesPerFrame)
+		eq(made["FocusFrame.TargetFrameContainer:CreateTexture"], texturesPerFrame)
+		eq(made["PlayerFrame.PlayerFrameContainer:CreateTexture"], texturesPerFrame)
 		eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification")
 		-- The game updates the target frame (no event of ours): its CheckClassification first, then the
 		-- King's border, shown from the hook; the game's return value kept.
@@ -24276,7 +24348,7 @@ test("1.0.1 borders: applied through the hooked CheckClassification after the ga
 		eq(#w.log, 0, "still in combat")
 		w.combat = false
 		w.fire("PLAYER_REGEN_ENABLED")
-		eq(#w.textures, 21); eq(w.shown("target"), "gold-elite", "made, and the target's border shown")
+		eq(#w.textures, 24); eq(w.shown("target"), "gold-elite", "made, and the target's border shown")
 	end)
 end)
 
@@ -24345,7 +24417,7 @@ test("1.0.1 borders: off with the gamepad UI (no hook, no texture), hidden at a 
 		-- To mouse and keyboard: made and shown.
 		w.style = 0
 		w.fire("INPUT_DEVICE_INTERFACE_TRANSITION", 0, 1)
-		eq(#w.textures, 21); eq(#w.hooks, 2); eq(w.shown("target"), "gold-elite")
+		eq(#w.textures, 24); eq(#w.hooks, 2); eq(w.shown("target"), "gold-elite")
 		-- Back to the gamepad UI: hidden at once; the hook and the events may repeat Hide on the
 		-- existing underlay, but never touch tier art or style/show anything.
 		w.style = 1
@@ -24395,7 +24467,7 @@ test("1.0.1 borders: nothing outside an ChillZone guild, on clients without Fore
 	WithBorders(function(w)
 		w.noAtlas["UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Silver-Winged"] = true
 		w.internal("LOGIN")
-		eq(#w.textures, 18, "five borders and one underlay on three frames (1.1.6: six tiers)")
+		eq(#w.textures, 21, "six available borders and one underlay on three frames (the missing silver wings are left out)")
 		w.target(BorderUnit("Sage Owl", "Wanderers", "Member", 3))
 		eq(w.shown("target"), nil, "no silver wings for a High Councillor")
 		w.target(BorderUnit("Zeusy", "ChillZone Zeus", "Zeus", 0))
@@ -24411,7 +24483,7 @@ test("1.0.1 borders: nothing outside an ChillZone guild, on clients without Fore
 		WithBorders(function(w)
 			w.noFile[MEDIA .. "bronze-winged"] = how
 			w.internal("LOGIN")
-			eq(#w.textures, 21)
+			eq(#w.textures, 24)
 			w.target(BorderUnit("Zeusy", "ChillZone Zeus", "Zeus", 0))
 			eq(w.shown("target"), "bronze-elite", "a guild master keeps a border")
 			local tex = w.shownTexture("target")
@@ -24554,12 +24626,12 @@ end)
 
 -- 1.0.0: the author's preview (/cz borders test <tier>|off, Borders.SetPreview). His character
 -- holds no ChillZone rank (a Member of <ChillZone II> here), so his own portrait showed none of the
--- six borders and he could not check them in game. (1.1.5: the three borders left.)
+-- seven borders and he could not check them in game. (1.1.5: the three borders left.)
 do
 	local AUTHOR_UNIT = BorderUnit("Faladoriel Skylance", "ChillZone II", "Member", 3, { realm = "ClassicBetaPvP" })
 	local function AsAuthor(w) w.units.player = AUTHOR_UNIT; ns.me = "Faladoriel Skylance-ClassicBetaPvP" end
 	local MEDIA = "Interface\\AddOns\\ChillZone\\media\\borders\\"
-	local TIER_LIST = "gold-elite, treasurer-dragon, silver-elite, silver, bronze-elite, bronze"
+	local TIER_LIST = "gold-elite, queen-dragon, treasurer-dragon, silver-elite, silver, bronze-elite, bronze"
 
 	-- Everything the addon could send while fn runs (an addon message by either API, a chat line,
 	-- Comm's own queues), recorded in `sent`.
@@ -24586,6 +24658,7 @@ do
 			-- its point from the right.
 			local want = {
 				{ "gold-elite", "atlas UI-HUD-UnitFrame-Target-PortraitOn-Boss-Gold-Winged", nil, "1 0 0 1", "-13 -4", "11 -4" },
+				{ "queen-dragon", "file " .. MEDIA .. "queen-dragon", "100 95", "0.78125 0 0 0.7421875", "-2 1", "0 1" },
 				{ "silver-elite", "atlas UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Silver-Winged", nil, "1 0 0 1", "-10 -7", "8 -7" },
 				{ "silver", "atlas ui-hud-unitframe-target-portraiton-boss-rare-silver", nil, "1 0 0 1", "-2 1", "0 1" },
 				{ "bronze-elite", "file " .. MEDIA .. "bronze-winged", "110 90", "0.859375 0 0 0.703125", "-13 -4", "11 -4" },
@@ -24640,7 +24713,7 @@ do
 			eq(w.shown("target"), "silver", "targeting himself: his own again")
 			assert(not ns.StatusText():find("preview", 1, true), "gone from /cz status")
 			-- The borders' own machinery unchanged: the same textures, the same hooks.
-			eq(#w.textures, 21); eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification")
+			eq(#w.textures, 24); eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification")
 			for _, entry in ipairs(w.log) do assert(entry:find(":CreateTexture$"), entry) end
 		end, AsAuthor)
 		-- An author who does hold a rank: the preview in its place while on, his own again after.
@@ -24726,33 +24799,36 @@ do
 			-- one row per border tier. 1.1.5: five tiers. 1.2: honours add five representative Workshop
 			-- previews between the rank borders and the member star. 1.2.4: four more, the crook, the
 			-- cross, the charm and the slayers' horse, worn now.)
-			eq(#rows, 16, "rank and honour previews, then the member star at the foot of the tab")
+			eq(#rows, 17, "rank and honour previews, then the member star at the foot of the tab")
 			assert(head.right:find(ns.L.BORDERS_PREVIEW_NONE, 1, true), "off")
+			local bronzeEliteRow
 			for i, t in ipairs(w.B.TIERS) do
 				assert(rows[i].text:find(t.name, 1, true), t.name)
 				assert(rows[i].text:find(ns.L["BORDERS_WHO_" .. t.name:upper():gsub("%-", "_")], 1, true), t.name .. ": who holds it")
 				eq(type(rows[i].onClick), "function"); eq(type(rows[i].tooltip), "function"); eq(rows[i].right, nil)
+				if t.name == "bronze-elite" then bronzeEliteRow = i end
 			end
-			assert(rows[16].text:find("member", 1, true) and rows[16].text:find(ns.L.BORDERS_WHO_MEMBER, 1, true), rows[16].text)
+			assert(bronzeEliteRow, "the guild master's tier")
+			assert(rows[17].text:find("member", 1, true) and rows[17].text:find(ns.L.BORDERS_WHO_MEMBER, 1, true), rows[17].text)
 			local tip = {}
-			rows[16].tooltip({ AddLine = function(_, text) tip[#tip + 1] = text end })
+			rows[17].tooltip({ AddLine = function(_, text) tip[#tip + 1] = text end })
 			eq(tip[2], ns.L.BORDERS_PREVIEW_TIP_MEMBER, "the star's own tooltip")
-			rows[16].onClick()
+			rows[17].onClick()
 			eq(w.B.Preview(), "member"); eq(w.shown("player"), nil, "the star: no border round his portrait")
 			eq(w.printed[#w.printed], ns.L.BORDERS_PREVIEW_ON_MEMBER)
-			rows[16].onClick()
+			rows[17].onClick()
 			eq(w.B.Preview(), "member", "the lines were built before the click: a fresh click shows it again")
 			head, rows = Section()
-			assert(rows[16].right and rows[16].right:find(ns.L.BORDERS_PREVIEW_SHOWN, 1, true), "marked shown")
-			rows[16].onClick()
+			assert(rows[17].right and rows[17].right:find(ns.L.BORDERS_PREVIEW_SHOWN, 1, true), "marked shown")
+			rows[17].onClick()
 			eq(w.B.Preview(), nil, "clicked again: off")
 			head, rows = Section()
-			rows[5].onClick()
+			rows[bronzeEliteRow].onClick()
 			eq(w.B.Preview(), "bronze-elite"); eq(w.shown("player"), "bronze-elite", "clicked: shown")
 			eq(w.printed[#w.printed], ns.L.BORDERS_PREVIEW_ON:format("bronze-elite"))
 			head, rows = Section()
 			assert(head.right:find(ns.L.BORDERS_PREVIEW_NOW:format("bronze-elite"), 1, true), head.right)
-			assert(rows[5].right and rows[5].right:find(ns.L.BORDERS_PREVIEW_SHOWN, 1, true), "marked shown")
+			assert(rows[bronzeEliteRow].right and rows[bronzeEliteRow].right:find(ns.L.BORDERS_PREVIEW_SHOWN, 1, true), "marked shown")
 			eq(rows[1].right, nil)
 			rows[1].onClick()
 			eq(w.shown("player"), "gold-elite", "another tier")
@@ -24911,7 +24987,7 @@ do
 			-- To mouse and keyboard: made, and shown.
 			w.style = 0
 			w.fire("INPUT_DEVICE_INTERFACE_TRANSITION", 0, 1)
-			eq(#w.textures, 21); eq(w.shown("player"), "gold-elite"); eq(w.shown("target"), "gold-elite")
+			eq(#w.textures, 24); eq(w.shown("player"), "gold-elite"); eq(w.shown("target"), "gold-elite")
 			-- Back to the gamepad UI: hidden at once; a new tier, the hook and the events may
 			-- repeat Hide on the underlay, but never touch tier art or style/show anything.
 			w.style = 1
@@ -24960,7 +25036,7 @@ do
 			eq(#w.textures, 0, "still in combat")
 			w.combat = false
 			w.fire("PLAYER_REGEN_ENABLED")
-			eq(#w.textures, 21); eq(#w.hooks, 2)
+			eq(#w.textures, 24); eq(#w.hooks, 2)
 			eq(w.shown("player"), "bronze-elite", "made once combat ended, and shown"); eq(w.shown("target"), "bronze-elite")
 			-- In combat again: tier after tier, tier art only switches visibility; the existing
 			-- underlay may be restyled, but nothing is made, sized or re-anchored.
@@ -24975,7 +25051,7 @@ do
 			SlashCmdList.CHILLZONE("borders test off")
 			eq(w.shown("player"), "silver"); eq(w.shown("target"), "silver") -- (1.1.5: his own, the dev's silver)
 			w.assertCombatCalls(12) -- (1.1.5: three tiers, 20 of six; then five)
-			eq(#w.textures, 21, "nothing more made")
+			eq(#w.textures, 24, "nothing more made")
 			for _, entry in ipairs(w.log) do assert(entry:find(":CreateTexture$"), entry) end
 		end, AsAuthor)
 	end)
@@ -25020,7 +25096,7 @@ do
 			"BORDERS_PREVIEW_NOT_MEMBER", "BORDERS_PREVIEW_COMBAT", "BORDERS_PREVIEW_MISSING", "BORDERS_PREVIEW_TITLE",
 			"BORDERS_PREVIEW_NONE", "BORDERS_PREVIEW_NOW", "BORDERS_PREVIEW_SHOWN", "BORDERS_PREVIEW_TIP" }
 		for name in TIER_LIST:gmatch("[^, ]+") do keys[#keys + 1] = "BORDERS_WHO_" .. name:upper():gsub("%-", "_") end
-		eq(#keys, 18, "the six tiers' too (1.1.6: the Treasurer's dragon) (1.1.5: six until then, three, then the two without wings)")
+		eq(#keys, 19, "the seven portrait tiers too")
 		for _, key in ipairs(keys) do
 			assert(type(ns.L[key]) == "string" and ns.L[key] ~= key, "English " .. key)
 			assert(type(pt.L[key]) == "string" and pt.L[key] ~= ns.L[key], "Portuguese " .. key)
@@ -25093,7 +25169,7 @@ do
 			eq(w.shown("target"), "bronze-elite"); eq(w.shown("player"), nil)
 			-- Five textures on each member frame itself (it has no container), as on the target's (1.1.5:
 			-- three, then the two without wings).
-			eq(#w.textures, 45, "six borders (1.1.6: the Treasurer's dragon too) (1.1.5: three, then the two without wings) on the target, the focus, your own and the four party frames, and the metal underlay on the first three (1.2)")
+			eq(#w.textures, 52, "seven borders on the target, the focus, your own and the four party frames, and the metal underlay on the first three")
 			local seen = {}
 			local regions = w.partyRegions -- (the template: the sizes and places below)
 			-- (1.4.4, the dev's ask: the dragons over the game's ring on the party portraits too.) Each
@@ -25158,11 +25234,11 @@ do
 						and tex.at.y > box.y - box.height and tex.at.y - tex.dims[2] < box.y, name .. " reaches the name's box")
 				end
 			end
-			-- The game's frames: CreateTexture alone, five on each member frame; one hook more, on PartyFrame.
+			-- The game's frames: CreateTexture alone, one per tier on each member frame; one hook more, on PartyFrame.
 			local made = {}
 			for _, entry in ipairs(w.log) do made[entry] = (made[entry] or 0) + 1 end
 			OnlyCreateTexture(w)
-			for k = 1, 4 do eq(made["PartyMember#" .. k .. ":CreateTexture"], 6) end
+			for k = 1, 4 do eq(made["PartyMember#" .. k .. ":CreateTexture"], #w.B.TIERS) end
 			eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification PartyFrame.InitializePartyMemberFrames")
 			assert(w.B.StatusLine():find("player -, party1 gold-elite, party2 silver-elite, party3 bronze-elite, party4 -", 1, true), w.B.StatusLine())
 		end)
@@ -25217,11 +25293,11 @@ do
 			picks["Zeusy-Realm"] = nil
 			w.B.Refresh("party3", true)
 			eq(PartyLine(w), "gold-elite silver-elite bronze-elite -")
-			-- Six textures on each member frame, every one a tier's art, never tinted, blended or
+			-- One texture per tier on each member frame, every one a tier's art, never tinted, blended or
 			-- desaturated since it was made: no red of ChillZone's.
 			local made = {}
 			for _, entry in ipairs(w.log) do made[entry] = (made[entry] or 0) + 1 end
-			for k = 1, 4 do eq(made["PartyMember#" .. k .. ":CreateTexture"], 6, "no honour texture on a member frame") end
+			for k = 1, 4 do eq(made["PartyMember#" .. k .. ":CreateTexture"], #w.B.TIERS, "no honour texture on a member frame") end
 			local n = 0
 			for _, tex in ipairs(w.textures) do
 				if tex.owner:find("^PartyMember#") then
@@ -25233,7 +25309,7 @@ do
 					end
 				end
 			end
-			eq(n, 24)
+			eq(n, #w.B.TIERS * 4)
 			-- /cz borders off: every texture of ChillZone's hidden; what a party frame shows then (a red
 			-- ring, a red portrait) is the game's.
 			SlashCmdList.CHILLZONE("borders off")
@@ -25292,7 +25368,7 @@ do
 			local n = w.computed()
 			w.fire("GROUP_ROSTER_UPDATE")
 			eq(w.computed(), n, "empty places again: nothing worked out")
-			eq(#w.textures, 45, "nothing made after the first: six on each frame")
+			eq(#w.textures, 52, "nothing made after the first: seven on each frame")
 			-- Only the guilds of the members looked at were ever looked up.
 			local theirs = { ["ChillZone Zeus"] = true, ["CHILLZONE"] = true, ["ChillZone II"] = true }
 			for _, k in ipairs(looked) do assert(theirs[k], "looked up " .. tostring(k)) end
@@ -25321,7 +25397,7 @@ do
 			eq(w.shownOn("PartyMember#2"), nil, "now the plain member's")
 			eq(PartyLine(w), "gold-elite silver-elite bronze-elite -")
 			eq(w.computed(), n, "nobody worked out again: the same members in the same places")
-			eq(#w.textures, 45, "no texture more")
+			eq(#w.textures, 52, "no texture more")
 			-- Another order, then the first again.
 			w.partyOrder = { 2, 4, 1, 3 }
 			PartyFrame:InitializePartyMemberFrames()
@@ -25387,7 +25463,7 @@ do
 			eq(w.shownOn("PartyMember#1"), nil, "not the one he showed on before")
 			w.fire("INPUT_DEVICE_INTERFACE_TRANSITION", 0, 1)
 			eq(PartyLine(w), "gold-elite - - -")
-			eq(#w.textures, 45, "nothing made again")
+			eq(#w.textures, 52, "nothing made again")
 		end)
 	end)
 
@@ -25458,7 +25534,7 @@ do
 				end
 			end
 			assert(calls >= 10, "shown and hidden in combat: " .. calls)
-			eq(#w.textures, 45, "nothing made in combat")
+			eq(#w.textures, 52, "nothing made in combat")
 			OnlyCreateTexture(w)
 		end)
 		-- Logged in (or reloaded) in combat, in a party: nothing made, no hook, until it ends.
@@ -25472,25 +25548,25 @@ do
 			eq(#w.log, 0, "nothing made in combat"); eq(#w.hooks, 0); eq(#w.textures, 0)
 			w.combat = false
 			w.fire("PLAYER_REGEN_ENABLED")
-			eq(#w.textures, 45); eq(PartyLine(w), "gold-elite silver-elite - -", "made once combat ended, and shown")
+			eq(#w.textures, 52); eq(PartyLine(w), "gold-elite silver-elite - -", "made once combat ended, and shown")
 		end)
 		-- PartyFrame not shown yet at login (no member frame handed out), then first shown in combat.
 		WithBorders(function(w)
 			w.party(false)
 			Party(w, PARTY_MASTER)
 			w.internal("LOGIN")
-			eq(#w.textures, 21, "the target's, the focus's and yours (each with its underlay): no member frame yet")
+			eq(#w.textures, 24, "the target's, the focus's and yours (each with its underlay): no member frame yet")
 			eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification PartyFrame.InitializePartyMemberFrames",
 				"PartyFrame's hook, to see them come")
 			w.combat = true
 			PartyFrame:InitializePartyMemberFrames()
 			w.fire("GROUP_ROSTER_UPDATE")
-			eq(#w.textures, 21, "none made in combat"); eq(w.shown("party1"), nil)
+			eq(#w.textures, 24, "none made in combat"); eq(w.shown("party1"), nil)
 			w.fire("PLAYER_REGEN_ENABLED")
-			eq(#w.textures, 21, "still in combat")
+			eq(#w.textures, 24, "still in combat")
 			w.combat = false
 			w.fire("PLAYER_REGEN_ENABLED")
-			eq(#w.textures, 45); eq(w.shown("party1"), "bronze-elite", "made once combat ended, and shown")
+			eq(#w.textures, 52); eq(w.shown("party1"), "bronze-elite", "made once combat ended, and shown")
 			-- Nothing waits any more: the next fight's end works nothing out again.
 			local n = w.computed()
 			w.combat = true; w.combat = false
@@ -25512,7 +25588,7 @@ do
 			-- To mouse and keyboard: made and shown.
 			w.style = 0
 			w.fire("INPUT_DEVICE_INTERFACE_TRANSITION", 0, 1)
-			eq(#w.textures, 45); eq(#w.hooks, 3); eq(PartyLine(w), "gold-elite silver-elite bronze-elite -")
+			eq(#w.textures, 52); eq(#w.hooks, 3); eq(PartyLine(w), "gold-elite silver-elite bronze-elite -")
 			-- Back to the gamepad UI: hidden at once; the roster, PartyFrame's hook, names and the census
 			-- call nothing on them and work nothing out.
 			w.style = 1
@@ -25645,7 +25721,7 @@ do
 			Party(w, PARTY_MASTER)
 			w.internal("LOGIN")
 			w.fire("GROUP_ROSTER_UPDATE")
-			eq(#w.textures, 21); eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification")
+			eq(#w.textures, 24); eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification")
 			eq(w.shown("party1"), nil)
 			assert(w.B.StatusLine():find("target -, focus -, player -  |", 1, true), w.B.StatusLine())
 			OnlyCreateTexture(w)
@@ -26714,7 +26790,7 @@ do
 	end)
 end
 
-test("1.0.1 borders: Max's frames ship as 256 x 256 32-bit TGAs with alpha, the art within each tier's texture coordinates; his PNGs kept, README credits him", function()
+test("1.0.1 borders: the custom frames ship as 256 x 256 32-bit TGAs with alpha, the art within each tier's texture coordinates; source PNGs kept and credited", function()
 	WithBorders(function(w)
 		local files = 0
 		-- (1.1.5: his plain bronze is kept for later, on no tier: Borders.RESERVED, its art shipped.)
@@ -26744,22 +26820,31 @@ test("1.0.1 borders: Max's frames ship as 256 x 256 32-bit TGAs with alpha, the 
 				eq(artW, t.width * 2, path .. ": the art twice as wide as on screen")
 				eq(artH, t.height * 2, path .. ": the art twice as tall as on screen")
 				local topDown = math.floor(descriptor / 32) % 2 == 1
-				local outside, opaque, clear = 0, 0, 0
+				local outside, opaque, partial, clear, alpha = 0, 0, 0, 0, 0
 				for row = 0, height - 1 do
 					local y = topDown and row or (height - 1 - row)
 					local base = start + row * width * 4
 					for x = 0, width - 1 do
 						local a = data:byte(base + x * 4 + 3)
 						if a > 0 and (x >= artW or y >= artH) then outside = outside + 1 end
-						if a == 255 then opaque = opaque + 1 elseif a == 0 then clear = clear + 1 end
+						alpha = alpha + a
+						if a == 255 then opaque = opaque + 1 elseif a == 0 then clear = clear + 1 else partial = partial + 1 end
 					end
 				end
 				eq(outside, 0, path .. ": nothing drawn outside the art's area")
-				assert(opaque > 5000, path .. ": the art is there (" .. opaque .. " opaque pixels)")
+				local visible = opaque + partial
+				assert(visible > 5000, path .. ": the art is there (" .. visible .. " visible pixels)")
+				assert(alpha > 5000 * 255, path .. ": substantial visible art (" .. alpha .. " total alpha)")
+				if t.name == "queen-dragon" then
+					assert(partial > 5000 and partial > opaque,
+						path .. ": the supplied dragon's semi-transparent detail is kept (" .. partial .. " partial-alpha pixels)")
+				else
+					assert(opaque > 5000, path .. ": the opaque art is there (" .. opaque .. " opaque pixels)")
+				end
 				assert(clear > 256 * 256 - artW * artH, path .. ": transparent round the frame")
 			end
 		end
-		eq(files, 3, "Max's two frames and the primary Treasurer's dragon (1.1.6)")
+		eq(files, 4, "Max's two frames, the Queen's dragon and the primary Treasurer's dragon")
 	end)
 	-- His PNGs, in the repository (not in the addon), at the size of the game's frames he drew over.
 	for name, size in pairs({ ["bronze-plain"] = { 200, 200 }, ["bronze-winged"] = { 220, 180 } }) do
@@ -26771,10 +26856,22 @@ test("1.0.1 borders: Max's frames ship as 256 x 256 32-bit TGAs with alpha, the 
 		eq(data:byte(26), 6, path .. ": RGBA")
 		assert(ReadFile(ADDON_DIR .. "media/borders/src/" .. name .. ".png") == nil, "not shipped in the addon")
 	end
-	-- README's Credits name him for them, as Max.
+	-- Kaise's authored source is kept too, outside the shipped addon.
+	do
+		local path = ROOT .. "media/borders/src/queen-dragon.png"
+		local data = ReadFile(path)
+		assert(data and data:sub(1, 8) == "\137PNG\r\n\26\n", "a PNG: " .. path)
+		local function u32(i) local a, b, c, d = data:byte(i, i + 3) return ((a * 256 + b) * 256 + c) * 256 + d end
+		eq(data:sub(13, 16), "IHDR"); eq(u32(17), 1234, path .. ": width"); eq(u32(21), 1187, path .. ": height")
+		eq(data:byte(26), 6, path .. ": RGBA")
+		assert(ReadFile(ADDON_DIR .. "media/borders/src/queen-dragon.png") == nil, "not shipped in the addon")
+	end
+	-- README's Credits name both artists for their work.
 	local readme = assert(ReadFile(ROOT .. "README.md"))
 	local credits = readme:match("\n## Credits\n(.-)\n## ")
 	assert(credits and credits:find("\n%- %*%*Art:%*%* Max %(the bronze elite borders"), "README's Credits credit Max for the bronze frames")
+	assert(credits and credits:find("Kaise %(the Queen's red, gold and white%-winged dragon frame%)"),
+		"README's Credits credit Kaise for the Queen frame")
 end)
 
 ---------------------------------------------------------------------------
@@ -29018,7 +29115,7 @@ do
 		local reg = {}
 		assert(loadfile(ADDON_DIR .. "GamepadRegistry.lua"))("ChillZone", reg)
 		assert(type(reg.GAMEPAD) == "table" and #reg.GAMEPAD >= 20, "the list")
-		eq(reg.GAMEPAD_CHECKED_BUILD, 70205, "Forever 1.60.1's build, the pins were checked on")
+		eq(reg.GAMEPAD_CHECKED_BUILD, 70790, "Forever 1.60.1's build, the pins were checked on")
 		local GUARDS = { gate = true, own = true, click = true, exempt = true, isolated = true }
 		local PAD = { park = true, inert = true, reload = true, stays = true }
 		local MOUSE = { install = true, on = true, nothing = true }
@@ -29089,7 +29186,7 @@ do
 			eq(G.Allowed("no-such-thing"), false)
 			eq(#w.errors, 1, "reported once"); assert(w.errors[1]:find("no-such-thing", 1, true), w.errors[1])
 			assert(G.StatusLine():find("not listed: no-such-thing", 1, true), G.StatusLine())
-			assert(G.StatusLine():find("integrations listed (checked on build 70205)", 1, true), G.StatusLine())
+			assert(G.StatusLine():find("integrations listed (checked on build 70790)", 1, true), G.StatusLine())
 			-- Asked while the files load, before the error capture exists: reported the next time.
 			local early = {}
 			local w2 = NewGate(function(_, gns) gns.CaptureError = false end, style)
@@ -60365,7 +60462,10 @@ end)()
 	local function MenuRoot()
 		local root = { items = {} }
 		local function Desc(kind, text, cb)
-			local d = { kind = kind, text = text, cb = cb, enabled = true }
+			-- Element descriptions support the same child controls as the root, per
+			-- Blizzard_Menu/11_0_0_MenuImplementationGuide.lua's Submenus example.
+			local d = MenuRoot()
+			d.kind, d.text, d.cb, d.enabled = kind, text, cb, true
 			function d:SetTooltip(fn) self.tip = fn end
 			function d:SetEnabled(on) self.enabled = on end
 			root.items[#root.items + 1] = d
@@ -60459,7 +60559,7 @@ end)()
 		return true
 	end
 
-	test("1.1.2 player menus: Menu.ModifyMenu for each player menu (never ENEMY_PLAYER, SELF, offline names or Battle.net); ChillZone's lines after a divider and its title, only for a player we can reach; nothing without Menu", function()
+	test("1.1.2 player menus: Menu.ModifyMenu for each player menu (never ENEMY_PLAYER, offline names or Battle.net); ChillZone's lines after a divider and its title, only for a player we can reach; nothing without Menu", function()
 		WithVersions("Tester-Realm", function(w)
 			local savedMenu, savedEnum = rawget(_G, "Menu"), Enum.ClubMemberPresence
 			local savedUnit = { player = UnitIsPlayer, is = UnitIsUnit, conn = UnitIsConnected, full = UnitFullName }
@@ -60472,12 +60572,12 @@ end)()
 				Menu = { ModifyMenu = function(tag, cb) hooks[tag] = cb; order[#order + 1] = tag; return {} end }
 				eq(PM.Hook(), true); eq(PM.Hook(), true, "once")
 				eq(#order, #PM.WHICH, "each menu once")
-				for _, which in ipairs({ "PLAYER", "PARTY", "RAID_PLAYER", "RAID", "FRIEND", "COMMUNITIES_WOW_MEMBER", "CHAT_ROSTER" }) do
+				for _, which in ipairs({ "SELF", "PLAYER", "PARTY", "RAID_PLAYER", "RAID", "FRIEND", "COMMUNITIES_WOW_MEMBER", "CHAT_ROSTER" }) do
 					assert(hooks["MENU_UNIT_" .. which], which)
 				end
 				-- (Changed on purpose, 1.2.1, an officer's failed rank change: never the game's guild
 				-- roster menus, which hold its promote, demote, rank and removal; PlayerMenu.NEVER.)
-				for _, which in ipairs({ "ENEMY_PLAYER", "SELF", "FRIEND_OFFLINE", "GUILD_OFFLINE", "BN_FRIEND", "BN_FRIEND_OFFLINE", "TARGET",
+				for _, which in ipairs({ "ENEMY_PLAYER", "FRIEND_OFFLINE", "GUILD_OFFLINE", "BN_FRIEND", "BN_FRIEND_OFFLINE", "TARGET",
 					"COMMUNITIES_GUILD_MEMBER", "GUILD" }) do
 					eq(hooks["MENU_UNIT_" .. which], nil, which)
 				end
@@ -60488,7 +60588,7 @@ end)()
 				-- anyone who may run ChillZone, greyed with the reason when they can't go. Changed on
 				-- purpose, 1.2.1, the author's call: Ask to update in the author's, the King's and the
 				-- High Council's menus alone; this one is a plain member's.)
-				eq(root.Texts(), "divider: | title:ChillZone | title:" .. L.VERSION_LINE_UNKNOWN .. " | button:" .. L.VERSION_CHECK)
+				eq(root.Texts(), "divider: | title:ChillZone | title:" .. L.VERSION_LINE_UNKNOWN .. " | button:" .. L.VERSION_CHECK .. " | divider: | button:" .. L.PLAYERMENU_COLLAPSE)
 				assert(TipOf(root.Find(L.VERSION_CHECK)):find(L.VERSION_CHECK_TIP, 1, true))
 				eq(#w.whispered + #w.sent, 0, "opening a menu sends nothing")
 				-- Whoever we can't reach: no line at all.
@@ -60514,11 +60614,11 @@ end)()
 				-- from, when and the newest known: a gamepad can't reach a menu line's tooltip.)
 				local detail = L.VERSION_DETAIL_HELLO:format(ns.Ago(w.clock)) .. "; " .. L.VERSION_DETAIL_NEWEST:format(ns.VERSION)
 				-- (Check version there too, the owner's call, 2026-09-30; Ask to update for a councillor.)
-				eq(r.Texts(), "divider: | title:ChillZone | title:" .. L.VERSION_LINE_OUTDATED:format("1.0.0") .. " | title:|cff9d9d9d" .. detail .. "|r | button:" .. L.VERSION_CHECK)
+				eq(r.Texts(), "divider: | title:ChillZone | title:" .. L.VERSION_LINE_OUTDATED:format("1.0.0") .. " | title:|cff9d9d9d" .. detail .. "|r | button:" .. L.VERSION_CHECK .. " | divider: | button:" .. L.PLAYERMENU_COLLAPSE)
 				Council("Tester")
 				r = MenuRoot()
 				hooks.MENU_UNIT_PLAYER(nil, r, { unit = "target" })
-				eq(r.Texts(), "divider: | title:ChillZone | title:" .. L.VERSION_LINE_OUTDATED:format("1.0.0") .. " | title:|cff9d9d9d" .. detail .. "|r | button:" .. L.VERSION_ASK .. " | button:" .. L.VERSION_CHECK)
+				eq(r.Texts(), "divider: | title:ChillZone | title:" .. L.VERSION_LINE_OUTDATED:format("1.0.0") .. " | title:|cff9d9d9d" .. detail .. "|r | button:" .. L.VERSION_ASK .. " | button:" .. L.VERSION_CHECK .. " | divider: | button:" .. L.PLAYERMENU_COLLAPSE)
 				ns.rdb.council = nil
 				eq(PM.Target("PLAYER", { unit = "target" }).name, "Bob-Realm")
 				for _, unit in ipairs({ "npc", "gone", "player" }) do eq(PM.Target("PLAYER", { unit = unit }), nil, unit) end
@@ -60543,6 +60643,95 @@ end)()
 			Menu, Enum.ClubMemberPresence = savedMenu, savedEnum
 			UnitIsPlayer, UnitIsUnit, UnitIsConnected, UnitFullName = savedUnit.player, savedUnit.is, savedUnit.conn, savedUnit.full
 			PM.Reset()
+			if not ok then error(err, 0) end
+		end)
+	end)
+
+	test("player menus 1.5.2: native self portrait offers local tooltip settings, including the collapsed submenu, without adding them to other menus", function()
+		WithVersions("Tester-Realm", function(w)
+			local old = { menu = Menu, tooltip = ns.PlayerTooltip, ui = ns.UI, collapsed = ns.db.playerMenuCollapsed,
+				full = UnitFullName, player = UnitIsPlayer, is = UnitIsUnit, connected = UnitIsConnected }
+			local hooks, opened = {}, 0
+			local ok, err = pcall(function()
+				Menu = { ModifyMenu = function(tag, cb) hooks[tag] = cb end }
+				ns.PlayerTooltip = { OpenSettings = function() opened = opened + 1 end }
+				ns.UI = { OpenPlayerProfile = function() end }
+				UnitFullName = function(unit) return unit == "player" and "Tester" or "Other", "Realm" end
+				UnitIsPlayer, UnitIsConnected = function() return true end, function() return true end
+				UnitIsUnit = function(a, b) return a == b end
+				ns.db.playerMenuCollapsed = nil
+				PM.Reset(); eq(PM.Hook(), true)
+				local callback = assert(hooks.MENU_UNIT_SELF, "PlayerFrame.lua opens SELF, not PLAYER")
+				local root = MenuRoot()
+				callback(nil, root, { unit = "player", fromPlayerFrame = true })
+				assert(root.Find(L.ARENA_MENU_PROFILE), "own profile remains available")
+				assert(root.Find(L.PLAYER_TOOLTIP_SETTINGS), "settings on the native own portrait").cb()
+				eq(opened, 1)
+				eq(root.Find(L.VERSION_CHECK), nil, "no self version request")
+				assert(root.Find(L.PLAYERMENU_COLLAPSE)).cb()
+				local compact = MenuRoot()
+				callback(nil, compact, { unit = "player", fromPlayerFrame = true })
+				eq(compact.Texts(), "divider: | button:ChillZone")
+				local sub = assert(compact.Find(L.PLAYERMENU_TITLE))
+				assert(sub.Find(L.PLAYER_TOOLTIP_SETTINGS)).cb(); eq(opened, 2)
+				assert(sub.Find(L.PLAYERMENU_EXPAND)).cb()
+				for _, which in ipairs({ "FRIEND", PM.ROW, "PLAYER" }) do
+					local other = MenuRoot()
+					PM.Build(which, other, { name = ns.me })
+					eq(other.Find(L.PLAYER_TOOLTIP_SETTINGS), nil, "own name outside portrait: " .. which)
+				end
+				local other = MenuRoot()
+				hooks.MENU_UNIT_PLAYER(nil, other, { unit = "target" })
+				eq(other.Find(L.PLAYER_TOOLTIP_SETTINGS), nil, "other player's portrait")
+				local malformed = MenuRoot()
+				callback(nil, malformed, { unit = "target", fromPlayerFrame = true })
+				eq(#malformed.items, 0, "SELF never targets another character")
+				ns.PlayerTooltip = nil
+				local missing = MenuRoot()
+				callback(nil, missing, { unit = "player", fromPlayerFrame = true })
+				eq(missing.Find(L.PLAYER_TOOLTIP_SETTINGS), nil, "old client without the module")
+				assert(missing.Find(L.ARENA_MENU_PROFILE))
+				eq(#w.whispered + #w.sent, 0, "local settings never send messages")
+			end)
+			Menu, ns.PlayerTooltip, ns.UI, ns.db.playerMenuCollapsed = old.menu, old.tooltip, old.ui, old.collapsed
+			UnitFullName, UnitIsPlayer, UnitIsUnit, UnitIsConnected = old.full, old.player, old.is, old.connected
+			PM.Reset()
+			if not ok then error(err, 0) end
+		end)
+	end)
+
+	test("player menus 1.5.2: collapse keeps actions in one submenu, persists and can expand again without sending anything", function()
+		WithVersions("Tester-Realm", function(w)
+			local previous = ns.db.playerMenuCollapsed
+			local ok, err = pcall(function()
+				ns.db.playerMenuCollapsed = nil
+				local full = MenuRoot()
+				PM.Build("FRIEND", full, { name = "Ann" })
+				assert(full.Find(L.VERSION_CHECK), "normal actions visible")
+				assert(full.Find(L.PLAYERMENU_COLLAPSE), "collapse offered in the menu").cb()
+				eq(ns.db.playerMenuCollapsed, true, "saved preference")
+				PM.Reset()
+				local compact = MenuRoot()
+				PM.Build("FRIEND", compact, { name = "Ann" })
+				eq(compact.Texts(), "divider: | button:ChillZone", "only one ChillZone option at the top level")
+				local sub = assert(compact.Find(L.PLAYERMENU_TITLE))
+				assert(sub.Find(L.VERSION_CHECK), "original action remains available")
+				assert(sub.Find(L.PLAYERMENU_EXPAND), "expand stays accessible").cb()
+				eq(ns.db.playerMenuCollapsed, false)
+				local reopened = MenuRoot()
+				PM.Build("FRIEND", reopened, { name = "Ann" })
+				assert(reopened.Find(L.VERSION_CHECK), "expanded next opening")
+				eq(#w.whispered + #w.sent, 0, "display changes never send messages")
+				-- Already-built callbacks become inert after switching to the gamepad UI.
+				GamepadStyle(function() return true end)
+				reopened.Find(L.PLAYERMENU_COLLAPSE).cb()
+				eq(ns.db.playerMenuCollapsed, false, "stale click cannot act with gamepad")
+				local empty = MenuRoot()
+				eq(PM.Build("FRIEND", empty, { name = "Ann" }), 0)
+				eq(#empty.items, 0)
+			end)
+			GamepadStyle(nil)
+			ns.db.playerMenuCollapsed = previous
 			if not ok then error(err, 0) end
 		end)
 	end)
@@ -62419,7 +62608,7 @@ test("hop sighting mixed versions: a client without LY ignores the new word", fu
 end)
 assert(loadfile(ROOT .. "tests/hop-regressions.lua"))(ns, test, eq, WithHop)
 local focused = Harness.watchOnly and { "watch", "watch-chat", "chat-strikes", "watch-council-view" }
-		or { "hop", "hop-sightings", "player-sightings", "transport", "admission", "privacy", "census", "authority", "chat-rooms", "war", "watch", "watch-chat", "chat-strikes", "wanted", "wanted-guilds", "wanted-sightings", "map-wanted", "king-arrow",
+		or { "hop", "hop-sightings", "player-sightings", "transport", "admission", "privacy", "census", "authority", "chat-rooms", "war", "watch", "watch-chat", "chat-strikes", "wanted", "wanted-guilds", "wanted-sightings", "map-wanted", "map-names", "king-arrow",
 		"church", "church-count", "church-fullness", "church-view", "church-head", "department-access", "nominees-durable", "watch-council-view", "innkeeper-arrow", "squads", "king-centurions", "court-calls", "weekly-brief", "main-key", "guild-charter", "officer-muster", "dues-history", "accord", "tag-follow",
 		"campaign", "guild-finance", "dues-grace", "dues-roster-checkpoints", "justice-tasks", "justice-shared", "chat-channel-links", "perf", "roster", "census-avg-level", "ranking-rules", "profile-menu", "history-carry", "carry-history", "carry-merger", "party-guard", "profile-effects", "quiet-presence", "record", "realm-pages", "census-clean", "census-stats", "cover", "bridge-people", "bridge-affairs", "site-aggregate", "selftest", "locales-full", "role-briefings", "church-top-relay", "bridge-membership", "verify", "groups" }
 for _, name in ipairs(focused) do
@@ -64042,6 +64231,9 @@ assert(loadfile(ROOT .. "tests/link-loader.lua"))(ns, test, eq, { ROOT = ROOT, A
 
 print("tests/army-export.lua")
 assert(loadfile(ROOT .. "tests/army-export.lua"))(ns, test, eq, ADDON_DIR, WithUI)
+
+print("tests/census-header.lua")
+assert(loadfile(ROOT .. "tests/census-header.lua"))(ns, test, eq, { WithUI = WithUI, LoadUI = LoadUI })
 
 -- 1.1.5: the gamepad pass (tests/gamepad.lua): whole sessions with Blizzard's gamepad UI simulated, in
 -- a model of Forever's client of their own, from a gamepad login and across switches both ways.

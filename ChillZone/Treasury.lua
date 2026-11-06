@@ -2442,8 +2442,9 @@ Treasury.OnPrivate("TR", { from = function(s) return TreasurerPin(s) == 1 end, t
 -- correspondent and item-loading counters) may differ without stranding that snapshot forever;
 -- the canonical accepted wire is chosen deterministically. Once accepted it is saved and may be
 -- repeated by that holder, so the original guild officer need not be online with every later
--- viewer. A newer accepted snapshot replaces an
--- older one; old rows remain visibly dated, as the direct ranking's rows do.
+-- viewer. A newer accepted snapshot replaces an older one; for the same observation, a fully
+-- priced accepted row replaces a partial one without changing its date. Old rows remain visibly
+-- dated, as the direct ranking's rows do.
 --   TY~1~<guild>~<original by>~<time>~<money>~<units>~<stacks>~<value>~<pending>~<unpriced>
 --       ~<total>~<average level>~<correspondent|->~<home 0|1>
 ---------------------------------------------------------------------------
@@ -2522,6 +2523,22 @@ local function RankRelaySourceKey(row)
 		row.value, row.total, row.home and 1 or 0 }, "|")
 end
 
+local function RankRelayObservationKey(row)
+	return table.concat({ ns.Fold(row.guild), ns.Fold(row.by), row.t, row.money, row.units, row.stacks,
+		row.home and 1 or 0 }, "|")
+end
+local function RankRelayBefore(a, aWire, b, bWire)
+	if a.t ~= b.t then return a.t > b.t end
+	-- Group observations before comparing completeness so this remains a total order even when
+	-- differently cased names and conflicting observations share a timestamp. Value is not an
+	-- ordering preference: both totals still need their own two witnesses in SourceKey above.
+	local aKey, bKey = RankRelayObservationKey(a), RankRelayObservationKey(b)
+	if aKey ~= bKey then return aKey < bKey end
+	if (a.pending == 0) ~= (b.pending == 0) then return a.pending == 0 end
+	-- unpriced may include items no vendor buys; only pending means the item cache is incomplete.
+	return aWire < bWire
+end
+
 local function DirectRankRows()
 	if type(Treasury.Ranking) ~= "function" then return {} end
 	local rank = Treasury.Ranking(nil, true)
@@ -2547,22 +2564,43 @@ local function PruneRankRelays()
 			guilds = guilds + 1
 			local list = {}
 			for wire, e in pairs(set) do
-				if type(wire) ~= "string" or type(e) ~= "table" or not ReadRankRelay(wire) then set[wire] = nil
+				local row = type(wire) == "string" and type(e) == "table" and ReadRankRelay(wire) or nil
+				if not row then set[wire] = nil
 				else
 					if type(e.seen) ~= "table" then e.seen = {} end
 					if e.accepted ~= true and now - (tonumber(e.heard) or 0) > Treasury.RANK_RELAY_KEEP_PENDING then set[wire] = nil
-					else list[#list + 1] = { wire = wire, e = e } end
+					else list[#list + 1] = { wire = wire, e = e, row = row } end
 				end
 			end
 			table.sort(list, function(a, b)
-				local ar, br = ReadRankRelay(a.wire), ReadRankRelay(b.wire)
 				if (a.e.accepted == true) ~= (b.e.accepted == true) then return a.e.accepted == true end
 				-- A newer proposal with only one witness must never evict a row that already
 				-- reached consensus.  Keep corroborated history first inside the bounded set;
-				-- RelayedRanking still chooses the newest accepted row for display.
-				if ar.t ~= br.t then return ar.t > br.t end
-				return a.wire < b.wire
+				-- use the same observation/completion order as the displayed ranking.
+				return RankRelayBefore(a.row, a.wire, b.row, b.wire)
 			end)
+			if #list > Treasury.RANK_RELAY_CANDIDATES then
+				-- Already corroborated annotation variants of the same observation AND copper
+				-- need only one slot. Otherwise three such variants can repeatedly discard the
+				-- first witness of its completed value before the second holder ever arrives.
+				-- Preserve their existing witnesses; do not merge different values or proposals.
+				local retained, compact = {}, {}
+				for _, candidate in ipairs(list) do
+					local sourceKey = candidate.e.accepted == true and RankRelaySourceKey(candidate.row) or nil
+					local kept = sourceKey and retained[sourceKey]
+					if kept then
+						for witness, at in pairs(candidate.e.seen) do
+							kept.e.seen[witness] = math.max(tonumber(kept.e.seen[witness]) or 0, tonumber(at) or 0)
+						end
+						kept.e.heard = math.max(tonumber(kept.e.heard) or 0, tonumber(candidate.e.heard) or 0)
+						set[candidate.wire] = nil
+					else
+						compact[#compact + 1] = candidate
+						if sourceKey then retained[sourceKey] = candidate end
+					end
+				end
+				list = compact
+			end
 			for i = Treasury.RANK_RELAY_CANDIDATES + 1, #list do set[list[i].wire] = nil end
 			if next(set) == nil then s.rows[key] = nil; guilds = guilds - 1 end
 		end
@@ -2607,8 +2645,8 @@ function Treasury.HandleRankRelay(dist, sender, text)
 	local n = 0
 	for _ in pairs(witnesses) do n = n + 1 end
 	if n >= Treasury.RANK_RELAY_WITNESSES then
-		-- Marking every annotation variant accepted makes the same lexical wire win on every client
-		-- which has the union, and lets that canonical row travel after the source went offline.
+		-- Marking every annotation variant accepted makes the same canonical wire win on every
+		-- client which has the union, and lets it travel after the source went offline.
 		for _, candidate in ipairs(candidates) do candidate.accepted = true end
 	end
 	PruneRankRelays()
@@ -2624,7 +2662,7 @@ function Treasury.RelayedRanking()
 		local best, bestWire
 		for wire, e in pairs(set) do
 			local row = e.accepted == true and ReadRankRelay(wire) or nil
-			if row and (not best or row.t > best.t or (row.t == best.t and wire < bestWire)) then best, bestWire = row, wire end
+			if row and (not best or RankRelayBefore(row, wire, best, bestWire)) then best, bestWire = row, wire end
 		end
 		if best then best.relay = true; out[#out + 1] = best end
 	end

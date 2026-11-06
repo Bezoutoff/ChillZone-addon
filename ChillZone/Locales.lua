@@ -191,8 +191,24 @@ L.LETTER_1_5_1 = (L.LETTER_1_5_0:gsub("in version 1%.5%.0:", "in version 1.5.1:"
 	:gsub("%- {star} Update, then close", "- {guild} 1.5.1: the census page tells PvP from PvE again, and a PvP character's census holds the PvP guilds alone.\n- {star} Update, then close", 1))
 -- 1.5.2 (the census as the reporter's own text while no relay answers; the PvP family's second pin).
 L.LETTER_1_5_2_TITLE, L.LETTER_1_5_2_HEAD, L.LETTER_1_5_2_SIGNED, L.LETTER_1_5_2_LINK = L.LETTER_1_5_1_TITLE, L.LETTER_1_5_1_HEAD, L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK
-L.LETTER_1_5_2 = (L.LETTER_1_5_1:gsub("in version 1%.5%.1:", "in version 1.5.2:", 1)
-	:gsub("%- {star} Update, then close", "- {team} 1.5.2: while no relay of the Council answers, each guild's census goes as its reporter's own text in the channel, so the census keeps moving when nobody signed is online.\n- {star} Update, then close", 1))
+L.LETTER_1_5_2 = [==[Your Majesty. Soldiers of ChillZone.
+
+Version 1.5.2 focuses on the census, rankings and the problems you reported:
+
+- {guild} Your server's soldiers stay prominent. A smaller total includes the other servers we have data for. Click the numbers for the breakdown, dates and estimates of individual people.
+- {team} The last accepted census stays visible while a new one rebuilds. Older observations keep their original date; unavailable servers are not shown as zero.
+- {watch} Guild masters can resend a verification request without restarting their guild's original clock. There is a short cooldown between requests.
+- {star} Church records catch up from the other available Apostles sooner. Opening a games or crafting ranking requests missing inventories from online holders. Bank rankings prefer a confirmed complete valuation of the same snapshot.
+- {star} Bones fixes cover the first innkeeper lesson and simultaneous opening rolls in multiplayer.
+- {crown} The Queen's dragon frame and party-frame display have been updated.
+- {guild} The King and High Council can preview and confirm shared place names from the map. The change stays inside ChillZone.
+- {team} Player tooltips have compact guild details and size options. Your portrait menu can collapse its ChillZone entries.
+
+Stored or relayed numbers are observations, not a promise that every guild is online or already counted. The details page shows what we know and when it was observed.
+
+Please close and reopen the game after updating. Thank you for the reports and for helping test.
+
+Long live the King. Long live ChillZone.]==]
 L.LETTER_1_3_3_TITLE = "Your guild on the website"
 L.LETTER_1_3_3 = [==[Version 1.3.3.
 
@@ -298,8 +314,24 @@ Vida longa ao Rei. Vida longa a ChillZone.]==]
 	L.LETTER_1_5_1 = (L.LETTER_1_5_0:gsub("na versão 1%.5%.0:", "na versão 1.5.1:", 1)
 		:gsub("%- {star} Atualize, feche", "- {guild} 1.5.1: a página do censo volta a separar PvP de PvE, e o censo de um personagem PvP guarda só as guildas do PvP.\n- {star} Atualize, feche", 1))
 	L.LETTER_1_5_2_TITLE, L.LETTER_1_5_2_HEAD, L.LETTER_1_5_2_SIGNED, L.LETTER_1_5_2_LINK = L.LETTER_1_5_1_TITLE, L.LETTER_1_5_1_HEAD, L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK
-	L.LETTER_1_5_2 = (L.LETTER_1_5_1:gsub("na versão 1%.5%.1:", "na versão 1.5.2:", 1)
-		:gsub("%- {star} Atualize, feche", "- {team} 1.5.2: enquanto nenhum relé do Conselho responde, o censo de cada guilda vai como texto do próprio repórter no canal, e o censo continua andando quando ninguém assinado está online.\n- {star} Atualize, feche", 1))
+	L.LETTER_1_5_2 = [==[Sua Majestade. Soldados do ChillZone.
+
+A versão 1.5.2 se concentra no censo, nos rankings e nos problemas que vocês relataram:
+
+- {guild} Os soldados do seu servidor ficam em destaque. Um total menor inclui os outros servidores dos quais temos dados. Clique nos números para ver a divisão, as datas e as estimativas de pessoas distintas.
+- {team} O último censo aceito continua visível enquanto o novo é reconstruído. Observações antigas mantêm a data original; servidores sem dados não aparecem como zero.
+- {watch} Guild masters podem reenviar o pedido de verificação sem reiniciar o prazo original da guilda. Há um pequeno intervalo entre pedidos.
+- {star} Os registros da Igreja sincronizam mais cedo com os outros apóstolos disponíveis. Abrir um ranking de jogos ou crafting pede os registros disponíveis na rede. O ranking dos bancos prefere a avaliação completa confirmada do mesmo snapshot.
+- {star} Bones recebeu correções na primeira aula do taverneiro e nas rolagens iniciais simultâneas do multiplayer.
+- {crown} A moldura de dragão da Rainha e a exibição das molduras no grupo foram atualizadas.
+- {guild} O Rei e o Alto Conselho podem pré-visualizar e confirmar nomes compartilhados pelo mapa. A mudança fica dentro do ChillZone.
+- {team} As dicas de jogadores têm detalhes compactos da guilda e opções de tamanho. O menu do seu retrato pode recolher as opções do ChillZone.
+
+Números armazenados ou retransmitidos são observações, não uma promessa de que todas as guildas estão online ou já foram contadas. A página de detalhes mostra o que sabemos e quando foi observado.
+
+Feche e reabra o jogo depois de atualizar. Obrigado pelos relatos e pela ajuda nos testes.
+
+Vida longa ao Rei. Vida longa ao ChillZone.]==]
 	L.LETTER_1_3_3_TITLE = "Sua guilda no site"
 	L.LETTER_1_3_3 = [==[Versão 1.3.3.
 
@@ -1437,6 +1469,7 @@ L.BORDERS_PREVIEW_SHOWN = "shown"
 L.BORDERS_PREVIEW_TIP = "Shows this border round your own portrait, and on your target frame when you target yourself, as someone who holds it sees his own, and its mark after your name on your own frame and on every friendly player's nameplate. On your screen only: nothing is sent, and a /reload forgets it. Click it again, or type /cz borders test off, to end it."
 L.BORDERS_PREVIEW_TIP_MEMBER = "Shows the star of any other ChillZone member after your name on your own frame and on every friendly player's nameplate (no border has it). On your screen only: nothing is sent, and a /reload forgets it. Click it again, or type /cz borders test off, to end it."
 L.BORDERS_WHO_GOLD_ELITE = "gold wings: the King"
+L.BORDERS_WHO_QUEEN_DRAGON = "the crimson dragon: the Queen"
 L.BORDERS_WHO_TREASURER_DRAGON = "the jewelled dragon: the federal Treasurer"
 L.BORDERS_WHO_SILVER_ELITE = "silver wings: the High Council"
 L.BORDERS_WHO_BRONZE_ELITE = "bronze wings: guild masters"
@@ -3842,6 +3875,7 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.BORDERS_PREVIEW_TIP = "Mostra esta borda em volta do seu próprio retrato, e no quadro do alvo quando você mira em si mesmo, como quem a tem vê a própria, e a marca dela depois do seu nome no seu quadro e na placa de identificação de todo jogador aliado. Só na sua tela: nada é enviado, e um /reload esquece. Clique de novo, ou digite /cz borders test off, para encerrar."
 	L.BORDERS_PREVIEW_TIP_MEMBER = "Mostra a estrela de qualquer outro membro do ChillZone depois do seu nome no seu quadro e na placa de identificação de todo jogador aliado (nenhuma borda a tem). Só na sua tela: nada é enviado, e um /reload esquece. Clique de novo, ou digite /cz borders test off, para encerrar."
 	L.BORDERS_WHO_GOLD_ELITE = "dourada com asas: o Rei"
+	L.BORDERS_WHO_QUEEN_DRAGON = "o dragão carmesim: a Rainha"
 	L.BORDERS_WHO_TREASURER_DRAGON = "o dragão de joias: o Tesoureiro federal"
 	L.BORDERS_WHO_SILVER_ELITE = "prateada com asas: o High Council"
 	L.BORDERS_WHO_BRONZE_ELITE = "bronze com asas: mestres de guilda"
@@ -6186,6 +6220,15 @@ end
 -- player's window for it (Workshop.lua); the answer bank's Answers and each page's "?" (Answers.lua).
 ---------------------------------------------------------------------------
 L.PLAYERMENU_TITLE = "ChillZone"
+L.PLAYERMENU_COLLAPSE = "Collapse ChillZone menu"
+L.PLAYERMENU_EXPAND = "Expand ChillZone menu"
+L.CENSUS_HEADER_ALL = "%s all servers"
+L.CENSUS_HEADER_SAVED = "Saved %s · %d guilds refreshed"
+L.CENSUS_HEADER_SAVED_TIP = "Showing the saved census from %s while current guild reports are checked. Online counts include fresh reports only."
+L.CENSUS_HEADER_HISTORY = "Last snapshot: %s on %s (out of date)"
+L.CENSUS_HEADER_ALL_TIP = "The large number counts soldiers on this server. The smaller number combines the available accepted server snapshots, each counted once. Open the census for dates, server breakdowns and player estimates. Servers with no accepted data are not included."
+L.CENSUS_STATS_DETAILS_PENDING = "Guild details have not arrived from this server yet."
+L.CENSUS_STATS_DETAILS_PARTIAL = "Carried guild details may be incomplete; the server total above is counted only once."
 L.PLAYERMENU_VERSION = "Their ChillZone version"
 L.VERSION_LINE_CURRENT = "ChillZone %s (up to date)"
 L.VERSION_LINE_NEWER = "ChillZone %s (newer than yours)"
@@ -6284,6 +6327,15 @@ L.BUGASK_GONE = "That ask is over (10 minutes passed): nothing was sent. The aut
 L.PAGE_HELP_ENGLISH = "(This explanation is in English.)"
 if GetLocale and GetLocale() == "ptBR" then
 	L.PLAYERMENU_TITLE = "ChillZone"
+	L.PLAYERMENU_COLLAPSE = "Recolher menu ChillZone"
+	L.PLAYERMENU_EXPAND = "Expandir menu ChillZone"
+	L.CENSUS_HEADER_ALL = "%s em todos os servidores"
+	L.CENSUS_HEADER_SAVED = "Salvo em %s · %d guildas atualizadas"
+	L.CENSUS_HEADER_SAVED_TIP = "Exibindo o censo salvo em %s enquanto os relatos atuais das guildas são conferidos. A contagem online inclui apenas relatos recentes."
+	L.CENSUS_HEADER_HISTORY = "Último registro: %s em %s (desatualizado)"
+	L.CENSUS_HEADER_ALL_TIP = "O número maior conta os soldados deste servidor. O menor soma os registros aceitos dos servidores disponíveis, contando cada um uma vez. Abra o censo para ver datas, dados por servidor e estimativas de pessoas. Servidores sem dados aceitos ficam de fora."
+	L.CENSUS_STATS_DETAILS_PENDING = "Os detalhes das guildas deste servidor ainda não chegaram."
+	L.CENSUS_STATS_DETAILS_PARTIAL = "Os detalhes recebidos das guildas podem estar incompletos; o total do servidor acima é contado uma única vez."
 	L.PLAYERMENU_VERSION = "A versão ChillZone dessa pessoa"
 	L.VERSION_LINE_CURRENT = "ChillZone %s (atualizado)"
 	L.VERSION_LINE_NEWER = "ChillZone %s (mais novo que o seu)"

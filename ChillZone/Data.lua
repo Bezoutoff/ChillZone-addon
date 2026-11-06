@@ -972,8 +972,12 @@ local function PersonKey(name)
 	local full = ns.FullName(name)
 	local A = ns.Alts
 	local g = A and A.Group and full and A.Group(full)
-	if type(g) == "table" and type(g.main) == "string" then return "p:" .. ns.FullName(g.main):lower() end
-	return full and full:lower() or nil
+	if type(g) == "table" and type(g.main) == "string" then full = ns.FullName(g.main) end
+	if not full then return nil end
+	-- Forever characters retain their identity when the server stamps another sub-realm.
+	local realm = ns.RealmOf(full)
+	local group = realm and ns.GroupOf and ns.GroupOf(realm)
+	return group and (ns.ShortName(full):lower() .. "-" .. group:lower()) or full:lower()
 end
 -- Two rows agree: observed within the window of each other, sizes within max(5, 5%).
 function Data.WitnessesAgree(a, b)
@@ -1041,6 +1045,26 @@ local function TakeWitness(row, sender, now)
 	return GlobalTake(best.name, best.total, best.online, best.avg10, best.observed, best.by, now, 2)
 end
 
+local function TrimGlobal()
+	for _, store in ipairs({ GlobalStore(), Witnesses() }) do
+		local keys = {}
+		for key, entry in pairs(store) do
+			local observed = type(entry) == "table" and tonumber(entry.observed) or nil
+			if not observed and type(entry) == "table" then
+				for _, row in pairs(entry) do
+					if type(row) == "table" then observed = math.max(observed or 0, tonumber(row.observed) or 0) end
+				end
+			end
+			keys[#keys + 1] = { key = key, observed = observed or 0 }
+		end
+		table.sort(keys, function(a, b)
+			if a.observed ~= b.observed then return a.observed > b.observed end
+			return a.key < b.key
+		end)
+		for i = Data.MAX_GUILDS + 1, #keys do store[keys[i].key] = nil end
+	end
+end
+
 -- The witnesses a guild's shown relayed row stands on (Census tooltips, /cz status): 2 for a row
 -- two people agreed on, 1 for a trusted relay's own, nil for none.
 function Data.GlobalWitnesses(name)
@@ -1057,6 +1081,7 @@ function Data.CaptureGlobalCensus()
 		if now - observed <= Data.KEEP and GlobalTake(name, tonumber(g.total) or 0, tonumber(g.online) or 0,
 			Data.AvgTenths(g) or 0, observed, ns.me, now) then n = n + 1 end
 	end
+	TrimGlobal()
 	return n
 end
 
@@ -1166,14 +1191,16 @@ function Data.SendGlobalCensus()
 end
 
 -- The answers (claims and snapshots) heard lately, and how many came since a time.
-local function HeardAnswer(now, trusted)
-	answersHeard[#answersHeard + 1] = { t = now, trusted = trusted == true }
-	local keep = {}
-	for _, a in ipairs(answersHeard) do
-		if now - a.t <= 10 * 60 then keep[#keep + 1] = a end
+local function HeardAnswer(now, trusted, sender)
+	local person = PersonKey(sender)
+	if not person then return end
+	for i = #answersHeard, 1, -1 do
+		local a = answersHeard[i]
+		-- A claim and its following snapshot are ONE answer, as are an alt's repeats.
+		if now - a.t > 10 * 60 or a.person == person then table.remove(answersHeard, i) end
 	end
-	while #keep > 32 do table.remove(keep, 1) end
-	answersHeard = keep
+	if #answersHeard >= 32 then table.remove(answersHeard, 1) end
+	answersHeard[#answersHeard + 1] = { t = now, trusted = trusted == true, person = person }
 end
 local function AnswersSince(t)
 	local n, trusted = 0, false
@@ -1217,14 +1244,14 @@ end
 -- two people agree. The rows themselves are never mistaken for signed census authority.
 function Data.ReceiveGlobalCensus(dist, sender, text)
 	if dist ~= "CHANNEL" or type(text) ~= "string" or type(sender) ~= "string"
-		or sender == "" or #sender > 100 or sender:find("[%c~]") then return false end
+		or #text > Data.GLOBAL_MAX_BYTES or sender == "" or #sender > 100 or sender:find("[%c~]") then return false end
 	local ver, kind, made, body = text:match("^CG~(%d+)~([SQC])~(%d*)~?(.*)$")
 	if tonumber(ver) ~= Data.GLOBAL_PROTOCOL then return false end
 	local now = ns.Now()
 	local self = type(ns.me) == "string" and ns.FullName(sender) == ns.FullName(ns.me)
 	if kind == "C" then
 		-- A member's claim: its snapshot follows. It counts as an answer heard (AnswerAsk).
-		if not self then HeardAnswer(now, GlobalTrusted(sender)) end
+		if not self then HeardAnswer(now, GlobalTrusted(sender), sender) end
 		return true
 	end
 	if kind == "Q" then
@@ -1252,10 +1279,11 @@ function Data.ReceiveGlobalCensus(dist, sender, text)
 		end
 	end
 	-- (1.4.0: the rows taken before a malformed one stay, and now say so.)
+	TrimGlobal()
 	if changed then Data.ChangedSoon() end
 	if bad or count == 0 then return false end
 	globalLastHeard = now
-	HeardAnswer(now, trusted)
+	HeardAnswer(now, trusted, sender)
 	return true
 end
 
@@ -1349,6 +1377,7 @@ function Data.Summary()
 		if a.count ~= b.count then return a.count > b.count end
 		return a.key < b.key
 	end)
+	if Data.ApplyGroupSnapshot then Data.ApplyGroupSnapshot(s, now) end
 	return s
 end
 
@@ -1392,6 +1421,17 @@ end
 local function GroupKey(faction, group) return faction .. "|" .. group end
 local function GroupField(group)
 	if type(group) ~= "string" or group == "" or #group > 160 or group:find("[|;~,%c]") then return nil end
+	-- Old clients retained sub-realms as separate origins. Canonicalize on ingress, before
+	-- voting or comparing with ours; mixed rulesets can never name one census origin.
+	local family, other
+	for realm in group:gmatch("[^+]+") do
+		local f = ns.ForeverFamily and ns.ForeverFamily(realm)
+		if f then
+			if family and family ~= f then return nil end
+			family = f
+		else other = true end
+	end
+	if family then return not other and family or nil end
 	return group
 end
 local function OurFaction() return ns.faction == "Horde" and "Horde" or "Alliance" end
@@ -1494,6 +1534,31 @@ local function PruneGroups(now)
 			end
 		end
 	end
+	-- The channel's corroborations and suppression hints are bounded too, including invented
+	-- group names. Neither hundreds of senders nor hundreds of origins can grow this session.
+	local keys = {}
+	for key, list in pairs(groupWitness) do
+		local entries = {}
+		for person, row in pairs(list) do
+			if now - row.observed > Data.GROUP_KEEP then list[person] = nil
+			else entries[#entries + 1] = { person = person, observed = row.observed } end
+		end
+		table.sort(entries, function(a, b)
+			if a.observed ~= b.observed then return a.observed > b.observed end
+			return a.person < b.person
+		end)
+		for i = Data.WITNESS_MAX + 1, #entries do list[entries[i].person] = nil end
+		if entries[1] then keys[#keys + 1] = { key = key, observed = entries[1].observed }
+		else groupWitness[key] = nil end
+	end
+	table.sort(keys, function(a, b)
+		if a.observed ~= b.observed then return a.observed > b.observed end
+		return a.key < b.key
+	end)
+	for i = Data.GROUP_MAX * 2 + 1, #keys do groupWitness[keys[i].key] = nil end
+	for key, observed in pairs(groupHeard) do
+		if now - observed > Data.GROUP_KEEP or (not groupWitness[key] and not GroupStore()[key]) then groupHeard[key] = nil end
+	end
 end
 
 -- This client's own look at its realm group: the census it holds now (Data.Summary). Taken by the
@@ -1503,15 +1568,44 @@ function Data.RecordGroupCensus(s, now)
 	local group = GroupField(ns.group)
 	if not group then return false end
 	s, now = s or Data.Summary(), now or ns.Now()
-	local counted = 0
-	for _, e in ipairs(s.guilds or {}) do if e.counted then counted = counted + 1 end end
-	local row = GroupRow(group, OurFaction(), tonumber(s.characters or s.total) or 0, tonumber(s.total) or 0, counted, now)
+	if s.snapshot then return false end -- a displayed fallback is never a new observation
+	local counted, observed = 0, now
+	for _, e in ipairs(s.guilds or {}) do
+		if e.counted then counted, observed = counted + 1, math.min(observed, ObservationTime(e.g)) end
+	end
+	local row = GroupRow(group, OurFaction(), tonumber(s.characters or s.total) or 0, tonumber(s.total) or 0, counted, observed)
 	if not row then return false end
 	row.src = "own"
 	GroupStore()[GroupKey(row.faction, row.group)] = row
 	GroupStore("heard")[GroupKey(row.faction, row.group)] = nil
+	if Data.CaptureGroupDetails then Data.CaptureGroupDetails(s, now) end
 	PruneGroups(now)
 	return true
+end
+
+-- During reconciliation, a partial roster must not erase the last counted view of this
+-- origin. Only the displayed totals fall back: no guild, officer, rank or online presence is
+-- fabricated. Consumers can label the observation and inspect the partial live totals below.
+function Data.ApplyGroupSnapshot(s, now)
+	if not (ns.Comm and ns.Comm.loginAt) then return end
+	local group = GroupField(ns.group)
+	local held
+	for _, e in pairs(GroupStore()) do
+		if type(e) == "table" and GroupField(e.group) == group and e.faction == OurFaction()
+			and GroupRow(e.group, e.faction, e.characters, e.people, e.guilds, e.observed)
+			and (not held or e.observed > held.observed) then held = e end
+	end
+	if not held then return end
+	local counted = 0
+	for _, e in ipairs(s.guilds) do if e.counted then counted = counted + 1 end end
+	if counted >= held.guilds and s.characters > 0 then return end
+	local snapshot = { group = group, faction = held.faction, observed = held.observed, source = held.src,
+		witnesses = held.w, characters = held.characters, people = held.people, guilds = held.guilds,
+		age = math.max(0, now - held.observed), counted = now - held.observed <= Data.TOTAL_KEEP }
+	if not snapshot.counted then s.history = snapshot; return end
+	s.live = { characters = s.characters, people = s.total, alts = s.alts, guilds = counted }
+	s.snapshot = snapshot
+	s.characters, s.total, s.alts = held.characters, held.people, held.characters - held.people
 end
 
 local function GroupAgree(a, b)
@@ -1527,7 +1621,7 @@ end
 -- Another group's row heard from `sender`: taken (true when what this client counts changed).
 local function TakeGroup(row, sender, trusted, now)
 	local key = GroupKey(row.faction, row.group)
-	if row.group == ns.group and row.faction == OurFaction() then return false end -- our own: we see it live
+	if row.group == GroupField(ns.group) and row.faction == OurFaction() then return false end -- our own: we see it live
 	local store = GroupStore()
 	local held = store[key]
 	local function Keep(r, src, w)
@@ -1538,14 +1632,27 @@ local function TakeGroup(row, sender, trusted, now)
 		if type(h) == "table" and (tonumber(h.observed) or 0) <= r.observed then GroupStore("heard")[key] = nil end
 		return true
 	end
-	if trusted then return Keep(row, "relay", 1) end
+	if trusted then
+		groupHeard[key] = math.max(groupHeard[key] or 0, row.observed)
+		return Keep(row, "relay", 1)
+	end
 	local who = PersonKey(sender)
 	if not who then return false end
 	local list = groupWitness[key] or {}
 	groupWitness[key] = list
 	list[who] = row
+	PruneGroups(now)
 	local entries = {}
 	for _, e in pairs(list) do entries[#entries + 1] = e end
+	-- Only two independent senders actually heard on THIS channel suppress our broadcast.
+	-- Our own saved observation can corroborate locally, but other listeners still need us.
+	for i = 1, #entries do
+		for j = i + 1, #entries do
+			if GroupAgree(entries[i], entries[j]) then
+				groupHeard[key] = math.max(groupHeard[key] or 0, math.max(entries[i].observed, entries[j].observed))
+			end
+		end
+	end
 	if type(held) == "table" and held.src == "own" then entries[#entries + 1] = held end
 	local best
 	for i = 1, #entries do
@@ -1574,14 +1681,16 @@ end
 -- and those it took, newer than what was said here lately; the beta's never on a launch realm.
 function Data.GroupCensusPayload(now)
 	now = now or ns.Now()
-	local rows = {}
-	for key, e in pairs(GroupStore()) do
+	local rows, byOrigin = {}, {}
+	for _, e in pairs(GroupStore()) do
 		local row = type(e) == "table" and GroupRow(e.group, e.faction, e.characters, e.people, e.guilds, e.observed)
-		if row and not (row.group == ns.group and row.faction == OurFaction()) and Listed(row.group)
+		local key = row and GroupKey(row.faction, row.group)
+		if row and not (row.group == GroupField(ns.group) and row.faction == OurFaction()) and Listed(row.group)
 			and row.observed > (groupHeard[key] or 0) + Data.FRESH then
-			rows[#rows + 1] = row
+			if not byOrigin[key] or GroupLater(row, byOrigin[key]) then byOrigin[key] = row end
 		end
 	end
+	for _, row in pairs(byOrigin) do rows[#rows + 1] = row end
 	if #rows == 0 then return nil end
 	table.sort(rows, function(a, b) return GroupLater(a, b) end)
 	local out = {}
@@ -1593,6 +1702,7 @@ function Data.GroupCensusPayload(now)
 end
 
 function Data.SayGroupCensus()
+	if ns.QuietPresence and ns.QuietPresence() then return false end
 	if not GlobalTrusted(ns.me) and not GlobalMember() then return false end
 	local now = ns.Now()
 	local payload = Data.GroupCensusPayload(now)
@@ -1610,7 +1720,8 @@ end
 
 function Data.ReceiveGroupCensus(dist, sender, text)
 	if dist ~= "CHANNEL" or type(text) ~= "string" or type(sender) ~= "string"
-		or sender == "" or #sender > 100 or sender:find("[%c~]") then return false end
+		or #text > Data.GLOBAL_MAX_BYTES or sender == "" or #sender > 100 or sender:find("[%c~]") then return false end
+	if text:sub(1, 5) == "CX~2~" then return Data.ReceiveGroupDetails(sender, text) end
 	local ver, made, body = text:match("^CX~(%d+)~S~(%d+)~(.*)$")
 	if tonumber(ver) ~= Data.GROUP_PROTOCOL then return false end
 	if type(ns.me) == "string" and ns.FullName(sender) == ns.FullName(ns.me) then return true end
@@ -1625,11 +1736,10 @@ function Data.ReceiveGroupCensus(dist, sender, text)
 		local g, f, c, p, n, o = part:match("^([^|]+)|(%a+)|(%d+)|(%d+)|(%d+)|(%d+)$")
 		local row = g and GroupRow(g, f, c, p, n, o)
 		if row then
-			local key = GroupKey(row.faction, row.group)
-			if row.observed > (groupHeard[key] or 0) then groupHeard[key] = row.observed end
 			if Listed(row.group) and TakeGroup(row, sender, trusted, now) then changed = true end
 		end
 	end
+	PruneGroups(now)
 	if count == 0 then return false end
 	if changed then Data.ChangedSoon() end
 	return true
@@ -1655,10 +1765,13 @@ function Data.Groups(s, now)
 		seen[key] = true
 		local kind, region = Data.GroupInfo(groupName)
 		local row = { group = groupName, faction = e.faction, characters = e.characters, people = e.people, guilds = e.guilds,
-			observed = e.observed, src = e.src, w = e.w, kind = kind, region = region, counted = counted, ours = ours }
+			observed = e.observed, src = e.src, w = e.w, kind = kind, region = region, counted = counted, ours = ours,
+			fresh = now - e.observed <= Data.FRESH }
 		out.rows[#out.rows + 1] = row
 		if not counted then return end
 		out.characters, out.people = out.characters + e.characters, out.people + e.people
+		out.oldest = out.oldest and math.min(out.oldest, e.observed) or e.observed
+		out.newest = math.max(out.newest or 0, e.observed)
 		for _, pair in ipairs({ { out.kinds, kind or "?" }, { out.regions, region or "?" }, { out.factions, e.faction } }) do
 			local t = pair[1][pair[2]] or { characters = 0, people = 0 }
 			t.characters, t.people = t.characters + e.characters, t.people + e.people
@@ -1667,17 +1780,25 @@ function Data.Groups(s, now)
 	end
 	local group = GroupField(ns.group)
 	if group and (tonumber(s.characters or s.total) or 0) > 0 then
-		local counted = 0
-		for _, e in ipairs(s.guilds or {}) do if e.counted then counted = counted + 1 end end
+		local counted, observed = 0, now
+		for _, e in ipairs(s.guilds or {}) do
+			if e.counted then counted, observed = counted + 1, math.min(observed, ObservationTime(e.g)) end
+		end
+		local snapshot = s.snapshot
 		Add({ group = group, faction = OurFaction(), characters = tonumber(s.characters or s.total) or 0,
-			people = tonumber(s.total) or 0, guilds = counted, observed = now, src = "live" }, true, true)
+			people = tonumber(s.total) or 0, guilds = snapshot and snapshot.guilds or counted,
+			observed = snapshot and snapshot.observed or observed, src = snapshot and snapshot.source or "live",
+			w = snapshot and snapshot.witnesses }, true, true)
 	end
 	local kept = {}
 	for _, e in pairs(GroupStore()) do
 		if type(e) == "table" and GroupRow(e.group, e.faction, e.characters, e.people, e.guilds, e.observed) and Listed(e.group) then kept[#kept + 1] = e end
 	end
 	table.sort(kept, GroupLater)
-	for _, e in ipairs(kept) do Add(e, now - e.observed <= Data.GROUP_COUNT, false) end
+	for _, e in ipairs(kept) do
+		local ours = GroupField(e.group) == group and e.faction == OurFaction()
+		Add(e, now - e.observed <= (ours and Data.TOTAL_KEEP or Data.GROUP_COUNT), ours)
+	end
 	local heard = {}
 	for _, e in pairs(GroupStore("heard")) do
 		if type(e) == "table" and GroupRow(e.group, e.faction, e.characters, e.people, e.guilds, e.observed) and Listed(e.group) then heard[#heard + 1] = e end
@@ -1693,8 +1814,213 @@ function Data.Groups(s, now)
 	return out
 end
 
+-- 1.5.2: bounded detail for the other origins. CX1's totals stay interoperable; CX2 carries only
+-- public census numbers, never a leader, officer, member list, rank, location or private data.
+-- These rows NEVER enter rdb.guilds or censusGlobal, even on returning to their origin.
+Data.GROUP_DETAIL_MAX = 8
+Data.GROUP_DETAIL_WITNESSES = 4
+local detailWitness, detailHeard, detailCursor = {}, {}, 0
+local function DetailStore()
+	if type(ns.db) ~= "table" then return {} end
+	ns.db.groupDetails = type(ns.db.groupDetails) == "table" and ns.db.groupDetails or {}
+	return ns.db.groupDetails
+end
+local function PruneDetails(now)
+	local store, origins = DetailStore(), {}
+	for key, entry in pairs(store) do
+		if type(entry) ~= "table" or type(entry.rows) ~= "table" or not GroupField(entry.group)
+			or (entry.faction ~= "Alliance" and entry.faction ~= "Horde") or now - (tonumber(entry.observed) or 0) > Data.KEEP then
+			store[key] = nil
+		else origins[#origins + 1] = { key = key, observed = entry.observed } end
+	end
+	for key, list in pairs(detailWitness) do
+		for person, e in pairs(list) do if now - e.at > Data.WITNESS_KEEP then list[person] = nil end end
+		if not next(list) then detailWitness[key] = nil
+		elseif not store[key] then
+			local newest = 0
+			for _, e in pairs(list) do newest = math.max(newest, e.at) end
+			origins[#origins + 1] = { key = key, observed = newest }
+		end
+	end
+	table.sort(origins, function(a, b)
+		if a.observed ~= b.observed then return a.observed > b.observed end
+		return a.key < b.key
+	end)
+	for i = Data.GROUP_DETAIL_MAX + 1, #origins do
+		local key = origins[i].key
+		store[key], detailWitness[key] = nil, nil
+	end
+	for key, e in pairs(detailHeard) do
+		if now - e.at > Data.GROUP_SAY_EVERY or (not store[key] and not detailWitness[key]) then detailHeard[key] = nil end
+	end
+end
+local function DetailRows(body)
+	local rows, count = {}, 0
+	for text in body:gmatch("[^;]+") do
+		count = count + 1
+		if count > Data.GLOBAL_MAX_ROWS then return nil end
+		local name, total, online, avg10, observed = text:match("^([^,]+),(%d+),(%d+),(%d+),(%d+)$")
+		local row = name and GlobalRow(name, total, online, avg10, observed)
+		if not row or rows[row.name:lower()] then return nil end
+		rows[row.name:lower()] = row
+	end
+	return count > 0 and rows or nil
+end
+local function DetailBody(rows)
+	local ordered = {}
+	for _, row in pairs(rows) do ordered[#ordered + 1] = row end
+	table.sort(ordered, function(a, b)
+		if a.observed ~= b.observed then return a.observed > b.observed end
+		return a.name < b.name
+	end)
+	local out, bytes = {}, 0
+	for i = 1, math.min(#ordered, Data.GLOBAL_MAX_ROWS) do
+		local r = ordered[i]
+		local line = ("%s,%d,%d,%d,%d"):format(r.name, r.total, r.online, r.avg10, r.observed)
+		if bytes + #line + 1 > Data.GLOBAL_MAX_BYTES - 220 then break end
+		out[#out + 1], bytes = line, bytes + #line + 1
+	end
+	return table.concat(out, ";")
+end
+function Data.CaptureGroupDetails(s, now)
+	local group = GroupField(ns.group)
+	if not group or s.snapshot then return false end
+	local rows, observed = {}, 0
+	for _, e in ipairs(s.guilds or {}) do
+		local g = e.g
+		local r = e.counted and type(g) == "table" and GlobalRow(e.name, g.total, g.online or 0, Data.AvgTenths(g) or 0, ObservationTime(g))
+		if r then rows[r.name:lower()] = r; observed = math.max(observed, r.observed) end
+	end
+	local bounded = DetailRows(DetailBody(rows))
+	if not bounded then return false end
+	for _, row in pairs(bounded) do row.source = "own" end
+	local faction = OurFaction()
+	DetailStore()[GroupKey(faction, group)] = { group = group, faction = faction, observed = observed,
+		rows = bounded, source = "own", by = ns.FullName(ns.me) }
+	PruneDetails(now or ns.Now())
+	return true
+end
+function Data.ReceiveGroupDetails(sender, text)
+	local made, origin, faction, body = text:match("^CX~2~S~(%d+)~([^~]+)~(%a+)~(.*)$")
+	local now, group = ns.Now(), GroupField(origin)
+	local at = GlobalNumber(made, 1, 4102444800)
+	if not group or not Listed(group) or not at or at > now + 300 or now - at > Data.KEEP
+		or (faction ~= "Alliance" and faction ~= "Horde") then return false end
+	local rows = DetailRows(body)
+	if not rows then return false end
+	local who = PersonKey(sender)
+	if not who or who == PersonKey(ns.me) then return true end
+	local key, store = GroupKey(faction, group), DetailStore()
+	local old, trusted = store[key], GlobalTrusted(sender)
+	local witnesses = detailWitness[key] or {}
+	detailWitness[key] = witnesses
+	body = DetailBody(rows)
+	local corroborated = trusted
+	for person, e in pairs(witnesses) do
+		if person ~= who and now - e.at <= Data.WITNESS_KEEP and e.body == body then corroborated = true end
+	end
+	if corroborated then
+		detailHeard[key] = { body = body, at = now, here = GroupKey(OurFaction(), GroupField(ns.group) or "?") }
+	end
+	-- Keep compact wire bodies for pending witnesses; parse at most four bounded candidates.
+	witnesses[who] = { at = now, body = body }
+	local order = {}
+	for person, e in pairs(witnesses) do order[#order + 1] = { person = person, at = e.at } end
+	table.sort(order, function(a, b) if a.at ~= b.at then return a.at > b.at end return a.person < b.person end)
+	for i = Data.GROUP_DETAIL_WITNESSES + 1, #order do witnesses[order[i].person] = nil end
+	local candidates = {}
+	if not trusted then
+		for person, e in pairs(witnesses) do
+			if person ~= who and now - e.at <= Data.WITNESS_KEEP then candidates[#candidates + 1] = DetailRows(e.body) end
+		end
+		if old and old.by and PersonKey(old.by) ~= who then
+			local own = {}
+			for name, row in pairs(old.rows) do if row.source == "own" then own[name] = row end end
+			candidates[#candidates + 1] = own
+		end
+	end
+	local accepted, newest = {}, 0
+	for name, row in pairs(rows) do
+		local confirmed = trusted
+		local best = row
+		for _, other in ipairs(candidates) do
+			local candidate = other[name]
+			if Data.WitnessesAgree(row, candidate) then
+				confirmed = true
+				if candidate.observed > best.observed or (candidate.observed == best.observed and candidate.total > best.total) then best = candidate end
+			end
+		end
+		if confirmed then
+			accepted[name] = { name = best.name, total = best.total, online = best.online, avg10 = best.avg10, observed = best.observed,
+				source = trusted and "relay" or "witnessed", witnesses = trusted and 1 or 2 }
+			newest = math.max(newest, best.observed)
+		end
+	end
+	if not next(accepted) then PruneDetails(now); return true end
+	-- An incremental capsule cannot erase rows that it did not carry, nor replace newer evidence.
+	for name, row in pairs(old and old.rows or {}) do
+		if now - row.observed <= Data.KEEP and (not accepted[name] or accepted[name].observed < row.observed) then
+			accepted[name], newest = row, math.max(newest, row.observed)
+		end
+	end
+	local bounded = DetailRows(DetailBody(accepted))
+	if bounded then
+		for name, r in pairs(bounded) do r.source, r.witnesses = accepted[name].source or (old and old.source), accepted[name].witnesses end
+		store[key] = { group = group, faction = faction, observed = newest, rows = bounded,
+			source = trusted and "relay" or "witnessed", by = old and old.by }
+		Data.ChangedSoon()
+	end
+	PruneDetails(now)
+	return true
+end
+function Data.GroupGuilds(group, faction)
+	group = GroupField(group)
+	local e = group and DetailStore()[GroupKey(faction or OurFaction(), group)]
+	local out, now = {}, ns.Now()
+	for _, r in pairs(e and e.rows or {}) do
+		if now - r.observed <= Data.KEEP then
+			out[#out + 1] = { name = r.name, characters = r.total, online = r.online, avg10 = r.avg10,
+				observed = r.observed, source = r.source or e.source, witnesses = r.witnesses,
+				fresh = now - r.observed <= Data.FRESH, counted = now - r.observed <= Data.TOTAL_KEEP }
+		end
+	end
+	table.sort(out, function(a, b) if a.characters ~= b.characters then return a.characters > b.characters end return a.name < b.name end)
+	return out
+end
+function Data.SayGroupDetails()
+	if not GlobalMember() then return false end
+	PruneDetails(ns.Now())
+	local keys = {}
+	for key, e in pairs(DetailStore()) do
+		if Listed(e.group) and not (e.group == GroupField(ns.group) and e.faction == OurFaction()) then keys[#keys + 1] = key end
+	end
+	if #keys == 0 then return false end
+	table.sort(keys)
+	for _ = 1, #keys do
+		detailCursor = detailCursor % #keys + 1
+		local key = keys[detailCursor]
+		local e, heard = DetailStore()[key], detailHeard[key]
+		local body = DetailBody(e.rows)
+		-- One trusted sender or two actual channel witnesses already supplied this capsule.
+		-- A later character on another origin still carries it there; one ordinary sender
+		-- never suppresses the independent second traveller needed to validate it.
+		local known = heard and heard.here == GroupKey(OurFaction(), GroupField(ns.group) or "?") and heard.body == body
+		if body ~= "" and not known then
+			local payload = ("CX~2~S~%d~%s~%s~%s"):format(ns.Now(), e.group, e.faction, body)
+			return ns.Comm.SendChunked(payload, false, "CHANNEL", nil, { owner = Data, key = "census-group-details",
+				permit = function(_, guardKey, dist, target)
+					return guardKey == "census-group-details" and dist == "CHANNEL" and target == nil and GlobalMember(), "member"
+				end }) == true
+		end
+	end
+	return false
+end
+
 local function SaySoon()
-	ns.After(math.random(0, Data.GROUP_SAY_SPREAD), "census groups", function() ns.SafeCall("census groups", Data.SayGroupCensus) end)
+	ns.After(math.random(0, Data.GROUP_SAY_SPREAD), "census groups", function()
+		ns.SafeCall("census groups", Data.SayGroupCensus)
+		ns.SafeCall("census group details", Data.SayGroupDetails)
+	end)
 end
 
 ns.On("INIT", function()
@@ -1717,6 +2043,7 @@ ns.On("INIT", function()
 		end
 	end
 	if ns.Comm and ns.Comm.Handle then ns.Comm.Handle("CG", Data.ReceiveGlobalCensus) end
+	TrimGlobal()
 	ns.After(20, "global census ask", Data.AskGlobalCensus)
 	-- (1.4.0) Once more after the evening's first minutes, when more of the army is on.
 	ns.After(20 + Data.GLOBAL_ASK_AGAIN, "global census ask again", Data.AskGlobalCensus)
@@ -1725,6 +2052,7 @@ ns.On("INIT", function()
 	-- own look kept at logout (and by the census page's sampler).
 	if ns.Comm and ns.Comm.Handle then ns.Comm.Handle("CX", Data.ReceiveGroupCensus) end
 	PruneGroups(now)
+	PruneDetails(now)
 	ns.After(Data.GROUP_SAY_AFTER, "census groups", SaySoon)
 	ns.Every(Data.GROUP_SAY_EVERY, "census groups", SaySoon)
 end)

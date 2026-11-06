@@ -14,13 +14,15 @@
   python3 scripts/council-sign.py apostle --remove "<Name-Realm>"        # end it: sign again without him
   python3 scripts/council-sign.py king "<Name-Realm>" [Alliance|Horde]   # that side's King (1.3.4), then sign as "council"
   python3 scripts/council-sign.py king --remove [Alliance|Horde]
+  python3 scripts/council-sign.py queen "<Name-Realm>" [Alliance|Horde]  # that side's Queen (presentation only), then sign
+  python3 scripts/council-sign.py queen --remove [Alliance|Horde]
   python3 scripts/council-sign.py treasurer "<Treasurer-Realm>[,<Mail-Realm>,...]" [Alliance|Horde] # the Treasurer first
   python3 scripts/council-sign.py treasurer --remove [Alliance|Horde]
   python3 scripts/council-sign.py author "<Name-Realm>" [Alliance|Horde] # one of the author's own characters (1.3.4)
   python3 scripts/council-sign.py author --remove "<Name-Realm>"
   python3 scripts/council-sign.py realm "<Realm>" <pvp|pve|rp|rppvp|hardcore> <NA|EU>  # what a realm is (1.3.4)
   python3 scripts/council-sign.py realm --remove "<Realm>"
-  ... --group "<Realm>+<Realm>"   # with council, steward, guild, arbiter, apostle, king, treasurer, author or realm:
+  ... --group "<Realm>+<Realm>"   # with council, steward, guild, arbiter, apostle, king, queen, treasurer, author or realm:
                                   # the realm group the lists are for, kept in the council file ("realm")
   python3 scripts/council-sign.py check [CouncilList.lua]                 # (or --check) read back what was signed
   python3 scripts/council-sign.py seal "RS1~..."                         # reviewed monthly Records request; prints its signed seal
@@ -104,22 +106,24 @@ Head of the Church, using the addon's canonical King identity. It is not an assi
 position. Remove legacy "head": true flags before signing a new list; old signed starred lists
 remain readable by the addon but confer no Head authority.
 
-The launch identities (1.3.4). The addon pins the King, the Treasurer and the author by name on the
+The launch identities (1.3.4; Queen added in 1.4.6). The addon pins the King, the Queen, the Treasurer and the author by name on the
 beta's realm group only (names get sniped on launch realms, so the code names nobody for them). On
 any other realm group they are whom the titles list names for it, from optional fields of the same
 file:
 
   "king": {"Alliance": "First Surname-Realm", "Horde": "First Surname-Realm"},
+  "queen": {"Alliance": "First Surname-Realm", "Horde": "First Surname-Realm"},
   "treasurer": {"Alliance": ["Treasurer Name-Realm", "Mail Character-Realm"]},
   "author": ["First Surname-Realm", {"name": "First Surname-Realm", "faction": "Horde"}],
   "realms": [{"name": "Realm", "kind": "pvp", "region": "NA"}]
 
 The titles list carries them after the Apostles, three "^" again, so clients before 1.3.4 leave them
 out unread and still take, show and pass on the whole list:
-  ^king^<faction>^<Name-Realm>   ^treasurer^<faction>^<Name-Realm>,...   ^author^<faction>^<Name-Realm>,...
+  ^king^<faction>^<Name-Realm>   ^queen^<faction>^<Name-Realm>   ^treasurer^<faction>^<Name-Realm>,...   ^author^<faction>^<Name-Realm>,...
   ^realms^<NA|EU>^<Realm>=<pvp|pve|rp|rppvp|hardcore>,...
 Every name needs its realm (a name without one would count on every realm of the group), a realm of
-the list's group. One King a faction; the Treasurer first, then his mail characters (where the dues'
+the list's group. One King and one Queen a faction; the Queen is a presentation identity only and
+receives no King, council, officer or moderation authority. The Treasurer first, then his mail characters (where the dues'
 mail goes), 4 in all; 8 author's characters a faction (both factions' count: the dev's privileges
 alone, never the King's or the council's); 40 realms a region. A side named here has that King or
 Treasurer alone; a side named nowhere keeps the code's pin on the beta alone, and on a launch realm
@@ -130,7 +134,7 @@ Launch day, once the realms and the characters exist (nothing in the repository 
      The launch realm group, kept in the council file. While a Steward, an arbiter, an Apostle or a
      signed leader carries a realm of another group, it is refused with the whole list of them and
      the command that takes each off.
-  2. author "<Name-Realm>" (each of your characters), king "<Name-Realm>" [Horde],
+  2. author "<Name-Realm>" (each of your characters), king "<Name-Realm>" [Horde], queen "<Name-Realm>" [Horde],
      treasurer "<Treasurer-Realm>,<Mail-Realm>" [Horde], realm "<Realm>" <kind> <NA|EU> (each realm):
      each signs the whole council again and prints the titles list to paste. Sign the King once his
      character leads the King's guild: a census report of that guild naming another guild master is
@@ -184,7 +188,7 @@ MAX_GUILDS, MAX_GUILD_CHARS, MAX_GUILD_BYTES = 20, 24, 72 # the approved guilds 
 MAX_ARBITERS = 5 # the arena's signed arbiters per faction (Core.lua: ns.ReadArbiters, 1.2)
 MAX_APOSTLES = 12 # the Church's Twelve Apostles per faction (Church.lua: Church.ReadApostles, 1.1.6)
 # The launch identities (1.3.4, Core.lua: ns.ReadPins, ns.PINS_MAX, ns.REALM_KINDS, ns.REALM_REGIONS, ns.REALMS_MAX).
-MAX_PINS = {"king": 1, "treasurer": 4, "author": 8}
+MAX_PINS = {"king": 1, "queen": 1, "treasurer": 4, "author": 8}
 REALM_KINDS, REGIONS, MAX_REALMS_EACH = ("pvp", "pve", "rp", "rppvp", "hardcore"), ("NA", "EU"), 40
 GROUP = None # --group "<Realm>+<Realm>": the realm group a signing is for (written to the council file's "realm")
 MAX_LEADER_GUILDS, MAX_LEADERS_EACH, MAX_LEADERS_TOTAL = 128, 25, 512 # Authority.lua
@@ -544,6 +548,13 @@ def read_king(v, realm):
     if not isinstance(v, dict): sys.exit('king is {"Alliance": "First Surname-Realm", "Horde": "..."}, not %r' % (v,))
     return {faction_of(f, "a King"): pin_name(n, "the %s King" % f, realm) for f, n in v.items()}
 
+# The council file's "queen": the signed presentation identity for each side. It is
+# deliberately parsed separately from every authority-bearing role.
+def read_queen(v, realm):
+    if v is None: return {}
+    if not isinstance(v, dict): sys.exit('queen is {"Alliance": "First Surname-Realm", "Horde": "..."}, not %r' % (v,))
+    return {faction_of(f, "a Queen"): pin_name(n, "the %s Queen" % f, realm) for f, n in v.items()}
+
 # The council file's "treasurer" (1.3.4): {"Alliance": ["Treasurer-Realm", "Mail Character-Realm", ...]}:
 # the Treasurer first, then his mail characters, MAX_PINS["treasurer"] in all, nobody twice.
 def read_treasurer(v, realm):
@@ -628,6 +639,7 @@ def group_conflicts(data, realm):
     for what in ("steward", "arbiter", "apostle", "author"):
         for n in items(data.get(what + ("s" if what != "author" else ""))): look(n, "%s --remove" % what)
     for f, n in (data.get("king") if isinstance(data.get("king"), dict) else {}).items(): look(n, "king --remove %s" % f)
+    for f, n in (data.get("queen") if isinstance(data.get("queen"), dict) else {}).items(): look(n, "queen --remove %s" % f)
     for f, ns_ in (data.get("treasurer") if isinstance(data.get("treasurer"), dict) else {}).items():
         for n in (ns_ if isinstance(ns_, list) else [ns_]): look(n, "treasurer --remove %s" % f)
     lead = data.get("leadership")
@@ -640,7 +652,7 @@ def group_conflicts(data, realm):
 
 def read_council(data):
     fields(data, "the council", ("realm", "public", "departments", "members", "stewards", "guilds", "arbiters", "apostles", "leadership",
-        "king", "treasurer", "author", "realms"))
+        "king", "queen", "treasurer", "author", "realms"))
     realm = data.get("realm", REALM)
     if not isinstance(realm, str): sys.exit("not a realm group the addon takes: %r" % (realm,))
     group_conflicts(data, realm)
@@ -658,7 +670,8 @@ def read_council(data):
         seen.add(name.lower())
         depts.append((name, icon_field(d.get("icon"), name), people(d.get("members"), name)))
     leaders_epoch, leaders_factions, leaders, issued, expires = read_leadership(data.get("leadership"), realm)
-    pins = {"king": read_king(data.get("king"), realm), "treasurer": read_treasurer(data.get("treasurer"), realm),
+    pins = {"king": read_king(data.get("king"), realm), "queen": read_queen(data.get("queen"), realm),
+        "treasurer": read_treasurer(data.get("treasurer"), realm),
         "author": read_author(data.get("author"), realm), "realms": read_realms(data.get("realms"))}
     return (realm, public, loose, depts, read_stewards(data.get("stewards"), realm), read_guilds(data.get("guilds")),
         read_arbiters(data.get("arbiters"), realm), leaders_epoch, leaders_factions, leaders, issued, expires,
@@ -723,9 +736,10 @@ def sign_council_data(data):
     entries += ["^arbiter^%s^%s" % (faction, ",".join(arbiters[faction])) for faction in FACTIONS if arbiters.get(faction)]
     # The Church's Twelve Apostles (1.1.6) after them, the same way.
     entries += ["^apostles^%s^%s" % (faction, ",".join(apostles[faction])) for faction in FACTIONS if apostles.get(faction)]
-    # The launch identities (1.3.4) after them, the same way: the King, the Treasurer and the author of
+    # The launch identities after them, the same way: the King, the Queen (presentation only), the Treasurer and the author of
     # each side, then what each realm is, per region.
     entries += ["^king^%s^%s" % (faction, pins["king"][faction]) for faction in FACTIONS if pins["king"].get(faction)]
+    entries += ["^queen^%s^%s" % (faction, pins["queen"][faction]) for faction in FACTIONS if pins["queen"].get(faction)]
     entries += ["^treasurer^%s^%s" % (faction, ",".join(pins["treasurer"][faction])) for faction in FACTIONS if pins["treasurer"].get(faction)]
     entries += ["^author^%s^%s" % (faction, ",".join(pins["author"][faction])) for faction in FACTIONS if pins["author"].get(faction)]
     entries += ["^realms^%s^%s" % (region, ",".join("%s=%s" % r for r in pins["realms"][region])) for region in REGIONS if pins["realms"].get(region)]
@@ -916,6 +930,25 @@ def king(args, path=COUNCIL):
     else: data.pop("king", None)
     return finish(data, path)
 
+# queen <Name-Realm> [faction] | queen --remove [faction]: that side's signed
+# presentation identity. Nothing in the addon treats this field as authority.
+def queen(args, path=COUNCIL):
+    remove = bool(args) and args[0] == "--remove"
+    if remove: args = args[1:]
+    if (remove and len(args) > 1) or (not remove and len(args) not in (1, 2)): sys.exit(__doc__)
+    faction = faction_of((args[0] if args else "Alliance") if remove else (args[1] if len(args) == 2 else "Alliance"), "a Queen")
+    data = load_council(path)
+    queens = data.get("queen") or {}
+    if not isinstance(queens, dict): sys.exit("queen is not an object in %s" % path)
+    if remove:
+        if faction not in queens: sys.exit("no %s Queen in %s" % (faction, path))
+        del queens[faction]
+    else:
+        queens[faction] = pin_name(args[0], "the %s Queen" % faction, None)
+    if queens: data["queen"] = queens
+    else: data.pop("queen", None)
+    return finish(data, path)
+
 # treasurer "<Treasurer-Realm>[,<Mail-Realm>,...]" [faction] | treasurer --remove [faction] (1.3.4):
 # that side's Treasurer, then his mail characters (where the dues' mail goes), the whole list each time.
 def treasurer(args, path=COUNCIL):
@@ -1024,7 +1057,7 @@ def check_out(path=OUT):
             continue
         print("  public:", parts[3] == "1")
         stewards, guilds, arbiters, leaders, apostles = {}, {}, {}, {}, {}
-        pinned = {"king": {}, "treasurer": {}, "author": {}, "realms": {}} # (1.3.4)
+        pinned = {"king": {}, "queen": {}, "treasurer": {}, "author": {}, "realms": {}}
         for entry in parts[4].split(";"):
             if entry.startswith("^steward^"):
                 _, _, faction, names = entry.split("^", 3)
@@ -1038,7 +1071,7 @@ def check_out(path=OUT):
             elif entry.startswith("^apostles^"):
                 _, _, faction, names = entry.split("^", 3)
                 apostles[faction] = names
-            elif entry.startswith(("^king^", "^treasurer^", "^author^", "^realms^")):
+            elif entry.startswith(("^king^", "^queen^", "^treasurer^", "^author^", "^realms^")):
                 _, kind, slot, names = entry.split("^", 3)
                 pinned[kind][slot] = names
             elif entry.startswith("^leaders^"):
@@ -1059,6 +1092,7 @@ def check_out(path=OUT):
             print("  the %s's Church Apostles (* the Head): %s" % (faction, apostles.get(faction) or "none"))
         for faction in FACTIONS:
             print("  the %s King (signed): %s" % (faction, pinned["king"].get(faction) or "none (the code's pin, on the beta's group alone)"))
+            print("  the %s Queen (signed, presentation only): %s" % (faction, pinned["queen"].get(faction) or "none"))
             print("  the %s Treasurer, then his mail characters (signed): %s" % (faction,
                 pinned["treasurer"].get(faction) or "none (the code's pins, on the beta's group alone)"))
             print("  the %s author's characters (signed): %s" % (faction, pinned["author"].get(faction) or "none"))
@@ -1131,8 +1165,8 @@ def show_signed(signed):
 if __name__ == "__main__":
     sys.argv = take_group(sys.argv)
     if GROUP is not None and (len(sys.argv) < 2 or sys.argv[1] not in ("council", "steward", "guild", "arbiter", "apostle",
-            "king", "treasurer", "author", "realm")):
-        sys.exit("--group goes with a command that signs the council (council, steward, guild, arbiter, apostle, king, treasurer, author, realm)")
+            "king", "queen", "treasurer", "author", "realm")):
+        sys.exit("--group goes with a command that signs the council (council, steward, guild, arbiter, apostle, king, queen, treasurer, author, realm)")
     if len(sys.argv) >= 2 and sys.argv[1] == "keygen": keygen()
     elif len(sys.argv) >= 3 and sys.argv[1] == "sign":
         text, sig = sign(sys.argv[2], *sys.argv[3:4])
@@ -1169,6 +1203,7 @@ if __name__ == "__main__":
         print(COUNCIL, "updated;", OUT, "written:", names[:-SIG_LEN - 1])
         print("and:", titles[:-SIG_LEN - 1])
     elif len(sys.argv) >= 2 and sys.argv[1] == "king": show_signed(king(sys.argv[2:]))
+    elif len(sys.argv) >= 2 and sys.argv[1] == "queen": show_signed(queen(sys.argv[2:]))
     elif len(sys.argv) >= 2 and sys.argv[1] == "treasurer": show_signed(treasurer(sys.argv[2:]))
     elif len(sys.argv) >= 3 and sys.argv[1] == "author": show_signed(author(sys.argv[2:]))
     elif len(sys.argv) >= 3 and sys.argv[1] == "realm": show_signed(realm_entry(sys.argv[2:]))

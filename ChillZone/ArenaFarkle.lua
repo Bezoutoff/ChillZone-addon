@@ -1135,7 +1135,22 @@ local function Opening(game, p, value, relayed)
 	if not Int(value) or value < 1 or value > FarkleRules.OPENING then return nil, "range" end
 	if game.opening[p] then return nil, "extra" end
 	game.opening[p] = value
-	Record(game, { t = "O", p = p, value = value, relayed = relayed })
+	local event = { t = "O", p = p, value = value, relayed = relayed }
+	-- Both seats may roll at once. Each client can see its own server line first;
+	-- the completed round must still have one transcript and handshake. Keep the
+	-- first observation while waiting, then write the pair in seat order. A tie
+	-- starts a new pair, so previous rounds and their chains stay untouched.
+	if p == 1 and game.opening[2] then
+		local previous = FarkleRules.Event(game.events[game.step])
+		if previous and previous.t == "O" and previous.p == 2 then
+			game.events[game.step], game.chains[game.step] = nil, nil
+			game.step = game.step - 1
+			game.chain = game.chains[game.step]
+			Record(game, event)
+			event = previous
+		end
+	end
+	Record(game, event)
 	local a, b = game.opening[1], game.opening[2]
 	if not (a and b) then return true end
 	if a == b then

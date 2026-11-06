@@ -20,7 +20,8 @@ local L = ns.L
 --   what its line says (Versions.lua, Workshop.lua): nothing opens the game's chat box
 --   (ChatFrame_SendTell and its friends write the chat's globals and taint what the player types
 --   next, see ChatWindow.lua), and no game popup opens with the gamepad UI (ChillZone's own windows).
--- - Only a player who can be reached: never ourselves, an enemy (ENEMY_PLAYER is not hooked), an
+-- - Only a player who can be reached: ourselves get local profile/settings actions only, never
+--   requests or challenges; no enemy (ENEMY_PLAYER is not hooked), an
 --   offline name (FRIEND_OFFLINE, GUILD_OFFLINE and an offline guild roster row), a Battle.net
 --   friend (BN_*: an account, not a character) or a unit that is not a player.
 -- - Nothing from a value the game hides from addons (a secret value: the guild roster's member
@@ -44,7 +45,8 @@ ns.PlayerMenu = PlayerMenu
 -- none, nothing of ChillZone is in the menu the officer acts from. ChillZone's lines for a guildmate stay
 -- in every other menu (a name in chat, the target and party frames, the Who list) and on the
 -- ChillZone window's own rows.
-PlayerMenu.WHICH = { "PLAYER", "PARTY", "RAID_PLAYER", "RAID", "FRIEND", "COMMUNITIES_WOW_MEMBER", "CHAT_ROSTER", "RECENT_ALLY" }
+-- PlayerFrame.lua opens SELF with unit="player"; PLAYER is the other player's portrait.
+PlayerMenu.WHICH = { "SELF", "PLAYER", "PARTY", "RAID_PLAYER", "RAID", "FRIEND", "COMMUNITIES_WOW_MEMBER", "CHAT_ROSTER", "RECENT_ALLY" }
 -- (Never hooked: the game's guild roster menus, above.)
 PlayerMenu.NEVER = { COMMUNITIES_GUILD_MEMBER = true, GUILD = true }
 
@@ -157,8 +159,8 @@ function PlayerMenu.KnownChillZone(name, unit)
 	return type(A) == "table" and type(A.Role) == "function" and A.Role(name) ~= nil
 end
 
--- Profiles use the main window, not the Games window. Opening your own menu offers only this
--- local action: version requests, reports and challenges still never target yourself.
+-- Profiles use the main window, not the Games window. Own-name actions stay local:
+-- version requests, reports and challenges still never target yourself.
 function PlayerMenu.OpenProfile(name)
 	if not ns.IsMember() or type(name) ~= "string" then return false end
 	if ns.me and ns.Fold(ns.FullName(name)) == ns.Fold(ns.me) then
@@ -171,10 +173,17 @@ end
 -- and the "ChillZone" title over them all; no line, nothing of ChillZone in the menu.
 local function Wrap(root)
 	local m = { count = 0 }
+	local compact = ns.db and ns.db.playerMenuCollapsed == true
 	local function Head()
 		if m.count == 0 then
 			if root.CreateDivider then root:CreateDivider() end
-			root:CreateTitle(L.PLAYERMENU_TITLE)
+			if compact then
+				-- Blizzard_Menu's element descriptions are also submenu roots (the client's
+				-- 11_0_0_MenuImplementationGuide, Submenus). Keep every action under one line.
+				root = root:CreateButton(L.PLAYERMENU_TITLE)
+			else
+				root:CreateTitle(L.PLAYERMENU_TITLE)
+			end
 		end
 		m.count = m.count + 1
 	end
@@ -196,16 +205,32 @@ local function Wrap(root)
 	-- tooltip says why).
 	function m.Button(text, fn, tipTitle, tipText, enabled)
 		Head()
-		local d = root:CreateButton(text, function() ns.SafeCall("player menu " .. tostring(text), fn) end)
+		local d = root:CreateButton(text, function() -- gp:player-menu
+			if not ns.Gate.Allowed("player-menu") then return end
+			ns.SafeCall("player menu " .. tostring(text), fn)
+		end)
 		Tip(d, tipTitle, tipText)
 		if enabled == false and d and d.SetEnabled then d:SetEnabled(false) end
 		return d
+	end
+	function m.Finish(selfPortrait)
+		if selfPortrait and ns.PlayerTooltip and type(ns.PlayerTooltip.OpenSettings) == "function" then
+			m.Button(L.PLAYER_TOOLTIP_SETTINGS, ns.PlayerTooltip.OpenSettings)
+		end
+		if m.count == 0 then return 0 end
+		if root.CreateDivider then root:CreateDivider() end
+		root:CreateButton(compact and L.PLAYERMENU_EXPAND or L.PLAYERMENU_COLLAPSE, function() -- gp:player-menu
+			if not ns.Gate.Allowed("player-menu") then return end
+			if ns.db then ns.db.playerMenuCollapsed = not compact end
+		end)
+		return m.count
 	end
 	return m
 end
 
 -- One menu opening: every feature's lines for its player, after the game's own.
-function PlayerMenu.Build(which, root, ctx)
+function PlayerMenu.Build(which, root, ctx) -- gp:player-menu
+	if not ns.Gate.Allowed("player-menu") then return 0 end
 	-- Forever's gamepad player menu drives protected interact-target state while it is being
 	-- assembled. Even Menu.ModifyMenu's supported callbacks are unnecessary there and a client
 	-- report tied opening that menu to SetPreferredGamepadInteractTarget being refused. Once a
@@ -215,7 +240,7 @@ function PlayerMenu.Build(which, root, ctx)
 	if type(root) ~= "table" and type(root) ~= "userdata" then return 0 end
 	if not ns.IsMember() then return 0 end
 	local target = PlayerMenu.Target(which, ctx, true)
-	if not target then return 0 end
+	if not target or (which == "SELF" and not target.self) then return 0 end
 	-- (1.2.5.1) The ChillZone window's own rows list ChillZone players: every line there.
 	target.chillzone = target.self == true or which == PlayerMenu.ROW or PlayerMenu.KnownChillZone(target.name, target.unit)
 	local menu = Wrap(root)
@@ -224,11 +249,11 @@ function PlayerMenu.Build(which, root, ctx)
 			L.ARENA_MENU_PROFILE, L.ARENA_MENU_PROFILE_TIP, true)
 		target.profileAdded = true
 	end
-	if target.self then return menu.count end
+	if target.self then return menu.Finish(which == "SELF") end
 	for _, e in ipairs(entries) do
 		if not e.chillzone or target.chillzone then ns.SafeCall("player menu " .. e.key, e.build, target, menu) end
 	end
-	return menu.count
+	return menu.Finish()
 end
 
 -- The ChillZone window's own rows (the census, the Realm, the crafters, the arena's lists): a

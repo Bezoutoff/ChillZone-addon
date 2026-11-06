@@ -50,6 +50,8 @@ Locales\RecordText.lua
 Locales\CensusStatsText.lua
 Locales\VerifyText.lua
 Locales\SelfTestText.lua
+Locales\MapNamesText.lua
+Locales\PlayerTooltipText.lua
 Locales\deDE.lua
 Locales\esES.lua
 Locales\frFR.lua
@@ -80,7 +82,9 @@ Decree.lua
 Channels.lua
 ChatHall.lua
 Filter.lua
+MapNames.lua
 Inspect.lua
+PlayerTooltip.lua
 King.lua
 HopSightings.lua
 Vox.lua

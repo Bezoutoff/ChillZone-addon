@@ -397,7 +397,7 @@ test("watch: in the game's chat an ordinary member right-clicks the name on an C
 		-- (A name in chat: the game's FRIEND menu, its context the link's name.)
 		eq(PM.Build("FRIEND", root, { name = "Rude Guy-Realm" }), 1)
 		local button
-		for _, d in ipairs(root.items) do if d.kind == "button" then button = d end end
+		for _, d in ipairs(root.items) do if d.kind == "button" and d.text == ns.L.WATCH_REPORT then button = d end end
 		assert(button, "the line"); eq(button.text, ns.L.WATCH_REPORT); eq(button.enabled, true)
 		button.cb()
 		eq(w.dialogs[#w.dialogs].which, "CHILLZONE_WATCH_REPORT_WHAT"); eq(w.dialogs[#w.dialogs].data.name, "Rude Guy-Realm")

@@ -474,7 +474,13 @@ function Relay.HandleIn(dist, sender, text)
 	end
 	local origin = ns.FullName(sender)
 	local fresh = not Fanned(origin, body)
-	if Relay.NO_FORWARD[body:sub(1, 2)] and origin ~= ns.me then
+	local localOnly = Relay.NO_FORWARD[body:sub(1, 2)]
+	-- Verification queries are periodic background traffic; decisions and recovery snapshots
+	-- must reach the guilds. Keeping the entire GV prefix here swallowed a verifier's direct
+	-- approvals and revocations on Forever's relay-only route. Verify still checks the original
+	-- sender against this origin group's signed authority at the destination.
+	if body:match("^GV~1~[ARS]~") then localOnly = false end
+	if localOnly and origin ~= ns.me then
 		stats.kept = (stats.kept or 0) + 1
 		Deliver(origin, body, flag == "L") -- (heard and answered here, fanned out to nobody)
 		return true

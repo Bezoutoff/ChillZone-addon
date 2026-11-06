@@ -51,6 +51,37 @@ local function Keys(t)
 	return out
 end
 
+test("census continuity: a retained count is not recorded as a new history observation", function()
+	local w = World()
+	w.census.snapshot = { observed = T0 - 3600, characters = 1000 }
+	eq(w.CS.Sample(), false)
+	eq(#w.History().recent, 0)
+end)
+
+test("census continuity: clicking a server exposes scoped guild details and their original observation", function()
+	local w = World()
+	w.ns.Data.Groups = function() return { characters = 640, people = 600, kinds = {}, regions = {}, factions = {},
+		rows = { { group = "Foreign", faction = "Alliance", characters = 640, people = 600, guilds = 1, observed = T0 - 600,
+			src = "witnessed", counted = true, ours = false } } } end
+	w.ns.Data.GroupGuilds = function(group, faction)
+		eq(group, "Foreign"); eq(faction, "Alliance")
+		return { { name = "ChillZone Dawn", characters = 640, observed = T0 - 600, source = "witnessed", counted = true } }
+	end
+	local lines = {}
+	w.CS.ServerLines(lines, w.census, T0)
+	local server
+	for _, line in ipairs(lines) do if line.onClick then server = line end end
+	assert(server); server.onClick()
+	lines = {}
+	w.CS.ServerLines(lines, w.census, T0)
+	local detail
+	for _, line in ipairs(lines) do if line.text == "ChillZone Dawn" then detail = line end end
+	assert(detail); eq(detail.indent, 3); eq(Bare(detail.right), "640")
+	local tip = {}
+	detail.tooltip({ AddLine = function(_, text) tip[#tip + 1] = text end, AddDoubleLine = function() end })
+	assert(table.concat(tip, " "):find(L.CENSUS_STATS_SRC_WITNESSED, 1, true))
+end)
+
 test("census history: a sample every 15 minutes once the census is rebuilt after login, the day's highest counts kept; nothing sent", function()
 	local w = World({ loginAt = T0 - 60 })
 	local CS = w.CS
@@ -172,11 +203,16 @@ local function Report(total, more)
 	return r
 end
 local function WithCensus(guilds, alts, fn)
-	local saved = { guilds = ns.rdb.guilds, seen = ns.rdb.seen, alts = ns.Alts }
+	local saved = { guilds = ns.rdb.guilds, seen = ns.rdb.seen, alts = ns.Alts,
+		group = ns.group, groups = ns.db.groupCensus, heard = ns.db.groupHeard }
 	ns.rdb.guilds, ns.rdb.seen = guilds, {}
+	-- A logged-in census always has an origin. Isolate its saved cross-server counts too,
+	-- so the header's new all-server total cannot inherit another test's session.
+	ns.group, ns.db.groupCensus, ns.db.groupHeard = "Realm", {}, {}
 	ns.Alts = { Duplicates = function() return alts end }
 	local ok, err = pcall(fn)
 	ns.rdb.guilds, ns.rdb.seen, ns.Alts = saved.guilds, saved.seen, saved.alts
+	ns.group, ns.db.groupCensus, ns.db.groupHeard = saved.group, saved.groups, saved.heard
 	if not ok then error(err, 0) end
 end
 local function Find(lines, text)
@@ -396,11 +432,11 @@ local function OpenWindow(fn)
 	end)
 end
 
-test("census header: the characters, and next to them, smaller and darker, the people; lit under the mouse; the same in the copy for Discord and on the minimap button", function()
+test("census header: current-server characters and a smaller all-server total; people remain in the Discord copy", function()
 	OpenWindow(function(main, UI)
 		eq(main.tab, "census")
 		eq(main.total:GetText(), L.ARMY_TOTAL:format("1,200"), "the characters")
-		eq(main.people:GetText(), L.ARMY_PEOPLE:format("1,196"), "the people: the 4 linked alts once")
+		eq(main.people:GetText(), L.CENSUS_HEADER_ALL:format("1,200"), "all-server characters do not subtract linked alts")
 		eq(main.people:IsShown(), true)
 		eq(main.people.font, "GameFontNormalSmall", "smaller than the characters'"); eq(main.total.font, "GameFontNormalLarge")
 		eq(table.concat(main.people.textColor, ","), table.concat(UI.PEOPLE_COLOR, ","), "darker")
@@ -424,7 +460,7 @@ test("census header: the characters, and next to them, smaller and darker, the p
 		Minimap:SetSize(140, 140)
 		UI.UpdateMinimapButton()
 		ChillZoneMinimapButton:Fire("OnEnter")
-		eq(GameTooltip.lines[2], L.ARMY_TOTAL:format("1,200") .. "  " .. UI.PEOPLE_CODE .. L.ARMY_PEOPLE:format("1,196") .. "|r")
+		eq(GameTooltip.lines[2], L.ARMY_TOTAL:format("1,200") .. "  " .. UI.PEOPLE_CODE .. L.CENSUS_HEADER_ALL:format("1,200") .. "|r")
 		Minimap = nil
 		-- On the Join screen (no ChillZone guild) the header is the roast's alone.
 		GetGuildInfo = function() return nil end
@@ -486,7 +522,7 @@ test("census page: a client updated without a restart (no CensusStats.lua yet) k
 				local UI = LoadUI()
 				UI.Toggle()
 				local main = ChillZoneFrame
-				eq(main.people:GetText(), L.ARMY_PEOPLE:format("900"))
+				eq(main.people:GetText(), L.CENSUS_HEADER_ALL:format("900"))
 				main.headerHover:Fire("OnEnter")
 				for _, line in ipairs(GameTooltip.lines) do assert(line ~= L.HEADER_TIP_OPEN, "no click offered") end
 				main.headerHover:Fire("OnMouseDown", "LeftButton"); main.headerHover:Fire("OnMouseUp", "LeftButton")
@@ -798,7 +834,9 @@ test("census page: the graphs' days and hours give the people as the header does
 		assert(Tips(lines, L.CENSUS_STATS_ARMY_GRAPH, 30):find(L.CENSUS_STATS_PEOPLE .. "=" .. L.CENSUS_STATS_APPROX:format("960"), 1, true))
 		assert(Tips(lines, L.CENSUS_STATS_ONLINE_GRAPH, 24):find(L.CENSUS_STATS_PEOPLE .. "=" .. L.CENSUS_STATS_APPROX:format("960"), 1, true))
 		all = Said(lines) .. "\n" .. GraphSaid(lines)
-		assert(not all:find("1,196", 1, true), all)
+		-- The graphs use the staff estimate; the cross-server section deliberately retains
+		-- each origin's own linked-alt count, without applying this client's staff sample.
+		assert(not GraphSaid(lines):find("1,196", 1, true), GraphSaid(lines))
 		assert(not all:find(L.CENSUS_STATS_DETAIL, 1, true) and all:find(L.CENSUS_STATS_DETAIL_TAGS, 1, true), "the estimate's detail:\n" .. all)
 		NoTagOrName(GraphSaid(lines), "the team's graphs")
 	end)
@@ -834,59 +872,41 @@ local function OpenSampled(o, fn)
 	end)
 end
 
-test("census header: a member's people as before; a team client's ~ estimate, the hover saying what it means and that the more players use the ChillZone addon and the ChillZone Companion the more precise, the staff's line never on the King's stream; the same on the minimap and in the copy for Discord", function()
+test("census header: role changes do not put people estimates in the headline; internal people calculations and Discord stay intact", function()
 	local o = { dups = 4, alts = { characters = 250, people = 100 } }
 	OpenSampled(o, function(main, UI)
-		local function Hover()
+		local function CheckHeader()
+			eq(main.people:GetText(), L.CENSUS_HEADER_ALL:format("1,200"))
 			main.headerHover:Fire("OnEnter")
-			local lines = {}
-			for _, l in ipairs(GameTooltip.lines) do lines[#lines + 1] = tostring(l) end
+			local scope
+			for _, line in ipairs(GameTooltip.lines) do
+				if line == L.CENSUS_HEADER_ALL_TIP then scope = true end
+				assert(line ~= L.PEOPLE_ESTIMATE_TIP, "people estimates belong inside the detail page")
+				assert(not tostring(line):find("Staff", 1, true), "the header exposes no staff estimate")
+			end
+			assert(scope, "the hover explains the two census scopes")
 			main.headerHover:Fire("OnLeave")
-			return lines
-		end
-		local function Has(lines, text) for _, l in ipairs(lines) do if l == text then return true end end return false end
-		local function Minimap2()
 			Minimap = CreateFrame("Frame", "Minimap", UIParent)
 			Minimap:SetSize(140, 140)
 			UI.UpdateMinimapButton()
 			ChillZoneMinimapButton:Fire("OnEnter")
-			local line = GameTooltip.lines[2]
+			eq(GameTooltip.lines[2], L.ARMY_TOTAL:format("1,200") .. "  " .. UI.PEOPLE_CODE .. L.CENSUS_HEADER_ALL:format("1,200") .. "|r")
 			Minimap = nil
-			return line
 		end
-		-- An ordinary member: the plain count in the members' words, never an alt-link rate's 480.
-		eq(main.people:GetText(), L.ARMY_PEOPLE:format("1,196"))
-		local tip = Hover()
-		assert(Has(tip, L.HEADER_TIP_ALTS:format("1,200", "4")), "the linked alts, as before")
-		eq(Has(tip, L.PEOPLE_ESTIMATE_TIP), false, "no ~ to explain")
-		for _, l in ipairs(tip) do assert(not l:find("Staff", 1, true), "no staff line: " .. l) end
-		eq(Minimap2(), L.ARMY_TOTAL:format("1,200") .. "  " .. UI.PEOPLE_CODE .. L.ARMY_PEOPLE:format("1,196") .. "|r")
-		local copy = ns.Data.DiscordText()
-		assert(copy:find(" · " .. L.ARMY_PEOPLE:format("1,196"), 1, true), copy)
-		-- A moderation team client: the validated sample, and the staff's line.
+		CheckHeader()
+		assert(ns.Data.DiscordText():find(" · " .. L.ARMY_PEOPLE:format("1,196"), 1, true))
 		ns.rdb.battletags = { v = 1, rows = TagRows(24, 6) }
 		o.team = true
 		UI.Refresh()
-		eq(main.people:GetText(), L.ARMY_PEOPLE_APPROX:format("960"))
-		tip = Hover()
-		assert(Has(tip, L.PEOPLE_ESTIMATE_TIP))
-		assert(Has(tip, L.PEOPLE_STAFF_TAGS:format("24", "1.25", "1,170")), table.concat(tip, "\n"))
-		eq(Minimap2(), L.ARMY_TOTAL:format("1,200") .. "  " .. UI.PEOPLE_CODE .. L.ARMY_PEOPLE_APPROX:format("960") .. "|r")
+		CheckHeader()
 		assert(ns.Data.DiscordText():find(" · " .. L.ARMY_PEOPLE_APPROX:format("960"), 1, true))
-		local everything = table.concat(tip, "\n") .. "\n" .. main.people:GetText() .. "\n" .. Minimap2() .. "\n" .. ns.Data.DiscordText()
-		NoTagOrName(everything, "the header")
-		-- The King's stream: the estimate shows, the staff's line does not.
+		NoTagOrName(main.people:GetText() .. "\n" .. ns.Data.DiscordText(), "the header and Discord copy")
 		o.stream = true
 		UI.Refresh()
-		eq(main.people:GetText(), L.ARMY_PEOPLE_APPROX:format("960"))
-		tip = Hover()
-		assert(Has(tip, L.PEOPLE_ESTIMATE_TIP))
-		for _, l in ipairs(tip) do assert(not l:find("Staff", 1, true), "on the stream: " .. l) end
-		-- Back to an ordinary member: the members' words again.
+		CheckHeader()
 		o.stream, o.team = false, false
 		UI.Refresh()
-		eq(main.people:GetText(), L.ARMY_PEOPLE:format("1,196"))
-		eq(Has(Hover(), L.PEOPLE_ESTIMATE_TIP), false)
+		CheckHeader()
 	end)
 end)
 

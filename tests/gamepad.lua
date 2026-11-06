@@ -22,7 +22,7 @@
 --      hooksecurefunc, HookScript, ChatFrameUtil.AddSenderNameFilter), and the model calls them
 --      the way the game does.
 --   3. A slash command is called directly by the chat box, which then closes itself
---      (Blizzard_ChatFrameBase/Shared/ChatFrameEditBox.lua:265-269): with the gamepad UI on, any
+--      (Blizzard_ChatFrameBase/Shared/ChatFrameEditBox.lua:269-273): with the gamepad UI on, any
 --      ChillZone code run that way is a taint event, a failure.
 --   4. A restricted function (the fixture's restricted list, from the documentation's
 --      HasRestrictions and IsProtectedFunction) called outside a click on a button is refused, and
@@ -30,8 +30,10 @@
 --   5. Strict: an unknown global or a method the client's widget type lacks is an error; a getter
 --      the client has that the model doesn't return yet is "unmodelled".
 --   6. Timers run: C_Timer.After and tickers queue, and the pass advances the clock.
---   7. Smart Navigation: a frame the gamepad UI navigates counts every visible Button (or edit
---      box) under it (Blizzard_GamepadSmartNavigation/Utility.lua:208-262, Utility.FindButtons).
+--   7. Smart Navigation: visible Button/EditBox widgets, explicitly focusable frames and frames
+--      with mouse handlers under a managed panel are candidates. Mouse-handler reads cross the
+--      securecallfunction boundary; ignored containers exclude themselves, not their children
+--      (Blizzard_GamepadSmartNavigation/Utility.lua:263-333, build 70790).
 --   8. Popups and the chat box: StaticPopup_Show shows one of StaticPopup1..4 (Blizzard_StaticPopup),
 --      the chat box's functions set the last active edit box.
 --   9. The map library is the real one (ChillZone/libs), on a model of the world map.
@@ -270,15 +272,22 @@ local function NewClient(opts)
 			end
 		end,
 	}
+	-- Forever 70790: SimpleFrameAPI.GetChildren (line 323) yields Frames;
+	-- SimpleAnimatableObjectAPI.GetAnimationGroups (line 26) is a separate collection.
+	local function ParentCollection(parent, kind)
+		if kind == "AnimationGroup" then return parent.animationGroups end
+		if kind == "Texture" or kind == "FontString" or kind == "MaskTexture" or kind == "Line" then return parent.regions end
+		return parent.children
+	end
 	local function NewWidget(kind, name, parent, template, blizzard)
 		local methods = WIDGET_METHODS[kind]
 		assert(methods, "the client has no widget type " .. tostring(kind))
-		local w = setmetatable({ kind = kind, name = name, parent = parent, children = {}, regions = {}, points = {},
+		local w = setmetatable({ kind = kind, name = name, parent = parent, children = {}, regions = {}, animationGroups = {}, points = {},
 			shown = true, scripts = {}, hooks = {}, events = {}, set = {}, methods = methods, w = 0, h = 0, level = 1,
 			alpha = 1, scale = 1, blizzard = blizzard or false, chillzone = not blizzard, enabled = true, seq = #C.created + 1,
 			templateMethods = false }, meta)
 		if parent then
-			local list = (kind == "Texture" or kind == "FontString" or kind == "MaskTexture" or kind == "Line") and parent.regions or parent.children
+			local list = ParentCollection(parent, kind)
 			list[#list + 1] = w
 		end
 		if name then
@@ -320,19 +329,20 @@ local function NewClient(opts)
 			Slider = { "Frame" }, StatusBar = { "Frame" }, GameTooltip = { "Frame" }, MessageFrame = { "Frame" },
 			ScrollingMessageFrame = { "Frame" }, Minimap = { "Frame" } }
 		for _, f in ipairs(family[self.kind] or {}) do if f == t then return true end end
-		return t == "Region" or t == "Object" or t == "ScriptObject"
+		-- Region's documented visibility API is absent on AnimationGroup and Font.
+		return (t == "Region" and self.methods.IsVisible ~= nil) or t == "Object" or (t == "ScriptObject" and self.methods.GetScript ~= nil)
 	end
 	function W:IsForbidden() return false end
 	function W:IsProtected() return false, false end
 	function W:GetDebugName() return self.name or "?" end
 	function W:SetParent(p)
 		if self.parent then
-			for _, list in ipairs({ self.parent.children, self.parent.regions }) do
+			for _, list in ipairs({ self.parent.children, self.parent.regions, self.parent.animationGroups }) do
 				for i, c in ipairs(list) do if c == self then table.remove(list, i) break end end
 			end
 		end
 		self.parent = p
-		if p then table.insert((self.kind == "Texture" or self.kind == "FontString") and p.regions or p.children, self) end
+		if p then table.insert(ParentCollection(p, self.kind), self) end
 		if p and p.blizzard and p ~= E.UIParent and self.chillzone and FromChillZone(1) then
 			C.Record((rawget(p, "name") or rawget(p, "path") or "?") .. " <- " .. (self.name or self.kind), "parent", 1)
 		end
@@ -439,7 +449,7 @@ local function NewClient(opts)
 	function W:CreateMaskTexture(name) return NewWidget("MaskTexture", name, self) end
 	function W:CreateLine(name) return NewWidget("Line", name, self) end
 	function W:CreateAnimationGroup(name)
-		local g = NewWidget("AnimationGroup", name, nil)
+		local g = NewWidget("AnimationGroup", name, self)
 		g.target = self
 		return g
 	end
@@ -448,7 +458,7 @@ local function NewClient(opts)
 		a.group = self
 		return a
 	end
-	function W:GetAnimationGroups() return end
+	function W:GetAnimationGroups() return unpack(self.animationGroups) end
 	function W:IsPlaying() return false end
 	-- Text: measured at 6 pixels a letter (codes and links left out).
 	local function Shown(text) return (tostring(text or ""):gsub("|T.-|t", "WW"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|H.-|h(.-)|h", "%1")) end
@@ -787,9 +797,11 @@ local function NewClient(opts)
 	E.GetMoney = function() return C.money or 0 end
 	-- 1.2.5.1, the ChillZone Accord's BattleTag (Accord.ReadTag): Battle.net connected (BNConnected, as
 	-- Blizzard_FriendsFrame's FriendsFrame_CheckBattlenetStatus asks it) and the player's own tag,
-	-- BNGetInfo's second value (a test tag, nobody's). C.bnet = false: disconnected, no tag. (The
-	-- fixture says Forever's source never calls BNFeaturesEnabledAndConnected: nil here.)
+	-- BNGetInfo's second value (a test tag, nobody's). C.bnet = false: disconnected, no tag.
+	-- Forever 70790 also calls BNFeaturesEnabledAndConnected before BNGetInfo in
+	-- Blizzard_UnitPopupShared/UnitPopupSharedUtils.lua:81-87 (HasBattleTag).
 	E.BNConnected = function() return C.bnet ~= false end
+	E.BNFeaturesEnabledAndConnected = function() return C.bnet ~= false and C.bnetFeatures ~= false end
 	E.BNGetInfo = function()
 		if C.bnet == false then return nil end
 		return 1, C.battleTag or "Tester#1234", nil, "", false, false, false
@@ -1119,7 +1131,7 @@ local function World(C, opts)
 	end
 	assert(FIX.globals.IsResting == "api", "IsResting must be verified in the client fixture")
 	E.IsResting = function() return C.resting == true end
-	-- Forever 70205, UnitAuraDocumentation.lua:395-409: own AuraData (or nil), read-only.
+	-- Forever 70790, UnitAuraDocumentation.lua:395-409: own AuraData (or nil), read-only.
 	assert(FIX.members["C_UnitAuras.GetPlayerAuraBySpellID"] == "api")
 	assert(FIX.events.UNIT_AURA == true, "the fixture must include the companion's native aura event")
 	E.C_UnitAuras = Namespace("C_UnitAuras", {
@@ -1743,7 +1755,21 @@ local function NoErrors(C, what)
 	assert(next(C.unmodelled) == nil, "unmodelled: " .. (next(C.unmodelled) or ""))
 end
 
--- The frames the gamepad UI navigates with Smart Navigation (their visible buttons are targets).
+-- Forever 70790, Blizzard_GamepadSmartNavigation/Utility.lua:263-276. This is candidate
+-- discovery, not execution of a handler: the native taint boundary only returns a boolean.
+local function SmartNavigationCanFocus(C, frame)
+	local isButton = frame:IsObjectType("Button") or frame:IsObjectType("EditBox")
+	local canFocus = rawget(frame, "smartNavigationCanFocus") == true
+	if not isButton then
+		isButton = C.env.securecallfunction(function()
+			return frame:GetScript("OnMouseUp") ~= nil or frame:GetScript("OnMouseDown") ~= nil
+		end)
+	end
+	return (isButton or canFocus) and frame:GetSize() and not rawget(frame, "smartNavigationIgnoredContainerFrame")
+end
+
+-- The frames the gamepad UI navigates with Smart Navigation. Flattening groups is sufficient
+-- for this no-addon-candidate check: subsections and scroll groups are all traversed by the game.
 local MANAGED = { "CommunitiesFrame", "GuildFrame", "FriendsFrame", "WorldMapFrame", "PTR_IssueReporter", "GameMenuFrame" }
 -- (With every one of those frames shown, as the game would show them, then put back.)
 local function NavigableChillZone(C, show)
@@ -1757,7 +1783,7 @@ local function NavigableChillZone(C, show)
 	end
 	local function Walk(f)
 		for _, c in ipairs(f.children) do
-			if c.chillzone and c:IsVisible() and (c:IsObjectType("Button") or c.kind == "EditBox" or c.scripts.OnMouseUp or c.scripts.OnMouseDown) then
+			if c.chillzone and c:IsVisible() and SmartNavigationCanFocus(C, c) then
 				out[#out + 1] = c.name or c.kind
 			end
 			Walk(c)
@@ -2004,6 +2030,68 @@ local function InClick(C, fn)
 	local ok, err = pcall(fn)
 	C.clicking = false
 	if not ok then error(err, 0) end
+end
+
+for _, initialPad in ipairs({ false, true }) do
+	test("gamepad map names: " .. (initialPad and "gamepad" or "mouse") .. " login, geographic selection, preview, confirmation and both switches", function()
+		local C, ns = Session(initialPad)
+		local M, N, E = ns.Map, ns.MapNames, C.env
+		ns.rdb.council = { names = { [ns.ShortName(ns.me):lower()] = ns.ShortName(ns.me) }, realm = ns.realm }
+		E.WorldMapFrame.mapID = 1415 -- the model stores the map selection here (MapFlow uses the same field)
+		E.WorldMapFrame:OnMapChanged()
+		E.WorldMapFrame:Show()
+		local canvas = E.WorldMapFrame:GetCanvas()
+		canvas:SetSize(1000, 700) -- visible canvas geometry for the actual click-to-coordinate path
+		E.GetCursorPosition = function()
+			local scale = canvas:GetEffectiveScale()
+			return (canvas:GetLeft() + 413) * scale, (canvas:GetTop() - 456) * scale
+		end
+		if initialPad then
+			M.SetNameEditing(true); M.OpenNameEditor(1429)
+			eq(M.nameEditor, nil, "gamepad login creates no map editor")
+			eq(M.nameButton, nil, "gamepad login creates no edit button")
+			C.Switch(false); C.Advance(1)
+		end
+		M.LayoutNames()
+		assert(M.nameButton and M.nameButton:IsShown(), "small map editor button for current council")
+		C.Click(M.nameButton)
+		assert(M.nameHit and M.nameHit:IsShown(), "arbitrary artwork names can be selected")
+		local place
+		for _, label in ipairs(M.nameLabels) do if label.key == 1429 then place = label end end
+		assert(place and place:IsShown(), "a geographic label can be clicked")
+		C.Click(place)
+		local editor = assert(M.nameEditor)
+		assert(editor:IsShown()); eq(editor.key, 1429)
+		editor.input:SetText("Council's garden")
+		eq(N.Name(1429), "Elwynn Forest", "typing publishes nothing")
+		C.Click(editor.previewButton)
+		assert(editor.preview); eq(N.Name(1429), "Elwynn Forest", "preview publishes nothing")
+		assert(editor.result:GetText():find("all ChillZone", 1, true), "explicit audience warning")
+		C.Click(editor.publish)
+		eq(N.Name(1429), "Council's garden")
+		eq(ns.Zones.NameForKey("m1429"), "Council's garden", "pin/list display resolves the same shared name")
+		editor:Hide()
+		C.Click(M.nameHit)
+		assert(type(editor.key) == "string" and editor.key:find("^p1415:"), "artwork click selects a stable map coordinate")
+		editor.input:SetText("River crossing")
+		C.Click(editor.previewButton); C.Click(editor.publish)
+		eq(N.Name(editor.key), "River crossing")
+		C.Switch(true); C.Advance(1)
+		eq(M.nameButton:IsShown(), false); eq(M.nameHit:IsShown(), false); eq(editor:IsShown(), false)
+		for _, label in ipairs(M.nameLabels) do eq(label:IsShown(), false, "all geographical labels parked") end
+		M.SetNameEditing(true); M.OpenNameEditor(1429)
+		eq(editor:IsShown(), false, "stale callbacks cannot reopen editor under gamepad")
+		C.Switch(false); C.Advance(1)
+		eq(M.nameButton:IsShown(), true); eq(M.nameHit:IsShown(), false, "switch back leaves edit mode off")
+		local visible = 0
+		for _, label in ipairs(M.nameLabels) do if label:IsShown() then visible = visible + 1 end end
+		eq(visible, 2, "shared geographical and point names restored")
+		ns.rdb.council.names = {}
+		M.LayoutNames(); eq(M.nameButton:IsShown(), false, "permission loss hides editor")
+		for _, label in ipairs(M.nameLabels) do eq(label:IsShown(), false, "revoked author's names no longer shown") end
+		GP.Covers("map-overlay")
+		Check(C.ledger, "map-name editor"); NoErrors(C, "map-name editor")
+	end)
 end
 
 for _, initialPad in ipairs({ false, true }) do
@@ -2270,7 +2358,7 @@ end
 local function ShownOnGameFrames(C)
 	local out = {}
 	for _, w in ipairs(C.created) do
-		if w.chillzone and w:IsVisible() then
+		if w.chillzone and w:IsObjectType("Region") and w:IsVisible() then
 			local p = w.parent
 			while p and p.chillzone do p = p.parent end
 			if p and p ~= C.env.UIParent and p.blizzard and p ~= C.env.Minimap then out[#out + 1] = (w.name or w.kind) .. " on " .. (rawget(p, "name") or rawget(p, "path") or "?") end
@@ -2337,6 +2425,63 @@ test("gamepad pass 0: the model offers nothing Forever's client lacks (tests/fix
 	-- The input style's values are the documentation's.
 	eq(C.env.Enum.InputDeviceInterfaceType.Gamepad, 1)
 	eq(C.env.Enum.InputDeviceInterfaceType.Mkb, 0)
+end)
+
+test("gamepad model 70790: template animation groups are separate from frame children and visible regions", function()
+	local C = NewClient({})
+	World(C, {})
+	local host = C.NewWidget("Frame", "ChillZoneAnimationHost", C.env.CommunitiesFrame)
+	local child = C.NewWidget("Button", "ChillZoneAnimationChild", host)
+	local texture = C.NewWidget("Texture", nil, host)
+	local group = C.NewWidget("AnimationGroup", nil, host)
+	eq(host:GetNumChildren(), 1, "GetChildren returns child frames, not an animation group")
+	eq(host:GetChildren(), child); eq(host:GetRegions(), texture)
+	eq(host:GetAnimationGroups(), group)
+		local made = host:CreateAnimationGroup()
+		eq(select(2, host:GetAnimationGroups()), made); eq(made:GetParent(), host)
+		eq(host:GetNumChildren(), 1, "API-created animation groups also stay outside GetChildren")
+	eq(group:IsObjectType("Region"), false); eq(group.IsVisible, nil, "an animation group has no visibility API")
+	C.env.CommunitiesFrame:Show()
+	local shown = ShownOnGameFrames(C)
+	eq(#shown, 3, "visual audit still includes host, child and texture")
+	host:Hide()
+	eq(#ShownOnGameFrames(C), 0, "hidden visual ancestry removes all three without asking the group for visibility")
+end)
+
+test("gamepad navigation 70790: focus marks, mouse-handler frames and ignored containers follow the native candidate predicate", function()
+	local C = NewClient({ gamepad = true })
+	World(C, {})
+	local parent, invoked, barriers = C.env.CommunitiesFrame, 0, 0
+	parent:Show()
+	local function Frame(kind, name, p)
+		local f = C.NewWidget(kind, "ChillZoneNavigation" .. name, p or parent)
+		f:SetSize(20, 20)
+		return f
+	end
+	local up, down = Frame("Frame", "MouseUp"), Frame("Frame", "MouseDown")
+	up:SetScript("OnMouseUp", function() invoked = invoked + 1 end)
+	down:SetScript("OnMouseDown", function() invoked = invoked + 1 end)
+	local marked = Frame("Frame", "Marked")
+	marked.smartNavigationCanFocus = true
+	Frame("Frame", "Plain")
+	Frame("Button", "Button")
+	Frame("EditBox", "EditBox")
+	local ignored = Frame("Button", "Container")
+	ignored.smartNavigationIgnoredContainerFrame = true
+	Frame("Button", "Child", ignored)
+	Frame("Button", "Hidden"):Hide()
+	local empty = Frame("Frame", "ZeroSize")
+	empty:SetSize(0, 0); empty.smartNavigationCanFocus = true
+	local secure = C.env.securecallfunction
+	C.env.securecallfunction = function(fn, ...) barriers = barriers + 1; return secure(fn, ...) end
+	local found = {}
+	for _, name in ipairs(NavigableChillZone(C)) do found[name] = true end
+	for _, suffix in ipairs({ "MouseUp", "MouseDown", "Marked", "Button", "EditBox", "Child", "ZeroSize" }) do
+		eq(found["ChillZoneNavigation" .. suffix], true, "native candidate " .. suffix)
+	end
+	for _, suffix in ipairs({ "Plain", "Container", "Hidden" }) do eq(found["ChillZoneNavigation" .. suffix], nil, "not a candidate " .. suffix) end
+	assert(barriers > 0, "mouse-handler reads use the native securecallfunction boundary")
+	eq(invoked, 0, "finding candidates never executes their mouse handlers")
 end)
 
 test("gamepad pass 1: a whole session with the gamepad UI on from the login reaches nothing of the game's UI but what its rule allows", function()
@@ -2857,7 +3002,7 @@ end)
 
 -- 1.2.6, Watch duel (Daniel's duel-view request, 2026-10-19). Two players duelling in front of the
 -- player: target and his target. The game's functions a watch reads that the pass doesn't model
--- (the fixture's build 70205 lists UnitHealthMax, UnitRace, UnitSex, UnitTokenFromGUID and
+-- (the fixture's build 70790 lists UnitHealthMax, UnitRace, UnitSex, UnitTokenFromGUID and
 -- GetPlayerInfoByGUID; it predates the others) are stood in as Forever 1.60.1's own documentation
 -- gives them (UnitDocumentation.lua: UnitCanAttack :763, UnitAffectingCombat :614, UnitCastingInfo
 -- :828, UnitChannelInfo :870, UnitHealthMax :1472, UnitHealth :1526, UnitInParty :1637, UnitInRaid
@@ -3287,6 +3432,172 @@ for _, initialPad in ipairs({ false, true }) do
 		Check(C.ledger, "the group panel"); NoErrors(C, "the group panel")
 	end)
 end
+
+for _, initialPad in ipairs({ false, true }) do
+	test("gamepad verification resend: " .. (initialPad and "gamepad" or "mouse") .. " login, actual window and unchanged deadline across both switches", function()
+		local C, ns = Session(initialPad)
+		GP.Covers("escape-list")
+		C.now = ns.Verify.EPOCH + 3600 -- verification timestamps start in 2026, after the fixture's default clock
+		C.units.player.rank, C.units.player.rankIndex = "Guild Master", 0
+		local guild = C.units.player.guild
+		ns.Verify.Observe()
+		local started = ns.Verify.Start(guild)
+		ns.rdb.council = { at = 1, realm = "Realm", names = { reviewer = "Reviewer" } }
+		ns.Workshop.HandleAvailable("CHANNEL", "Reviewer-Realm", "HA~1")
+		eq(#ns.Workshop.Available(), 1)
+		local queued, whisper = 0, ns.Comm.Whisper
+		ns.Comm.Whisper = function(to, word, ...)
+			local ok = whisper(to, word, ...)
+			if ok and word:match("^HR~") then queued = queued + 1 end
+			return ok
+		end
+		for _, mode in ipairs({ initialPad, not initialPad, initialPad }) do
+			C.Switch(mode); C.Advance(0.1)
+			eq(ns.Verify.ShowNotice(), true)
+			local panel = assert(ns.UI.CopyFrame("verify"))
+			local button = assert(rawget(panel, "second"))
+			eq(button:GetText(), ns.L.VERIFY_ASK_BTN)
+			assert(panel:IsShown() and button:IsShown())
+			C.Click(button); C.Click(button)
+			eq(queued, 1, "repeated clicks and mode changes do not repeat the request during cooldown")
+			eq(ns.Verify.Start(guild), started, "resending keeps the earliest guild clock")
+			assert(ns.Verify.RequestWait(guild) > 0, "cooldown is visible to the next request")
+			local listed = false
+			for _, name in ipairs(ChillZoneEscapeNames(C)) do if name == panel:GetName() then listed = true end end
+			eq(listed, not mode, "the verification window obeys the existing escape-list gate")
+			assert(not C.env.ChatFrame1EditBox:IsShown(), "resending never opens the native chat box")
+			panel:Hide() -- reopen after each switch, exercising the window's real OnShow registration
+		end
+		Check(C.ledger, "verification resend"); NoErrors(C, "verification resend")
+	end)
+end
+
+for _, initialPad in ipairs({ false, true }) do
+	test("gamepad self portrait settings: " .. (initialPad and "gamepad" or "mouse") .. " login, collapsed menu and retained callbacks across both switches", function()
+		local C, ns = Session(initialPad)
+		GP.Covers("player-menu")
+		local function Root()
+			local root = { items = {} }
+			local function Add(text, click)
+				local item = Root()
+				item.text, item.click = text, click
+				root.items[#root.items + 1] = item
+				return item
+			end
+			function root:CreateButton(text, click) return Add(text, click) end
+			function root:CreateTitle(text) return Add(text) end
+			function root:CreateDivider() return Add() end
+			function root:SetTooltip() end
+			function root.Find(text)
+				for _, item in ipairs(root.items) do if item.text == text then return item end end
+			end
+			return root
+		end
+		if initialPad then eq(C.menus.MENU_UNIT_SELF, nil, "no native own-portrait callback at gamepad login") end
+		C.Switch(false); C.Advance(0.1)
+		local callbacks = assert(C.menus.MENU_UNIT_SELF, "own portrait uses SELF")
+		eq(#callbacks, 1)
+		local panel, opened = nil, 0
+		local open = ns.PlayerTooltip.OpenSettings
+		ns.PlayerTooltip.OpenSettings = function() opened = opened + 1; panel = open(); return panel end
+		ns.db.playerMenuCollapsed = true
+		local root = Root()
+		C.Isolated(callbacks[1], {}, root, { unit = "player", fromPlayerFrame = true })
+		local sub = assert(root.Find(ns.L.PLAYERMENU_TITLE))
+		assert(sub.Find(ns.L.ARENA_MENU_PROFILE), "own profile in the real portrait menu")
+		local settings = assert(sub.Find(ns.L.PLAYER_TOOLTIP_SETTINGS))
+		InClick(C, settings.click)
+		eq(opened, 1); eq(panel:IsShown(), true, "actual settings window opens")
+		panel:Hide()
+		C.Switch(true); C.Advance(0.1)
+		local empty = Root()
+		C.Isolated(callbacks[1], {}, empty, { unit = "player", fromPlayerFrame = true })
+		eq(#empty.items, 0, "retained native callback adds nothing after gamepad switch")
+		InClick(C, settings.click)
+		eq(opened, 1); eq(panel:IsShown(), false, "retained native menu click is inert")
+		C.Switch(false); C.Advance(0.1)
+		eq(#C.menus.MENU_UNIT_SELF, 1, "switch back does not duplicate registration")
+		InClick(C, settings.click); eq(opened, 2); eq(panel:IsShown(), true)
+		panel:Hide()
+		Check(C.ledger, "own portrait settings"); NoErrors(C, "own portrait settings")
+	end)
+end
+
+-- Native player details use the real Inspect callback, with the client's own
+-- tooltip lifecycle. They never replace the native owner, anchor or text.
+for _, initialPad in ipairs({ false, true }) do
+	test("gamepad player tooltip: " .. (initialPad and "gamepad" or "mouse") .. " login, native details and both mode switches", function()
+		local C, ns = Session(initialPad)
+		GP.Covers("player-tooltip")
+		local P, tip = assert(ns.PlayerTooltip), C.env.GameTooltip
+		C.units.mouseover = { name = "Someone", realm = "Realm", guid = "Player-1-00000002", guild = "ChillZone II", rank = "Titan", rankIndex = 1 }
+		assert(P.Set("scale", 120))
+		tip:SetScale(0.9)
+		local function RankLines()
+			local n = 0
+			for _, line in ipairs(tip.lines or {}) do if line == "ChillZone II · Titan" then n = n + 1 end end
+			return n
+		end
+		for _, mode in ipairs({ initialPad, not initialPad, initialPad, false }) do
+			C.Switch(mode); C.Advance(0.1)
+			C.RunScript(tip, "OnTooltipCleared")
+			tip:SetOwner(C.env.UIParent, "ANCHOR_CURSOR"); tip:SetUnit("mouseover")
+			local owner, anchor = tip.owner, tip.anchor
+			C.Isolated(ns.Inspect.TooltipUnit, tip)
+			C.Isolated(ns.Inspect.TooltipUnit, tip)
+			eq(RankLines(), mode and 0 or 1, "one observed guild rank, no duplicate on repeated post-calls")
+			eq(tip:GetScale(), mode and 0.9 or 1.08, "optional scale follows native player's original size")
+			eq(tip.owner, owner); eq(tip.anchor, anchor)
+			if not mode then
+				C.Switch(true); C.Advance(0.1) -- Gate parks native additions on the next frame.
+				eq(tip:GetScale(), 0.9, "switch restores a visible tooltip before leaving mouse mode")
+				C.Isolated(ns.Inspect.TooltipUnit, tip)
+				eq(RankLines(), 1, "retained callback is inert under gamepad")
+			end
+			tip:Hide(); eq(tip:GetScale(), 0.9)
+		end
+		C.Switch(false); C.Advance(0.1)
+		C.RunScript(tip, "OnTooltipCleared"); tip:SetUnit("mouseover")
+		C.Isolated(ns.Inspect.TooltipUnit, tip); eq(tip:GetScale(), 1.08)
+		tip:SetScale(1.3) -- A later addon owns this value; ChillZone must leave it alone.
+		tip:Hide(); eq(tip:GetScale(), 1.3, "never overwrite another tooltip addon's later change")
+		Check(C.ledger, "native player tooltip"); NoErrors(C, "native player tooltip")
+	end)
+end
+
+test("gamepad player tooltip: verified ranks, secret values, preferences and combat", function()
+	local C, ns = Session(false)
+	local P, tip = assert(ns.PlayerTooltip), C.env.GameTooltip
+	local u = { name = "Someone", realm = "Realm", guid = "Player-1-00000002", guild = "ChillZone II", rank = "Titan", rankIndex = 1 }
+	C.units.mouseover = u
+	local function Hover()
+		C.RunScript(tip, "OnTooltipCleared")
+		tip:SetOwner(C.env.UIParent, "ANCHOR_CURSOR"); tip:SetUnit("mouseover")
+		C.Isolated(ns.Inspect.TooltipUnit, tip)
+		for _, line in ipairs(tip.lines or {}) do if line:find("ChillZone II ·", 1, true) then return line end end
+	end
+	eq(P.Options().scale, 100); eq(Hover(), "ChillZone II · Titan"); eq(tip:GetScale(), 1)
+	u.rank = nil; eq(Hover(), nil, "no inferred rank when the game has none")
+	u.rank = "secret rank"
+	C.env.issecretvalue = function(value) return value == "secret rank" end
+	eq(Hover(), nil, "secret rank never reaches string processing")
+	u.rank = "Titan"
+	assert(P.Set("details", false)); eq(Hover(), nil)
+	eq(P.Set("scale", 500), false); eq(P.Set("other", true), false); eq(P.Set("colors", "yes"), false)
+	assert(P.Set("details", true)); assert(P.Set("scale", 120)); eq(Hover(), "ChillZone II · Titan"); eq(tip:GetScale(), 1.2)
+	C.combat = true; C.Fire("PLAYER_REGEN_DISABLED")
+	eq(tip:GetScale(), 1, "combat restores the size already borrowed")
+	eq(Hover(), nil, "new native additions pause during combat"); eq(tip:GetScale(), 1)
+	C.combat = false; eq(Hover(), "ChillZone II · Titan"); eq(tip:GetScale(), 1.2)
+	tip:Hide(); eq(tip:GetScale(), 1)
+	C.Switch(true); C.Advance(0.1) -- Gate parks native additions on the next frame.
+	local panel = assert(P.OpenSettings())
+	eq(panel:IsShown(), true, "preferences use ChillZone's own panel in either input mode")
+	panel.checks.colors:SetChecked(false); C.Click(panel.checks.colors)
+	eq(P.Options().colors, false, "native checkbutton choice persists")
+	panel:Hide()
+	Check(C.ledger, "player tooltip preferences"); NoErrors(C, "player tooltip preferences")
+end)
 
 if MODE == "--discover" then
 	local C, ns = Boot({ discover = true, gamepad = arg and arg[2] == "gamepad" })

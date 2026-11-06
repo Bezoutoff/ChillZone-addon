@@ -196,6 +196,7 @@ local function Closed() -- gp:innkeeper-gossip
 		if ns.FarkleTable.WantKeeper then ns.FarkleTable.WantKeeper(false) end
 	end
 	if not request then return end
+	request.closing = true
 	local current = generation
 	-- (1.4.6, the dev's cousin on live Forever: the first talk closed the panel and no lesson
 	-- opened; the second talk opened it, from this request left pending.) Blizzard's own handler
@@ -238,9 +239,14 @@ function G.Confirm() -- gp:innkeeper-gossip
 	local opts = not FT.TrainingComplete() and { target = R.TARGETS[1], learn = true } or nil
 	if FT.InnkeeperVoice then FT.InnkeeperVoice() end
 	G.Park()
-	pendingPractice, mode = { native = native, inn = id, opts = opts }, "closing"
+	local request = { native = native, inn = id, opts = opts }
+	pendingPractice, mode = request, "closing"
 	local closed = pcall(rawget(_G, "C_GossipInfo").CloseGossip)
 	if not closed then G.Park(); return false, "native-api" end
+	-- The native OnHide can precede (or replace) its close event. Once CloseGossip
+	-- accepted the request, use the same bounded visibility check ourselves; an
+	-- event which already consumed it must not start a second lesson.
+	if pendingPractice == request and not request.closing then Closed() end
 	return true
 end
 

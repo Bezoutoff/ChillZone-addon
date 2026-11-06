@@ -116,6 +116,8 @@ ns.Borders = Borders
 -- Who:
 --   king     the King of our faction: his character (ns.IsKingCharacter) in his guild
 --            (ns.IsKingGuild); where no character is pinned, that guild's guild master
+--   queen    the Queen of our faction: the exact character in the author's signed launch list
+--            (ns.IsQueenCharacter); presentation only, with none of the King's authority
 --   council  the High Council (the signed list, ns.IsHighCouncillor), except on the King's screen
 --            while he streams
 --   dev      the dev's own character (Workshop.IsAuthorName: ns.AUTHOR on his realm group)
@@ -129,9 +131,10 @@ ns.Borders = Borders
 --            very guild (GetGuildInfo): nobody outside it can borrow it. In the King's guild,
 --            Legates are explicitly appointed, not derived from the council; a separate actual
 --            council title still has its own precedence and portrait frame.
--- The supplied primary federal Treasurer dragon is portrait-only (TreasurerPin == 1, never
--- the mail alternate); the King takes precedence. Existing chat/nameplate marks stay unchanged.
--- Portrait order: the King, the primary Treasurer, the High Council, the dev, a guild master, a nominee
+-- The supplied Queen and primary federal Treasurer dragons are portrait-only (the Treasurer's:
+-- TreasurerPin == 1, never the mail alternate). The King takes precedence. Existing chat/nameplate
+-- marks stay unchanged.
+-- Portrait order: the King, the Queen, the primary Treasurer, the High Council, the dev, a guild master, a nominee
 -- (then, on nameplates and in the game's chat, the star).
 -- (1.0.1's Max's second option, ns.BORDERS_COUNCIL_GOLD, the High Council in the King's gold
 -- wings, is gone with 1.1.5: the gold is the King's alone, on the borders, the nameplates and in
@@ -149,6 +152,8 @@ local MEDIA = "Interface\\AddOns\\ChillZone\\media\\borders\\"
 -- (metal, 1.2: the plain metal under the tier's art, UNDERLAY below.)
 Borders.TIERS = {
 	{ name = "gold-elite", atlas = WINGED, metal = "gold", x = 11, y = -4, king = true },
+	{ name = "queen-dragon", file = MEDIA .. "queen-dragon", coords = { 0, 200 / 256, 0, 190 / 256 }, width = 100, height = 95,
+		x = 0, y = 1, fallback = PLAIN, queen = true, metal = "none", party = { x = -2, y = -1 } }, -- (Kaise's art, foot down as authored)
 	{ name = "treasurer-dragon", file = MEDIA .. "treasurer-dragon", coords = { 0, 200 / 256, 0, 190 / 256 }, width = 100, height = 95,
 		x = 0, y = 1, fallback = PLAIN, treasurer = true, metal = "none", party = { x = 0, y = -2 } }, -- (its own art whole: no plain dragon under it; party: see PartyRig)
 	{ name = "silver-elite", atlas = "UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Silver-Winged", x = 8, y = -7,
@@ -269,6 +274,7 @@ local rigs = {}  -- [unit] = { tex = { [tier name] = texture }, honor = { [shape
 local partyRigs = {} -- [a party member frame of the game's] = its rig, made once (rigs[party<i>]: the one showing party<i>)
 local known = {} -- [unit] = { guid, tier, guild, report, rt, council }: the last worked out
 local installed, waiting = false, false
+local hookedParty -- the game can create its pooled PartyFrame after the unit frames at login
 local forever = false -- Forever's unit frames found at Install (the party's borders only then)
 local preview    -- the author's preview: a tier's name while on (this session only, never saved)
 Borders.stats = { computed = 0 } -- (tests, /cz status)
@@ -357,7 +363,7 @@ local function Uncover(f)
 	local C = ns.Cover
 	if type(C) ~= "table" or type(C.AliasOf) ~= "function" or not C.AliasOf(f.who) then return end
 	f.covered = true
-	f.councillor, f.council, f.dev, f.treasurer, f.king = false, false, false, false, false
+	f.councillor, f.council, f.dev, f.queen, f.treasurer, f.king = false, false, false, false, false, false
 end
 
 local function Facts(unit)
@@ -374,6 +380,7 @@ local function Facts(unit)
 	f.councillor = ns.IsHighCouncillor(who) == true
 	f.council = f.councillor and not ns.CouncilMasked()
 	f.dev = IsDev(who)
+	f.queen = type(ns.IsQueenCharacter) == "function" and ns.IsQueenCharacter(who) == true
 	local T = ns.Treasury
 	f.treasurer = type(T) == "table" and type(T.TreasurerPin) == "function" and T.TreasurerPin(who) == 1
 	Uncover(f)
@@ -413,7 +420,7 @@ end
 local function Match(f, marked)
 	if not f or f.off then return nil end
 	for _, t in ipairs(Borders.TIERS) do
-		if ((t.king and f.king) or (t.council and f.council) or (t.dev and f.dev) or (t.leader and f.leader)
+		if ((t.king and f.king) or (t.queen and f.queen) or (t.council and f.council) or (t.dev and f.dev) or (t.leader and f.leader)
 			or (t.treasurer and f.treasurer)) and not (marked and not Borders.MARK_OF[t.name]) then
 			return t
 		end
@@ -452,7 +459,7 @@ local function Inputs(f)
 	return { guild = f and f.guild, report = report, rt = row and report.t or nil, vouch = row and report.vouch or nil,
 		council = ns.rdb and ns.rdb.council, titles = ns.rdb and ns.rdb.councilTitles, -- (1.3.4: the King, the Treasurer, the author it names)
 		roster = f and f.fromRoster and (ns.Roster and ns.Roster.byName or false) or nil,
-		masked = masked, who = f and f.who, off = f and f.off, nominees = NomineesVersion(), treasurer = f and f.treasurer,
+		masked = masked, who = f and f.who, off = f and f.off, nominees = NomineesVersion(), queen = f and f.queen, treasurer = f and f.treasurer,
 		cover = CoverVersion() }
 end
 
@@ -532,6 +539,7 @@ function Borders.MarkOfName(who, guild)
 	f.councillor = ns.IsHighCouncillor(who) == true
 	f.council = f.councillor and not ns.CouncilMasked()
 	f.dev = IsDev(who) -- (1.2.3: the dev's silver has its mark, before his name in the game's chat)
+	f.queen = type(ns.IsQueenCharacter) == "function" and ns.IsQueenCharacter(who) == true
 	if f.off then return nil, f end
 	local T = ns.Treasury
 	f.treasurer = type(T) == "table" and type(T.TreasurerPin) == "function" and T.TreasurerPin(who) == 1
@@ -743,14 +751,37 @@ local function PartyFrameOf()
 	return nil
 end
 
+-- Give back only ChillZone's textures and cached assignments. The game's pool can be reused
+-- while the integration is parked, so a later name update must discover its current frames.
+local function ParkParty() -- gp:borders!undo
+	for _, rig in pairs(partyRigs) do Show(rig, nil); Borders.ShowRoleBadge(rig, nil) end
+	for _, unit in ipairs(PARTY) do rigs[unit] = nil end
+end
+
 -- Which frame shows which party member now (PartyFrame.MemberFrame<i>, of layoutIndex i: party<i>),
 -- a frame's textures made the first time it is seen out of combat (in combat: once it ends); a
 -- frame not showing a place now shows no border. Field reads alone on the game's frames.
-local function MapParty()
+local function MapParty() -- gp:borders
+	if not ns.Gate.Allowed("borders") then return end
 	local party = PartyFrameOf()
 	if not party then return end
 	local combat = InCombatLockdown and InCombatLockdown()
 	if not combat then waiting = false end
+	-- PartyFrame may arrive after Borders.Install's one-time unit-frame pass. Follow its
+	-- pool as soon as it exists, even before it has assigned its first MemberFrame keys.
+	-- Otherwise its later OnShow can hand out the frames with no post-initialize refresh.
+	if hookedParty ~= party and type(party.InitializePartyMemberFrames) == "function" and type(hooksecurefunc) == "function" then
+		if combat then waiting = true else
+			hooksecurefunc(party, "InitializePartyMemberFrames", function()
+				if not ns.Gate.Allowed("borders") then
+					ns.SafeCall("borders party park", ParkParty)
+					return
+				end
+				ns.SafeCall("borders party", Borders.RefreshParty)
+			end)
+			hookedParty = party
+		end
+	end
 	local mapped = {}
 	for i, unit in ipairs(PARTY) do
 		local frame = party["MemberFrame" .. i]
@@ -808,10 +839,6 @@ function Borders.Install() -- gp:borders
 	-- The party's frames there now, and the hook that follows PartyFrame handing them out anew
 	-- (none without Forever's unit frames: PartyFrameOf).
 	MapParty()
-	local party = PartyFrameOf()
-	if party and type(party.InitializePartyMemberFrames) == "function" and type(hooksecurefunc) == "function" then
-		hooksecurefunc(party, "InitializePartyMemberFrames", function() ns.SafeCall("borders party", Borders.RefreshParty) end)
-	end
 	ns.Log("borders: set up on %s", Borders.Frames())
 	return true
 end
@@ -1231,8 +1258,7 @@ end
 -- its frames out anew meanwhile): Refresh works it out again for a member when they are back.
 function Borders.RefreshParty(fresh)
 	if not Active() then
-		for _, rig in pairs(partyRigs) do Show(rig, nil); Borders.ShowRoleBadge(rig, nil) end
-		for _, unit in ipairs(PARTY) do rigs[unit] = nil end
+		ParkParty()
 		return
 	end
 	if not installed and not Borders.Install() then return end
@@ -1753,6 +1779,6 @@ pcall(ns.RegisterEvent, "PLAYER_FOCUS_CHANGED", function() Borders.Refresh("focu
 -- borders are looked at again and the chat marks come back (registered on the first switch to mouse
 -- and keyboard after a gamepad login). The author's ChillZone portraits follow his preview (1.2).
 ns.Gate.Hooks("borders", {
-	park = function() HideAll(); if preview then PreviewChanged() end end,
+	park = function() HideAll(); ParkParty(); if preview then PreviewChanged() end end,
 	install = function() Borders.RefreshAll(true); if preview then PreviewChanged() end end })
 ns.Gate.Hooks("chat-marks", { park = function() Borders.ChatRefresh() end, install = function() Borders.ChatRefresh() end })

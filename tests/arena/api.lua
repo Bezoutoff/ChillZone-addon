@@ -1458,6 +1458,36 @@ local function Crown(w, king, x, y)
 	w:Run(6)
 end
 
+test("Queen identity: signed exact name only, reserved, consented, guild-bound and rate-limited", function()
+	local w, cast, viewer, API = Setup()
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
+	Install(viewer, "MapPins", "Map Pins")
+	local a = w:As(viewer, O.Register, "MapPins")
+	eq(w:As(viewer, O.Has, "queen.identity"), true)
+	eq(select(2, Do(w, viewer, a, "GetQueenIdentity")), "pending")
+	w:As(viewer, C.Choose, "api:mappins", true)
+	local pins = { queen = {} }
+	viewer.ns.SignedPins = function() return pins end
+	eq(select(2, Do(w, viewer, a, "GetQueenIdentity")), "unknown", "no code or guild guess")
+	local exact = "Royal Wren-" .. viewer.ns.realm
+	pins.queen[viewer.ns.faction] = { exact }
+	eq(Do(w, viewer, a, "GetQueenIdentity"), exact, "only a string, no online or location fields")
+	pins.queen[viewer.ns.faction] = nil
+	eq(select(2, Do(w, viewer, a, "GetQueenIdentity")), "unknown", "withdrawn immediately")
+	pins.queen[viewer.ns.faction] = { exact }
+	w:As(viewer, C.Choose, "api:mappins", false)
+	eq(select(2, Do(w, viewer, a, "GetQueenIdentity")), "refused")
+	w:As(viewer, C.Choose, "api:mappins", true)
+	local guild = viewer.guild
+	viewer.guild = "Not ChillZone"
+	eq(select(2, Do(w, viewer, a, "GetQueenIdentity")), "guild")
+	viewer.guild = guild
+	w:Run(API.RATE_WINDOW + 1)
+	for _ = 1, API.RATE_MAX do eq(Do(w, viewer, a, "GetQueenIdentity"), exact) end
+	eq(select(2, Do(w, viewer, a, "GetQueenIdentity")), "busy")
+	W3.NoErrors(w)
+end)
+
 test("1.2.5 the API leader presence: only what the King's lines, his crown and the Realm tab's layers show; nothing while barred; consent, guild and rate gates", function()
 	local w, cast, viewer, API = Setup()
 	viewer.mapID = 1453
@@ -1675,7 +1705,7 @@ test("1.2.5.1 the API reserved features: an addon that is not authorized gets \"
 	end
 	local caption = "A fixed host-approved caption"
 	local calls = {
-		GetLeaderPresence = {}, StartPlayerSearch = { "Tracked Name-Emberfall" }, GetPlayerSearch = { "7" },
+		GetQueenIdentity = {}, GetLeaderPresence = {}, StartPlayerSearch = { "Tracked Name-Emberfall" }, GetPlayerSearch = { "7" },
 		GetPlayerSearches = {}, StartAreaSearch = { 1453 }, GetAreaSearch = { "7" }, GetAreaSearches = {},
 		CancelPlayerSearch = { "7" }, CancelAreaSearch = { "7" }, ShowAreaSearchOnMap = { "7" }, ClearAreaSearchMap = {},
 		SetSightingPins = { {} }, ClearSightingPins = {},
@@ -1690,7 +1720,7 @@ test("1.2.5.1 the API reserved features: an addon that is not authorized gets \"
 		eq(why, "unauthorized", method)
 		if no == "false" then eq(result, false, method) else eq(result, nil, method) end
 	end
-	eq(count, 19, "every leader, sightings, quiet presence and profile-presentation method is reserved")
+	eq(count, 20, "every identity, leader, sightings, quiet presence and profile-presentation method is reserved")
 	-- Even a release: its own state is none, so another addon's cannot be touched through it.
 	eq(select(2, Do(w, viewer, crier, "SetQuietPresence", false)), "unauthorized")
 	eq(select(2, Do(w, viewer, crier, "SetProfileEffect", "shadow", false)), "unauthorized")
@@ -1772,7 +1802,7 @@ test("1.2.5.1 the API reserved features: the list as it ships names nobody (one 
 	for m in src:gmatch("\nfunction METHODS%.(%u%a+)%(") do methods[m] = true end
 	local reserved = 0
 	for m in pairs(methods) do
-		if m:find("Leader", 1, true) or m:find("Search", 1, true) or m:find("Quiet", 1, true) or m:find("Profile", 1, true) then
+		if m:find("Queen", 1, true) or m:find("Leader", 1, true) or m:find("Search", 1, true) or m:find("Quiet", 1, true) or m:find("Profile", 1, true) then
 			-- (GetProfile, the player's own frame and title, is an ordinary read.)
 			if m ~= "GetProfile" then
 				assert(API.RESERVED_METHODS[m], "reserved: " .. m)
@@ -1780,7 +1810,7 @@ test("1.2.5.1 the API reserved features: the list as it ships names nobody (one 
 			end
 		end
 	end
-	eq(reserved, 17, "the leader's, the searches', the quiet presence's and the presentation's methods")
+	eq(reserved, 18, "the Queen identity, leader, searches, quiet presence and presentation methods")
 	eq(API.RESERVED_METHODS.GetProfile, nil, "the player's own profile stays an ordinary read")
 	for m, no in pairs(API.RESERVED_METHODS) do
 		assert(methods[m], "a real method: " .. m)
@@ -2990,15 +3020,15 @@ end)
 
 -- 1.2.5.1: the ChillZone Accord (Accord.lua). Until this account accepted it the player is no member
 -- (ns.IsMember): a granted addon reads what it reads outside an ChillZone guild ("guild", member =
--- false), and the contract is not changed by it (CONSENT_VERSION 10 since 1.4.0, for the Board's
--- groups and IsChillZoneMember; the Accord itself asks nothing again). Accepting it (Accord.lua's ACCORD_CHANGED,
+-- false), and the contract is not changed by it (currently CONSENT_VERSION 11, including the signed
+-- Queen identity; the Accord itself asks nothing again). Accepting it (Accord.lua's ACCORD_CHANGED,
 -- fired here as the Accord fires it) tells every data event's listeners once the burst settles.
 test("accord: the API before the ChillZone Accord is accepted reads as outside an ChillZone guild; once it is, WANTED, RANKINGS and PROFILE listeners are told", function()
 	local w, cast, viewer, API = Setup()
-	-- (1.4.0: 10, raised for the Board's groups and IsChillZoneMember, which a Yes now gives too; the
+	-- (1.4.6: 11, raised for the signed Queen identity, which a Yes now gives too; the
 	-- Accord itself still changes nothing of the contract, so this stays the version the API's own
 	-- reads set.)
-	eq(API.CONSENT_VERSION, 10, "the contract the Accord leaves as it is")
+	eq(API.CONSENT_VERSION, 11, "the contract the Accord leaves as it is")
 	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	Install(viewer, "MapPins", "Map Pins")
 	local api = w:As(viewer, O.Register, "MapPins")
@@ -3533,7 +3563,7 @@ end)
 test("1.4.0 the API IsChillZoneMember: a Yes given for 1.3's contract is asked again; the privacy line, docs/API.md and the store pages say what it reads", function()
 	local w, cast, viewer, API = Setup()
 	local O = viewer.ChillZoneAPI
-	eq(API.CONSENT_VERSION, 10)
+	eq(API.CONSENT_VERSION, 11)
 	-- An account that said Yes before 1.4.0 (version 9): pending again, so nothing until asked.
 	viewer.db.apiAddons = viewer.db.apiAddons or {}
 	viewer.db.apiAddons.bufftool = { on = true, v = 9, at = 0 }

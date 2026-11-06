@@ -424,6 +424,19 @@ test("Innkeeper gossip: a delayed native close event owns closing the conversati
 	end)
 end)
 
+test("1.5.2 Bones innkeeper: hiding the confirmed conversation starts once even when its close event is absent", function()
+	WithGossip(function(g, t)
+		C_GossipInfo.CloseGossip = function() t.f:Hide() end
+		eq(g.ShowRow(), true); eq(g.Open(), true); eq(g.Confirm(), true)
+		for _, call in ipairs(t.pending) do call() end
+		eq(#t.starts, 1, "the hidden panel must not retain the lesson until a later conversation")
+		eq(t.starts[1].what, "practice"); eq(t.starts[1].extra.learn, true)
+		t.w:Fire(t.a, "GOSSIP_CLOSED")
+		eq(#t.starts, 1, "a late close event cannot open the lesson again")
+		eq(g.State().mode, "inactive")
+	end)
+end)
+
 test("Innkeeper gossip: native close handler order and cancelled training remain safe", function()
 	WithGossip(function(g, t)
 		C_GossipInfo.CloseGossip = function() end

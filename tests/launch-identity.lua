@@ -1,4 +1,4 @@
--- 1.3.4: the launch identities. On a launch realm group the King, the Treasurer and the author are
+-- The launch identities. On a launch realm group the King, the Queen, the Treasurer and the author are
 -- whom the author's signed titles list names (Core.lua: ns.ReadPins, ns.SignedPins), never a name in
 -- the code; the code's pins stay the beta's. Also ns.RealmInfo, the author's rotation of the army's
 -- key (Keys.lua) and the channel's protected names (Comm.lua). Invented names only.
@@ -25,6 +25,7 @@ local LAUNCH_B = "HT1~1793722480~Launchrealm+Launchtwo~0~^^Test Councillor=Counc
 local FAR = "HT1~1793722482~Farrealm~0~^^Test Councillor=Council Speaker;^king^Alliance^Crown Owl-Farrealm;^author^Alliance^Quill Maker-Farrealm~c28cf7f9afcbd89d9030d05dc7e708019cedd63c8f30209d7d32b71372bd3657eb14d3900d16673e282dfd9c2d2508ae68266c2435c60e5c28e61f1d5fb03a13ef141dec58fa8f66c3ad6b0286d32e69e2f42c5a39249e956c87a9e5fc93c4556bbfb7aec477967fe7d8d0f9aaf9ee620b6087f6a8cfa3819b0f4e3a80915e5d53ac4ee542572534b26b7cefdfbdfd6a932d74c361875294f13ab2cae165b8c803de6daccdfad212a492244c34ad80b09b5d47f1fcd9ac1c684c1961630ed3bd5bbb9d729a343904c2cf05580789d27a7eee0ca255fcda1e6b3b37101a045c963ed1b91b1544184d25a6585d4176a3695478989f034922f2d1c8e9be36be69a2"
 
 local AUTHOR, KING, TREASURER, MAIL = "Quill Maker-Launchrealm", "Crown Owl-Launchrealm", "Ledger Wren-Launchrealm", "Ledger Post-Launchrealm"
+local QUEEN = "Crown Wren-Launchrealm"
 
 if not ns.Keys then assert(loadfile(h.ADDON_DIR .. "Keys.lua"))("ChillZone", ns) end
 
@@ -100,6 +101,42 @@ test("1.3.4 launch identities: on a launch realm group the signed list names the
 		eq(ns.KingUnpinned(), false, "the list reaches here: no guild master stands for him")
 		eq(ns.Workshop.IsAuthorName(AUTHOR), true, "his character, as anyone may name it")
 		eq(ns.Workshop.IsAuthorName("Quill Maker-Launchtwo"), false)
+	end)
+end)
+
+test("1.4.6 launch identity: the signed Queen is exact to faction and realm group, has no authority, and an older list names no Queen", function()
+	WithWorld("Launchrealm", "Alliance", LAUNCH_A, function()
+		eq(ns.QueenCharacter(), nil, "an older signed list names no Queen")
+		eq(ns.QueenFullName(), nil)
+		eq(ns.IsQueenCharacter(QUEEN), false)
+		assert(ns.PinsStatus():find("Queen none", 1, true), ns.PinsStatus())
+		local signed = ns.SignedPins
+		local p = signed()
+		local withQueen = {}
+		for k, v in pairs(p) do withQueen[k] = v end
+		withQueen.queen = { Alliance = { QUEEN }, Horde = { "Tusk Wren-Launchrealm" } }
+		ns.SignedPins = function() return withQueen end
+		local ok, err = pcall(function()
+			eq(ns.QueenCharacter(), "Crown Wren")
+			eq(ns.QueenRealm(), "Launchrealm")
+			eq(ns.QueenFullName(), QUEEN)
+			eq(ns.IsQueenCharacter(QUEEN), true)
+			eq(ns.IsQueenCharacter("Crown Wren"), true, "a name without a realm is ours")
+			eq(ns.IsQueenCharacter("Crown Wren-Farrealm"), false, "a namesake on another realm group")
+			eq(ns.IsKingCharacter(QUEEN), false, "the Queen is not the King")
+			eq(ns.IsHighCouncillor(QUEEN), false, "the Queen is not a councillor")
+			eq(ns.IsSteward(QUEEN), false, "the Queen is not a Steward")
+			eq(ns.Workshop.IsAuthorName(QUEEN), false, "the Queen is not the author")
+			local status = ns.PinsStatus()
+			assert(status:find("Queen signed", 1, true), status)
+			assert(not status:find("Crown Wren", 1, true), status)
+			ns.faction = "Horde"
+			eq(ns.QueenCharacter(), "Tusk Wren")
+			eq(ns.IsQueenCharacter("Tusk Wren-Launchrealm"), true)
+			eq(ns.IsQueenCharacter(QUEEN), false, "the other faction's Queen")
+		end)
+		ns.SignedPins = signed
+		if not ok then error(err, 0) end
 	end)
 end)
 
@@ -228,6 +265,7 @@ test("1.3.4 launch identities: ns.RealmInfo reads the signed realms; anything th
 		"^realms^OCE^Faraway=pvp", "^realms^NA^Good=pvp,Bad Space=pvp,Wrong=pvp2,Upper=PVP,Kel'thas=hardcore,Good=pve,"
 			.. ("x"):rep(41) .. "=pve", "^realms^EU^Other=rp",
 		"^king^Alliance^No Realm", "^king^Neutral^Side Less-Realm", "^king^Horde^First King-Realm,Second King-Realm",
+		"^queen^Alliance^No Realm", "^queen^Neutral^Side Less-Realm", "^queen^Horde^First Queen-Realm,Second Queen-Realm",
 		"^treasurer^Alliance^A Aa-R,B Bb-R,C Cc-R,D Dd-R,E Ee-R", "^treasurer^Horde^Bad-Name-R",
 		"^author^Alliance^Three Word Name-R,Digit5 Name-R,Fine Name-R,fine name-R", "^author^Horde^",
 		"Department of War^^Test Councillor=Speaker", "^steward^Alliance^Test Steward-R",
@@ -238,11 +276,13 @@ test("1.3.4 launch identities: ns.RealmInfo reads the signed realms; anything th
 	eq(p.realms.upper, nil, "kinds in lower case"); eq(p.realms[("x"):rep(41)], nil, "a realm over 40 bytes")
 	eq(p.king.Alliance, nil, "a name without its realm"); eq(p.king.Neutral, nil)
 	eq(#p.king.Horde, 1, "one King a side"); eq(p.king.Horde[1], "First King-Realm")
+	eq(p.queen.Alliance, nil, "a Queen name without its realm"); eq(p.queen.Neutral, nil)
+	eq(#p.queen.Horde, 1, "one Queen a side"); eq(p.queen.Horde[1], "First Queen-Realm")
 	eq(#p.treasurer.Alliance, 4, "the Treasurer and three mail characters at most"); eq(p.treasurer.Alliance[1], "A Aa-R")
 	eq(p.treasurer.Horde, nil); eq(p.author.Horde, nil)
 	eq(#p.author.Alliance, 1); eq(p.author.Alliance[1], "Fine Name-R", "once, whatever the case")
 	-- The older entries are read by their own readers, as before (and the new ones are left out by them).
-	eq(ns.ReadStewards("^steward^Alliance^Test Steward-R;^king^Alliance^Crown Owl-R").Alliance[1], "Test Steward-R")
+	eq(ns.ReadStewards("^steward^Alliance^Test Steward-R;^king^Alliance^Crown Owl-R;^queen^Alliance^Crown Wren-R").Alliance[1], "Test Steward-R")
 	eq(ns.ReadStewards("^king^Alliance^Crown Owl-R;^author^Alliance^Quill Maker-R").Alliance, nil)
 	eq(ns.ReadApprovedGuilds("^realms^NA^Good=pvp;^king^Alliance^Crown Owl-R").Alliance, nil)
 end)

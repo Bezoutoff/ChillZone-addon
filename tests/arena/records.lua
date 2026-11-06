@@ -95,7 +95,8 @@ test("records: the weight rule: a client that holds nothing loads nothing at log
 	for _, t in ipairs(w:Timers(c, true)) do
 		assert(not tostring(t.where):find("^records") and not tostring(t.where):find("^craft ranking"), "an idle client's timer: " .. tostring(t.where))
 	end
-	for _, kind in ipairs({ "RK", "RD", "RA", "RR", "RV", "RS", "RT" }) do eq(#w:Sent({ from = c, type = kind }), 0, kind .. " from an idle client") end
+	-- (1.4.0: and no discovery ask, RH: a ranking view asks, never a login.)
+	for _, kind in ipairs({ "RK", "RD", "RA", "RR", "RV", "RS", "RT", "RH" }) do eq(#w:Sent({ from = c, type = kind }), 0, kind .. " from an idle client") end
 	Errors(w)
 end)
 
@@ -528,7 +529,7 @@ end
 -- records goes in parts in these scenes.)
 local function SentKinds(w, c)
 	local out = {}
-	for _, kind in ipairs({ "RK", "RD", "RA", "RR", "RV", "RS", "RT", "EP" }) do out[kind] = #w:Sent({ from = c, type = kind }) end
+	for _, kind in ipairs({ "RK", "RD", "RA", "RR", "RV", "RS", "RT", "RH", "EP" }) do out[kind] = #w:Sent({ from = c, type = kind }) end
 	return out
 end
 local function Draws(w)
@@ -577,7 +578,8 @@ test("records: a King holder whose quiet presence is on sends no records word: n
 	Draws(w)
 	w:Run(c.ns.Records.DIGEST_EVERY + 300)
 	local after = SentKinds(w, king)
-	for _, kind in ipairs({ "RK", "RD", "RR", "EP", "RV", "RS", "RT" }) do eq(after[kind] - before[kind], 0, kind .. " from the quiet King's client") end
+	-- (1.4.0: RH too.)
+	for _, kind in ipairs({ "RK", "RD", "RR", "EP", "RV", "RS", "RT", "RH" }) do eq(after[kind] - before[kind], 0, kind .. " from the quiet King's client") end
 	assert(#w:Sent({ from = late, type = "RA" }) >= 1, "the late client asked")
 	assert(#w:Sent({ from = c, type = "EP" }) >= 1 and #w:Sent({ from = c, type = "RV" }) >= 1, "another holder answered it")
 	-- Turned off: his key goes at the next tick.
@@ -1142,6 +1144,137 @@ test("records: twelve holders that hold what a digest lacks push at most a few d
 	Errors(w)
 end)
 
+-- 1.4.0, discovery (RH). A client that holds nothing sends nothing at its login (the weight rule,
+-- above): it waited for the holders' next round, up to a round and its window. The first time the
+-- player opens a ranking view in a session it asks for the holders' digests of the types it heard
+-- none of (Records.Discover), once, and once more DISCOVERY_RETRY later if still none came; each
+-- holder answers with a reply round of its own, as a round's digest. The bound: the reply round's
+-- window, the ask's turn, the answer's turn and its pieces on Comm's pace (critique: the bodies go in
+-- parts, a message a PACE).
+local function DiscoveryBound(R, window) return R.DISCOVERY_MIN + window + R.ASK_SPREAD + R.ANSWER_MIN + R.ANSWER_SPREAD + 30 * H.World.PACE end
+local function RHs(w, from)
+	local out = {}
+	for _, s in ipairs(w:Sent({ from = from, type = "RH" })) do out[#out + 1] = s end
+	return out
+end
+local function Timers(w, c, where)
+	local n = 0
+	for _, t in ipairs(w:Timers(c, true)) do if t.where == where then n = n + 1 end end
+	return n
+end
+test("records: a late client that opens a ranking view asks once for the holders' digests, arms one retry, and holds the records within the reply round's bound", function()
+	local w, a, b, c = Quiet()
+	local second = w:Player(STALE[1] .. " Tarrow")
+	Small(second)
+	local body = Pair(w, a, b, "Kfind1")
+	Keys(w, a, b)
+	Take(w, c, body) Take(w, second, body)
+	w:Logout(a) w:Logout(b)
+	local late = w:Player(N.bettor1)
+	Small(late)
+	local R = late.ns.Records
+	w:Run(30)
+	eq(#RHs(w, late), 0, "nothing at its login (the weight rule)")
+	eq(Do(w, late, "Count", "b"), 0)
+	local opened = w.clock
+	eq(Do(w, late, "Discover"), true, "the first view of the session asks")
+	eq(Timers(w, late, "records discovery"), 1, "one retry armed")
+	w:Run(2)
+	eq(#RHs(w, late), 1, "one ask")
+	eq(RHs(w, late)[1].msg, "RH~L1~1~bcd", "for every type it heard no digest of")
+	eq(Do(w, late, "Discover"), false, "a second view asks nothing")
+	local bound = DiscoveryBound(R, w:As(c, c.ns.Records.DigestWindow))
+	local heldAt = RunUntil(w, bound, function() return Do(w, late, "Count", "b") == 1 end, 1)
+	assert(heldAt, ("the late client holds it within %d s of opening the view"):format(bound))
+	assert(heldAt - opened <= bound)
+	eq(Do(w, late, "Pending", "b"), 0)
+	assert(#w:Sent({ from = c, type = "RD" }) + #w:Sent({ from = second, type = "RD" }) >= 1, "a holder's reply round went")
+	w:Run(R.DISCOVERY_RETRY + 30)
+	assert(#RHs(w, late) <= R.DISCOVERY_MAX, "at most DISCOVERY_MAX asks a session")
+	assert(Do(w, late, "StatusText"):find("discovery asks sent " .. #RHs(w, late), 1, true), "the records pop-up counts the asks sent")
+	Errors(w)
+end)
+
+test("records: a ranking view asks only for the types this session heard no digest of, and never while quiet presence is on", function()
+	local w, a, b, c = Quiet()
+	local body = Pair(w, a, b, "Kfind2")
+	Keys(w, a, b)
+	Take(w, c, body)
+	local king = w:Player(N.king, { guild = H.World.KING_GUILD, rank = 0 })
+	local late = w:Player(N.bettor1)
+	Small(late) Small(king)
+	-- The late client heard a Bones digest this session: it asks for the other types alone.
+	assert(Do(w, c, "SendDigest", "b"))
+	w:Run(2)
+	eq(Do(w, late, "Discover"), true)
+	w:Run(2)
+	eq(RHs(w, late)[1].msg, "RH~L1~1~cd", "Bones heard: not asked")
+	-- A King whose quiet presence is on asks nothing (an ask says he is online); once it is off, he does.
+	eq(w:As(king, king.ns.SetQuietPresence, true, "records-test"), true)
+	eq(Do(w, king, "Discover"), false)
+	w:Run(king.ns.Records.DISCOVERY_RETRY + 30)
+	eq(#RHs(w, king), 0, "no ask while his quiet presence is on")
+	eq(w:As(king, king.ns.SetQuietPresence, false, "records-test"), true)
+	eq(Do(w, king, "Discover"), true)
+	w:Run(2)
+	eq(#RHs(w, king), 1, "his ask, once it is off")
+	Errors(w)
+end)
+
+-- (One reply round of a type a DISCOVERY_GAP on each holder, whoever asked: fifty asks in a minute
+-- are one round. The author's character answers none; the King's slot comes after the widest round,
+-- and two other holders' digests leave his at home.)
+test("records: fifty discovery asks within a minute start one reply round of a type on each holder; the author never replies, the King not first", function()
+	local w, a, b, empty = Quiet()
+	local author = w:Player(N.author)
+	local king = w:Player(N.king, { guild = H.World.KING_GUILD, rank = 0 })
+	TellBorders(w)
+	local holders = { w:Player(STALE[1] .. " Tarrow"), w:Player(STALE[2] .. " Tarrow"), author, king }
+	for _, h in ipairs(holders) do Small(h) end
+	local body = Pair(w, a, b, "Kfind3")
+	Keys(w, a, b)
+	for _, h in ipairs(holders) do Take(w, h, body) end
+	w:Logout(a) w:Logout(b)
+	Small(empty)
+	local R = empty.ns.Records
+	local start = w.clock
+	for i = 1, 50 do
+		assert(w:As(empty, empty.ns.Arena.Send, "RH", "L", "1~b", { dist = "CHANNEL" }))
+		w:Run(59 / 50)
+	end
+	w:Run(R.DISCOVERY_MIN + R.DIGEST_WINDOW_MAX + R.KING_AFTER + 2 - (w.clock - start))
+	for _, h in ipairs(holders) do
+		eq(w:As(h, h.ns.Records.Stats).replyRounds or 0, (h == author) and 0 or 1, h.name .. ": reply rounds of Bones")
+	end
+	local first = w:Sent({ type = "RD" })
+	assert(first[1] and first[1].client ~= king and first[1].client ~= author, "an ordinary holder replied first")
+	eq(#w:Sent({ from = author, type = "RD" }), 0, "the author's client never replies")
+	eq(#w:Sent({ from = king, type = "RD" }), 0, "two other holders' digests told all his would: his stayed home")
+	assert(#w:Sent({ type = "RD" }) <= R.ELECT + 1, "about ELECT digests for the round")
+	Errors(w)
+end)
+
+-- (Where the views ask: the Games tab, only where the member sees the rankings (the staff always,
+-- everyone once the King shows them); the crafting ranking's board.)
+test("records: the Games tab asks for digests only where the member sees the rankings", function()
+	local w = H.World.New({ compliance = "shipped" })
+	local member = w:Client(N.bettor1)
+	local king = w:Role("king")
+	Small(member) Small(king)
+	w:Run(5)
+	eq(w:As(member, member.ns.ArenaHome.RankingsPublic), false, "the rankings are not shown to members yet")
+	w:As(member, member.ns.ArenaHome.TabLines)
+	w:Run(2)
+	eq(#RHs(w, member), 0, "a member who sees no ranking asks nothing")
+	w:As(king, king.ns.ArenaHome.TabLines)
+	w:Run(2)
+	eq(#RHs(w, king), 1, "the staff see them: the King's view asks")
+	w:As(king, king.ns.ArenaHome.TabLines)
+	w:Run(2)
+	eq(#RHs(w, king), 1, "a refresh asks nothing more")
+	Errors(w)
+end)
+
 test("1.2.4 records: the duel adapter preserves GUID identity checks and adds a verified relayed result to ordinary rankings", function()
 	local w, a, b, c = Setup()
 	for _, client in ipairs(w.clients) do
@@ -1280,5 +1413,19 @@ test("records: a crafting delivery made before noon UTC is taken and counts in t
 	eq(math.floor(rec.t / 86400), math.floor(early / 86400), "its day unchanged")
 	local rows = w:As(holder, holder.ns.CraftRanking.Current)
 	eq(#rows, 1); eq(rows[1].name, crafter.name); eq(rows[1].deliveries, 1)
+	Errors(w)
+end)
+
+
+test("1.5.2 records: a temporarily refused discovery send does not consume the first view", function()
+	local w, a, b, c = Quiet()
+	local send = c.ns.Arena.Send
+	c.ns.Arena.Send = function(kind, ...) if kind == "RH" then return false end return send(kind, ...) end
+	eq(Do(w, c, "Discover"), false)
+	eq(Timers(w, c, "records discovery"), 0)
+	c.ns.Arena.Send = send
+	eq(Do(w, c, "Discover"), true, "reopening can try once transport recovers")
+	w:Run(2)
+	eq(#RHs(w, c), 1)
 	Errors(w)
 end)

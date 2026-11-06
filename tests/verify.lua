@@ -77,7 +77,10 @@ local function World(fn)
 				w.Deliver(c, dist, payload)
 				return true
 			end }
-		c.Workshop = setmetatable({ Available = function() return w.available end, AskCouncil = function(text) c.asked = text end,
+		c.Workshop = setmetatable({ Available = function() return w.available end, AskCouncil = function(text)
+			c.asked, c.askCalls = text, (c.askCalls or 0) + 1
+			return c.helpQueued ~= false -- Workshop's result means queued, not remotely acknowledged.
+		end,
 			AuthorOnline = function() return false end }, { __index = ns.Workshop })
 		assert(loadfile(ADDON_DIR .. "Locales/VerifyText.lua"))("ChillZone", c)
 		assert(loadfile(ADDON_DIR .. "Verify.lua"))("ChillZone", c)
@@ -580,6 +583,94 @@ test("verify: the verifiers' page lists pending and overdue guilds with guild ma
 		eq(w.As(member, member.Verify.Mark, OTHER), member.Verify.MARK_OK)
 		eq(w.As(member, member.Verify.Mark, GUILD), "", "a member sees no overdue mark")
 		eq(w.As(hc, hc.Verify.Mark, GUILD), hc.Verify.MARK_LATE)
+	end)
+end)
+
+test("verify: resend button preserves the original guild clock and its cooldown across reloads", function()
+	World(function(w)
+		local gm, hc = w.Client(GM, GUILD, 0), w.Client(HC, HEARTH, 3)
+		w.Census(GUILD, "Bram Hollow", 120)
+		w.As(hc, hc.Verify.Observe)
+		w.now = T0 + H
+		w.As(gm, gm.Verify.Observe)
+		w.As(hc, hc.Verify.SendSnapshot)
+		local key = gm.Fold(GUILD)
+		eq(w.As(gm, gm.Verify.Start, GUILD), T0, "earliest verifier start")
+		eq(gm.rdb.verify.seen[key].at, T0 + H, "different local sighting")
+		w.now = T0 + 2 * H
+		assert(w.As(gm, gm.Verify.ShowNotice))
+		local button = gm.copies[#gm.copies].opts.second
+		eq(button.label, gm.L.VERIFY_ASK_BTN)
+		w.As(gm, button.fn); eq(gm.askCalls, 1)
+		w.As(gm, button.fn); eq(gm.askCalls, 1, "a repeated click does not submit another request")
+		eq(w.As(gm, gm.Verify.Start, GUILD), T0)
+		eq(gm.rdb.verify.seen[key].at, T0 + H)
+		local since = gm.rdb.verify.start[key].at
+		local attempt = gm.rdb.verify.requests[key].at
+		-- Reload the actual module over the same saved data; no session-only timer may reset it.
+		assert(loadfile(ADDON_DIR .. "Verify.lua"))("ChillZone", gm)
+		gm.Verify.Clock = function() return w.now end
+		w.As(gm, gm.Verify.Login)
+		local ok, why = w.As(gm, gm.Verify.AskCouncil, GUILD)
+		eq(ok, false); eq(why, "cooldown"); eq(gm.askCalls, 1)
+		eq(gm.rdb.verify.start[key].at, since); eq(gm.rdb.verify.requests[key].at, attempt)
+		w.now = w.now + gm.Verify.REQUEST_GAP + 1
+		eq(w.As(gm, gm.Verify.AskCouncil, GUILD), true); eq(gm.askCalls, 2)
+		eq(gm.rdb.verify.start[key].at, since); eq(gm.rdb.verify.seen[key].at, T0 + H)
+		local status, info = w.Status(gm, GUILD)
+		eq(status, "pending"); eq(info.left, T0 + gm.Verify.GRACE - w.now, "resending never renews grace")
+	end)
+end)
+
+test("verify: resend failure, stale buttons and non-masters never change the guild deadline or claim a queued request", function()
+	World(function(w)
+		local gm, hc = w.Client(GM, GUILD, 0), w.Client(HC, HEARTH, 3)
+		w.Census(GUILD, "Bram Hollow", 120)
+		w.As(gm, gm.Verify.Observe); w.As(hc, hc.Verify.Observe)
+		w.As(hc, hc.Verify.SendSnapshot)
+		w.now = T0 + gm.Verify.GRACE + H
+		local key = gm.Fold(GUILD)
+		gm.helpQueued = false
+		eq(w.As(gm, gm.Verify.AskCouncil, GUILD), false, "the actual request helper refused the queue")
+		eq(gm.rdb.verify.start[key].at, T0); eq(gm.rdb.verify.seen[key].at, T0)
+		eq(gm.rdb.verify.requests[key], nil, "a refused send consumes no successful-request cooldown")
+		gm.helpQueued = true
+		eq(w.As(gm, gm.Verify.AskCouncil, GUILD), true)
+		eq(w.Status(gm, GUILD), "overdue", "resend is not approval and never restores grace")
+		local calls = gm.askCalls
+		gm.rank = 3
+		eq(w.As(gm, gm.Verify.AskCouncil, GUILD), false, "only the native guild master can resend")
+		gm.rank, gm.guild = 0, OTHER
+		eq(w.As(gm, gm.Verify.AskCouncil, GUILD), false, "a button retained after changing guild cannot request for the old one")
+		eq(gm.askCalls, calls); eq(gm.rdb.verify.start[key].at, T0)
+		gm.guild = GUILD
+		eq(w.As(hc, hc.Verify.Approve, GUILD, GM), true)
+		eq(w.As(gm, gm.Verify.AskCouncil, GUILD), false, "approval makes an already-open resend button inert")
+		eq(gm.askCalls, calls); eq(gm.rdb.verify.start[key].at, T0)
+	end)
+end)
+
+test("verify: resend cooldown records are bounded, expire and never get younger when read", function()
+	World(function(w)
+		local gm = w.Client(GM, GUILD, 0)
+		w.As(gm, gm.Verify.Observe)
+		local requests, V = gm.rdb.verify.requests, gm.Verify
+		w.now = T0 + V.MAX_STARTS + 2
+		for i = 1, V.MAX_STARTS + 1 do requests["guild" .. i] = { at = T0 + i } end
+		requests.expired = { at = w.now - V.SEEN_KEEP - 1 }
+		requests.future = { at = w.now + V.AHEAD + 1 }
+		requests.malformed = "invalid"
+		local original = requests["guild" .. (V.MAX_STARTS + 1)].at
+		w.As(gm, V.Prune)
+		local n = 0
+		for _ in pairs(requests) do n = n + 1 end
+		eq(n, V.MAX_STARTS)
+		eq(requests.guild1, nil); eq(requests.expired, nil); eq(requests.future, nil); eq(requests.malformed, nil)
+		local key = "guild" .. (V.MAX_STARTS + 1)
+		eq(w.As(gm, V.RequestWait, key), V.REQUEST_GAP - 1)
+		w.now = w.now + 10
+		eq(w.As(gm, V.RequestWait, key), V.REQUEST_GAP - 11)
+		eq(requests[key].at, original, "reading does not renew cooldown")
 	end)
 end)
 

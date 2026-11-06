@@ -370,9 +370,179 @@ test("census groups (1.4.0): our own look at our realm group is kept and carried
 	local said = w.D.GroupCensusPayload()
 	eq(said, ("CX~1~S~%d~Launchpve|Alliance|640|640|1|%d"):format(w.clock, w.clock - 600))
 	eq(w.D.SayGroupCensus(), true)
-	-- Something it heard here lately, as new as its own: not said again.
+	-- One other traveller is insufficient for everyone else on this channel: our independent
+	-- observation must still leave, even though we can already corroborate it locally.
 	w.D.ReceiveGroupCensus("CHANNEL", "Other-Realm", Say(w, { { "Launchpve", "Alliance", 641, 641, 1, w.clock - 600 } }))
-	eq(w.D.GroupCensusPayload(), nil, "heard here already")
+	assert(w.D.GroupCensusPayload(), "one traveller must not suppress the second confirmation")
+	w.D.ReceiveGroupCensus("CHANNEL", "Third-Realm", Say(w, { { "Launchpve", "Alliance", 641, 641, 1, w.clock - 600 } }))
+	eq(w.D.GroupCensusPayload(), nil, "two independent travellers already heard here")
+end)
+
+test("census continuity: one claimant and its snapshot do not suppress a second independent global answer", function()
+	local w = GroupWorld("Holder-Realm")
+	w.ns.rdb.guilds["ChillZone Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock }
+	w.D.ReceiveGlobalCensus("CHANNEL", "Late-Realm", ("CG~1~Q~%d~0~0"):format(w.clock))
+	w.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", ("CG~1~C~%d"):format(w.clock))
+	w.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(w, { { "ChillZone Dawn", 640 } }))
+	w.Run()
+	eq(#w.sent, 2, "claim plus body is one person, so this holder supplies the second answer")
+end)
+
+test("census continuity: the same character on two Forever sub-realms is only one witness", function()
+	local w = GroupWorld()
+	local payload = Say(w, { { "Launchpvp", "Alliance", 3000, 2500 } })
+	w.D.ReceiveGroupCensus("CHANNEL", "Traveller-CAMWOWUS1Realm1PvE", payload)
+	w.D.ReceiveGroupCensus("CHANNEL", "Traveller-CAMWOWUS2Realm5PvE", payload)
+	eq(w.D.Groups().characters, 0)
+	w.D.ReceiveGroupCensus("CHANNEL", "Other-CAMWOWUS2Realm5PvE", payload)
+	eq(w.D.Groups().characters, 3000)
+end)
+
+test("census continuity: cross-ruleset origins normalize before voting and never enter local authority", function()
+	local w = GroupWorld()
+	w.ns.group = "ForeverPvP"
+	w.D.ReceiveGroupCensus("CHANNEL", "First-Realm", Say(w, { { "CAMWOWUS1Realm1PvE", "Alliance", 3000, 2500 } }))
+	w.D.ReceiveGroupCensus("CHANNEL", "Second-Realm", Say(w, { { "ForeverPvE", "Alliance", 3000, 2500 } }))
+	local g = w.D.Groups()
+	eq(g.characters, 3000); eq(#g.rows, 1); eq(g.rows[1].group, "ForeverPvE")
+	eq(next(w.ns.rdb.guilds), nil)
+	w.D.ReceiveGroupCensus("CHANNEL", "Third-Realm", Say(w, { { "CAMWOWUS1Realm1PvP", "Alliance", 9000 } }))
+	w.D.ReceiveGroupCensus("CHANNEL", "Fourth-Realm", Say(w, { { "CAMWOWUS1Realm1PvP", "Alliance", 9000 } }))
+	eq(w.D.Groups().characters, 3000, "a sub-realm alias cannot smuggle our own aggregate in")
+	w.D.ReceiveGroupCensus("CHANNEL", "First-Realm", Say(w, { { "CAMWOWUS1Realm1PvP+CAMWOWUS1Realm1PvE", "Alliance", 9000 } }))
+	eq(#w.D.Groups().rows, 1, "a mixed-ruleset origin is invalid")
+	w.ns.db.groupCensus["Alliance|CAMWOWUS1Realm1PvE"] = { group = "CAMWOWUS1Realm1PvE", faction = "Alliance",
+		characters = 3001, people = 2501, guilds = 3, observed = w.clock + 1, src = "own" }
+	w.clock = w.clock + w.D.FRESH + 2
+	w.ns.db.groupCensus["Alliance|CAMWOWUS1Realm1PvE"].observed = w.clock
+	local capsule = assert(w.D.GroupCensusPayload())
+	local _, repeated = capsule:gsub("ForeverPvE|Alliance", "")
+	eq(repeated, 1, "saved aliases cannot travel as two versions of one origin")
+end)
+
+test("census continuity: recording a cached census preserves observation time and login displays its retained origin", function()
+	local w = GroupWorld()
+	w.ns.rdb.guilds["ChillZone Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock - 600 }
+	w.ns.rdb.guilds["ChillZone Dusk"] = { total = 360, online = 30, avgLevel = 30, t = w.clock - 300 }
+	assert(w.D.RecordGroupCensus())
+	local kept = w.ns.db.groupCensus["Alliance|Launchpve"]
+	eq(kept.observed, w.clock - 600, "sampling never makes old reports newly observed")
+	w.ns.rdb.guilds = {}
+	w.ns.Comm.loginAt = w.clock
+	local empty = w.D.Summary()
+	eq(empty.characters, 1000); eq(empty.online, 0); eq(#empty.guilds, 0)
+	eq(empty.snapshot.observed, kept.observed); eq(empty.snapshot.group, "Launchpve"); eq(empty.live.characters, 0)
+	eq(w.D.RecordGroupCensus(empty), false, "a fallback cannot renew itself")
+	w.ns.rdb.guilds["ChillZone Dawn"] = { total = 630, online = 20, t = w.clock }
+	local partial = w.D.Summary()
+	eq(partial.characters, 1000); eq(partial.live.characters, 630); eq(partial.online, 20)
+	local groups = w.D.Groups(partial)
+	eq(groups.characters, 1000); eq(#groups.rows, 1); eq(groups.rows[1].src, "own"); eq(groups.rows[1].observed, kept.observed)
+	w.ns.rdb.guilds["ChillZone Dusk"] = { total = 350, online = 10, t = w.clock }
+	local rebuilt = w.D.Summary()
+	eq(rebuilt.characters, 980); eq(rebuilt.snapshot, nil, "complete fresh rows reconcile a real lower count")
+	w.ns.rdb.guilds = {}
+	w.clock = w.clock + w.D.REBUILD_FOR + 1
+	eq(w.D.Summary().snapshot.observed, kept.observed, "an incomplete rebuild keeps its dated snapshot")
+	w.clock = kept.observed + w.D.TOTAL_KEEP + 1
+	local stale = w.D.Summary()
+	eq(stale.snapshot, nil); eq(stale.characters, 0)
+	eq(stale.history.characters, 1000); eq(stale.history.counted, false, "an expired count remains separate historical information")
+end)
+
+test("census continuity: incoming origins and witnesses are bounded and retain no authority or private fields", function()
+	local w = GroupWorld()
+	for i = 1, w.D.GROUP_MAX + 30 do
+		w.D.ReceiveGroupCensus("CHANNEL", "First-Realm", Say(w, { { "Origin" .. i, "Alliance", 3000, 2500, 3, w.clock - i } }))
+	end
+	local g = w.D.Groups()
+	eq(#g.rows, w.D.GROUP_MAX)
+	eq(g.characters, 0)
+	for i = 1, w.D.WITNESS_MAX + 4 do
+		w.D.ReceiveGroupCensus("CHANNEL", "Traveller" .. i .. "-Realm", Say(w, { { "Launchpvp", "Alliance", math.floor(3000 * 1.4 ^ i) } }))
+	end
+	eq(w.D.Groups().characters, 0, "disagreeing travellers never establish a count")
+	eq(next(w.ns.rdb.guilds), nil)
+	eq(w.D.ReceiveGroupCensus("CHANNEL", "First-Realm", string.rep("x", w.D.GLOBAL_MAX_BYTES + 1)), false)
+	for i = 1, w.D.MAX_GUILDS + 20 do
+		w.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(w, { { "ChillZone Invented " .. i, 640 } }))
+	end
+	local count = 0
+	for _ in pairs(w.ns.rdb.censusWitness) do count = count + 1 end
+	eq(count, w.D.MAX_GUILDS, "unconfirmed local-origin guild names are bounded too")
+	w.ns.Church.IsLedgerRelay = function() return true end
+	for i = 1, w.D.MAX_GUILDS + 20 do
+		w.D.ReceiveGlobalCensus("CHANNEL", "Council-Realm", Snapshot(w, { { "ChillZone Invented " .. i, 640 } }))
+	end
+	count = 0
+	for _ in pairs(w.ns.rdb.censusGlobal) do count = count + 1 end
+	eq(count, w.D.MAX_GUILDS, "trusted cached rows have the same hard bound")
+end)
+
+test("census continuity: ordinary travellers carry scoped guild details requiring independent corroboration", function()
+	local source, receiver = GroupWorld("Traveller-Realm"), GroupWorld()
+	source.ns.group = "ForeverPvE"
+	source.ns.rdb.guilds["ChillZone Dawn"] = { total = 640, online = 40, avgLevel = 30, t = source.clock - 600,
+		leader = "Private Leader", officers = { "Private Officer" }, zones = { private = 123 }, battleTag = "Private#1234" }
+	assert(source.D.RecordGroupCensus())
+	source.ns.group = "ForeverPvP"
+	assert(source.D.SayGroupDetails())
+	local payload = source.sent[1]
+	assert(payload:find("CX~2~S~", 1, true)); assert(payload:find("ForeverPvE~Alliance~ChillZone Dawn,640,40,300,", 1, true))
+	assert(not payload:find("Private", 1, true)); assert(not payload:find("private", 1, true))
+	receiver.ns.group = "ForeverPvP"
+	assert(receiver.D.ReceiveGroupCensus("CHANNEL", "First-Realm", payload))
+	eq(#receiver.D.GroupGuilds("ForeverPvE", "Alliance"), 0, "one ordinary traveller grants no validated detail")
+	assert(receiver.D.ReceiveGroupCensus("CHANNEL", "First-Realm", payload))
+	eq(#receiver.D.GroupGuilds("ForeverPvE", "Alliance"), 0, "a repeat is no independent witness")
+	assert(receiver.D.ReceiveGroupCensus("CHANNEL", "Second-Realm", payload))
+	local rows = receiver.D.GroupGuilds("ForeverPvE", "Alliance")
+	eq(#rows, 1); eq(rows[1].characters, 640); eq(rows[1].observed, source.clock - 600)
+	eq(rows[1].source, "witnessed"); eq(rows[1].witnesses, 2)
+	eq(next(receiver.ns.rdb.guilds), nil); eq(next(receiver.ns.rdb.censusGlobal or {}), nil)
+	eq(receiver.D.Summary().characters, 0, "foreign detail never changes local totals")
+	eq(receiver.D.Groups().characters, 0, "detail is not added beside an aggregate")
+	rows[1].characters = 1
+	eq(receiver.D.GroupGuilds("ForeverPvE", "Alliance")[1].characters, 640, "the display receives a copy")
+	eq(receiver.D.SayGroupDetails(), false, "two independent carriers already supplied these details here")
+	receiver.ns.group = "ForeverRP"
+	assert(receiver.D.SayGroupDetails(), "a normal traveller carries validated foreign-origin detail onward")
+	assert(receiver.sent[1]:find("ForeverPvE~Alliance~", 1, true), "the original origin survives another ruleset")
+end)
+
+test("census continuity: trusted guild detail preserves newest observations and bounds malformed origins", function()
+	local w = GroupWorld()
+	w.ns.Church.IsLedgerRelay = function(name) return name == "Council-Realm" end
+	local function Capsule(group, observed, total)
+		return ("CX~2~S~%d~%s~Alliance~ChillZone Dawn,%d,40,300,%d"):format(w.clock, group, total or 640, observed or w.clock)
+	end
+	assert(w.D.ReceiveGroupCensus("CHANNEL", "Council-Realm", Capsule("ForeverPvP", w.clock - 60)))
+	eq(w.D.GroupGuilds("ForeverPvP")[1].source, "relay")
+	assert(w.D.ReceiveGroupCensus("CHANNEL", "Council-Realm", Capsule("ForeverPvP", w.clock - 120, 600)))
+	eq(w.D.GroupGuilds("ForeverPvP")[1].characters, 640)
+	eq(w.D.GroupGuilds("ForeverPvP")[1].observed, w.clock - 60, "relay receipt does not renew observation")
+	eq(w.D.ReceiveGroupCensus("CHANNEL", "Council-Realm", Capsule("CAMWOWUS1Realm1PvP+CAMWOWUS1Realm1PvE")), false)
+	eq(w.D.ReceiveGroupCensus("CHANNEL", "Council-Realm", Capsule("ClassicBetaPvP")), false)
+	eq(w.D.ReceiveGroupCensus("WHISPER", "Council-Realm", Capsule("ForeverPvP")), false)
+	for i = 1, w.D.GROUP_DETAIL_MAX + 3 do
+		assert(w.D.ReceiveGroupCensus("CHANNEL", "Council-Realm", Capsule("Origin" .. i, w.clock - i)))
+	end
+	local count = 0
+	for _ in pairs(w.ns.db.groupDetails) do count = count + 1 end
+	eq(count, w.D.GROUP_DETAIL_MAX)
+	local bad = Capsule("ForeverPvP") .. ";ChillZone Dawn,640,40,300," .. w.clock
+	eq(w.D.ReceiveGroupCensus("CHANNEL", "Council-Realm", bad), false, "duplicate guild rows do not slip through")
+end)
+
+test("census continuity: both carried snapshot versions respect quiet presence at the transport boundary", function()
+	local quiet = ns.QuietPresence
+	ns.QuietPresence = function() return true end
+	local ok, err = pcall(function()
+		eq(ns.Comm.QuietHolds("CX~1~S~2000000000~Foreign|Alliance|640|600|1|2000000000"), true)
+		eq(ns.Comm.QuietHolds("CX~2~S~2000000000~Foreign~Alliance~ChillZone Dawn,640,40,300,2000000000"), true)
+	end)
+	ns.QuietPresence = quiet
+	if not ok then error(err, 0) end
 end)
 
 test("census groups (1.4.0): another group's numbers: a moderator's alone, two people agreeing, or one person's listed grey and never counted; ours and the beta's never taken", function()
