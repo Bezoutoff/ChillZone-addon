@@ -7236,8 +7236,9 @@ end)
 -- picked itself and pinged nobody, so the relays never answered each other, nothing went across
 -- (RX) and each guild heard only the guilds registered with its own relay. Two relays in one guild
 -- also hear a word over GUILD first, and that kept it from going across (seen). Fails before: no
--- peers ticker; with it, no RX for the word heard over GUILD first.
-test("ChillZone launch, the relay: two relays online ping each other on their own timer (PEERS_EVERY), so a word one of them hears goes across (RX) to the other and on to that one's reporter; a word both heard first over GUILD goes across all the same", function()
+-- peers ticker; with it alone, a relay that answered sends its own words to the other relay, and
+-- the word heard over GUILD first goes across nowhere.
+test("ChillZone launch, the relay: two relays online ping each other on their own timer (PEERS_EVERY), each its own relay, so a word one of them hears goes across (RX) to the other and on to that one's reporter; a word both heard first over GUILD goes across all the same", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild, add = rawget(_G, "ChatFrame_AddMessageEventFilter") }
 	local ok, err = pcall(function()
 		GetChannelName = function() return 0 end
@@ -7247,7 +7248,7 @@ test("ChillZone launch, the relay: two relays online ping each other on their ow
 		ChatFrame_AddMessageEventFilter = function() end
 		-- Relays A (Hildryn) and B (Max) in one guild; X (Zed Far) the reporter registered with A,
 		-- Y (Far Away) the one registered with B. Each client sends through its own C_ChatInfo.
-		local _, adeliver, _, aheard, apump, asentOf, ahooks = RelayWorld("Hildryn Payne-Realm", "ChillZone II")
+		local A, adeliver, _, aheard, apump, asentOf, ahooks = RelayWorld("Hildryn Payne-Realm", "ChillZone II")
 		local ainfo = C_ChatInfo
 		local _, bdeliver, _, bheard, bpump, bsentOf, bhooks = RelayWorld("Max Ran-Realm", "ChillZone II")
 		local binfo = C_ChatInfo
@@ -7275,6 +7276,13 @@ test("ChillZone launch, the relay: two relays online ping each other on their ow
 		ry = bsentOf("RY~")
 		eq(#ry, 1, "B answers"); eq(ry[1].target, "Hildryn Payne")
 		On(ainfo, adeliver, "WHISPER", "Max Ran-Realm", ry[1].msg)
+		-- Whoever else answered, a relay's client is its own relay, whatever guild's pick it is.
+		for _, g in ipairs({ "ChillZone II", "ChillZone Zeus", "ChillZone Far", "ChillZone V", "ChillZone Dads", "ChillZone Prime" }) do
+			GetGuildInfo = function() return g, "Member", 3 end
+			local pick, sure = A.Relay.Pick()
+			eq(pick, "Hildryn Payne", g); eq(sure, true, g)
+		end
+		GetGuildInfo = function() return "ChillZone II", "Member", 3 end
 		-- A word reaching A: to X, across to B, and from B on to Y, who hands it to his guild.
 		On(ainfo, adeliver, "WHISPER", "Orig Inal-Realm", "RL~P~X1~hello"); On(ainfo, apump)
 		eq(#asentOf("RM~"), 1); eq(asentOf("RM~")[1].target, "Zed Far")
