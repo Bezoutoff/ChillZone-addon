@@ -10,10 +10,10 @@
 1.1.1 review: a line written in the window keeps its channel muted in chat, the privacy warning's Send too; /czn typed in chat still unmutes it
 1.1.5 removed guilds: a guild the High Council removed is no ChillZone guild whatever its name (any case, stray spaces), its members see the Join screen; the author's approved list lets it back; never the King's guild; the other faction's namesake untouched
 A player's report: no false King, our layer holds against stray creatures, our channel after the game's
+Bones lobby: returning players can Find on the road, but New Table still needs a venue
+Throne: the King shows himself on the map with a button, everyone checks it is him
 chat lines arrive through CHAT_MSG_ADDON_LOGGED, without our echo or blocked players
 chat lines put together from pieces are never taken as logged, whichever piece came logged
-chat window (1.1.2): every line reaches Chattynator from ChillZone/Channels.lua, the addon its tab's filter lets in
-chat window: Chattynator names follow moved tabs and fall back once when removed
 chat window: each channel's lines and our own echo go to the window chosen by its name (#14)
 muted tiers stay out of chat but keep history
 players below a tier never see it
