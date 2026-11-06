@@ -167,15 +167,14 @@ local function Hash(text)
 	for i = 1, #text do h = (h * 33 + text:byte(i)) % 2147483647 end
 	return h
 end
--- The relay this client whispers to now, and whether it is sure: among the relays that answered
--- a ping within VERIFIED_FOR (our own client counts, when it is a relay: no whisper needed), the
--- one our guild's name and the window pick, sure; with none answered yet, the same among those
--- not left out, not sure (Out then holds the message and pings them all); nil without any (then
--- the channel, as before).
+-- The relay this client whispers to now, and whether it is sure. A relay's client: itself, sure (no
+-- whisper needed). Any other: among the relays that answered a ping within VERIFIED_FOR, the one
+-- our guild's name and the window pick, sure; with none answered yet, the same among those not
+-- left out, not sure (Out then holds the message and pings them all); nil without any (then the
+-- channel, as before).
 function Relay.Pick()
 	if not Relay.On() then return nil end
 	local now = Now()
-	local mine = ns.ShortName(ns.me or ""):lower()
 	-- A relay's client is its own relay: its words reach its reporters and go across from here (never to
 	-- another relay, which keeps the NO_FORWARD words it hears to itself).
 	if Relay.IsRelay(ns.me) then return ns.ShortName(ns.me), true end
@@ -184,7 +183,7 @@ function Relay.Pick()
 		local key = n:lower()
 		if (offline[key] or 0) <= now then
 			live[#live + 1] = n
-			if key == mine or now - (verified[key] or -math.huge) < Relay.VERIFIED_FOR then answered[#answered + 1] = n end
+			if now - (verified[key] or -math.huge) < Relay.VERIFIED_FOR then answered[#answered + 1] = n end
 		end
 	end
 	local pool = #answered > 0 and answered or live
@@ -386,6 +385,13 @@ ToGuild = function(flag, origin, text)
 	return ns.Comm.SendBatch("GUILD", pieces, nil, nil, false) ~= false
 end
 
+-- What a forward's queue key names of its word: its kind (a newer word of that kind takes a waiting
+-- one's place), or for one piece of a longer word its whole header, C<id>:<i>:<n> (no piece takes
+-- another's place: keyed by their first letters, a word's pieces left as its last piece alone).
+local function KeyPart(body)
+	return body:match("^(C%w+:%d+:%d+):") or body:sub(1, 2)
+end
+
 -- A word to every guild's reporter we hold (ours included: delivered here and handed to our
 -- guild), and heard here (a relay in a guild whose reporter is elsewhere, or none).
 local function ToReporters(flag, origin, body, sender)
@@ -407,7 +413,7 @@ local function ToReporters(flag, origin, body, sender)
 				-- A word that is not a chat line is keyed by its origin, kind and reporter: a newer
 				-- census of the same guild takes the waiting one's place in the queue (Comm's keyed
 				-- jobs), so a busy relay sends the latest, never a backlog.
-				local key = flag ~= "L" and ("relay " .. r.name .. " " .. Lower(origin) .. " " .. body:sub(1, 2)) or nil
+				local key = flag ~= "L" and ("relay " .. r.name .. " " .. Lower(origin) .. " " .. KeyPart(body)) or nil
 				if #pieces == 1 then ns.Comm.Whisper(r.name, pieces[1], key, false, false)
 				else ns.Comm.SendBatch("WHISPER", pieces, key, r.name, false) end
 			else
@@ -422,18 +428,19 @@ local function ToReporters(flag, origin, body, sender)
 end
 
 -- (1.4.6) The same word to every other relay that answered us lately (RX), each to hand to its
--- own reporters. The origin, when it is a relay itself, is not sent its own word.
+-- own reporters; never to one left out since (the server named it offline). The origin, when it
+-- is a relay itself, is not sent its own word.
 local function Across(flag, origin, body)
 	local now = Now()
 	local mine, from = ns.ShortName(ns.me or ""):lower(), ns.ShortName(origin):lower()
 	local pieces
 	for _, name in ipairs(Relay.Names(false)) do
 		local key = name:lower()
-		if key ~= mine and key ~= from and now - (verified[key] or -math.huge) < Relay.VERIFIED_FOR then
+		if key ~= mine and key ~= from and (offline[key] or 0) <= now and now - (verified[key] or -math.huge) < Relay.VERIFIED_FOR then
 			pieces = pieces or Envelope("RX", "RX~" .. flag .. "~" .. origin .. "~" .. body)
 			stats.across = (stats.across or 0) + 1
 			Quiet(name)
-			local key = flag ~= "L" and ("across " .. name .. " " .. from .. " " .. body:sub(1, 2)) or nil
+			local key = flag ~= "L" and ("across " .. name .. " " .. from .. " " .. KeyPart(body)) or nil
 			if #pieces == 1 then ns.Comm.Whisper(name, pieces[1], key, false, false)
 			else ns.Comm.SendBatch("WHISPER", pieces, key, name, false) end
 		end
@@ -596,7 +603,10 @@ ns.On("LOGIN", function()
 	QuietLines()
 	if ns.Every then ns.Every(Relay.GLOBAL_EVERY, "relay global census", function() ns.SafeCall("relay global", Relay.SendGlobal) end) end
 	if ns.Every then ns.Every(Relay.PEERS_EVERY, "relay peers", function()
-		if Relay.On() and Relay.IsRelay(ns.me) then ns.SafeCall("relay peers", Relay.Sweep) end
+		-- (Quiet presence, Core.lua: no ping, which names us online to the others, as no global census.)
+		if Relay.On() and Relay.IsRelay(ns.me) and not (ns.QuietPresence and ns.QuietPresence()) then
+			ns.SafeCall("relay peers", Relay.Sweep)
+		end
 	end) end
 end)
 
