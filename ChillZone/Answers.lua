@@ -60,9 +60,9 @@ function Answers.Entries(q)
 	return out
 end
 
--- The game's language is English (the bank's).
+-- The addon's text language is English (the bank's).
 function Answers.English()
-	local locale = GetLocale and GetLocale() or "enUS"
+	local locale = (ns.TextLocale and ns.TextLocale()) or (GetLocale and GetLocale()) or "enUS"
 	return locale == "enUS" or locale == "enGB"
 end
 
