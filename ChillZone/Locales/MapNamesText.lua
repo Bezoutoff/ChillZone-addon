@@ -17,6 +17,9 @@ L.MAPNAME_BAD_TEXT = "Enter a short name without markup, line breaks or blocked 
 L.MAPNAME_FULL = "The shared map-name list is full. Edit or restore an existing place."
 L.MAPNAME_CHANGED = "This place or your permission changed. Preview it again."
 L.MAPNAME_SAVED = "Saved. ChillZone viewers receive this name through the shared relay."
+L.MAPNAME_OPEN_MAP = "Open the map"
+L.MAPNAME_DECREE_HELP = "Choose Edit map, then preview and confirm a place name."
+L.MAPNAME_DECREE_LIMIT = "Mouse and keyboard, outside combat."
 if GetLocale() == "ptBR" then
 	L.MAPNAME_EDIT = "Editar mapa"
 	L.MAPNAME_DONE = "Concluir edição"
@@ -35,5 +38,8 @@ if GetLocale() == "ptBR" then
 	L.MAPNAME_FULL = "A lista compartilhada está cheia. Edite ou restaure um lugar existente."
 	L.MAPNAME_CHANGED = "Este lugar ou sua permissão mudou. Confira uma nova prévia."
 	L.MAPNAME_SAVED = "Salvo. Quem usa o ChillZone recebe o nome pela rede compartilhada."
+	L.MAPNAME_OPEN_MAP = "Abrir o mapa"
+	L.MAPNAME_DECREE_HELP = "Escolha Editar mapa, confira a prévia e confirme o nome."
+	L.MAPNAME_DECREE_LIMIT = "Mouse e teclado, fora de combate."
 end
 -- Other supported languages use their normal ns.Locale tables, loaded after this file.

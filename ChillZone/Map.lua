@@ -500,6 +500,21 @@ function Map.WorldMapOpen()
 	return type(f) == "table" and type(f.IsShown) == "function" and f:IsShown() == true
 end
 
+-- Decrees offers the existing map editor's entry point to its actual editors.
+-- Opening the map neither enables editing nor previews or publishes a name.
+function Map.CanOpenNamesMap() -- gp:map-overlay
+	if not ns.Gate.Allowed("map-overlay") then return false end
+	local names = ns.MapNames
+	if not names or not names.CanEdit or not names.CanEdit() then return false end
+	if InCombatLockdown and InCombatLockdown() then return false end
+	return type(WorldMapFrame) == "table" and type(ShowUIPanel) == "function"
+end
+function Map.OpenNamesMap() -- gp:map-overlay
+	if not ns.Gate.Allowed("map-overlay") then return false end
+	if not Map.CanOpenNamesMap() then return false end
+	return pcall(ShowUIPanel, WorldMapFrame)
+end
+
 -- The census's refresh, when its turn comes: drawn while the map is open, else left for its opening.
 function Map.CensusRefresh()
 	if not Map.WorldMapOpen() then

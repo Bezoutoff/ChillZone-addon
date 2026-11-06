@@ -97,7 +97,7 @@ ns.GAMEPAD = {
 		why = "Every icon added or removed, including the bounded pins for a consented API area search, goes through the map library into the map's canvas from ChillZone's code, and the gamepad map then runs in ChillZone's taint: none on the world map, and at a switch every one taken off at once." },
 	{ id = "map-overlay", kind = "frame-child", files = { "Map.lua" },
 		guard = "gate", toPad = "park", toMouse = "install", safe = "off",
-		why = "The continent totals, the ChillZone button and its menu, the map-name edit button, editor, click surface and shared name labels on the world map, and the hooks on its changes: the gamepad map is the game's alone (the author's call: no continent totals there either)." },
+		why = "The continent totals, the ChillZone button and its menu, the map-name edit button, editor, click surface and shared name labels on the world map, the Decrees shortcut that opens it outside combat for current map-name editors, and the hooks on its changes: the gamepad map is the game's alone (the author's call: no continent totals there either)." },
 	{ id = "dialogs", kind = "popup", files = { "Core.lua" },
 		guard = "gate", toPad = "reload", toMouse = "on", safe = "off",
 		why = "A game popup opened from ChillZone writes the popups' shared state in ChillZone's taint: with the gamepad UI ChillZone asks in its own windows (Dialog.lua); one of the game's still up at a switch leaves that state behind until a /reload. Recruit confirmation stays in an ChillZone window in both modes: Forever's background guild-rank update reads the same popup state before its restricted Discord calls." },

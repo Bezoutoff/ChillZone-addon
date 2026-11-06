@@ -1383,6 +1383,12 @@ local function World(C, opts)
 	E.StaticPopup_Hide = Fn("StaticPopup_Hide", function(which, data) local p = FindPopup(which, data); if p then p:Hide() end end)
 	E.StaticPopup_FindVisible = Fn("StaticPopup_FindVisible", function(which, data) return FindPopup(which, data) end)
 	E.StaticPopup_Visible = Fn("StaticPopup_Visible", function(which) local p = FindPopup(which); return p and p:GetName() or nil end)
+	-- Forever 70790, UIParentPanelManager/Shared/UIParentPanelManager.lua:871-898:
+	-- ShowUIPanel leaves an already shown panel alone and refuses an insecure combat
+	-- call before showing it. The map shortcut must pass its own gate before this call.
+	E.ShowUIPanel = Fn("ShowUIPanel", function(frame)
+		if frame and not frame:IsShown() and not C.combat then frame:Show() end
+	end)
 
 	-- The game's tables ChillZone may read or write: the escape list, the slash commands.
 	E.UISpecialFrames = { "GameMenuFrame", "SettingsPanel", "CharacterFrame" }
@@ -2031,6 +2037,65 @@ local function InClick(C, fn)
 	C.clicking = false
 	if not ok then error(err, 0) end
 end
+
+test("gamepad decree map shortcut: editors alone, live permissions, combat and both input styles", function()
+	for _, initialPad in ipairs({ false, true }) do
+		local C, ns = Session(initialPad)
+		local function Link()
+			for _, line in ipairs(ns.Views.Build("decrees")) do
+				if line.mapNamesShortcut then return line end
+			end
+		end
+		eq(Link(), nil, "ordinary members get no editing shortcut")
+		ns.AUTHOR, ns.AUTHOR_REALM = ns.ShortName(ns.me), ns.realm
+		eq(ns.Workshop.IsAuthor(), true)
+		eq(Link(), nil, "developer identity alone grants no map editing")
+		ns.rdb.council = { names = { [ns.ShortName(ns.me):lower()] = ns.ShortName(ns.me) }, realm = ns.realm }
+		local row = assert(Link(), "signed council gets the Decrees link")
+		local help = false
+		for _, line in ipairs(ns.Views.Build("decrees")) do
+			if line.text and line.text:find(ns.L.MAPNAME_DECREE_HELP, 1, true) then help = true end
+		end
+		eq(help, true, "the instructions are visible in Decrees")
+		C.env.WorldMapFrame:Hide()
+		if initialPad then
+			eq(row.onClick, nil, "gamepad mode does not offer a native map action")
+			eq(ns.Map.OpenNamesMap(), false)
+			eq(C.env.WorldMapFrame:IsShown(), false)
+			C.Switch(false); C.Advance(1)
+		end
+		row = assert(Link()); assert(row.onClick)
+		C.combat = true
+		eq(Link().onClick, nil, "combat disables the link")
+		local combatMark = C.Mark()
+		InClick(C, row.onClick)
+		for _, reach in ipairs(C.Since(combatMark)) do
+			assert(reach.sym ~= "ShowUIPanel", "combat must not call the protected panel opener")
+		end
+		eq(C.env.WorldMapFrame:IsShown(), false, "an earlier click handler rechecks combat")
+		C.combat = false
+		ns.rdb.council = nil
+		InClick(C, row.onClick)
+		eq(C.env.WorldMapFrame:IsShown(), false, "revoked council cannot use a stale row")
+		ns.rdb.council = { names = { [ns.ShortName(ns.me):lower()] = ns.ShortName(ns.me) }, realm = ns.realm }
+		InClick(C, assert(Link()).onClick)
+		eq(C.env.WorldMapFrame:IsShown(), true)
+		eq(ns.Map.nameEditor, nil, "opening the map does not enter the name editor")
+		assert(not ns.Map.nameHit or not ns.Map.nameHit:IsShown(), "no click-to-edit surface enabled")
+		eq(next(ns.rdb.mapNames or {}), nil, "no name published")
+		C.env.WorldMapFrame:Hide()
+		C.Switch(true); C.Advance(1)
+		eq(Link().onClick, nil)
+		InClick(C, row.onClick)
+		eq(C.env.WorldMapFrame:IsShown(), false, "a stale mouse handler is inert with gamepad")
+		C.Switch(false); C.Advance(1)
+		InClick(C, assert(Link()).onClick)
+		eq(C.env.WorldMapFrame:IsShown(), true)
+		Check(C.ledger, "Decrees map shortcut")
+		NoErrors(C, "Decrees map shortcut")
+	end
+	GP.Covers("map-overlay")
+end)
 
 for _, initialPad in ipairs({ false, true }) do
 	test("gamepad map names: " .. (initialPad and "gamepad" or "mouse") .. " login, geographic selection, preview, confirmation and both switches", function()
