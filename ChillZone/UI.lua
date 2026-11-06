@@ -3262,6 +3262,7 @@ UI.LINKS = {
 	github = "https://github.com/Bezoutoff/ChillZone-addon",
 	issues = "https://github.com/Bezoutoff/ChillZone-addon/issues",
 	curseforge = "https://github.com/Bezoutoff/ChillZone-addon/releases",
+	twitch = "https://www.twitch.tv/melharucos", -- (ChillZone: the guild master's stream)
 }
 
 -- The help button's page: the version, the tabs in a line each, then the lines /cz help prints
@@ -3306,7 +3307,8 @@ function UI.HelpText()
 		L.HELP_LINKS,
 		"  GitHub: " .. UI.LINKS.github,
 		"  " .. L.HELP_ISSUES .. ": " .. UI.LINKS.issues,
-		"  CurseForge: " .. UI.LINKS.curseforge,
+		"  " .. L.HELP_DOWNLOAD .. ": " .. UI.LINKS.curseforge,
+		"  " .. L.HELP_TWITCH .. ": " .. UI.LINKS.twitch,
 	}
 	helpText = table.concat(lines, "\n")
 	return helpText

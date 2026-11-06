@@ -2379,6 +2379,7 @@ end
 -- o.tabards says: shown unless false) and its desk as the harness's character may see it. Its
 -- handlers, its right-click line and its moderation hook stay in uns; the returned function lets
 -- its dialogs and its view go.
+Harness.LoadUI = LoadUI -- (a field: the main chunk has no locals to spare)
 function Harness.LoadWatch(uns, o) -- (a field: the main chunk has no locals to spare)
 	o = o or {}
 	uns.Comm = setmetatable({ Handle = function() end }, { __index = ns.Comm })
@@ -63857,7 +63858,7 @@ assert(loadfile(ROOT .. "tests/launch-identity.lua"))(ns, test, eq, { ADDON_DIR 
 
 -- ChillZone (tests/chillzone.lua): what a release holds, and the fork's own changes.
 print("tests/chillzone.lua")
-assert(loadfile(ROOT .. "tests/chillzone.lua"))(ns, test, eq, { ADDON_DIR = ADDON_DIR, ROOT = ROOT, WithCraft = ns.WithCraftForTests })
+assert(loadfile(ROOT .. "tests/chillzone.lua"))(ns, test, eq, { ADDON_DIR = ADDON_DIR, ROOT = ROOT, WithCraft = ns.WithCraftForTests, LoadUI = Harness.LoadUI })
 print(("\n%d passed, %d failed"):format(passed, failed))
 if passed + failed == 0 then
 	io.stderr:write("No tests matched or were selected. Check the test filter or selection.\n")

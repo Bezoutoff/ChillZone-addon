@@ -124,3 +124,14 @@ test("ChillZone release: the addon speaks Russian on any client (ns.TEXT_LOCALE)
 	eq(r.TextLocale(), "ruRU")
 	eq(r.L.ACCORD_ACCEPT, "Принимаю", "Russian on an English client")
 end)
+
+test("ChillZone help page: the guild master's Twitch is linked and the download link is labelled as such", function()
+	local UI, uns = h.LoadUI()
+	local L = uns.L
+	eq(UI.LINKS.twitch, "https://www.twitch.tv/melharucos")
+	local text = UI.HelpText()
+	local function has(s) return text:find(s, 1, true) ~= nil end
+	eq(has("  " .. L.HELP_TWITCH .. ": https://www.twitch.tv/melharucos"), true, "the Twitch line")
+	eq(has("  " .. L.HELP_DOWNLOAD .. ": " .. UI.LINKS.curseforge), true, "the download line")
+	eq(has("CurseForge: "), false, "no CurseForge label for a GitHub releases link")
+end)

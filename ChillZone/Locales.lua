@@ -1593,6 +1593,8 @@ L.HELP_PRIVACY = "Privacy:"
 L.HELP_CHATS = "The ChillZone chats print in your chat window, and the Chat tab keeps their last lines:"
 L.HELP_LINKS = "Links:"
 L.HELP_ISSUES = "Bugs and ideas"
+L.HELP_DOWNLOAD = "Download updates"
+L.HELP_TWITCH = "The guild master's stream (Twitch)"
 -- 0.9.9: gamepad map
 L.ERROR_CAUGHT_GAMEPAD = "Something went wrong. It was saved: to see it, open the ChillZone window, press its help button (left of the X), then Report a bug."
 -- 0.9.9: the Workshop's roll call search, full roll call and "Ask <name>"
@@ -3995,6 +3997,8 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.HELP_CHATS = "Os chats do ChillZone aparecem na sua janela de chat, e a aba Chat guarda as últimas linhas:"
 	L.HELP_LINKS = "Links:"
 	L.HELP_ISSUES = "Bugs e ideias"
+	L.HELP_DOWNLOAD = "Baixar atualizações"
+	L.HELP_TWITCH = "Transmissão do líder da guilda (Twitch)"
 	-- 0.9.9: gamepad map
 	L.ERROR_CAUGHT_GAMEPAD = "Algo deu errado. Foi salvo: para ver, abra a janela do ChillZone, aperte o botão de ajuda dela (à esquerda do X) e depois Reportar bug."
 	-- 0.9.9: the Workshop's roll call search, full roll call and "Ask <name>"
