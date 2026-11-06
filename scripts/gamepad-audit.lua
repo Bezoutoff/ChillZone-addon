@@ -42,6 +42,8 @@
 --   in its files; an entry tagged nowhere, or in a file its `files` doesn't list (or listing one
 --   with no tag); an entry no test covers (GP.Covers("<id>") under tests/, once tests/gamepad.lua,
 --   the gamepad pass, exists); malformed entries; and the ratchet.
+-- (The offline tests wrap loadfile with their identity fixture, tests/fixtures/identity.lua; the audit reads the files as they are.)
+local loadfile = RAW_LOADFILE or loadfile
 
 local MODULE = ... == "--module"
 local ju = require("jit.util")

@@ -14,6 +14,8 @@
 
 local ROOT = (arg and arg[0] or ""):match("^(.*)tests[/\\]run%.lua$") or "./"
 local ADDON_DIR = ROOT .. "ChillZone/"
+-- ChillZone: the tests' network and people (tests/fixtures/identity.lua), before any addon file.
+assert(loadfile(ROOT .. "tests/fixtures/identity.lua"))()
 
 ---------------------------------------------------------------------------
 -- Minimal WoW API stubs

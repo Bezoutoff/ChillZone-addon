@@ -13,6 +13,8 @@
 -- multipart set, and council 12 is the 128-guild/512-person parser and signing bound.
 --   luajit tests/sign-roundtrip.lua <repo root> <key file> <future> <list.lua> x3 <council.lua> x12
 local root, keyPath, future = arg[1], arg[2], tonumber(arg[3])
+-- ChillZone: the tests' network and people (tests/fixtures/identity.lua), before any addon file.
+assert(loadfile(root .. "/tests/fixtures/identity.lua"))()
 
 -- The addon's files that read the lists, with the few game functions they touch while loading
 -- (no frame is ever shown, nothing is sent: Comm is left out). Our guild: none, until council 5.
