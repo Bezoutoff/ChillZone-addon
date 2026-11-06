@@ -35254,10 +35254,10 @@ end)
 test("1.1 join routing (Fern #20): the Join screen asks one member where to go, lists the gates' guild first and the most free slots, asks their officers, skips a do-not-contact member, and sends one whisper per click with its J3", function()
 	local R, V, L = ns.Recruit, ns.Views, ns.L
 	local saved = { guild = GetGuildInfo, inGuild = IsInGuild, outside = ns.Comm.WhisperOutside, level = UnitLevel, class = UnitClass, time = GetTime }
-	local ok, err = pcall(function()
+	local ok, err = pcall(WithUI, function()
 		WithGamepadUI(false, function(game)
 			Fern.Census(function(w)
-				R.ResetForTests()
+				R.ResetForTests(); ns.Dialog.Reset()
 				GetGuildInfo = function() return nil end
 				IsInGuild = function() return false end
 				UnitLevel = function() return 12 end
@@ -35301,25 +35301,28 @@ test("1.1 join routing (Fern #20): the Join screen asks one member where to go, 
 				assert(guilds[1].gates and guilds[2].free == 900, "with the route's word")
 				-- Asking the gates' guild: its Captain online first, and his addon asked first.
 				lines[at + 1].onClick()
-				eq(game.shown[1].which, "CHILLZONE_RECRUIT"); eq(game.shown[1].a, "Scap-Realm", "by the name /who gave"); eq(game.shown[1].b, "ChillZone R2")
+				local prompt = assert(ns.Dialog.Find("CHILLZONE_RECRUIT"))
+				eq(#game.shown, 0, "recruit confirmation stays off native guild-control state")
+				eq(prompt.data.name, "Scap-Realm", "by the name /who gave"); eq(prompt.data.guild, "ChillZone R2")
 				eq(out[#out], "Scap J1~1", "the member about to be whispered is asked first")
 				-- He takes no recruit whispers: the question closes before anything is sent.
 				eq(R.OnRoute("Scap-Realm", "J2~n~ChillZone R2~3500~"), true)
-				eq(game.hidden[1], "CHILLZONE_RECRUIT"); eq(w.printed[#w.printed], L.RECRUIT_DNC:format("Scap"))
+				eq(prompt:IsShown(), false); eq(w.printed[#w.printed], L.RECRUIT_DNC:format("Scap"))
 				eq(R.NoContact("Scap"), true); eq(#w.said, 0)
 				eq(R.Route().gates, "ChillZone R2", "his answer still routes")
 				-- Next: that guild's member /who found.
 				R.PromptNext("ChillZone R2")
-				eq(game.shown[2].a, "Ccc-Realm")
+				prompt = assert(ns.Dialog.Find("CHILLZONE_RECRUIT"))
+				eq(prompt.data.name, "Ccc-Realm")
 				-- Send: one whisper, the player's own words, and its J3 to the same member.
-				local text = R.Message(game.shown[2].data)
+				local text = R.Message(prompt.data)
 				Fern.NoDues(text, "the request")
-				StaticPopupDialogs.CHILLZONE_RECRUIT.OnAccept({ editBox = { GetText = function() return text end } }, game.shown[2].data)
+				prompt.buttons[1]:Click()
 				eq(#w.said, 1); eq(w.said[1].kind, "WHISPER"); eq(w.said[1].to, "Ccc"); eq(w.said[1].text, text)
 				eq(out[#out], "Ccc J3~ChillZone R2~12~MAGE")
 				-- One whisper per click, and the wait between two.
 				R.PromptNext("ChillZone R2")
-				local contact = game.shown[#game.shown].data
+				local contact = assert(R.lastContact)
 				eq(R.Ask(contact, "hi"), false); eq(#w.said, 1)
 				-- A member of the /who list who asked not to be contacted: marked, no click.
 				R.Prompt(R.found[2])
@@ -35332,6 +35335,7 @@ test("1.1 join routing (Fern #20): the Join screen asks one member where to go, 
 				R.asked.Lordy = 1
 				eq(R.NextContact("ChillZone II").name, "Aaa-Realm", "then /who's, never Bbb")
 				for _, s in ipairs(w.sent) do error("nothing on the channel: " .. s) end
+				ns.Dialog.Reset()
 			end)
 		end)
 	end)
@@ -35567,11 +35571,11 @@ end)
 test("1.1 join routing (Fern #20): do not contact holds under load: past ANSWER_MAX a member still tells each asker no, and the Join screen asks again one who never answered before the whisper", function()
 	local R = ns.Recruit
 	local savedOff = ns.db.recruitsOff
-	local saved = { guild = GetGuildInfo, inGuild = IsInGuild, outside = ns.Comm.WhisperOutside, now = ns.Now, time = GetTime }
-	local ok, err = pcall(function()
+	local saved = { guild = GetGuildInfo, inGuild = IsInGuild, outside = ns.Comm.WhisperOutside, now = ns.Now, time = GetTime, level = UnitLevel, class = UnitClass }
+	local ok, err = pcall(WithUI, function()
 		-- The member's side: fifteen recruits in one minute.
 		Fern.Census(function(w)
-			R.ResetForTests()
+			R.ResetForTests(); ns.Dialog.Reset()
 			local now = os.time()
 			ns.Comm.loginAt = now - 1000
 			ns.Acts.Gates = function() return nil end
@@ -35599,6 +35603,8 @@ test("1.1 join routing (Fern #20): do not contact holds under load: past ANSWER_
 				GetGuildInfo = function() return nil end
 				IsInGuild = function() return false end
 				GetTime = function() return 1000 end
+				UnitLevel = function() return 12 end
+				UnitClass = function() return "Mage", "MAGE", 8 end
 				local clock = os.time()
 				ns.Now = function() return clock end
 				local j1 = {}
@@ -35608,9 +35614,11 @@ test("1.1 join routing (Fern #20): do not contact holds under load: past ANSWER_
 				eq(j1[1], "Busy")
 				clock = clock + 120
 				R.Prompt(busy)
+				local prompt = assert(ns.Dialog.Find("CHILLZONE_RECRUIT"))
 				eq(j1[2], "Busy", "asked again, well within ROUTE_FRESH")
 				eq(R.OnRoute("Busy-Realm", R.DNC_ANSWER), true)
-				eq(game.hidden[#game.hidden], "CHILLZONE_RECRUIT", "closed before anything is sent")
+				eq(prompt:IsShown(), false, "closed before anything is sent")
+				eq(#game.shown, 0, "no native popup")
 				eq(R.Ask(busy, "Hi! I'd love to join ChillZone."), false); eq(#w.said, 0)
 				-- One who answered is not asked again within ROUTE_FRESH.
 				R.Prompt(other)
@@ -35620,10 +35628,12 @@ test("1.1 join routing (Fern #20): do not contact holds under load: past ANSWER_
 				R.Prompt(other)
 				eq(#j1, 3)
 				eq(R.Ask(other, "Hi! I'd love to join ChillZone."), true); eq(w.said[1].to, "Other")
+				ns.Dialog.Reset()
 			end)
 		end)
 	end)
 	GetGuildInfo, IsInGuild, ns.Comm.WhisperOutside, ns.Now, GetTime = saved.guild, saved.inGuild, saved.outside, saved.now, saved.time
+	UnitLevel, UnitClass = saved.level, saved.class
 	ns.db.recruitsOff = savedOff
 	R.ResetForTests()
 	if not ok then error(err, 0) end

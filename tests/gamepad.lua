@@ -3228,6 +3228,34 @@ test("gamepad main shortcut (Shift + the guild key): no binding at gamepad login
 	GP.Covers("main-key")
 end)
 
+test("gamepad recruit popup isolation: no native popup on either login or either input-style switch", function()
+	for _, initialPad in ipairs({ false, true }) do
+		local C, ns = Session(initialPad, { setup = function(c)
+			c.units.player.guild = nil
+			c.env.IsInGuild = function() return false end
+		end })
+		eq(ns.IsMember(), false, "a recruit outside any guild")
+		local contact = { name = "Captain-Realm", guild = "ChillZone II" }
+		InClick(C, function() ns.Recruit.Prompt(contact) end)
+		local f = assert(ns.Dialog.Find("CHILLZONE_RECRUIT"), "the recruit's own confirmation")
+		assert(f:IsShown()); eq(f.data, contact)
+		eq(C.gamePopups or 0, 0, "no shared native popup state before the guild-rank event")
+		C.Switch(not initialPad); C.Advance(1)
+		assert(f:IsShown(), "the editable request survives a style switch")
+		C.Switch(initialPad); C.Advance(1)
+		assert(f:IsShown()); eq(C.gamePopups or 0, 0)
+		InClick(C, function() f.buttons[2]:Click() end)
+		eq(f:IsShown(), false, "Cancel remains the player's choice")
+		InClick(C, function() ns.Recruit.Prompt(contact) end)
+		eq(ns.Recruit.OnRoute(contact.name, ns.Recruit.DNC_ANSWER), true)
+		eq(ns.Dialog.Find("CHILLZONE_RECRUIT"), nil, "do-not-contact closes it")
+		eq(C.gamePopups or 0, 0)
+		Check(C.ledger, "recruit confirmation across both input styles")
+		NoErrors(C, "recruit confirmation across both input styles")
+	end
+	GP.Covers("dialogs")
+end)
+
 -- 1.2.5.1: the ChillZone Accord (Accord.lua) on a fresh account's first session, gamepad UI on from the
 -- login: the Accord asks first, in ChillZone's own window (no game popup, nothing of the game's UI
 -- reached); the controller's click on I accept starts ChillZone; the privacy page comes after it.
