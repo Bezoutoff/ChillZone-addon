@@ -249,7 +249,7 @@ test("1.2 the right-click Arena lines: challenge, Bones, Watch only at a watchab
 	local w = World.New()
 	local a = w:Client("Lida Fenn")
 	-- Load the real shared menu against this client's namespace, not the host harness fallback.
-	w:As(a, function() assert(loadfile(H.ADDON_DIR .. "PlayerMenu.lua"))("Olympus", a.ns) end)
+	w:As(a, function() assert(loadfile(H.ADDON_DIR .. "PlayerMenu.lua"))("ChillZone", a.ns) end)
 	local AH, L = a.ns.ArenaHome, a.ns.L
 	local function Menu()
 		local got = {}
@@ -295,7 +295,7 @@ test("1.2 the right-click Arena lines: challenge, Bones, Watch only at a watchab
 		end)
 	end)
 	end)
-	-- A non-member (a guild outside Olympus): no lines.
+	-- A non-member (a guild outside ChillZone): no lines.
 	local loner = w:Client("Doran Ashpeak", { guild = "Quiet Hollow" })
 	w:As(loner, function()
 		local got, menu = Menu()

@@ -8,12 +8,12 @@ local function WithHop(fn)
 	local saved, dialogs = {}, {}
 	for _, key in ipairs(names) do saved[key] = _G[key] end
 	for key, value in pairs(StaticPopupDialogs) do dialogs[key] = value end
-	local w = { clock = 1800000000, mono = 1000, guild = "Olympus II", map = 1453, group = 0,
+	local w = { clock = 1800000000, mono = 1000, guild = "ChillZone II", map = 1453, group = 0,
 		party = {}, sent = {}, errors = {}, accepted = 0, id = 0, ranks = {}, hidden = {}, invited = {}, popups = {} }
 	local ok, err = pcall(function()
 		GetTime = function() return w.mono end
 		GetServerTime = function() return w.clock end
-		GetChannelName = function() return 5, "OlympusNet" end
+		GetChannelName = function() return 5, "ChillZoneNet" end
 		GetGuildInfo = function() return w.guild, "Member", 3 end
 		IsInGroup = function() return w.group > 0 end
 		IsInRaid = function() return false end
@@ -45,8 +45,8 @@ local function WithHop(fn)
 		c.ShowDialog = function(_, _, _, data) w.popups[#w.popups + 1] = data end
 		c.Layers = { CurrentMap = function() return w.map end, Sharing = function() return true end, ForMap = function() return {} end,
 			Mine = function() return { mapID = w.map, zoneUID = 7, t = w.clock } end }
-		assert(loadfile(ROOT .. "Olympus/Comm.lua"))("Olympus", c)
-		assert(loadfile(ROOT .. "Olympus/Hop.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Comm.lua"))("ChillZone", c)
+		assert(loadfile(ROOT .. "ChillZone/Hop.lua"))("ChillZone", c)
 		c.Comm.JoinChannel()
 		c.Hop.random = function(a) if a then w.id = w.id + 1; return w.id end return 0 end
 		c.Hop.Trusted = function() return true end
@@ -170,7 +170,7 @@ test("hop: changed zone, guild, group or moderation cancels an unsent ask", func
 		WithHop(function(w, H, C)
 			H.Ask(1453, 8, "target")
 			if change == "map" then w.map = 1429
-			elseif change == "guild" then w.guild = "Olympus New"
+			elseif change == "guild" then w.guild = "ChillZone New"
 			elseif change == "group" then w.group, w.party.party1 = 2, "Friend"
 			else w.off = true end
 			-- No Hop tick/event first: the final transport guard observes the changed context.

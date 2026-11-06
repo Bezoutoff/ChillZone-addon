@@ -5,7 +5,7 @@ local ROOT = (debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]officer%
 -- only the King's guild's master (with the King, his Steward and his Hands) posts for the whole
 -- army; another guild's master posts for his own guild alone, over GUILD.
 local function World(fn)
-	local w = { clock = 1800000000, now = 1000, guild = "Olympus Ember", kingGuild = "Olympus Ember", map = 1429, member = true, logged = true,
+	local w = { clock = 1800000000, now = 1000, guild = "ChillZone Ember", kingGuild = "ChillZone Ember", map = 1429, member = true, logged = true,
 		roles = { ["Harbor Lord-Realm"] = "lord" }, sources = {}, links = {}, jobs = {}, handlers = {}, events = {}, hidden = {}, barred = {} }
 	local c = setmetatable({ me = "Harbor Lord-Realm", realm = "Realm", group = "Realm", faction = "Alliance", db = {},
 		rdb = { guilds = {} }, L = setmetatable({}, { __index = ns.L }), RealmPages = {}, DecreePages = {} }, { __index = ns })
@@ -16,7 +16,7 @@ local function World(fn)
 	c.GroupOf = function(realm) return w.links[realm] or realm end
 	c.DisplayName = function(name) return name and name:gsub("%-Realm$", "") end
 	c.IsMember = function() return w.member end
-	c.IsFederation = function(guild) return type(guild) == "string" and guild:find("Olympus", 1, true) ~= nil end
+	c.IsFederation = function(guild) return type(guild) == "string" and guild:find("ChillZone", 1, true) ~= nil end
 	c.IsKingCharacter = function(name) return w.roles[c.FullName(name)] == "king" end
 	c.IsKingGuild = function(guild) return guild ~= nil and guild == w.kingGuild end
 	c.ViewAs = { Previewing = function() return w.preview == true end }
@@ -54,7 +54,7 @@ local function World(fn)
 	c.ShowDialog, c.Alert = function() error("a quiet muster must not open a popup or alert") end, function() error("no muster alert") end
 	c.Filter = { Hides = function(text) return text == w.filteredTitle end }
 	local saved = { guild = GetGuildInfo, inside = IsInInstance, inGuild = IsInGuild, unit = UnitGUID,
-		map = C_Map, info = C_ChatInfo, time = GetServerTime, locale = GetLocale, dialog = StaticPopupDialogs.OLYMPUS_LOCATION_CHOICE }
+		map = C_Map, info = C_ChatInfo, time = GetServerTime, locale = GetLocale, dialog = StaticPopupDialogs.CHILLZONE_LOCATION_CHOICE }
 	GetGuildInfo, IsInGuild = function() return w.guild end, function() return w.member end
 	IsInInstance = function() return false end
 	UnitGUID = function() return "Creature-0-0-0-11-1-1" end
@@ -64,18 +64,18 @@ local function World(fn)
 		GetMapInfo = function(id) if id == 1429 or id == 1436 then return { mapType = 3 } end; if id == 947 then return { mapType = 1 } end end,
 		GetPlayerMapPosition = function() error("a muster must not read precise coordinates") end }
 	for _, file in ipairs({ "Locales/OfficerMusterText", "Layers", "Chronicle", "OfficerMuster" }) do
-		assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua"))("ChillZone", c)
 	end
 	function w.advance(seconds) w.clock, w.now = w.clock + seconds, w.now + seconds end
 	function w.word(by, seq, title, zone, at, group, faction)
 		w.roles[by] = w.roles[by] or "lord"
-		return ("OM~1~P~%s~%s~%d~%d~Olympus Ember~%d~%s"):format(faction or "A", group or "Realm", seq or w.clock, at or w.clock, zone or 1429, title or "Gather")
+		return ("OM~1~P~%s~%s~%d~%d~ChillZone Ember~%d~%s"):format(faction or "A", group or "Realm", seq or w.clock, at or w.clock, zone or 1429, title or "Gather")
 	end
 	function w.receive(by, msg, dist) return w.handlers.OM(dist or "CHANNEL", by, msg) end
 	function w.endWord(seq, at) return ("OM~1~E~A~Realm~%d~%d"):format(seq, at) end
 	local ok, err = pcall(fn, w, c)
 	GetGuildInfo, IsInInstance, IsInGuild, UnitGUID, C_Map, C_ChatInfo, GetServerTime, GetLocale = saved.guild, saved.inside, saved.inGuild, saved.unit, saved.map, saved.info, saved.time, saved.locale
-	StaticPopupDialogs.OLYMPUS_LOCATION_CHOICE = saved.dialog
+	StaticPopupDialogs.CHILLZONE_LOCATION_CHOICE = saved.dialog
 	if not ok then error(err, 0) end
 end
 
@@ -164,7 +164,7 @@ test("Officer muster: repeat never renews expiry; withdrawal and reload preserve
 		eq(w.receive("Another Lord-Realm", ending), false, "only the server-stamped poster can close that call")
 		eq(w.receive(by, ending), true); eq(#c.Chronicle.Entries(), 1)
 		local entry = c.Chronicle.Entries()[1]; eq(entry.by, by); eq(entry.words, "River patrol")
-		assert(loadfile(ROOT .. "Olympus/OfficerMuster.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/OfficerMuster.lua"))("ChillZone", c)
 		M = c.OfficerMuster
 		eq(select(2, w.receive(by, ending)), "repeat"); eq(select(2, w.receive(by, msg)), "older")
 		c.rdb.acts = {}; c.rdb.actsState = {}
@@ -185,7 +185,7 @@ test("Officer muster: expiration and role loss close known calls once; ending he
 		M.Tick(); eq(#M.List(), 0); eq(#c.Chronicle.Entries(), 1)
 		local entry = c.Chronicle.Entries()[1]
 		eq(entry.by, c.me); assert(entry.what:find("1 observed sharing players", 1, true), entry.what)
-		assert(loadfile(ROOT .. "Olympus/OfficerMuster.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/OfficerMuster.lua"))("ChillZone", c)
 		c.OfficerMuster.Tick(); eq(#c.Chronicle.Entries(), 1)
 		local by = "Dawn Hand-Realm"; w.roles[by] = "hand"
 		eq(w.receive(by, w.word(by, 1, "Gather")), true)
@@ -241,7 +241,7 @@ test("Officer muster: queued post and ending guards reject membership, guild, ro
 		local guard = w.jobs[#w.jobs].opts.guard
 		eq(guard(), true)
 		w.member = false; eq(guard(), false); w.member = true
-		w.guild = "Olympus Willow"; eq(guard(), false); w.guild = "Olympus Ember"
+		w.guild = "ChillZone Willow"; eq(guard(), false); w.guild = "ChillZone Ember"
 		w.roles[c.me] = "captain"; eq(guard(), false); w.roles[c.me] = "lord"
 		local me = c.me; c.me = "Other Lord-Realm"; eq(guard(), false); c.me = me
 		c.group = "Other"; M.List(); eq(guard(), false)
@@ -336,7 +336,7 @@ test("Officer muster: a page of the Decrees tab under the royal decrees, not of 
 						c[key] = setmetatable(c[key], { __index = ns[key] })
 					end
 					c.Data.Summary = function() return ns.Data.Summary() end
-					assert(loadfile(ROOT .. "Olympus/Views.lua"))("Olympus", c)
+					assert(loadfile(ROOT .. "ChillZone/Views.lua"))("ChillZone", c)
 					local ui, uns = H.LoadUI()
 					c.UI, uns.Views = ui, c.Views
 					local accord = ns.db.accord
@@ -357,7 +357,7 @@ test("Officer muster: a page of the Decrees tab under the royal decrees, not of 
 						eq(count, 1)
 						eq(Find(c.Views.Build("realm"), L.OFFICER_MUSTER_TITLE), nil, "no link in the Realm")
 						-- The window's own row opens it in the Decrees tab.
-						local frame = OlympusFrame or OlympusFrameHD or OlympusFrameBasic or OlympusFrameHDBasic
+						local frame = ChillZoneFrame or ChillZoneFrameHD or ChillZoneFrameBasic or ChillZoneFrameHDBasic
 						eq(frame:IsShown(), true)
 						local row
 						for _, r in ipairs(frame.views.decrees.rows) do
@@ -404,13 +404,13 @@ end)
 -- guild posted his muster on the channel, and every client whose roster or signed list named him
 -- rank 0 took it: today his own guild's alone (other guilds' clients refuse the census), and the
 -- whole army's once the author's signed enforcement is on, where every guild master in the signed
--- list would have reached every Olympus client.
+-- list would have reached every ChillZone client.
 test("Officer muster (1.2.3): another guild's master posts for his own guild alone, over GUILD, and is told so; on the channel nobody takes his, signed or not", function()
 	World(function(w, c)
-		w.kingGuild = "Olympus"
+		w.kingGuild = "ChillZone"
 		local M = c.OfficerMuster
 		local can, guild, dist = M.CanPost()
-		eq(can, true); eq(guild, "Olympus Ember"); eq(dist, "GUILD", "his guild alone")
+		eq(can, true); eq(guild, "ChillZone Ember"); eq(dist, "GUILD", "his guild alone")
 		eq(M.Post("Guild patrol", 1429), true)
 		local job = w.jobs[1]
 		eq(job.dist, "GUILD", "over GUILD, never the channel"); eq(job.logged, true); eq(job.opts.guard(), true)
@@ -419,8 +419,8 @@ test("Officer muster (1.2.3): another guild's master posts for his own guild alo
 		local texts = {}
 		for _, line in ipairs(M.Lines()) do texts[#texts + 1] = tostring(line.text) end
 		local all = table.concat(texts, "\n")
-		assert(all:find(c.L.OFFICER_MUSTER_GUILD_ONLY:format("Olympus Ember"), 1, true), all)
-		assert(all:find(c.L.OFFICER_MUSTER_BY_GUILD:format("Harbor Lord", "Olympus Ember"), 1, true), all)
+		assert(all:find(c.L.OFFICER_MUSTER_GUILD_ONLY:format("ChillZone Ember"), 1, true), all)
+		assert(all:find(c.L.OFFICER_MUSTER_BY_GUILD:format("Harbor Lord", "ChillZone Ember"), 1, true), all)
 		-- Its repeat and its ending go over GUILD too.
 		w.advance(M.REPEAT); M.Tick()
 		eq(w.jobs[#w.jobs].dist, "GUILD", "its repeat")
@@ -442,19 +442,19 @@ test("Officer muster (1.2.3): another guild's master posts for his own guild alo
 		end
 		local by = "Throne Lord-Realm"
 		w.roles[by] = "lord"
-		eq(w.receive(by, ("OM~1~P~A~Realm~%d~%d~Olympus~1429~For the army"):format(w.clock, w.clock)), true, "the King's guild's master")
+		eq(w.receive(by, ("OM~1~P~A~Realm~%d~%d~ChillZone~1429~For the army"):format(w.clock, w.clock)), true, "the King's guild's master")
 		eq(#M.List(), 4)
 	end)
 end)
 
 test("Officer muster (1.2.3): over GUILD only our own guild's master naming our guild; an ending counts on its call's distribution", function()
 	World(function(w, c)
-		w.kingGuild = "Olympus"
+		w.kingGuild = "ChillZone"
 		local M, by = c.OfficerMuster, "Ember Lord-Realm"
 		-- Our guild's master (our roster): his guild muster.
 		eq(w.receive(by, w.word(by, 1, "Guild gathering"), "GUILD"), true)
 		local row = M.List()[1]
-		eq(row.dist, "GUILD"); eq(row.guild, "Olympus Ember")
+		eq(row.dist, "GUILD"); eq(row.guild, "ChillZone Ember")
 		-- Its ending on the channel is not its ending; over GUILD it is.
 		local ending = w.endWord(row.seq, row.at)
 		eq(select(2, w.receive(by, ending)), "unknown", "not on another distribution")
@@ -472,7 +472,7 @@ test("Officer muster (1.2.3): over GUILD only our own guild's master naming our 
 		end
 		local stranger = "Willow Lord-Realm"
 		w.roles[stranger] = "lord"
-		eq(select(2, w.receive(stranger, ("OM~1~P~A~Realm~%d~%d~Olympus Willow~1429~Gather"):format(w.clock, w.clock), "GUILD")), "role",
+		eq(select(2, w.receive(stranger, ("OM~1~P~A~Realm~%d~%d~ChillZone Willow~1429~Gather"):format(w.clock, w.clock), "GUILD")), "role",
 			"another guild's, over our GUILD")
 		-- A guild muster ends quietly once its poster is no longer our master.
 		w.advance(M.GAP)
@@ -487,7 +487,7 @@ test("Officer muster: English and pt-BR text preserve placeholders", function()
 	local old = GetLocale
 	for _, locale in ipairs({ "enUS", "ptBR" }) do
 		GetLocale = function() return locale end
-		local c = { L = {} }; assert(loadfile(ROOT .. "Olympus/Locales/OfficerMusterText.lua"))("Olympus", c); texts[locale] = c.L
+		local c = { L = {} }; assert(loadfile(ROOT .. "ChillZone/Locales/OfficerMusterText.lua"))("ChillZone", c); texts[locale] = c.L
 	end
 	GetLocale = old
 	for key, value in pairs(texts.enUS) do

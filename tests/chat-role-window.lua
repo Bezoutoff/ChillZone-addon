@@ -161,15 +161,15 @@ test("role chat navigation: real dropdown redraws with the preview without openi
 end)
 
 -- 1.2.1, the author's ask: a member who moderates nobody right-clicks another player's line of the
--- public Olympus channel, on its words or on its name, and reports that very line (Report to
--- Olympus, The Watch's: Watch.LineMessage says whether it may go, Watch.AskReport asks). Before,
+-- public ChillZone channel, on its words or on its name, and reports that very line (Report to
+-- ChillZone, The Watch's: Watch.LineMessage says whether it may go, Watch.AskReport asks). Before,
 -- the right-click did nothing for him.
-test("chat: an ordinary member right-clicks another player's Olympus line, its words or its name, and reports that line", function()
+test("chat: an ordinary member right-clicks another player's ChillZone line, its words or its name, and reports that line", function()
 	WithWindow(function(w)
 		local C = ns.Channels
 		local saved = { history = C.History, watch = rawget(ns, "Watch"), wc = rawget(ns, "WatchChat") }
-		local theirs = { t = 100, sender = "Rude Guy-Realm", guild = "Olympus II", text = "rude words" }
-		local mine = { t = 101, sender = ns.me, guild = "Olympus II", text = "my own words", mine = true }
+		local theirs = { t = 100, sender = "Rude Guy-Realm", guild = "ChillZone II", text = "rude words" }
+		local mine = { t = 101, sender = ns.me, guild = "ChillZone II", text = "my own words", mine = true }
 		local asked, reported, sent = {}, {}, {}
 		C.History = function(t) if t == "A" then return { theirs, mine } end return {} end
 		C.Send = function(tier, text) sent[#sent + 1] = { tier = tier, text = text }; return true end
@@ -193,7 +193,7 @@ test("chat: an ordinary member right-clicks another player's Olympus line, its w
 			eq(f.subMenu:IsShown(), true, "the right-click opens the line's menu")
 			eq(f.subMenu.rows[1].text:GetText(), ns.L.WATCH_REPORT)
 			eq(f.subMenu.rows[2].text:GetText(), ns.L.CHATWIN_REPLY); eq(f.subMenu.rows[2]:IsShown(), true, "report and reply")
-			eq(asked[#asked].entry, theirs); eq(asked[#asked].chat, "A", "asked about that line, in the Olympus channel")
+			eq(asked[#asked].entry, theirs); eq(asked[#asked].chat, "A", "asked about that line, in the ChillZone channel")
 			eq(#reported, 0, "nothing before the click")
 			w.fire("DATA_CHANGED"); eq(f.subMenu:IsShown(), true, "a census redraw leaves it open")
 			f.subMenu.rows[1]:Click()
@@ -313,7 +313,7 @@ test("chat replies (CH-04): a reply sent through Channels.Send reaches another m
 			local C = ns.Channels
 			local clock = 2e6
 			GetTime = function() return clock end
-			ns.rdb.chat = { A = { { t = 1800000000, sender = "Quoted Friend-Realm", guild = "Olympus II", text = "where do we meet tonight?" } } }
+			ns.rdb.chat = { A = { { t = 1800000000, sender = "Quoted Friend-Realm", guild = "ChillZone II", text = "where do we meet tonight?" } } }
 			local f = w.CW.Open("A")
 			local quoted = assert(Shown(f, "where do we meet tonight?")[1], "the line to answer")
 			eq(w.CW.BeginReply(quoted), true)
@@ -366,7 +366,7 @@ test("chat replies (CH-04): the quote shows only over a line this client holds; 
 			DeletedBody = function() return "|cff808080(deleted by a moderator)|r" end })
 		local ok, err = pcall(function()
 			local function Line(t, sender, text, extra)
-				local e = { t = 1800000000 + t, sender = sender, guild = "Olympus II", text = text }
+				local e = { t = 1800000000 + t, sender = sender, guild = "ChillZone II", text = text }
 				for k, v in pairs(extra or {}) do e[k] = v end
 				lines[#lines + 1] = e
 				return e
@@ -434,7 +434,7 @@ test("chat replies (CH-04): in a room the quote gives way to the answer, and an 
 			R.Reset()
 			local clock = 3e6
 			GetTime = function() return clock end
-			local quoted = { t = 1800000000, sender = "Quoted Friend-Realm", guild = "Olympus II",
+			local quoted = { t = 1800000000, sender = "Quoted Friend-Realm", guild = "ChillZone II",
 				text = "who brings the flasks and the food for the raid on Thursday, and who keeps the bank tab?" }
 			R.History = function(id) if id == "guild" then return { quoted } end return {} end
 			local f = w.CW.Open("A")
@@ -481,8 +481,8 @@ test("Chat tab (1.2.4): the author's lines carry The Royal Dev after his name, n
 		local dev, other = "Quill Wright-Realm", "Plain Writer-Realm"
 		C.History = function(t)
 			if t ~= "A" then return {} end
-			return { { t = 100, sender = dev, guild = "Olympus II", text = "a word from the dev" },
-				{ t = 400, sender = other, guild = "Olympus II", text = "thanks" } }
+			return { { t = 100, sender = dev, guild = "ChillZone II", text = "a word from the dev" },
+				{ t = 400, sender = other, guild = "ChillZone II", text = "thanks" } }
 		end
 		ns.Borders = setmetatable({ IsDevName = function(name) return ns.FullName(name) == dev end }, { __index = saved.borders })
 		local ok, err = pcall(function()
@@ -558,7 +558,7 @@ end)
 -- in every room but the High Council's, has dozens). Any number of rooms now: a long list folds
 -- each group into one row whose click opens its own list beside it, a list still longer pages, and
 -- every room is a click or a few away, with the mouse and with the gamepad UI (the cursor clicks
--- Olympus's own buttons; no game menu, no key).
+-- ChillZone's own buttons; no game menu, no key).
 local function AuthorsRoles(w, gamepad)
 	local saved = { isAuthor = ns.Workshop.IsAuthorName, approved = ns.ApprovedGuilds, guilds = ns.rdb.guilds }
 	local ok, err = pcall(function()
@@ -571,7 +571,7 @@ local function AuthorsRoles(w, gamepad)
 		local k = 0
 		while base + 2 * k < 34 do
 			k = k + 1
-			ns.rdb.guilds[("Olympus Guild %02d"):format(k)] = { t = 1 }
+			ns.rdb.guilds[("ChillZone Guild %02d"):format(k)] = { t = 1 }
 		end
 		local options = R.Options("role")
 		assert(#options >= 34, "the author's rooms: " .. #options)
@@ -663,7 +663,7 @@ test("Chat tab (1.2.4): thirty-four rooms in the Roles list (the author's): grou
 	WithWindow(function(w) AuthorsRoles(w, false) end)
 end)
 
-test("Chat tab (1.2.4): thirty-four rooms in the Roles list with the gamepad UI: the same lists, Olympus's own buttons, every room reached", function()
+test("Chat tab (1.2.4): thirty-four rooms in the Roles list with the gamepad UI: the same lists, ChillZone's own buttons, every room reached", function()
 	WithGamepadUI(true, function()
 		WithWindow(function(w) AuthorsRoles(w, true) end)
 	end)
@@ -751,7 +751,7 @@ local function WithChurchRoom(w, fn)
 				return true
 			end,
 		}, { __index = ns.Comm })
-		assert(loadfile(ROOT .. "Olympus/ChatRooms.lua"))("Olympus", rns)
+		assert(loadfile(ROOT .. "ChillZone/ChatRooms.lua"))("ChillZone", rns)
 		local R = rns.ChatRooms
 		R.Reset()
 		assert(R.RegisterAudience("church", { label = function() return ns.L.CHURCH_ROOM end,
@@ -878,7 +878,7 @@ end)
 
 -- 1.2.4: a role room's line goes to its share of the members online at most (ChatRooms.FANOUT, the
 -- Church's rooms 30): how many it missed is said in the room, under the line, and not only in the
--- game's chat frame under the Olympus window (the silent send's lesson); the next line takes it away.
+-- game's chat frame under the ChillZone window (the silent send's lesson); the next line takes it away.
 test("Chat tab (1.2.4): a line that went to its room's share of members says in the room how many it missed", function()
 	WithWindow(function(w)
 		WithChurchRoom(w, function(room, R)

@@ -2,9 +2,9 @@ local ns, test, eq, extra = ...
 local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]chat%-channel%-links%.lua$") or "./"
 local WithGamepadUI = assert(extra and extra.WithGamepadUI, "WithGamepadUI")
 
--- 1.2.1: [Olympus], [Captains] and [Lords] before a line in the game's chat are links, as the game's
+-- 1.2.1: [ChillZone], [Captains] and [Lords] before a line in the game's chat are links, as the game's
 -- [Party] is, where this client may write in that channel: a left click opens the chat box with
--- /ol, /olc or /oll in it (Channels.lua's end). Channels.lua is loaded with Comm.lua and a gate of
+-- /czn, /czc or /czl in it (Channels.lua's end). Channels.lua is loaded with Comm.lua and a gate of
 -- their own (as the gate's typed-commands test loads them) in a namespace over the harness's, with
 -- its own saved variables, so the hook it registers never reaches the harness's Channels. The game's
 -- side stood in for as Forever's UI source has it: hooksecurefunc's post-hook after SetItemRef, which
@@ -12,14 +12,14 @@ local WithGamepadUI = assert(extra and extra.WithGamepadUI, "WithGamepadUI")
 -- (ChatFrameUtil.OpenChat, and the global ChatFrame_OpenChat set to it while the
 -- loadDeprecationFallbacks setting is on: Deprecated_ChatFrame.lua:4/74), the main chat window,
 -- Shift. Generic names alone.
-local GUILD = "Olympus II"
+local GUILD = "ChillZone II"
 local SPEAKER, CAPTAIN, LORD = "Test Speaker-Realm", "Test Captain-Realm", "Test Lord-Realm"
 
 local function WithLinks(fn)
 	local GLOBALS = { "hooksecurefunc", "SetItemRef", "ChatFrameUtil", "ChatFrame_OpenChat", "IsShiftKeyDown", "DEFAULT_CHAT_FRAME", "GetGuildInfo",
-		"C_ChatInfo", "IsInGuild", "SLASH_OLYMPUSALL1", "SLASH_OLYMPUSCAPTAINS1", "SLASH_OLYMPUSLORDS1" }
-	local SLASH = { "OLYMPUSALL", "OLYMPUSCAPTAINS", "OLYMPUSLORDS" }
-	local DIALOGS = { "OLYMPUS_CHAT_PRIVACY", "OLYMPUS_PIN", "OLYMPUS_PIN_DOWN", "OLYMPUS_GAMEPAD_RELOAD" }
+		"C_ChatInfo", "IsInGuild", "SLASH_CHILLZONEALL1", "SLASH_CHILLZONECAPTAINS1", "SLASH_CHILLZONELORDS1" }
+	local SLASH = { "CHILLZONEALL", "CHILLZONECAPTAINS", "CHILLZONELORDS" }
+	local DIALOGS = { "CHILLZONE_CHAT_PRIVACY", "CHILLZONE_PIN", "CHILLZONE_PIN_DOWN", "CHILLZONE_GAMEPAD_RELOAD" }
 	local saved = { g = {}, slash = {}, dialogs = {}, events = #EVENT_SCRIPTS, channels = rawget(ns, "Channels") }
 	for _, k in ipairs(GLOBALS) do saved.g[k] = rawget(_G, k) end
 	for _, k in ipairs(SLASH) do saved.slash[k] = SlashCmdList[k] end
@@ -65,7 +65,7 @@ local function WithLinks(fn)
 		cns.Filter = { Hides = function() return false end }
 		cns.Roster = setmetatable({ RankOf = function(n) return w.roster[n] end }, { __index = ns.Roster })
 		for _, file in ipairs({ "GamepadRegistry", "Gamepad", "Comm", "Channels" }) do
-			assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua"))("Olympus", cns)
+			assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua"))("ChillZone", cns)
 		end
 		w.ns, w.C = cns, cns.Channels
 		w.roster[ns.FullName(SPEAKER)], w.roster[ns.FullName(CAPTAIN)], w.roster[ns.FullName(LORD)] = 3, 1, 0
@@ -95,9 +95,9 @@ local function WithLinks(fn)
 	if not ok then error(err, 0) end
 end
 
-local function Link(tier, label) return "|Haddon:Olympus:chan:" .. tier .. "|h[" .. label .. "]|h" end
+local function Link(tier, label) return "|Haddon:ChillZone:chan:" .. tier .. "|h[" .. label .. "]|h" end
 
-test("1.2.1 chat channel links: [Olympus], [Captains] and [Lords] are links only where this client may write there (its rank, the chats on, not off them nor timed out), plain before the login's hook and with the gamepad UI", function()
+test("1.2.1 chat channel links: [ChillZone], [Captains] and [Lords] are links only where this client may write there (its rank, the chats on, not off them nor timed out), plain before the login's hook and with the gamepad UI", function()
 	WithLinks(function(w)
 		local C, L = w.C, ns.L
 		local A, CA, LO = "[" .. L.CHAN_ALL .. "]", "[" .. L.CHAN_CAPTAINS .. "]", "[" .. L.CHAN_LORDS .. "]"
@@ -108,18 +108,18 @@ test("1.2.1 chat channel links: [Olympus], [Captains] and [Lords] are links only
 		eq(table.concat(w.hooks, ","), "SetItemRef", "one post-hook, on SetItemRef")
 		w.Login()
 		eq(#w.hooks, 1, "once a session")
-		-- A Lord writes in all three; a Captain in [Olympus] and [Captains]; a member in [Olympus] alone.
+		-- A Lord writes in all three; a Captain in [ChillZone] and [Captains]; a member in [ChillZone] alone.
 		eq(C.Tag("A"), Link("A", L.CHAN_ALL)); eq(C.Tag("C"), Link("C", L.CHAN_CAPTAINS)); eq(C.Tag("L"), Link("L", L.CHAN_LORDS))
 		w.rank = 1
 		eq(C.Tag("A"), Link("A", L.CHAN_ALL)); eq(C.Tag("C"), Link("C", L.CHAN_CAPTAINS)); eq(C.Tag("L"), LO, "no [Lords] link for a Captain")
 		w.rank = 3
 		eq(C.Tag("A"), Link("A", L.CHAN_ALL)); eq(C.Tag("C"), CA); eq(C.Tag("L"), LO)
-		-- The line itself: the tag, then the rest byte for byte as before; the Olympus tab's has no tag.
+		-- The line itself: the tag, then the rest byte for byte as before; the ChillZone tab's has no tag.
 		local line = C.FormatLine("A", SPEAKER, GUILD, "PA", "hello")
 		assert(line:find("^" .. Link("A", L.CHAN_ALL):gsub("%p", "%%%0") .. " |Hplayer:"), line)
 		eq(line, C.Tag("A") .. " " .. C.FormatLine("A", SPEAKER, GUILD, "PA", "hello", true))
 		assert(C.FormatDeleted("A", SPEAKER, GUILD):find("^" .. Link("A", L.CHAN_ALL):gsub("%p", "%%%0") .. " |Hplayer:"), "a deleted line's in its place too")
-		eq(C.FormatLine("A", SPEAKER, GUILD, "PA", "hello", true):find("|Haddon:", 1, true), nil, "the Olympus tab's line: no tag")
+		eq(C.FormatLine("A", SPEAKER, GUILD, "PA", "hello", true):find("|Haddon:", 1, true), nil, "the ChillZone tab's line: no tag")
 		-- Can't write: the plain name.
 		w.timeout = "until later"
 		eq(C.Tag("A"), A, "timed out"); eq(C.CanWrite("A"), false)
@@ -143,7 +143,7 @@ test("1.2.1 chat channel links: a line shown in the game's chat carries the link
 	WithLinks(function(w)
 		local L = ns.L
 		w.Login()
-		w.rank = 1 -- (a Captain: reads and writes [Olympus] and [Captains])
+		w.rank = 1 -- (a Captain: reads and writes [ChillZone] and [Captains])
 		eq(w.Hear("A", SPEAKER, "army line"), true)
 		eq(w.Hear("C", CAPTAIN, "captains line"), true)
 		eq(#w.lines, 2)
@@ -155,7 +155,7 @@ test("1.2.1 chat channel links: a line shown in the game's chat carries the link
 		eq(w.lines[3]:find("|Haddon:", 1, true), nil, w.lines[3])
 		assert(w.lines[3]:find("^%[" .. L.CHAN_CAPTAINS .. "%] |Hplayer:"), w.lines[3])
 		w.timeout = nil
-		-- The donations line in the [Olympus] chat (Treasury.lua): its [Olympus] the same.
+		-- The donations line in the [ChillZone] chat (Treasury.lua): its [ChillZone] the same.
 		local T, keeper = ns.Treasury, "Test Keeper-Realm"
 		local savedKeeper, savedMute = T.IsKeeperName, ns.db.chatMute
 		rawset(ns, "Channels", w.C)
@@ -171,44 +171,44 @@ test("1.2.1 chat channel links: a line shown in the game's chat carries the link
 	end)
 end)
 
-test("1.2.1 chat channel links: a left click opens the chat box with /ol, /olc or /oll, in the window clicked; right-click, Shift, a channel closed since and the gamepad UI open nothing", function()
+test("1.2.1 chat channel links: a left click opens the chat box with /czn, /czc or /czl, in the window clicked; right-click, Shift, a channel closed since and the gamepad UI open nothing", function()
 	WithLinks(function(w)
 		local L = ns.L
 		w.Login()
 		w.rank = 0
-		local box = w.Click("addon:Olympus:chan:A")
-		eq(box and box.text, "/ol ", "[Olympus]: /ol and a space, ready for the line")
+		local box = w.Click("addon:ChillZone:chan:A")
+		eq(box and box.text, "/czn ", "[ChillZone]: /czn and a space, ready for the line")
 		eq(box.frame, w.frame, "the box of the window clicked")
-		eq(w.refs[#w.refs].link, "addon:Olympus:chan:A", "the game's own handling first, as for any link")
-		eq(w.Click("addon:Olympus:chan:C").text, "/olc ")
-		eq(w.Click("addon:Olympus:chan:L").text, "/oll ")
+		eq(w.refs[#w.refs].link, "addon:ChillZone:chan:A", "the game's own handling first, as for any link")
+		eq(w.Click("addon:ChillZone:chan:C").text, "/czc ")
+		eq(w.Click("addon:ChillZone:chan:L").text, "/czl ")
 		-- A window without a box of its own (Chattynator's): the game picks the box.
-		local other = w.Click("addon:Olympus:chan:A", "LeftButton", { name = "a window of another addon" })
-		eq(other.text, "/ol "); eq(other.frame, nil)
+		local other = w.Click("addon:ChillZone:chan:A", "LeftButton", { name = "a window of another addon" })
+		eq(other.text, "/czn "); eq(other.frame, nil)
 		-- Right-click and Shift-click: nothing, as on the plain name before.
-		eq(w.Click("addon:Olympus:chan:A", "RightButton"), nil, "right-click")
+		eq(w.Click("addon:ChillZone:chan:A", "RightButton"), nil, "right-click")
 		w.shift = true
-		eq(w.Click("addon:Olympus:chan:A"), nil, "Shift-click")
+		eq(w.Click("addon:ChillZone:chan:A"), nil, "Shift-click")
 		w.shift = nil
 		eq(#w.printed, 0)
 		-- A link printed while he could write, clicked once he can't: nothing opens, he is told why.
 		w.rank = 1
-		eq(w.Click("addon:Olympus:chan:L"), nil, "demoted since: no box")
+		eq(w.Click("addon:ChillZone:chan:L"), nil, "demoted since: no box")
 		eq(w.printed[1], L.CHAN_ONLY_LORDS:format(L.CHAN_LORDS), "told in Send's words")
 		w.timeout = "until later"
-		eq(w.Click("addon:Olympus:chan:A"), nil, "timed out since")
+		eq(w.Click("addon:ChillZone:chan:A"), nil, "timed out since")
 		eq(w.printed[1], "timed out: until later", "told by the moderators' own words (WatchChat.TellTimeout)")
 		w.timeout = nil
 		w.ns.db.addonChat = false
-		eq(w.Click("addon:Olympus:chan:A"), nil, "the chats off since")
+		eq(w.Click("addon:ChillZone:chan:A"), nil, "the chats off since")
 		eq(w.printed[1], L.CHAT_OFF)
 		w.ns.db.addonChat = true
 		-- The gamepad UI: the hook the game keeps does nothing.
 		WithGamepadUI(true, function()
-			eq(w.Click("addon:Olympus:chan:A"), nil, "no chat box with the gamepad UI")
+			eq(w.Click("addon:ChillZone:chan:A"), nil, "no chat box with the gamepad UI")
 			eq(#w.printed, 0)
 		end)
-		eq(w.Click("addon:Olympus:chan:A").text, "/ol ", "mouse and keyboard again")
+		eq(w.Click("addon:ChillZone:chan:A").text, "/czn ", "mouse and keyboard again")
 	end)
 end)
 
@@ -222,25 +222,25 @@ test("1.2.1 chat channel links: the chat box is opened with the game's ChatFrame
 		-- ChatFrameUtil.OpenChat still there (ChatFrameUtil.lua:433).
 		ChatFrame_OpenChat = nil
 		eq(w.C.Tag("A"), Link("A", L.CHAN_ALL), "still a link without the deprecated global")
-		local box = w.Click("addon:Olympus:chan:A")
-		eq(box and box.text, "/ol ", "a left click still opens the chat box")
+		local box = w.Click("addon:ChillZone:chan:A")
+		eq(box and box.text, "/czn ", "a left click still opens the chat box")
 		eq(box.via, "ChatFrameUtil.OpenChat"); eq(box.frame, w.frame, "the box of the window clicked")
 		-- Both there as two functions: the current one, as the game's own [Party] handler calls it.
 		ChatFrame_OpenChat = w.Opener("ChatFrame_OpenChat")
-		eq(w.Click("addon:Olympus:chan:C").via, "ChatFrameUtil.OpenChat", "ChatFrameUtil.OpenChat first")
+		eq(w.Click("addon:ChillZone:chan:C").via, "ChatFrameUtil.OpenChat", "ChatFrameUtil.OpenChat first")
 		-- A ChatFrameUtil without OpenChat: the global, with the same text and window.
 		ChatFrameUtil = {}
 		eq(w.C.Tag("L"), Link("L", L.CHAN_LORDS))
-		local old = w.Click("addon:Olympus:chan:L")
-		eq(old and old.text, "/oll "); eq(old.via, "ChatFrame_OpenChat"); eq(old.frame, w.frame)
+		local old = w.Click("addon:ChillZone:chan:L")
+		eq(old and old.text, "/czl "); eq(old.via, "ChatFrame_OpenChat"); eq(old.frame, w.frame)
 		-- Neither: no chat box to open, so the plain name, and a link printed before opens nothing
 		-- and says nothing.
 		ChatFrame_OpenChat = nil
 		eq(w.C.Tag("A"), A, "no chat box to open: the plain name")
-		eq(w.Click("addon:Olympus:chan:A"), nil); eq(#w.printed, 0)
+		eq(w.Click("addon:ChillZone:chan:A"), nil); eq(#w.printed, 0)
 		ChatFrameUtil = nil
 		eq(w.C.Tag("A"), A, "no ChatFrameUtil at all: the plain name")
-		eq(w.Click("addon:Olympus:chan:A"), nil); eq(#w.printed, 0)
+		eq(w.Click("addon:ChillZone:chan:A"), nil); eq(#w.printed, 0)
 	end)
 end)
 
@@ -249,7 +249,7 @@ test("1.2.1 chat channel links: every other link is the game's alone (an item, a
 		w.Login()
 		w.rank = 0
 		for _, link in ipairs({ "item:19019::::::::60:::::::::", "player:Test Speaker-Realm", "channel:PARTY", "addon:OtherAddon:chan:A",
-			"addon:Olympus:chan:X", "addon:Olympus:chan:AA", "addon:Olympus:chan:", "addon:Olympus", "" }) do
+			"addon:ChillZone:chan:X", "addon:ChillZone:chan:AA", "addon:ChillZone:chan:", "addon:ChillZone", "" }) do
 			local before = #w.refs
 			eq(w.Click(link), nil, "not ours: " .. link)
 			eq(#w.refs, before + 1, "the game handled it: " .. link); eq(w.refs[#w.refs].link, link)

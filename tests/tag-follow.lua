@@ -18,7 +18,7 @@ local TAG, TAG2, OTHER = "Lantern#1234", "Lantern#1235", "Ember#5678"
 -- "olympus-tag-2|" .. the folded tag .. "|" .. the key, 16 hex digits (shasum's answers).
 local KEY = "5eed00000000a001"
 local CODE, CODE2 = "204fd53eb90ad60f", "807e08f5ca538598"
-local X, Y = "Olympus II", "Olympus of Ash"
+local X, Y = "ChillZone II", "ChillZone of Ash"
 local AAT = 1799990000 -- (one game account's Accord accept time: its characters share it)
 
 local function Fold(s) return ns.Fold(tostring(s or "")) end
@@ -36,7 +36,7 @@ end
 
 local GLOBALS = { "GetGuildInfo", "IsInGuild", "UnitIsPlayer", "C_ChatInfo", "GetTime", "GetChannelName", "DEFAULT_CHAT_FRAME", "IsCombatLog",
 	"issecretvalue", "UnitClass", "C_FriendList", "BNGetInfo", "BNConnected", "BNFeaturesEnabledAndConnected", "InCombatLockdown", "IsInInstance",
-	"SLASH_OLYMPUSALL1", "SLASH_OLYMPUSCAPTAINS1", "SLASH_OLYMPUSLORDS1" }
+	"SLASH_CHILLZONEALL1", "SLASH_CHILLZONECAPTAINS1", "SLASH_CHILLZONELORDS1" }
 
 local function Full(name)
 	name = tostring(name or ""):gsub("^%s+", ""):gsub("%s+$", "")
@@ -51,9 +51,9 @@ local function ReplyCodec()
 	if replyCodec then return replyCodec end
 	local cns = setmetatable({}, { __index = ns })
 	cns.On, cns.RegisterEvent = function() end, function() end
-	assert(loadfile(ROOT .. "Olympus/GamepadRegistry.lua"))("Olympus", cns)
-	assert(loadfile(ROOT .. "Olympus/Gamepad.lua"))("Olympus", cns)
-	assert(loadfile(ROOT .. "Olympus/ChatWindow.lua"))("Olympus", cns)
+	assert(loadfile(ROOT .. "ChillZone/GamepadRegistry.lua"))("ChillZone", cns)
+	assert(loadfile(ROOT .. "ChillZone/Gamepad.lua"))("ChillZone", cns)
+	assert(loadfile(ROOT .. "ChillZone/ChatWindow.lua"))("ChillZone", cns)
 	replyCodec = { DecodeReply = cns.ChatWindow.DecodeReply, EncodeReply = cns.ChatWindow.EncodeReply }
 	return replyCodec
 end
@@ -141,7 +141,7 @@ local function World(fn)
 		-- opts: tag (its BattleTag), aat (its game account's Accord accept time), key (its game
 		-- account's follow key: KeyFor(tag) by default, so one BattleTag is one account), kingAccount, standIn
 		-- (TagFollow.lua not loaded: Core.lua's stand-in, as a client updated without a restart),
-		-- realDialogs (the harness's ns.ShowDialog: Olympus's own window under the gamepad UI).
+		-- realDialogs (the harness's ns.ShowDialog: ChillZone's own window under the gamepad UI).
 		function w.Client(short, guild, rank, opts)
 			opts = opts or {}
 			local name = Full(short)
@@ -227,7 +227,7 @@ local function World(fn)
 				Handle = function(kind, f) cl.handlers[kind] = f end,
 				DeliveredLogged = function() return w.deliveredLogged ~= false end,
 				QueueRoom = function() return 60 end, ChannelReady = function() return true end, ChatRoom = function() return 10 end,
-				ChannelName = function() return "OlympusChannel" end, Audience = function() return "everyone" end,
+				ChannelName = function() return "ChillZoneChannel" end, Audience = function() return "everyone" end,
 				IsPublic = function() return true end, DropLine = function() end, PeerCount = function() return 1 end,
 				CancelQueued = function() return 0 end,
 				Send = function(dist, msg, key, plain, logged, done, options)
@@ -246,9 +246,9 @@ local function World(fn)
 			w.clients[#w.clients + 1] = cl
 			w.As(cl, function()
 				for _, file in ipairs({ "Watch", "Channels", "ChatRooms", "Moderation", "Accord", "WatchChat", "ChatStrikes" }) do
-					assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua"))("Olympus", c)
+					assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua"))("ChillZone", c)
 				end
-				if not opts.standIn then assert(loadfile(ROOT .. "Olympus/TagFollow.lua"))("Olympus", c) end
+				if not opts.standIn then assert(loadfile(ROOT .. "ChillZone/TagFollow.lua"))("ChillZone", c) end
 			end)
 			cl.W, cl.C, cl.WC, cl.M, cl.A, cl.TF = c.Watch, c.Channels, c.WatchChat, c.Moderation, c.Accord, c.TagFollow
 			c.Watch.ResetForTests()
@@ -347,7 +347,7 @@ local function World(fn)
 			assert(ok, "BT of " .. name .. ": " .. tostring(why))
 		end
 
-		-- A namer names Olympus moderators (their list on the channel); every later Pass repeats it.
+		-- A namer names ChillZone moderators (their list on the channel); every later Pass repeats it.
 		function w.Mods(namer, ...)
 			for _, m in ipairs({ ... }) do assert(w.As(namer, namer.WC.SetMod, m.name, true)) end
 			w.namers[#w.namers + 1] = namer
@@ -423,10 +423,10 @@ end
 -- the moderation team receives, so it can no longer be found by guessing a BattleTag; the header's
 -- line that said it could is gone, and this test asserts the opposite claim instead.)
 test("accord: tag follow: the code: SHA-256 of the prefix, the folded BattleTag and the game account's follow key, 16 hex digits; the same for any case, another for other digits or another key; never without a BattleTag or a key; its header says only the team can tell whose it is", function()
-	local savedStop = StaticPopupDialogs.OLYMPUS_TAGFOLLOW_STOP
+	local savedStop = StaticPopupDialogs.CHILLZONE_TAGFOLLOW_STOP
 	local tns = setmetatable({ On = function() end, Comm = { Handle = function() end } }, { __index = ns })
-	assert(loadfile(ROOT .. "Olympus/TagFollow.lua"))("Olympus", tns)
-	StaticPopupDialogs.OLYMPUS_TAGFOLLOW_STOP = savedStop
+	assert(loadfile(ROOT .. "ChillZone/TagFollow.lua"))("ChillZone", tns)
+	StaticPopupDialogs.CHILLZONE_TAGFOLLOW_STOP = savedStop
 	local TF = tns.TagFollow
 	-- (The known answers, from `printf 'olympus-tag-2|lantern#1234|5eed00000000a001' | shasum -a 256`.)
 	eq(TF.Hash(TAG, KEY), CODE)
@@ -439,7 +439,7 @@ test("accord: tag follow: the code: SHA-256 of the prefix, the folded BattleTag 
 		eq(TF.Hash(bad, KEY), nil, "no code for " .. bad)
 	end
 	eq(TF.IsCode(CODE), true); eq(TF.IsCode(CODE:upper()), false); eq(TF.IsCode(CODE:sub(2)), false)
-	local f = assert(io.open(ROOT .. "Olympus/TagFollow.lua", "rb"))
+	local f = assert(io.open(ROOT .. "ChillZone/TagFollow.lua", "rb"))
 	local src = f:read("*a")
 	f:close()
 	assert(src:find("nobody else can tell from a code whose BattleTag it is", 1, true), "the header says the key keeps it private")
@@ -450,7 +450,7 @@ end)
 -- Net-off
 ---------------------------------------------------------------------------
 
-test("accord: tag follow: a councillor's net-off word on a character follows his BattleTag: another character of it that never sent one is off on his own client (his chats, what he sends, his powers), told in Olympus's pop-up without the giver's name, the Decrees say so; a bystander untouched", function()
+test("accord: tag follow: a councillor's net-off word on a character follows his BattleTag: another character of it that never sent one is off on his own client (his chats, what he sends, his powers), told in ChillZone's pop-up without the giver's name, the Decrees say so; a bystander untouched", function()
 	World(function(w)
 		local HC, S, V, B = Basic(w)
 		w.TagTo(HC, S)
@@ -475,8 +475,8 @@ test("accord: tag follow: a councillor's net-off word on a character follows his
 		eq(w.As(V, V.WC.Sanction).kind, "netoff")
 		local okSend = w.As(V, V.C.Send, "A", "hello")
 		eq(okSend, false, "his line refused")
-		local d, text = Popup(w, V, "OLYMPUS_WATCHCHAT_DECISION")
-		assert(d, "told in Olympus's pop-up")
+		local d, text = Popup(w, V, "CHILLZONE_WATCHCHAT_DECISION")
+		assert(d, "told in ChillZone's pop-up")
 		eq(text, L.ACCORD_FOLLOW_YOU_NETOFF:format("spam", V.M.When(e)))
 		-- His own line in the Decrees (1.4.0: Moderation.SelfLines, the Decrees tab's one net-off line
 		-- since the list itself moved to The Watch, the author's call; the list there still shows
@@ -560,7 +560,7 @@ test("accord: tag follow: a named moderator's timeout follows the BattleTag: the
 		eq(via, S.name); eq(e.name, S.name)
 		local b, why = w.As(V, V.WC.RefuseSend)
 		assert(b); eq(why, "timeout")
-		local d, text = Popup(w, V, "OLYMPUS_WATCHCHAT_TIMED_OUT")
+		local d, text = Popup(w, V, "CHILLZONE_WATCHCHAT_TIMED_OUT")
 		assert(d, "the timed-out pop-up")
 		eq(text:sub(1, #L.ACCORD_FOLLOW_YOU_LEAD), L.ACCORD_FOLLOW_YOU_LEAD, "its lead says it follows his BattleTag")
 		assert(not text:find("Gloomwatch", 1, true), "never who gave it")
@@ -577,7 +577,7 @@ test("accord: tag follow: a named moderator's timeout follows the BattleTag: the
 		eq(w.As(V, V.WC.SelfTimeout), nil, "freed")
 		assert(w.As(V, V.WC.TimeoutOf, S.name), "Sootfang still timed out on his client")
 		assert(w.As(B, B.WC.TimeoutOf, S.name), "and everywhere")
-		local _, decision = Popup(w, V, "OLYMPUS_WATCHCHAT_DECISION")
+		local _, decision = Popup(w, V, "CHILLZONE_WATCHCHAT_DECISION")
 		eq(decision, L.WATCHCHAT_APPEAL_LIFTED_YOU:format(L.WATCHCHAT_ROLE_ANY, L.WATCHCHAT_REASON_PART:format("not his")), "told he is free")
 		-- Still free once the council's lift is past its own short keep: it lasts until the timeout it freed him of ends.
 		w.Pass(V.WC.REPEAT + 60)
@@ -741,7 +741,7 @@ test("accord: tag follow: a team member's stop takes back the by-name word his c
 	end)
 end)
 
-test("accord: tag follow: /oly accord unfollow and follow on a team client; and the author's switch DERIVE_ON_MATCH, off by default, gives the by-name word on the match alone when on", function()
+test("accord: tag follow: /cz accord unfollow and follow on a team client; and the author's switch DERIVE_ON_MATCH, off by default, gives the by-name word on the match alone when on", function()
 	World(function(w)
 		local HC, S, V = Basic(w)
 		w.TagTo(HC, S); w.TagTo(HC, V)
@@ -783,7 +783,7 @@ test("accord: tag follow: a forged follow is refused and the other character sta
 	World(function(w)
 		local HC, S, V = Basic(w)
 		w.king = "Crownhold-Realm"
-		local K = w.Client("Crownhold", "Olympus", 0, { tag = "Crown#0001" })
+		local K = w.Client("Crownhold", "ChillZone", 0, { tag = "Crown#0001" })
 		w.hands[Fold("Palmguard-Realm")] = true
 		w.stewards[Fold("Highreeve-Realm")] = true
 		w.council[Fold("Ironbrow-Realm")] = true
@@ -870,7 +870,7 @@ test("accord: tag follow: never the King's game account, nor a councillor's own 
 	World(function(w)
 		local HC, S = Basic(w)
 		w.king = "Crownhold-Realm"
-		local K = w.Client("Crownhold", "Olympus", 0, { tag = "Crown#0001" })
+		local K = w.Client("Crownhold", "ChillZone", 0, { tag = "Crown#0001" })
 		local KA = w.Client("Crownalt", X, 3, { tag = TAG, kingAccount = true })
 		w.council[Fold("Ironbrow-Realm")] = true
 		local C2 = w.Client("Ironbrow", Y, 3, { tag = TAG })
@@ -1037,7 +1037,7 @@ test("accord: tag follow: the plain BattleTag never leaves: only BT carries it; 
 	World(function(w)
 		local HC, S, V, B = Basic(w)
 		w.king = "Crownhold-Realm"
-		local K = w.Client("Crownhold", "Olympus", 0, { tag = "Crown#0001" })
+		local K = w.Client("Crownhold", "ChillZone", 0, { tag = "Crown#0001" })
 		local M = w.Client("Gloomwatch", Y, 3, { tag = "Gloom#1111" })
 		w.Mods(HC, M)
 		w.TagTo(HC, S); w.TagTo(M, S); w.TagTo(K, S); w.TagTo(K, V)
@@ -1076,7 +1076,7 @@ test("accord: tag follow: the plain BattleTag never leaves: only BT carries it; 
 		assert(page:find(ns.MaskName("Sootfang"), 1, true), page)
 		assert(not page:find("Sootfang", 1, true) and not page:find("Sootwing", 1, true), "names masked: " .. page)
 		assert(not page:lower():find("lantern", 1, true) and not page:find("1234", 1, true), "no tag: " .. page)
-		-- /oly status: counts alone.
+		-- /cz status: counts alone.
 		local status = w.As(HC, HC.A.StatusLine)
 		assert(status:find("follows ", 1, true) and not status:find(CODE, 1, true) and not status:lower():find("lantern", 1, true), status)
 		eq(#w.Kept(B), 0)
@@ -1168,7 +1168,7 @@ test("accord: tag follow: its giver repeats it while the sanction stands and sto
 	World(function(w)
 		local HC, S, V = Basic(w)
 		w.king = "Crownhold-Realm"
-		local K = w.Client("Crownhold", "Olympus", 0, { tag = "Crown#0001" })
+		local K = w.Client("Crownhold", "ChillZone", 0, { tag = "Crown#0001" })
 		w.council[Fold("Ironbrow-Realm")] = true
 		local C2 = w.Client("Ironbrow", Y, 3, { tag = "Brow#7777" })
 		w.TagTo(HC, S); w.TagTo(C2, S); w.TagTo(K, S)
@@ -1196,7 +1196,7 @@ end)
 ---------------------------------------------------------------------------
 
 if extra.WithUI and extra.WithGamepadUI then
-	test("accord: tag follow: under the gamepad UI the player's notice and the team's stop dialog are Olympus's own windows, never the game's popups", function()
+	test("accord: tag follow: under the gamepad UI the player's notice and the team's stop dialog are ChillZone's own windows, never the game's popups", function()
 		extra.WithUI(function()
 			extra.WithGamepadUI(true, function(game)
 				World(function(w)
@@ -1211,16 +1211,16 @@ if extra.WithUI and extra.WithGamepadUI then
 					assert(w.As(HC, HC.M.Set, "c", S.name, true, "spam"))
 					w.Run()
 					eq(#game.shown, 0, "no game popup")
-					local f = ns.Dialog.Find("OLYMPUS_WATCHCHAT_DECISION")
-					assert(f and f:IsShown(), "the notice in Olympus's window")
+					local f = ns.Dialog.Find("CHILLZONE_WATCHCHAT_DECISION")
+					assert(f and f:IsShown(), "the notice in ChillZone's window")
 					assert(f.text:GetText():find(L.ACCORD_FOLLOW_YOU_NETOFF:sub(1, 30), 1, true), f.text:GetText())
 					f:Hide()
 					local stop
 					for _, l in ipairs(w.As(HC, HC.A.TeamLines)) do if tostring(l.text):find(L.ACCORD_FOLLOW_GROUP:sub(1, 20), 1, true) then stop = l end end
 					assert(stop and stop.onClick, "the follow's line, with a click")
 					w.As(HC, stop.onClick)
-					local d = ns.Dialog.Find("OLYMPUS_TAGFOLLOW_STOP")
-					assert(d and d:IsShown(), "the stop dialog in Olympus's window")
+					local d = ns.Dialog.Find("CHILLZONE_TAGFOLLOW_STOP")
+					assert(d and d:IsShown(), "the stop dialog in ChillZone's window")
 					eq(#game.shown, 0)
 					w.As(HC, function() d.buttons[1]:Click() end)
 					w.Run()
@@ -1244,17 +1244,17 @@ test("accord: tag follow: the TOC loads it after Moderation, Accord and WatchCha
 		return s
 	end
 	local at, n = {}, 0
-	for line in Read("Olympus/Olympus.toc"):gmatch("[^\n]+") do n = n + 1; at[line:gsub("%s+$", "")] = n end
+	for line in Read("ChillZone/ChillZone.toc"):gmatch("[^\n]+") do n = n + 1; at[line:gsub("%s+$", "")] = n end
 	assert(at["TagFollow.lua"], "in the TOC")
 	for _, f in ipairs({ "Moderation.lua", "Accord.lua", "WatchChat.lua", "ChatStrikes.lua" }) do assert(at[f] < at["TagFollow.lua"], f .. " first") end
-	assert(Read("Olympus/Comm.lua"):find("TagFollow TF", 1, true), "Comm.lua's list")
-	local core = Read("Olympus/Core.lua")
+	assert(Read("ChillZone/Comm.lua"):find("TagFollow TF", 1, true), "Comm.lua's list")
+	local core = Read("ChillZone/Core.lua")
 	assert(core:find('StandIn("TagFollow", {})', 1, true), "the stand-in")
 	-- (Changed on purpose, the merge into the integration: PLAYER_LOGIN's list gained Record before
 	-- TagFollow, so the list itself is read and must name it, wherever it stands.)
 	local loginList = core:match('for _, key in ipairs%(({ "Who", [^}]*})%) do')
 	assert(loginList and loginList:find('"TagFollow"', 1, true), "PLAYER_LOGIN checks it")
-	assert(Read("Olympus/Moderation.lua"):find("MW = true, MR = true, MD = true, TF = true,", 1, true), "a net-off client sends no TF")
+	assert(Read("ChillZone/Moderation.lua"):find("MW = true, MR = true, MD = true, TF = true,", 1, true), "a net-off client sends no TF")
 	local total = select(2, L.ACCORD_OPENING:gsub("%S+", ""))
 	for _, t in ipairs(ns.Accord.TOPICS) do
 		for i = 1, t[2] do total = total + select(2, L["ACCORD_T" .. t[1] .. "_" .. i]:gsub("%S+", "")) end
@@ -1453,7 +1453,7 @@ test("accord: tag follow: an honest alt that logs in after the follow went, or w
 	end)
 end)
 
-test("accord: tag follow: a line in the game's own guild chat is never evidence (an honest addon cannot stop it); an Olympus line is", function()
+test("accord: tag follow: a line in the game's own guild chat is never evidence (an honest addon cannot stop it); an ChillZone line is", function()
 	World(function(w)
 		w.council[Fold("Warden-Realm")] = true
 		local HC = w.Client("Warden", X, 3, { tag = "Warden#4242" })
@@ -1472,11 +1472,11 @@ test("accord: tag follow: a line in the game's own guild chat is never evidence 
 		w.Run()
 		eq(#DerivedOn(w, V.name, "O1~c~1~"), 0, "the game's guild chat proves nothing")
 		eq(#w.Sent("TF~1~N~1~"), 1, "nor sends the follow again")
-		-- The same character's Olympus line (his addon skipping the follow) is.
-		w.Inject("CHANNEL", V.name, HC, w.Line(V.name, "olympus line"))
+		-- The same character's ChillZone line (his addon skipping the follow) is.
+		w.Inject("CHANNEL", V.name, HC, w.Line(V.name, "chillzone line"))
 		w.Run()
 		w.epoch = w.epoch + HC.TF.EVADE_AFTER + 1
-		w.Inject("CHANNEL", V.name, HC, w.Line(V.name, "olympus line again"))
+		w.Inject("CHANNEL", V.name, HC, w.Line(V.name, "chillzone line again"))
 		w.Run()
 		eq(#DerivedOn(w, V.name, "O1~c~1~"), 1)
 	end)
@@ -1589,7 +1589,7 @@ test("accord: tag follow: a councillor removed from the council: his follow goes
 	end)
 end)
 
-test("accord: tag follow: /oly accord forget drops the follows that carry that BattleTag's code: never sent again from here", function()
+test("accord: tag follow: /cz accord forget drops the follows that carry that BattleTag's code: never sent again from here", function()
 	World(function(w)
 		local HC, S = Basic(w)
 		w.TagTo(HC, S)
@@ -1647,7 +1647,7 @@ test("accord: tag follow: a guild's timeout followed to an alt that evades it is
 		w.Pass(HC.TF.EVADE_AFTER + 5)
 		w.As(V2, V2.C.Send, "A", "two")
 		w.Run()
-		eq(#DerivedOn(w, V2.name, "MD~"), 0, "a guild's timeout binds in that guild alone: never derived Olympus-wide")
+		eq(#DerivedOn(w, V2.name, "MD~"), 0, "a guild's timeout binds in that guild alone: never derived ChillZone-wide")
 	end)
 end)
 
@@ -1655,7 +1655,7 @@ test("accord: tag follow: two moderators' clients that see the same evasion give
 	World(function(w)
 		local HC, S = Basic(w)
 		w.king = "Crownhold-Realm"
-		local K = w.Client("Crownhold", "Olympus", 0, { tag = "Crown#0001" })
+		local K = w.Client("Crownhold", "ChillZone", 0, { tag = "Crown#0001" })
 		local M = w.Client("Gloomwatch", Y, 3, { tag = "Gloom#1111" })
 		local M2 = w.Client("Dusktally", Y, 3, { tag = "Dusk#3333" })
 		local V2 = w.Client("Sootclaw", Y, 3, { tag = TAG })
@@ -1725,7 +1725,7 @@ test("accord: tag follow: at login a followed timeout's pop-up shows once, not t
 		w.epoch = w.epoch + 31
 		w.Run()
 		local shown = 0
-		for i = n + 1, #V.dialogs do if V.dialogs[i].which == "OLYMPUS_WATCHCHAT_TIMED_OUT" then shown = shown + 1 end end
+		for i = n + 1, #V.dialogs do if V.dialogs[i].which == "CHILLZONE_WATCHCHAT_TIMED_OUT" then shown = shown + 1 end end
 		eq(shown, 1)
 	end)
 end)

@@ -1,0 +1,38 @@
+## Interface: 11509, 11510, 16001, 16002, 16003, 16004, 16005, 16010, 16100, 20506, 20507
+## Title: |cffe6c35cChillZone|r Arena
+## Notes: The Blood Arena's screens for ChillZone (fights, Farkle, the Lottery). Loads when you open the arena; needs ChillZone.
+## Author: ChillZone addon contributors (based on Olympus)
+## Version: 1.5.1
+## LoadOnDemand: 1
+## Dependencies: ChillZone
+## SavedVariables: ChillZoneArenaDB
+## IconTexture: Interface\AddOns\ChillZone\media\logo64
+## X-License: MIT
+## X-Website: https://github.com/Bezoutoff/ChillZone-addon
+
+Handoff.lua
+Locales\UIText.lua
+Locales\FarkleText.lua
+Locales\BonesChatText.lua
+Locales\LotteryText.lua
+Panes.lua
+Kit.lua
+Window.lua
+PagesPlayer.lua
+PagesStaff.lua
+Slip.lua
+Card.lua
+BracketView.lua
+ChatPanel.lua
+Overlay.lua
+Spectate.lua
+Popups.lua
+BonesChat.lua
+FarkleBoard.lua
+LotteryBoard.lua
+Games\GamesRules.lua
+Games\Games.lua
+Games\Bicho.lua
+Games\Farkle.lua
+Games\Hookup.lua
+Sim.lua

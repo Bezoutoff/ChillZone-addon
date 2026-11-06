@@ -1,13 +1,13 @@
 # Army QR in-game acceptance
 
-This plan is for the attended OLCS2 v2 own-guild snapshot in `Olympus/ArmyExport.lua`. The shipped
+This plan is for the attended OLCS2 v2 own-guild snapshot in `ChillZone/ArmyExport.lua`. The shipped
 source keeps `ACTIVATION_ENABLED = false`; do not turn it on in a release until the receiver named
 for that release is live, reviewed and passes this plan. For acceptance, flip only that constant in
 a local test copy and make a test package. Do not commit the enabled value.
 
 ## Clients and prerequisites
 
-Run every applicable case on each interface declared by `Olympus/Olympus.toc`:
+Run every applicable case on each interface declared by `ChillZone/ChillZone.toc`:
 
 - Classic Era, Interface 11509;
 - WoW: Forever, Interface 16001;
@@ -20,10 +20,10 @@ observation. Record the exact addon commit, client build and receiver commit.
 
 ## Happy path
 
-1. Log an Alliance character into one of the exact official branches: `Olympus`, or `Olympus I`
-   through `Olympus X`. Confirm the native Guild Roster can show offline members.
+1. Log an Alliance character into one of the exact official branches: `ChillZone`, or `ChillZone I`
+   through `ChillZone X`. Confirm the native Guild Roster can show offline members.
 2. Record the native roster total and online total. Close other roster-changing tests.
-3. In the attended browser scan, copy its nonce. In game type `/oly army <nonce>` once.
+3. In the attended browser scan, copy its nonce. In game type `/cz army <nonce>` once.
 4. Confirm no QR window opens in combat. Out of combat, wait for the native roster update. If Show
    Offline was off, confirm the addon temporarily enables it and restores the original setting
    after success, cancellation and timeout.
@@ -41,16 +41,16 @@ observation. Record the exact addon commit, client build and receiver commit.
 8. On a client that can report a level above 60, confirm `levels` is `null` while the independent
    total and any other safe distribution remain present.
 
-Repeat one scan with the browser pilot's legacy `/ogarmy <nonce>` command. It must follow the exact
-same gate and produce the same aggregate as `/oly army`; all documentation and new integrations
-should continue to use `/oly army`.
+Repeat one scan with the browser pilot's legacy `/czarmy <nonce>` command. It must follow the exact
+same gate and produce the same aggregate as `/cz army`; all documentation and new integrations
+should continue to use `/cz army`.
 
 ## Fail-closed and lifecycle cases
 
 Each case must produce no usable frame and no observation:
 
 - missing, short, non-hex or stale-browser nonce;
-- Horde, no guild, or a look-alike/nonofficial guild such as `Holypmus` or `Olympus XI`;
+- Horde, no guild, or a look-alike/nonofficial guild such as `Holypmus` or `ChillZone XI`;
 - missing/empty/invalid current realm-group identity;
 - incomplete native roster, no exact own GUID, duplicate own GUID, zero rows or more than 1,000
   rows;
@@ -59,7 +59,7 @@ Each case must produce no usable frame and no observation:
   or changing guild/world during the scan.
 
 For a world/guild transition while a QR window is already visible, confirm the window closes, its
-frame label clears and rotation does not resume. Confirm a second `/oly army` cannot overlap a
+frame label clears and rotation does not resume. Confirm a second `/cz army` cannot overlap a
 pending scan.
 
 ## Resource and privacy inspection
@@ -70,7 +70,7 @@ pending scan.
   cancelled and all module textures are hidden.
 - Reload after a scan and compare the addon's saved tables with a controlled pre-scan copy. The
   Army module must add no observation, nonce, frame, character name or GUID. Account for unrelated
-  Olympus modules that may normally update their own data during a roster event.
+  ChillZone modules that may normally update their own data during a roster event.
 - Capture addon traffic during the command. The Army module must emit no addon message, whisper,
   channel message, HTTP request or upload. Scanning and any later browser publication are separate,
   attended actions.

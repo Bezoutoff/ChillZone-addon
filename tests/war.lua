@@ -16,7 +16,7 @@ local function WithWar(fn)
 		uiRefresh = ns.UI.Refresh, uiSelect = ns.UI.SelectTab, uiShown = ns.UI.IsShown, uiRefreshSoon = ns.UI.RefreshSoon,
 		getGuild = GetGuildInfo, inGuild = IsInGuild, server = GetServerTime,
 	}
-	local clock, rank, guild, sent, later = 1700000000, 0, "Olympus II", {}, {}
+	local clock, rank, guild, sent, later = 1700000000, 0, "ChillZone II", {}, {}
 	ns.me = "Officer-Realm"
 	ns.Now = function() return clock end
 	ns.Fire = function() end
@@ -128,14 +128,14 @@ test("1.2 War: self-declared roles and LFG expire and queued officer writes rech
 		local allowed, why = queued.options.permit(War, queued.options.key, "GUILD", nil, queued.msg)
 		eq(allowed, false); eq(why, "revoked")
 		w.rank(0)
-		w.guild("Olympus III")
+		w.guild("ChillZone III")
 		allowed, why = queued.options.permit(War, queued.options.key, "GUILD", nil, queued.msg)
 		eq(allowed, false); eq(why, "guild-changed", "queued guild data never crosses a guild transfer")
-		w.guild("Olympus II")
+		w.guild("ChillZone II")
 		local rev = w.b36(w.clock())
 		w.guild("Random Guild")
-		eq(War.Handle("GUILD", "Ordinary-Realm", "WZ~1~R~" .. rev .. "~healer"), false, "incoming guild records fail closed outside the current Olympus guild")
-		w.guild("Olympus II")
+		eq(War.Handle("GUILD", "Ordinary-Realm", "WZ~1~R~" .. rev .. "~healer"), false, "incoming guild records fail closed outside the current ChillZone guild")
+		w.guild("ChillZone II")
 
 		w.clock(lfg.expires + 1)
 		War.Prune()
@@ -359,7 +359,7 @@ test("1.2 War: paged reload recovery relays officer records but never impersonat
 	WithWar(function(w)
 		assert(War.SetRoles("caller"))
 		local op = assert(War.CreateOperation("pvp 15 caller=1 scout=1 | Hillsbrad patrol"))
-		local c = assert(War.CreateCentury("scouting caller=1 scout=1 | Relay | Eyes of Olympus"))
+		local c = assert(War.CreateCentury("scouting caller=1 scout=1 | Relay | Eyes of ChillZone"))
 		assert(War.AssignPost(c.id .. " caller | Officer"))
 		assert(War.SetOperation(op.id, "active")); assert(War.SetOperation(op.id, "complete"))
 		assert(War.RecordAfter(op.id .. " " .. c.id .. " action area secured ; Officer, Tanky One"))

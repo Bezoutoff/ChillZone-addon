@@ -1,6 +1,6 @@
--- The roll call as an Olympus 0.9.8 client answers it, for tests/run.lua: HandleRoll and what it
--- reads, copied unchanged from Olympus/Workshop.lua at the v0.9.8 tag (lines 81-85, 137-139,
--- 171-174 and 222-237 of `git show v0.9.8:Olympus/Workshop.lua`). The rest it calls
+-- The roll call as an ChillZone 0.9.8 client answers it, for tests/run.lua: HandleRoll and what it
+-- reads, copied unchanged from ChillZone/Workshop.lua at the v0.9.8 tag (lines 81-85, 137-139,
+-- 171-174 and 222-237 of `git show v0.9.8:ChillZone/Workshop.lua`). The rest it calls
 -- (Workshop.IsAuthor, Answers, Flags, Client, random, after, ROLL_GAP, ROLL_SPREAD) is the same
 -- in 0.9.9 and comes from the module loaded by the tests, with their stand-ins.
 --   local old = loadfile("tests/fixtures/rollcall-0.9.8.lua")(ns, ns.Workshop)

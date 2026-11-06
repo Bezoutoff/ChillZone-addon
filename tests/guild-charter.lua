@@ -2,7 +2,7 @@ local ns, test, eq, H = ...
 local ROOT = (debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]guild%-charter%.lua$")) or "./"
 
 local function Client()
-	local w = { clock = 1800000000, guild = "Olympus Ember", rank = 0, member = true,
+	local w = { clock = 1800000000, guild = "ChillZone Ember", rank = 0, member = true,
 		locale = "enUS", class = "MAGE", jobs = {}, outside = {}, timers = {}, chats = {}, ranks = {} }
 	local c = setmetatable({ me = "Nova Crown-Realm", realm = "Realm", group = "Realm", faction = "Alliance",
 		L = setmetatable({}, { __index = ns.L }), db = {}, rdb = { guilds = {} }, Moderation = {}, RealmPages = {} }, { __index = ns })
@@ -29,39 +29,39 @@ local function Client()
 	c.UI = setmetatable({ WhisperText = function(name, text) w.letter = { name = name, text = text }; return true end }, { __index = ns.UI })
 	local dialogs = {}; for key, value in pairs(StaticPopupDialogs) do dialogs[key] = value end
 	for _, file in ipairs({ "Locales/GuildCharterText", "Data", "GuildCharter", "Recruit" }) do
-		assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua"))("ChillZone", c)
 	end
-	w.dialog = StaticPopupDialogs.OLYMPUS_CHARTER_FIELD
+	w.dialog = StaticPopupDialogs.CHILLZONE_CHARTER_FIELD
 	for key in pairs(StaticPopupDialogs) do if not dialogs[key] then StaticPopupDialogs[key] = nil end end
 	for key, value in pairs(dialogs) do StaticPopupDialogs[key] = value end
 	function w:As(fn, ...)
 		local saved = { guild = GetGuildInfo, server = GetServerTime, locale = GetLocale, class = UnitClass, level = UnitLevel,
-			info = C_ChatInfo, time = GetTime, say = SendChatMessage, dialog = StaticPopupDialogs.OLYMPUS_CHARTER_FIELD }
+			info = C_ChatInfo, time = GetTime, say = SendChatMessage, dialog = StaticPopupDialogs.CHILLZONE_CHARTER_FIELD }
 		GetGuildInfo = function() return self.guild, "Rank", self.rank end
 		GetServerTime, GetTime, GetLocale = function() return self.clock end, function() return self.clock end, function() return self.locale end
 		UnitClass = function() return self.class, self.class end
 		UnitLevel = function() return 20 end
 		C_ChatInfo = setmetatable({ SendAddonMessageLogged = function() end }, { __index = saved.info })
 		SendChatMessage = function(text, dist, _, to) self.chats[#self.chats + 1] = { text = text, dist = dist, to = to } end
-		StaticPopupDialogs.OLYMPUS_CHARTER_FIELD = self.dialog
+		StaticPopupDialogs.CHILLZONE_CHARTER_FIELD = self.dialog
 		local result = { pcall(fn, ...) }
 		GetGuildInfo, GetServerTime, GetLocale, UnitClass, GetTime, SendChatMessage = saved.guild, saved.server, saved.locale, saved.class, saved.time, saved.say
 		UnitLevel, C_ChatInfo = saved.level, saved.info
-		StaticPopupDialogs.OLYMPUS_CHARTER_FIELD = saved.dialog
+		StaticPopupDialogs.CHILLZONE_CHARTER_FIELD = saved.dialog
 		if not result[1] then error(result[2], 0) end
 		return unpack(result, 2)
 	end
 	return w, c
 end
 local function Card(w, guild, by, language, wanted)
-	return { guild = guild or "Olympus Ember", by = by or "Nova Crown-Realm", rev = w.clock,
+	return { guild = guild or "ChillZone Ember", by = by or "Nova Crown-Realm", rev = w.clock,
 		faction = w.c.faction == "Horde" and "H" or "A", language = language or "enUS",
 		wanted = wanted or "MA", nights = "Fri 20:00", purpose = "Friendly dungeon groups" }
 end
 local function QuerySources(w, c)
 	w.member, w.guild, w.rank = false, nil, nil
-	c.Recruit.found = { { name = "Echo Scout-Realm", guild = "Olympus Ember" },
-		{ name = "Sage Scout-Realm", guild = "Olympus Willow" }, { name = "Third Scout-Realm", guild = "Olympus Grove" } }
+	c.Recruit.found = { { name = "Echo Scout-Realm", guild = "ChillZone Ember" },
+		{ name = "Sage Scout-Realm", guild = "ChillZone Willow" }, { name = "Third Scout-Realm", guild = "ChillZone Grove" } }
 	c.GuildCharter.Ask("Echo Scout-Realm"); c.GuildCharter.Ask("Sage Scout-Realm")
 end
 local function Names(list)
@@ -84,8 +84,8 @@ test("Guild charter: actual editing preserves bounds, canonical classes, logged 
 		eq(G.Parse(w.jobs[1].msg, c.me).wanted, "MA,PR")
 		eq(w.jobs[1].opts.guard(), true)
 		w.rank = 1; eq(w.jobs[1].opts.guard(), false); eq(G.SetField("purpose", "Not authorized"), false); eq(G.Send(true), false)
-		w.rank = 0; w.guild = "Olympus Willow"; eq(w.jobs[1].opts.guard(), false); eq(G.Ours(), nil)
-		w.guild = "Olympus Ember"; w.clock = w.clock + G.LIFE + 61; eq(G.Ours(), nil, "an edit past LIFE is not shown before his client says it again")
+		w.rank = 0; w.guild = "ChillZone Willow"; eq(w.jobs[1].opts.guard(), false); eq(G.Ours(), nil)
+		w.guild = "ChillZone Ember"; w.clock = w.clock + G.LIFE + 61; eq(G.Ours(), nil, "an edit past LIFE is not shown before his client says it again")
 		-- (1.2.4, the author's ask: lists are not erased: a repeat renews the card, which ended
 		-- LIFE after its last edit before, the master playing on or not)
 		G.Send(true)
@@ -105,7 +105,7 @@ test("Guild charter: current roster and actual two-report rank verification reje
 		eq(G.Handle("WHISPER", card.by, msg), false)
 		eq(G.Handle("CHANNEL", "Pretender-Realm", msg), false)
 		w.ranks[card.by] = 1; eq(G.Get(card.guild), nil, "rank loss removes held authority")
-		w.guild = "Olympus Willow"; w.ranks = {}; c.me = "Reed Reader-Realm"
+		w.guild = "ChillZone Willow"; w.ranks = {}; c.me = "Reed Reader-Realm"
 		local function Report(source, leader)
 			return c.Data.Receive({ guild = card.guild, leader = leader or "Nova Crown", total = 20, online = 2,
 				faction = "Alliance", officers = {}, zones = {} }, source)
@@ -161,9 +161,9 @@ test("Guild charter: actual /who route asks correlate charter replies and bound 
 	w:As(function()
 		w.member, w.guild, w.rank = false, nil, nil
 		local G, R = c.GuildCharter, c.Recruit
-		R.OnFound({ { name = "Echo Scout-Realm", guild = "Olympus Ember" },
-			{ name = "Sage Scout-Realm", guild = "Olympus Willow" }, { name = "Third Scout-Realm", guild = "Olympus Grove" },
-			{ name = "Fourth Scout-Realm", guild = "Olympus Branch" } })
+		R.OnFound({ { name = "Echo Scout-Realm", guild = "ChillZone Ember" },
+			{ name = "Sage Scout-Realm", guild = "ChillZone Willow" }, { name = "Third Scout-Realm", guild = "ChillZone Grove" },
+			{ name = "Fourth Scout-Realm", guild = "ChillZone Branch" } })
 		eq(#w.outside, 2); eq(w.outside[1].msg, "J1~1"); eq(w.outside[2].msg, "QC~1~A")
 		local card = Card(w); local msg = G.Encode(card, "QD")
 		eq(R.OnRoute("Echo Scout-Realm", msg), true)
@@ -174,8 +174,8 @@ test("Guild charter: actual /who route asks correlate charter replies and bound 
 		eq(#w.outside, 6); eq(w.outside[5].to, "Third Scout")
 		eq(R.OnRoute("Third Scout-Realm", msg), true); eq(#w.outside, 6, "three route/card sources, never a fourth")
 		eq(R.OnRoute("Fourth Scout-Realm", msg), false)
-		eq(R.OnRoute("Sage Scout-Realm", "J2~y~~0~Olympus Ember=10=Echo Scout"), true)
-		eq(R.Route().byName["Olympus Ember"].free, 10, "the original J2 remains independent of the card")
+		eq(R.OnRoute("Sage Scout-Realm", "J2~y~~0~ChillZone Ember=10=Echo Scout"), true)
+		eq(R.Route().byName["ChillZone Ember"].free, 10, "the original J2 remains independent of the card")
 		eq(#w.chats, 0); eq(#w.jobs, 0, "confirmation asks only addons, not player chat")
 	end)
 end)
@@ -186,32 +186,32 @@ test("Guild charter: Join orders gates, language, class, local friend and room; 
 		local G, R = c.GuildCharter, c.Recruit
 		QuerySources(w, c)
 		R.ConfirmCharters = function() return false end -- transport solicitation is covered separately
-		R.found[#R.found + 1] = { name = "Mira Friend-Realm", guild = "Olympus Ember" }
-		R.found[#R.found + 1] = { name = "Gate Keeper-Realm", guild = "Olympus Gates" }
-		R.route = { t = w.clock, list = { { name = "Olympus Willow", free = 800 }, { name = "Olympus Grove", free = 500 },
-			{ name = "Olympus Ember", free = 10 }, { name = "Olympus Gates", free = 5 } }, byName = {
-			["Olympus Willow"] = { free = 800 }, ["Olympus Grove"] = { free = 500 },
-			["Olympus Ember"] = { free = 10 }, ["Olympus Gates"] = { free = 5 } } }
-		eq(Names(R.Guilds()), "Olympus Willow,Olympus Grove,Olympus Ember,Olympus Gates")
-		for _, spec in ipairs({ { "Olympus Willow", "ptBR", "MA" }, { "Olympus Grove", "enUS", "PR" },
-			{ "Olympus Ember", "enUS", "MA" } }) do
+		R.found[#R.found + 1] = { name = "Mira Friend-Realm", guild = "ChillZone Ember" }
+		R.found[#R.found + 1] = { name = "Gate Keeper-Realm", guild = "ChillZone Gates" }
+		R.route = { t = w.clock, list = { { name = "ChillZone Willow", free = 800 }, { name = "ChillZone Grove", free = 500 },
+			{ name = "ChillZone Ember", free = 10 }, { name = "ChillZone Gates", free = 5 } }, byName = {
+			["ChillZone Willow"] = { free = 800 }, ["ChillZone Grove"] = { free = 500 },
+			["ChillZone Ember"] = { free = 10 }, ["ChillZone Gates"] = { free = 5 } } }
+		eq(Names(R.Guilds()), "ChillZone Willow,ChillZone Grove,ChillZone Ember,ChillZone Gates")
+		for _, spec in ipairs({ { "ChillZone Willow", "ptBR", "MA" }, { "ChillZone Grove", "enUS", "PR" },
+			{ "ChillZone Ember", "enUS", "MA" } }) do
 			local msg = G.Encode(Card(w, spec[1], nil, spec[2], spec[3]), "QD")
 			G.OnReported("Echo Scout-Realm", msg); G.OnReported("Sage Scout-Realm", msg)
 		end
-		eq(Names(R.Guilds()), "Olympus Ember,Olympus Grove,Olympus Willow,Olympus Gates")
+		eq(Names(R.Guilds()), "ChillZone Ember,ChillZone Grove,ChillZone Willow,ChillZone Gates")
 		eq(Names(R.RouteOrder(R.Route())), Names(R.Guilds()), "both visible routing lists agree")
 		local route = R.Route
-		R.Route = function() local r = route(); r.gates = "Olympus Gates"; return r end
-		eq(Names(R.Guilds()), "Olympus Gates,Olympus Ember,Olympus Grove,Olympus Willow", "open gates beat affinity")
+		R.Route = function() local r = route(); r.gates = "ChillZone Gates"; return r end
+		eq(Names(R.Guilds()), "ChillZone Gates,ChillZone Ember,ChillZone Grove,ChillZone Willow", "open gates beat affinity")
 		R.Route = route
-		local grove = Card(w, "Olympus Grove"); G.OnReported("Echo Scout-Realm", G.Encode(grove, "QD")); G.OnReported("Sage Scout-Realm", G.Encode(grove, "QD"))
-		eq(R.Guilds()[1].name, "Olympus Grove", "equal language/class use room")
-		w.class = nil; eq(G.Affinity("Olympus Ember")[2], 0, "an unavailable class cannot imply demand"); w.class = "MAGE"
-		eq(G.SetFriend("Mira Friend-Realm"), true); eq(R.Guilds()[1].name, "Olympus Ember", "friend only from /who in that guild")
+		local grove = Card(w, "ChillZone Grove"); G.OnReported("Echo Scout-Realm", G.Encode(grove, "QD")); G.OnReported("Sage Scout-Realm", G.Encode(grove, "QD"))
+		eq(R.Guilds()[1].name, "ChillZone Grove", "equal language/class use room")
+		w.class = nil; eq(G.Affinity("ChillZone Ember")[2], 0, "an unavailable class cannot imply demand"); w.class = "MAGE"
+		eq(G.SetFriend("Mira Friend-Realm"), true); eq(R.Guilds()[1].name, "ChillZone Ember", "friend only from /who in that guild")
 		local sent = #w.outside; G.SetFriend(""); eq(#w.outside, sent, "friend preference is never sent")
-		R.route.byName["Olympus Ember"].contacts = { "Invented Officer-Realm" }
-		assert(R.NextContact("Olympus Ember").name ~= "Invented Officer-Realm", "charter/route cannot invent a /who contact")
-		local contact = R.NextContact("Olympus Ember")
+		R.route.byName["ChillZone Ember"].contacts = { "Invented Officer-Realm" }
+		assert(R.NextContact("ChillZone Ember").name ~= "Invented Officer-Realm", "charter/route cannot invent a /who contact")
+		local contact = R.NextContact("ChillZone Ember")
 		eq(R.Ask(contact, "Hi! May I join your dungeon groups?"), true); eq(#w.chats, 1); eq(w.chats[1].dist, "WHISPER")
 		eq(R.Ask(contact, "Again"), false); eq(#w.chats, 1, "one edited whisper from the click, with the original cooldown")
 	end)
@@ -225,7 +225,7 @@ test("Guild charter: actual Join view shows reported cards and local preference 
 		local text = c.GuildCharter.Encode(Card(w), "QD")
 		c.GuildCharter.OnReported("Echo Scout-Realm", text); c.GuildCharter.OnReported("Sage Scout-Realm", text)
 		c.Who.StatusLines, c.Who.Searched = function() return {} end, function() return true end
-		assert(loadfile(ROOT .. "Olympus/Views.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Views.lua"))("ChillZone", c)
 		local rows, reported, unknown, preference = c.Views.RecruitLines()
 		for _, row in ipairs(rows) do
 			if row.text == c.L.CHARTER_REPORTED:format(c.DisplayName("Nova Crown-Realm"), c.Ago(w.clock)) then reported = true end
@@ -251,7 +251,7 @@ test("Guild charter: private query answers are bounded, throttled and recheck so
 		eq(w.jobs[1].opts.guard(), true); w.rank = 1; eq(w.jobs[1].opts.guard(), false)
 		w.rank = 0
 		for i = 1, 4 do
-			local card = Card(w, "Olympus Branch " .. i, "Branch Crown " .. i .. "-Realm")
+			local card = Card(w, "ChillZone Branch " .. i, "Branch Crown " .. i .. "-Realm")
 			for _, source in ipairs({ "Branch Scout " .. i .. "a-Realm", "Branch Scout " .. i .. "b-Realm" }) do
 				eq(c.Data.Receive({ guild = card.guild, leader = "Branch Crown " .. i, total = 20, online = 2,
 					faction = "Alliance", officers = {}, zones = {} }, source), true)
@@ -267,23 +267,23 @@ test("Guild charter: private query answers are bounded, throttled and recheck so
 	end)
 end)
 
-test("Guild charter: master UI and local friend dialog use Olympus windows with gamepad and recheck stale edits", function()
+test("Guild charter: master UI and local friend dialog use ChillZone windows with gamepad and recheck stale edits", function()
 	for _, gamepad in ipairs({ false, true }) do
 		H.WithUI(function()
 			H.WithGamepadUI(gamepad, function(game)
 				local w, c = Client()
 				w:As(function()
 					c.GuildCharter.Prompt("purpose")
-					local f = assert(ns.Dialog.Find("OLYMPUS_CHARTER_FIELD"))
+					local f = assert(ns.Dialog.Find("CHILLZONE_CHARTER_FIELD"))
 					f.editBox:SetText("Weekend groups"); f.buttons[1]:Click()
 					eq(c.GuildCharter.Ours().purpose, "Weekend groups")
 					c.GuildCharter.Link().onClick(); eq(w.page, "guildcharter")
 					local rows, editor = c.GuildCharter.Lines()
 					for _, row in ipairs(rows) do if row.text == "> " .. c.L.CHARTER_EDIT_FIELD:format(c.L.CHARTER_NIGHTS) then editor = row end end
 					assert(editor and editor.onClick); editor.onClick()
-					f = assert(ns.Dialog.Find("OLYMPUS_CHARTER_FIELD")); f.editBox:SetText("Saturday")
+					f = assert(ns.Dialog.Find("CHILLZONE_CHARTER_FIELD")); f.editBox:SetText("Saturday")
 					w.rank = 1; f.buttons[1]:Click(); eq(c.GuildCharter.Ours(), nil, "stale prompt cannot publish after rank loss")
-					c.GuildCharter.Prompt("friend"); f = assert(ns.Dialog.Find("OLYMPUS_CHARTER_FIELD")); f.editBox:SetText("Mira Friend"); f.buttons[1]:Click()
+					c.GuildCharter.Prompt("friend"); f = assert(ns.Dialog.Find("CHILLZONE_CHARTER_FIELD")); f.editBox:SetText("Mira Friend"); f.buttons[1]:Click()
 					eq(c.db.recruitFriend, "Mira Friend-Realm"); eq(#w.jobs, 0); eq(#w.chats, 0)
 					if gamepad then eq(#game.shown, 0, "no native game popup in gamepad mode") end
 				end)
@@ -308,7 +308,7 @@ test("Guild charter: real outsider transport admits only charter requests/answer
 		deliver("GUILD", "Echo Scout-Realm", "QD~1~A~card")
 		deliver("WHISPER", "Echo Scout-Realm", "GC~1~A~card")
 		eq(#heard, 1)
-		GetGuildInfo = function() return "Olympus Ember" end; IsInGuild = function() return true end
+		GetGuildInfo = function() return "ChillZone Ember" end; IsInGuild = function() return true end
 		eq(c.Comm.WhisperOutside("Echo Scout", "QC~1~A"), false)
 	end)
 	GetGuildInfo, IsInGuild, C_ChatInfo = saved.guild, saved.inGuild, saved.info
@@ -319,7 +319,7 @@ test("Guild charter: Horde cards stay separate and Portuguese wording preserves 
 	local w, c = Client()
 	w:As(function()
 		c.faction, w.locale = "Horde", "ptBR"
-		assert(loadfile(ROOT .. "Olympus/Locales/GuildCharterText.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Locales/GuildCharterText.lua"))("ChillZone", c)
 		eq(c.GuildCharter.SetField("purpose", "Grupos de masmorra"), true)
 		local msg = assert(c.GuildCharter.Encode(c.GuildCharter.Ours(), "QD"))
 		assert(msg:find("QD~1~H~", 1, true)); assert(c.L.CHARTER_REPORTED:find("Dois membros", 1, true))
@@ -359,13 +359,25 @@ test("Guild charter (1.2.4): an edit of a card past seven days keeps its other f
 	wm.ranks["Nova Crown-Realm"] = 0
 	wm:As(function()
 		eq(cm.GuildCharter.Handle("CHANNEL", "Nova Crown-Realm", msg), true)
-		eq(cm.GuildCharter.Get("Olympus Ember").purpose, "Friendly dungeon groups")
+		eq(cm.GuildCharter.Get("ChillZone Ember").purpose, "Friendly dungeon groups")
 	end)
 	local wr, cr = Client()
 	wr.rank, wr.clock, cr.me, cr.rdb = 3, wm.clock + 3600, "Reed Reader-Realm", cm.rdb
 	wr.ranks["Nova Crown-Realm"] = 0
 	wr:As(function()
-		local got = cr.GuildCharter.Get("Olympus Ember")
+		local got = cr.GuildCharter.Get("ChillZone Ember")
 		eq(got and got.purpose, "Friendly dungeon groups", "kept across a /reload")
+	end)
+end)
+
+test("Guild charter: the default language and the recruit match follow the text locale, not the client's", function()
+	local w, c = Client()
+	w:As(function()
+		w.locale = "enUS" -- (a Russian guild on an English client)
+		c.TextLocale = function() return "ruRU" end
+		eq(c.GuildCharter.SetField("purpose", "Рейды по вечерам"), true)
+		eq(c.GuildCharter.Ours().language, "ruRU", "the card's default language is the texts'")
+		local score = c.GuildCharter.Affinity("ChillZone Ember", {})
+		eq(score[1], 1, "a Russian card matches a Russian-text recruit on an English client")
 	end)
 end)

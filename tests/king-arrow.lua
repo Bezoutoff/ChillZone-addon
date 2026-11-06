@@ -85,7 +85,7 @@ local function Frame(parent)
 end
 
 -- options.real: the real LibStub, CallbackHandler, HereBeDragons and HereBeDragons-Pins (as
--- Olympus.toc loads them) over this world, instead of the stand-in pins and map data.
+-- ChillZone.toc loads them) over this world, instead of the stand-in pins and map data.
 local REAL_GLOBALS = { "WorldMapFrame", "C_Minimap", "C_Timer", "GetCVar", "GetPlayerFacing", "GetMinimapShape",
 	"UnitPosition", "IsLoggedIn", "securecallfunction", "CreateVector2D", "Enum", "Mixin", "CreateFromMixins",
 	"MapCanvasDataProviderMixin", "MapCanvasPinMixin", "CreateUnsecuredRegionPoolInstance", "CreateFramePool", "wipe",
@@ -133,7 +133,7 @@ local function LoadRealMapLibraries(w)
 	LibStub = nil
 	for _, file in ipairs({ "LibStub/LibStub.lua", "CallbackHandler-1.0/CallbackHandler-1.0.lua",
 		"HereBeDragons/HereBeDragons-2.0.lua", "HereBeDragons/HereBeDragons-Pins-2.0.lua" }) do
-		assert(loadfile(ROOT .. "Olympus/libs/" .. file))()
+		assert(loadfile(ROOT .. "ChillZone/libs/" .. file))()
 	end
 	w.lib, w.realHBD = LibStub("HereBeDragons-Pins-2.0"), LibStub("HereBeDragons-2.0")
 	assert(w.realHBD.mapData[1429] and w.realHBD.mapData[1429].instance == 0, "the real library read the made-up maps")
@@ -233,7 +233,7 @@ local function WithWorld(fn, options)
 
 		function w.client(name)
 			local c = {
-				me = Full(name or "Viewer"), realm = "Realm", guild = "Olympus II", mapID = 1453,
+				me = Full(name or "Viewer"), realm = "Realm", guild = "ChillZone II", mapID = 1453,
 				x = 0.35, y = 0.38, member = true, db = {}, rdb = {}, sent = {}, handlers = {}, listeners = {},
 				prints = {}, council = {}, issuers = {}, moderators = {}, refreshes = 0,
 				mine = { mapID = 1453, zoneUID = 8, t = w.clock },
@@ -251,7 +251,7 @@ local function WithWorld(fn, options)
 			c.RealmOf = function(n) return type(n) == "string" and n:match("%-([^%-]+)$") or nil end
 			c.DisplayName = function(n) return type(n) == "string" and n:gsub("%-.*$", "") or n end
 			c.Fold = function(s) return tostring(s or ""):lower() end
-			c.IsFederation = function(g) return type(g) == "string" and g:lower():find("olympus", 1, true) ~= nil end
+			c.IsFederation = function(g) return type(g) == "string" and g:lower():find("chillzone", 1, true) ~= nil end
 			c.IsMember = function() return c.member == true end
 			c.IsKingCharacter = function(n) return type(n) == "string" and n:lower() == KING:lower() end
 			c.IsHighCouncillor = function(n) return c.council[tostring(n):lower()] == true end
@@ -304,7 +304,7 @@ local function WithWorld(fn, options)
 			function pins:IsMinimapIconOnEdge() return w.edge end
 			c.pins = options.real and w.lib or pins
 			c.Pins = function() return c.pins end
-			assert(loadfile(ROOT .. "Olympus/KingArrow.lua"))("Olympus", c)
+			assert(loadfile(ROOT .. "ChillZone/KingArrow.lua"))("ChillZone", c)
 			return c
 		end
 
@@ -554,7 +554,7 @@ test("king arrow: from another zone inside the minimap's range a faded crown mar
 		eq(mark.alpha, TINTS.maybe.a)
 		local moderator = "Moderator-Realm"
 		c.moderators[moderator:lower()] = true
-		eq(w.use(c, c.KingArrow.Handle, "GUILD", moderator, ("K6~1~L~0~%d~Olympus II"):format(w.clock)), true)
+		eq(w.use(c, c.KingArrow.Handle, "GUILD", moderator, ("K6~1~L~0~%d~ChillZone II"):format(w.clock)), true)
 		eq(State().reason, "disabled"); eq(mark.alpha, 0); eq(frame.shown, false)
 	end)
 end)
@@ -859,7 +859,7 @@ test("king arrow controls: King and current Council control the global lease; Wa
 		eq(select(2, w.use(g, g.KingArrow.CanControl)), "guild")
 		eq(w.use(g, g.KingArrow.SetEnabled, false, nil, true), true)
 		eq(g.sent[1].dist, "GUILD")
-		assert(g.sent[1].msg:match("^K6~1~L~0~%d+~Olympus II$"), g.sent[1].msg)
+		assert(g.sent[1].msg:match("^K6~1~L~0~%d+~ChillZone II$"), g.sent[1].msg)
 		eq(#w.use(g, g.KingArrow.ControlLines), 1, "the Watch exposes the one independent toggle")
 
 		local outsider = w.client("Outsider")
@@ -890,9 +890,9 @@ test("king arrow controls: server-stamped fresh authority wins; forged, unlogged
 		local moderator = "Moderator-Realm"
 		c.moderators[moderator:lower()] = true
 		local now = w.clock
-		eq(w.use(c, c.KingArrow.Handle, "GUILD", moderator, ("K6~1~L~0~%d~Olympus III"):format(now)), false,
+		eq(w.use(c, c.KingArrow.Handle, "GUILD", moderator, ("K6~1~L~0~%d~ChillZone III"):format(now)), false,
 			"another guild cannot change this guild's arrow")
-		eq(w.use(c, c.KingArrow.Handle, "GUILD", moderator, ("K6~1~L~0~%d~Olympus II"):format(now)), true)
+		eq(w.use(c, c.KingArrow.Handle, "GUILD", moderator, ("K6~1~L~0~%d~ChillZone II"):format(now)), true)
 		eq(w.use(c, c.KingArrow.Enabled), false)
 	end)
 end)
@@ -968,7 +968,7 @@ test("king arrow: disabling from another zone removes its world pin too", functi
 		eq(#c.pins.worldAdds, 1)
 		local moderator = "Moderator-Realm"
 		c.moderators[moderator:lower()] = true
-		eq(w.use(c, c.KingArrow.Handle, "GUILD", moderator, "K6~1~L~0~1000~Olympus II"), true)
+		eq(w.use(c, c.KingArrow.Handle, "GUILD", moderator, "K6~1~L~0~1000~ChillZone II"), true)
 		eq(#c.pins.removes, 1)
 		eq(c.KingArrow.State().reason, "disabled")
 		eq(c.KingArrow.State().frame.shown, false)

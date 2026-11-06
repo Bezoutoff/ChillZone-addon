@@ -2,7 +2,7 @@ local root, public, signed = arg[1], arg[2], arg[3]
 local f = assert(io.open(public)) local key = f:read("*a") f:close()
 f = assert(io.open(signed)) local seal = f:read("*a"):match("^%s*(.-)%s*$") f:close()
 local ns = {}
-assert(loadfile(root .. "/Olympus/Sign.lua"))("Olympus", ns)
+assert(loadfile(root .. "/ChillZone/Sign.lua"))("ChillZone", ns)
 local text, sig = seal:match("^(.-)~(%x+)$")
 local n, mu, k = key:match("N = (%x+)") , key:match("MU = (%x+)"), tonumber(key:match("K = (%d+)"))
 ns.Sign.WithKey(n, mu, k, function()
@@ -24,7 +24,7 @@ ns.Sign.WithKey(n, mu, k, function()
   ns.After = function() end -- (1.4.0: the records' digest rounds wait their turn with ns.After, as the game's Core.lua gives it)
   ns.SafeCall = function(_, fn, ...) return fn(...) end
   StaticPopupDialogs, date = {}, os.date
-  assert(loadfile(root .. "/Olympus/Records.lua"))("Olympus", ns)
+  assert(loadfile(root .. "/ChillZone/Records.lua"))("ChillZone", ns)
   local R = ns.Records
   R.Register("b", { Read = function() end, Totals = function() return {} end })
   local store = R.Store("b", true)

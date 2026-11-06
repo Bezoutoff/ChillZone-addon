@@ -1,4 +1,4 @@
--- 1.2.6, Bones' dice picked near their lower edge (Olympus_Arena/FarkleBoard.lua's Draw): the
+-- 1.2.6, Bones' dice picked near their lower edge (ChillZone_Arena/FarkleBoard.lua's Draw): the
 -- report of a player who picked a 2, put it back and could not roll until he picked it again.
 -- bones-pick-busy.lua has the cause found in 1.2.1 (a picked die's light put out by a redraw);
 -- this is the other one, in the dice's place on the screen. A die the mouse is on rises a

@@ -7,7 +7,7 @@ local H = ...
 local test, eq = H.test, H.eq
 
 local ns = {}
-assert(loadfile(H.ADDON_DIR .. "ArenaMath.lua"))("Olympus", ns)
+assert(loadfile(H.ADDON_DIR .. "ArenaMath.lua"))("ChillZone", ns)
 local M = ns.ArenaMath
 
 local GOLD, SILVER = 10000, 100

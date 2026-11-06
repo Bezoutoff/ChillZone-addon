@@ -23,7 +23,7 @@ local MW = {}
 
 -- The package's words, into the harness's L (every client of the world reads that one), before
 -- any client loads ArenaMatch.lua (its dialog's buttons are read then).
-assert(loadfile(H.ADDON_DIR .. "Locales/ArenaMatchText.lua"))("Olympus", { L = H.ns.L })
+assert(loadfile(H.ADDON_DIR .. "Locales/ArenaMatchText.lua"))("ChillZone", { L = H.ns.L })
 
 MW.MAPS = { [1434] = "Stranglethorn Vale", [1429] = "Elwynn Forest", [1453] = "Stormwind City", [1413] = "The Barrens",
 	[1426] = "Dun Morogh", [1444] = "Feralas", [1436] = "Westfall", [1446] = "Tanaris" }
@@ -264,7 +264,7 @@ end
 -- The popup on that client's screen (the last one shown, still up), or nil.
 function MW.Popup(c)
 	local s = c.shown[#c.shown]
-	if not s or s.which ~= "OLYMPUS_ARENA_MATCH" then return nil end
+	if not s or s.which ~= "CHILLZONE_ARENA_MATCH" then return nil end
 	for _, h in ipairs(c.hidden) do if h.which == s.which and (h.data == nil or h.data == s.data) then return nil end end
 	if s.answered then return nil end
 	return s
@@ -272,7 +272,7 @@ end
 -- A click on the popup's button: "yes" (Let's go), "no" (Not now), "block"; or its own timeout.
 function MW.Answer(w, c, how)
 	local s = assert(MW.Popup(c), c.short .. ": no popup up")
-	local def = assert(c.popups.OLYMPUS_ARENA_MATCH, "the dialog's definition")
+	local def = assert(c.popups.CHILLZONE_ARENA_MATCH, "the dialog's definition")
 	s.answered = true
 	-- (The game's popup goes on any answer, its own timeout too.)
 	if c.globals.StaticPopup1 then c.globals.StaticPopup1.shown = false end

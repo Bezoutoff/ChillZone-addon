@@ -8,7 +8,7 @@ local test, eq = H.test, H.eq
 local World = H.World
 local W3 = assert(loadfile(H.ROOT .. "tests/arena/lib/fights-world.lua"))(H)
 
-local MEDIA = "Interface\\AddOns\\Olympus\\media\\honors\\"
+local MEDIA = "Interface\\AddOns\\ChillZone\\media\\honors\\"
 local PLAIN_SILVER = "ui-hud-unitframe-target-portraiton-boss-rare-silver"
 
 local function PE(w, c) return W3.M(w, c, "ProfileEdit") end
@@ -51,7 +51,7 @@ local function Frames(w, c)
 	g.UnitIsUnit = function(a, b) return a == b end
 	w:As(c, function()
 		rawset(c.ns, "Borders", nil)
-		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("ChillZone", c.ns)
 	end)
 	rec.B = W3.M(w, c, "Borders")
 	function rec.Shown(owner)
@@ -81,7 +81,7 @@ local function SignedApostles(clients, apostles)
 	local titles = {}
 	local cns = setmetatable({ Comm = { Handle = function() end }, On = function() end, ChatRooms = false, faction = "Alliance",
 		CouncilTitles = function() return titles end }, { __index = H.ns })
-	assert(loadfile(H.ADDON_DIR .. "Church.lua"))("Olympus", cns)
+	assert(loadfile(H.ADDON_DIR .. "Church.lua"))("ChillZone", cns)
 	local function Sign(list)
 		local at = 1800000000
 		local field = "Department of War^^Brannoc Weald=Marshal" .. (#list > 0 and (";^apostles^Alliance^" .. table.concat(list, ",")) or "")
@@ -102,7 +102,7 @@ test("1.2.1 an Apostle's own look: a signed Apostle picks the red cross in the f
 	local theirs = Frames(w, viewer)
 	-- Before: his rank's frame round his own portrait.
 	mine.B.Refresh("player", true)
-	eq(mine.Shown("player"), "Interface\\AddOns\\Olympus\\media\\borders\\bronze-winged")
+	eq(mine.Shown("player"), "Interface\\AddOns\\ChillZone\\media\\borders\\bronze-winged")
 	-- The picker offers it to him, labelled.
 	local vm = PE(w, apostle).ViewModel()
 	local entry
@@ -129,7 +129,7 @@ test("1.2.1 an Apostle's own look: a signed Apostle picks the red cross in the f
 	apostle.target = apostle.name
 	mine.B.Refresh("target", true)
 	eq(mine.Shown("target"), MEDIA .. "cross-red")
-	-- His Olympus portraits (the Arena's, as round his own); never another's.
+	-- His ChillZone portraits (the Arena's, as round his own); never another's.
 	local rig = mine.B.Rig(mine.Container("arena"), true, true)
 	local shown, kind = mine.B.ShowPreviewOn(rig, apostle.name)
 	eq(shown, true); eq(kind, "honour"); eq(mine.Shown("arena"), MEDIA .. "cross-red")
@@ -151,7 +151,7 @@ test("1.2.1 an Apostle's own look: a signed Apostle picks the red cross in the f
 	-- Every other client: his normal frame.
 	viewer.target = apostle.name
 	theirs.B.Refresh("target", true)
-	eq(theirs.Shown("target"), "Interface\\AddOns\\Olympus\\media\\borders\\bronze-winged", "his normal frame elsewhere")
+	eq(theirs.Shown("target"), "Interface\\AddOns\\ChillZone\\media\\borders\\bronze-winged", "his normal frame elsewhere")
 	eq(w:As(viewer, viewer.ns.HonorsNet.Verified, apostle.name, apostle.guid).frame, "rank")
 	-- A forged profile word naming it shows nothing of it either.
 	w:As(viewer, function()
@@ -160,17 +160,17 @@ test("1.2.1 an Apostle's own look: a signed Apostle picks the red cross in the f
 	end)
 	eq(w:As(viewer, viewer.ns.HonorsNet.Verified, apostle.name, apostle.guid).frame, "rank")
 	theirs.B.Refresh("target", true)
-	eq(theirs.Shown("target"), "Interface\\AddOns\\Olympus\\media\\borders\\bronze-winged")
+	eq(theirs.Shown("target"), "Interface\\AddOns\\ChillZone\\media\\borders\\bronze-winged")
 	-- Another frame picked ends it.
 	eq(PE(w, apostle).PickFrame("rank"), true)
 	eq(apostle.db.ownLooks, nil)
-	eq(mine.Shown("player"), "Interface\\AddOns\\Olympus\\media\\borders\\bronze-winged")
+	eq(mine.Shown("player"), "Interface\\AddOns\\ChillZone\\media\\borders\\bronze-winged")
 	-- Taken again, then the signed list leaves him out: it shows no more, and the picker drops it.
 	eq(PE(w, apostle).PickFrame("apostle-red"), true)
 	eq(mine.Shown("player"), MEDIA .. "cross-red")
 	Sign({ "Brin Morrow" })
 	mine.B.Refresh("player", true)
-	eq(mine.Shown("player"), "Interface\\AddOns\\Olympus\\media\\borders\\bronze-winged", "off the list: his normal frame")
+	eq(mine.Shown("player"), "Interface\\AddOns\\ChillZone\\media\\borders\\bronze-winged", "off the list: his normal frame")
 	for _, x in ipairs(PE(w, apostle).ViewModel().frames) do assert(x.key ~= "apostle-red", "offered no more") end
 	w:Run(3600)
 	for _, x in ipairs(w:Sent{}) do eq(x.msg:find("apostle-red", 1, true), nil, "no message ever names it: " .. x.msg:sub(1, 2)) end
@@ -210,8 +210,8 @@ local function ChurchWith(w, clients, apostles)
 		local cns = setmetatable({ Comm = { Handle = function() end, Send = function() end, Whisper = function() end },
 			On = function() end, ChatRooms = false, CouncilTitles = function() return titles end }, { __index = c.ns })
 		w:As(c, function()
-			assert(loadfile(H.ADDON_DIR .. "Church.lua"))("Olympus", cns)
-			assert(loadfile(H.ADDON_DIR .. "ChurchCount.lua"))("Olympus", cns)
+			assert(loadfile(H.ADDON_DIR .. "Church.lua"))("ChillZone", cns)
+			assert(loadfile(H.ADDON_DIR .. "ChurchCount.lua"))("ChillZone", cns)
 		end)
 		rawset(c.ns, "Church", cns.Church)
 		rawset(c.ns, "ChurchCount", cns.ChurchCount)
@@ -302,7 +302,7 @@ end)
 -- 1.2.4 began by making the Apostle crosses larger. The complete honours normalization now gives
 -- every plain family its own measured box: the cross is 110 and the crook is 108. Both remain
 -- aligned about the portrait's centre on the player frame, the target while it is the player and
--- Olympus portraits; every visible cross pixel remains within the reach the screens keep clear
+-- ChillZone portraits; every visible cross pixel remains within the reach the screens keep clear
 -- of text (Borders.PortraitReach).
 -- A TGA's alpha (32-bit, uncompressed, as scripts/make-honors.py ships them): width, height and
 -- alpha(x, y), from the canvas's top left.
@@ -340,7 +340,7 @@ local function At(t, ax, ay)
 end
 local function Near(a, b, within, why) assert(math.abs(a - b) <= within, ("%s: %.3f, not %.3f"):format(why, a, b)) end
 
-test("1.2.4 normalized cross: 110 across beside the crook's normalized 108, aligned about the portrait's centre on his unit frame, target and Olympus portraits; the Apostles' crosses too; its art within the portraits' reach", function()
+test("1.2.4 normalized cross: 110 across beside the crook's normalized 108, aligned about the portrait's centre on his unit frame, target and ChillZone portraits; the Apostles' crosses too; its art within the portraits' reach", function()
 	local w, cast = W3.New()
 	local apostle = cast.A
 	SignedApostles({ apostle }, { apostle.short })
@@ -348,7 +348,7 @@ test("1.2.4 normalized cross: 110 across beside the crook's normalized 108, alig
 	local B = mine.B
 	eq(PE(w, apostle).PickFrame("apostle-red"), true)
 	w:Run(0)
-	-- The portraits' centres: your own (and an Olympus portrait, a copy of yours: Borders.PORTRAIT),
+	-- The portraits' centres: your own (and an ChillZone portrait, a copy of yours: Borders.PORTRAIT),
 	-- 60 across at 24, -19 from its container's top left; the target's, 58 across, 26 from its
 	-- container's right and 19 from its top (Forever's Mainline/TargetFrame.xml).
 	local P = B.PORTRAIT
@@ -384,17 +384,17 @@ test("1.2.4 normalized cross: 110 across beside the crook's normalized 108, alig
 	eq(target.coord, "0 0.78125 0 0.78125")
 	eq(target.point[1], "TOPRIGHT"); Near(target.point[4], 5, 1e-9, "across"); Near(target.point[5], 6, 1e-9, "up")
 	Centred(target, crookTarget, targetX, targetY, "his target")
-	-- His Olympus portraits: as round his own.
+	-- His ChillZone portraits: as round his own.
 	local arena = B.Rig(mine.Container("arena"), true, true)
 	local shown, kind = B.ShowPreviewOn(arena, apostle.name)
 	eq(shown, true); eq(kind, "honour")
 	local onArena = mine.ShownTexture("arena")
 	eq(onArena.file, MEDIA .. "cross-red"); eq(onArena.size, "110x110")
-	Centred(onArena, crookOwn, ownX, ownY, "his Olympus portrait")
+	Centred(onArena, crookOwn, ownX, ownY, "his ChillZone portrait")
 	-- The same rig shows the crook again at its own normalized size (one texture per family).
 	eq(B.ShowHonour(arena, "missionary-1"), true)
 	eq(mine.ShownTexture("arena").size, "108x108", "the normalized crook")
-	-- Each cross, the red and the top 3 Apostles', on an Olympus portrait: 110 across, and every
+	-- Each cross, the red and the top 3 Apostles', on an ChillZone portrait: 110 across, and every
 	-- visible pixel of its art (over 8 of 255 opaque) within Borders.PortraitReach past the
 	-- portrait's square.
 	local reach = B.PortraitReach()

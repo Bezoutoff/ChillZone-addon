@@ -6,15 +6,15 @@
 --   CH.WithRooms(w, c)
 --   local h = CH.Host(c)   -- h.calls: "open" (the page on its Chat tab), "select <room>" (a provider's
 --                          -- room), "open <key>" (a dynamic room), "pin <key>", "unpin <key>",
---                          -- "raise" (the Olympus window in front); h.spec: the last dynamic room;
---                          -- h.shown: whether the Olympus window is open (UI.IsShown), true unless
+--                          -- "raise" (the ChillZone window in front); h.spec: the last dynamic room;
+--                          -- h.shown: whether the ChillZone window is open (UI.IsShown), true unless
 --                          -- the test closes it (1.2.3: a matter with ifOpen never opens it)
 --   CH.CombatOver(w, c)    -- the fight's end on that client (what waited for it opens)
 local H = ...
 local CH = {}
 
 function CH.WithRooms(w, c)
-	w:As(c, function() assert(loadfile(H.ADDON_DIR .. "ChatRooms.lua"))("Olympus", c.ns) end)
+	w:As(c, function() assert(loadfile(H.ADDON_DIR .. "ChatRooms.lua"))("ChillZone", c.ns) end)
 end
 
 -- (The real calls answer as these do: Open the tab's pane, SelectLogical true, OpenDynamicRoom the
@@ -23,7 +23,7 @@ function CH.Host(c)
 	local h = { calls = {}, rooms = {}, shown = true }
 	local function Note(s) h.calls[#h.calls + 1] = s end
 	local window = { Raise = function() Note("raise") end }
-	-- (The Olympus window's state as ChatRooms reads it, UI.IsShown; any other UI call goes where
+	-- (The ChillZone window's state as ChatRooms reads it, UI.IsShown; any other UI call goes where
 	-- the client's code reached before: a world's own stand-in, as craft-world.lua's, else the
 	-- harness's.)
 	local before = c.ns.UI

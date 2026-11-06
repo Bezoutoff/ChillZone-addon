@@ -1,4 +1,4 @@
-# The honours' art (Olympus/media/honors): each file's SHA-256, the frame lab's file it was
+# The honours' art (ChillZone/media/honors): each file's SHA-256, the frame lab's file it was
 # copied from, and its name in the addon. Written by scripts/make-honors.py --from; checked by --check.
 # 1.2.1's new frames and 1.2.3's crook name their source as ~/Downloads/olympus-new-frames/<name>.
 224091778dfeefc15fbc4abcd51b0bbb3728b59149f707fa3e86126500ec6069  boar-bronze-mark.tga  boar-bronze-mark.tga

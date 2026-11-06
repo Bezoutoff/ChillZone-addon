@@ -1,4 +1,4 @@
--- The Blood Arena's ratings (Olympus/ArenaRating.lua): Elo, anti-farming, records, rankings,
+-- The Blood Arena's ratings (ChillZone/ArenaRating.lua): Elo, anti-farming, records, rankings,
 -- tiers and belts, on the real functions. The numbers asserted were worked out by hand and
 -- with a separate script (integer Elo, halves rounded up as the design's floor(x + 0.5)),
 -- never by the module.
@@ -6,7 +6,7 @@ local H = ...
 local test, eq = H.test, H.eq
 
 local ns = {}
-assert(loadfile(H.ADDON_DIR .. "ArenaRating.lua"))("Olympus", ns)
+assert(loadfile(H.ADDON_DIR .. "ArenaRating.lua"))("ChillZone", ns)
 local R = ns.ArenaRating
 
 local MIN, HOUR, DAY, WEEK = 60, 3600, 86400, 7 * 86400

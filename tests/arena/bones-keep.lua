@@ -1,5 +1,5 @@
 -- 1.2.4, the author's ask ("rankings ... should be cumulative ... not erased"): what the Bones
--- ranking keeps (Olympus/FarkleTable.lua). Before: a game with one half was erased after 7 days, so
+-- ranking keeps (ChillZone/FarkleTable.lua). Before: a game with one half was erased after 7 days, so
 -- an other half heard later never counted, and nobody asked for it; a player said his games again at
 -- three logins within a day, so a member away for a weekend never ranked them; a closed month's
 -- list went with its games after 62 days (no champion, no totals kept); the Games tab showed this

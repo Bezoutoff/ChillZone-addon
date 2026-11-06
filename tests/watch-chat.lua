@@ -1,16 +1,16 @@
 -- The Watch's chat moderation (1.1.6, WatchChat.lua): deleted lines, timeouts, the guild master's
--- Watchers, the Olympus moderators, the audit, a sanction's bars. A small world of clients, each
+-- Watchers, the ChillZone moderators, the audit, a sanction's bars. A small world of clients, each
 -- with the real Watch.lua, Channels.lua, ChatRooms.lua and WatchChat.lua loaded into a namespace
 -- of its own, talks through a stand-in transport: the server stamps the sender, GUILD reaches the
 -- sender's guild, CHANNEL everyone, a queued message's permit or guard runs when it "leaves".
 -- Every test name starts with "watch: chat moderation:", so
---   OLYMPUS_TEST_WATCH_ONLY=1 luajit tests/run.lua "chat moderation"
+--   CHILLZONE_TEST_WATCH_ONLY=1 luajit tests/run.lua "chat moderation"
 -- runs them alone.
 local ns, test, eq = ...
 local ROOT = (debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]watch%-chat%.lua$")) or "./"
 
 local GLOBALS = { "GetGuildInfo", "IsInGuild", "UnitIsPlayer", "C_ChatInfo", "GetTime", "GetChannelName", "DEFAULT_CHAT_FRAME", "IsCombatLog",
-	"issecretvalue", "UnitClass", "C_FriendList", "SLASH_OLYMPUSALL1", "SLASH_OLYMPUSCAPTAINS1", "SLASH_OLYMPUSLORDS1" }
+	"issecretvalue", "UnitClass", "C_FriendList", "SLASH_CHILLZONEALL1", "SLASH_CHILLZONECAPTAINS1", "SLASH_CHILLZONELORDS1" }
 
 local function Fold(s) return ns.Fold(tostring(s or "")) end
 
@@ -21,9 +21,9 @@ local function ReplyCodec()
 	if replyCodec then return replyCodec end
 	local cns = setmetatable({}, { __index = ns })
 	cns.On, cns.RegisterEvent = function() end, function() end
-	assert(loadfile(ROOT .. "Olympus/GamepadRegistry.lua"))("Olympus", cns)
-	assert(loadfile(ROOT .. "Olympus/Gamepad.lua"))("Olympus", cns)
-	assert(loadfile(ROOT .. "Olympus/ChatWindow.lua"))("Olympus", cns)
+	assert(loadfile(ROOT .. "ChillZone/GamepadRegistry.lua"))("ChillZone", cns)
+	assert(loadfile(ROOT .. "ChillZone/Gamepad.lua"))("ChillZone", cns)
+	assert(loadfile(ROOT .. "ChillZone/ChatWindow.lua"))("ChillZone", cns)
 	replyCodec = { DecodeReply = cns.ChatWindow.DecodeReply, EncodeReply = cns.ChatWindow.EncodeReply }
 	return replyCodec
 end
@@ -198,7 +198,7 @@ local function World(fn)
 				Handle = function(kind, f) cl.handlers[kind] = f end,
 				DeliveredLogged = function() return w.deliveredLogged ~= false end,
 				QueueRoom = function() return 60 end, ChannelReady = function() return true end, ChatRoom = function() return 10 end,
-				ChannelName = function() return "OlympusChannel" end, Audience = function() return "everyone" end,
+				ChannelName = function() return "ChillZoneChannel" end, Audience = function() return "everyone" end,
 				IsPublic = function() return true end, DropLine = function() end, PeerCount = function() return 1 end,
 				CancelQueued = function() return 0 end,
 				Send = function(dist, msg, key, plain, logged, done, options)
@@ -216,11 +216,11 @@ local function World(fn)
 			}
 			w.clients[#w.clients + 1] = cl
 			w.As(cl, function()
-				assert(loadfile(ROOT .. "Olympus/Watch.lua"))("Olympus", c)
-				assert(loadfile(ROOT .. "Olympus/Channels.lua"))("Olympus", c)
-				assert(loadfile(ROOT .. "Olympus/ChatRooms.lua"))("Olympus", c)
-				assert(loadfile(ROOT .. "Olympus/WatchChat.lua"))("Olympus", c)
-				assert(loadfile(ROOT .. "Olympus/ChatStrikes.lua"))("Olympus", c)
+				assert(loadfile(ROOT .. "ChillZone/Watch.lua"))("ChillZone", c)
+				assert(loadfile(ROOT .. "ChillZone/Channels.lua"))("ChillZone", c)
+				assert(loadfile(ROOT .. "ChillZone/ChatRooms.lua"))("ChillZone", c)
+				assert(loadfile(ROOT .. "ChillZone/WatchChat.lua"))("ChillZone", c)
+				assert(loadfile(ROOT .. "ChillZone/ChatStrikes.lua"))("ChillZone", c)
 			end)
 			cl.W, cl.C, cl.R, cl.WC, cl.S = c.Watch, c.Channels, c.ChatRooms, c.WatchChat, c.ChatStrikes
 			c.Watch.ResetForTests()
@@ -286,7 +286,7 @@ local function World(fn)
 			return unpack(res)
 		end
 
-		-- A line said in an Olympus chat, sent and delivered; returns the id it went with.
+		-- A line said in an ChillZone chat, sent and delivered; returns the id it went with.
 		function w.Say(cl, tier, text)
 			w.epoch = w.epoch + 2
 			local ok, why = w.As(cl, cl.C.Send, tier, text)
@@ -337,7 +337,7 @@ end
 
 -- Guild X: an officer (A), a member (B), another member (D) and its guild master (G); guild Y: a
 -- member (Y1). The author, the King and a councillor are named but play only where a test says.
-local X, Y = "Olympus II", "Olympus of Ash"
+local X, Y = "ChillZone II", "ChillZone of Ash"
 local function Standard(w)
 	local G = w.Client("Grandmaster", X, 0)
 	local A = w.Client("Officer", X, 1)
@@ -468,7 +468,7 @@ test("watch: chat moderation: late joiners never get the words; one away within 
 		assert(w.As(A, A.WC.Delete, "A", e, ""))
 		w.Run()
 		eq(w.Line(D, "A", B.name, "say it once").del, nil, "away: not yet")
-		-- A new client: there is no backlog in Olympus, nothing to receive.
+		-- A new client: there is no backlog in ChillZone, nothing to receive.
 		local new = w.Client("Newcomer", X, 3)
 		eq(#w.As(new, new.C.RawHistory, "A"), 0, "a late joiner has no copy of it")
 		-- D back within the repeat window: the officer's client repeats it (DELETE_REPEAT_EVERY).
@@ -541,7 +541,7 @@ test("watch: chat moderation: the game's chat window: the printed line replaced 
 		eq(g.calls, 0, "under the gamepad UI, never")
 		w.gamepad = nil
 		-- The code says so where it is read.
-		local src = assert(io.open(ROOT .. "Olympus/WatchChat.lua", "rb")):read("*a")
+		local src = assert(io.open(ROOT .. "ChillZone/WatchChat.lua", "rb")):read("*a")
 		assert(src:find("the game's chat window keeps what it already showed", 1, true))
 		assert(not src:find("StaticPopup_Show", 1, true), "every dialog goes through ns.ShowDialog")
 	end)
@@ -558,8 +558,8 @@ test("watch: chat moderation: a timeout drops his lines on every client; his own
 		eq(ok, true); eq(scope, "G")
 		w.Run()
 		-- B's own client: the pop-up names the role, never the officer.
-		local d = w.Dialog(B, "OLYMPUS_WATCHCHAT_TIMED_OUT")
-		assert(d, "told in an Olympus pop-up")
+		local d = w.Dialog(B, "CHILLZONE_WATCHCHAT_TIMED_OUT")
+		assert(d, "told in an ChillZone pop-up")
 		assert(d.a:find(ns.L.WATCHCHAT_ROLE_ANY, 1, true), d.a)
 		assert(d.a:find("spam", 1, true) and d.a:find(date("%H:%M", w.epoch + 1800), 1, true), d.a)
 		assert(not d.a:find("Officer", 1, true), "never the name")
@@ -700,7 +700,7 @@ test("watch: chat moderation: a Watcher only in his own guild: over GUILD, on a 
 		ok, why = w.Inject("GUILD", A.name, D, Wire("G", X, "Nobody-Realm"))
 		eq(why, "member", "not in the receiver's roster")
 		ok, why = w.Inject("GUILD", A.name, D, Wire("O", X, B.name))
-		eq(why, "lane", "an Olympus action never over guild")
+		eq(why, "lane", "an ChillZone action never over guild")
 		ok = w.Inject("GUILD", A.name, D, Wire("G", X, B.name))
 		eq(ok, true, "his own guild's member")
 	end)
@@ -714,11 +714,11 @@ test("watch: chat moderation: the council, the King and the author anywhere; nev
 		w.council[Fold("Peer-Realm")] = true
 		w.stewards[Fold("Steward-Realm")] = true
 		w.hands[Fold("Hand-Realm")] = true
-		local K = w.Client("Kingly", "Olympus", 0)
+		local K = w.Client("Kingly", "ChillZone", 0)
 		local Co = w.Client("Councillor", Y, 3)
 		local Au = w.Client("Author", Y, 2)
 		local Pe = w.Client("Peer", X, 3)
-		local St = w.Client("Steward", "Olympus", 2)
+		local St = w.Client("Steward", "ChillZone", 2)
 		local Ha = w.Client("Hand", Y, 3)
 		local function May(actor, target)
 			local scope = w.As(actor, actor.WC.CanModerate, target)
@@ -746,13 +746,13 @@ test("watch: chat moderation: the council, the King and the author anywhere; nev
 		w.off[Fold(Co.name)] = { by = "x" }
 		eq(May(Co, B.name), nil)
 		w.off[Fold(Co.name)] = nil
-		local src = assert(io.open(ROOT .. "Olympus/Moderation.lua", "rb")):read("*a")
+		local src = assert(io.open(ROOT .. "ChillZone/Moderation.lua", "rb")):read("*a")
 		assert(src:find("MW = true, MR = true, MD = true", 1, true), "Moderation.BLOCKED.MD")
-		-- An Olympus-scope action by the councillor reaches every guild.
+		-- An ChillZone-scope action by the councillor reaches every guild.
 		assert(w.As(Co, Co.WC.Timeout, B.name, 300, "flood"))
 		w.Run()
 		for _, cl in ipairs({ G, A, D, Y1 }) do eq(w.As(cl, cl.WC.Silenced, B.name), true, "on " .. cl.short) end
-		local d = w.Dialog(B, "OLYMPUS_WATCHCHAT_TIMED_OUT")
+		local d = w.Dialog(B, "CHILLZONE_WATCHCHAT_TIMED_OUT")
 		assert(d.a:find(ns.L.WATCHCHAT_ROLE_ANY, 1, true), d.a)
 	end)
 end)
@@ -812,7 +812,7 @@ test("watch: chat moderation: forged and malformed actions are refused; a replay
 end)
 
 ---------------------------------------------------------------------------
--- Watchers and Olympus moderators
+-- Watchers and ChillZone moderators
 ---------------------------------------------------------------------------
 
 test("watch: chat moderation (1.2.1): a full action replay history makes room: the actor's own oldest floor goes under a watermark, its replay stays refused, and moderation never stops", function()
@@ -880,7 +880,7 @@ test("watch: chat moderation: legacy mixed replay history migrates without forge
 		local key1 = "S#" .. Fold(B.name) .. "#" .. Fold(A.name) .. "#906"
 		local key2 = "S#" .. Fold(B.name) .. "#" .. Fold(A.name) .. "#907"
 		s.applied, s.selfApplied, s.replaySplit = { [key1] = w.epoch, [key2] = w.epoch, ["moderator#1"] = w.epoch }, nil, nil
-		w.As(D, function() assert(loadfile(ROOT .. "Olympus/WatchChat.lua"))("Olympus", D.ns) end)
+		w.As(D, function() assert(loadfile(ROOT .. "ChillZone/WatchChat.lua"))("ChillZone", D.ns) end)
 		D.WC = D.ns.WatchChat
 		D.WC.SELF_APPLIED_MAX = 1
 		s = D.WC.Store()
@@ -951,7 +951,7 @@ test("watch: chat moderation: the guild master names and removes Watchers; only 
 	end)
 end)
 
-test("watch: chat moderation: Olympus moderators: a councillor's list counts while fresh and while he is a councillor; never another's list", function()
+test("watch: chat moderation: ChillZone moderators: a councillor's list counts while fresh and while he is a councillor; never another's list", function()
 	World(function(w)
 		local G, A, B, D, Y1 = Standard(w)
 		w.council[Fold("Councillor-Realm")] = true
@@ -963,7 +963,7 @@ test("watch: chat moderation: Olympus moderators: a councillor's list counts whi
 		eq(#w.Sent("MD~1~O~"), 1)
 		eq(w.As(D, D.WC.IsMod, Mo.name), true)
 		eq(w.As(Mo, Mo.WC.CanModerate, B.name), "O", "anywhere")
-		-- (1.2.3) On another guild's master too: no guild master stands above the Olympus moderators
+		-- (1.2.3) On another guild's master too: no guild master stands above the ChillZone moderators
 		-- now but the King's guild's (tested below).
 		eq(w.As(Mo, Mo.WC.CanModerate, G.name), "O", "on another guild's master")
 		eq(w.As(Mo, Mo.WC.CanModerate, Co.name), nil, "never on his namer")
@@ -984,20 +984,20 @@ test("watch: chat moderation: Olympus moderators: a councillor's list counts whi
 end)
 
 -- (1.2.3, Daniel: a guild master has nothing at the level of the whole army.) Every guild master
--- the client could name, from its roster, the signed list or the census, stood with the Olympus
+-- the client could name, from its roster, the signed list or the census, stood with the ChillZone
 -- moderators (WatchChat.ProtectLevel 3): no moderator could delete his lines or time him out
 -- anywhere, and two cooperating characters could make one of theirs the census guild master of an
 -- invented guild to shield him. Now only the King's guild's master stands there.
-test("watch: chat moderation: Olympus moderators act on another guild's master (our roster's, signed or a census one) since 1.2.3, never on the King's guild's master; his own guild's Watchers still never act on him", function()
+test("watch: chat moderation: ChillZone moderators act on another guild's master (our roster's, signed or a census one) since 1.2.3, never on the King's guild's master; his own guild's Watchers still never act on him", function()
 	World(function(w)
 		local G, A, B, D, Y1 = Standard(w)
 		w.council[Fold("Councillor-Realm")] = true
 		local Co = w.Client("Councillor", Y, 3)
 		local Mo = w.Client("Modder", Y, 3)
-		local KM = w.Client("Throne Master", "Olympus", 0)
-		local KO = w.Client("Throne Knight", "Olympus", 3)
-		local Fake = w.Client("Madeup Master", "Olympus Madeup", 0)
-		w.census["Olympus Madeup"] = true -- (its rank is the census's word alone)
+		local KM = w.Client("Throne Master", "ChillZone", 0)
+		local KO = w.Client("Throne Knight", "ChillZone", 3)
+		local Fake = w.Client("Madeup Master", "ChillZone Madeup", 0)
+		w.census["ChillZone Madeup"] = true -- (its rank is the census's word alone)
 		assert(w.As(Co, Co.WC.SetMod, Mo.name, true))
 		w.epoch = w.epoch + 3
 		w.Run()
@@ -1013,7 +1013,7 @@ test("watch: chat moderation: Olympus moderators act on another guild's master (
 		eq(w.As(Mo, Mo.WC.CanModerate, Fake.name), "O", "and on a census guild master of an invented guild")
 		-- The King's guild's master: as before, on its own members' clients (our roster) and on
 		-- every other client.
-		eq(w.As(KO, KO.WC.ProtectLevel, KM.name), LEVEL.mod, "on <Olympus>'s own client")
+		eq(w.As(KO, KO.WC.ProtectLevel, KM.name), LEVEL.mod, "on <ChillZone>'s own client")
 		eq(w.As(Mo, Mo.WC.ProtectLevel, KM.name), LEVEL.mod, "on another guild's client")
 		eq(w.As(Mo, Mo.WC.CanModerate, KM.name), nil, "a moderator never acts on him")
 		eq(w.As(Co, Co.WC.CanModerate, KM.name), "O", "a councillor does, as before")
@@ -1025,7 +1025,7 @@ test("watch: chat moderation: Olympus moderators act on another guild's master (
 	local pt = { L = setmetatable({}, { __index = ns.L }) }
 	local savedLocale = GetLocale
 	GetLocale = function() return "ptBR" end
-	local ok, err = pcall(function() assert(loadfile(ROOT .. "Olympus/Locales.lua"))("Olympus", pt) end)
+	local ok, err = pcall(function() assert(loadfile(ROOT .. "ChillZone/Locales.lua"))("ChillZone", pt) end)
 	GetLocale = savedLocale
 	if not ok then error(err, 0) end
 	assert(rawget(pt.L, "WATCHCHAT_MODS_TIP"):find("no líder de outra guilda também", 1, true), rawget(pt.L, "WATCHCHAT_MODS_TIP"))
@@ -1035,7 +1035,7 @@ end)
 -- Audit and records
 ---------------------------------------------------------------------------
 
-test("watch: chat moderation: the audit's audience: the guild's Watch (with the words), the council's page (Olympus actions and confirmed guild ones), the player's own record by role only, nobody else", function()
+test("watch: chat moderation: the audit's audience: the guild's Watch (with the words), the council's page (ChillZone actions and confirmed guild ones), the player's own record by role only, nobody else", function()
 	World(function(w)
 		local G, A, B, D, Y1 = Standard(w)
 		w.council[Fold("Councillor-Realm")] = true
@@ -1113,7 +1113,7 @@ test("watch: chat moderation: affected-player notices use only a generic moderat
 		w.author = "Author-Realm"
 		local Au = w.Client("Author", Y, 3)
 		assert(w.As(Au, Au.WC.Timeout, B.name, 300, "please pause")); w.Run()
-		local timeout = w.Dialog(B, "OLYMPUS_WATCHCHAT_TIMED_OUT")
+		local timeout = w.Dialog(B, "CHILLZONE_WATCHCHAT_TIMED_OUT")
 		assert(timeout.a:find(ns.L.WATCHCHAT_ROLE_ANY, 1, true), timeout.a)
 		assert(not timeout.a:find(ns.L.WATCHCHAT_ROLE_7, 1, true) and not timeout.a:find("Author", 1, true), timeout.a)
 		for _, row in ipairs(w.As(B, B.WC.RecordLines)) do
@@ -1129,7 +1129,7 @@ test("watch: chat moderation: affected-player notices use only a generic moderat
 		assert(w.As(B, B.WC.Appeal, record.by, record.seq, "please review")); w.Run()
 		local key = next(Au.WC.Store().appeals)
 		assert(key and w.As(Au, Au.WC.Answer, key, "K", "reviewed")); w.Run()
-		local decision = w.Dialog(B, "OLYMPUS_WATCHCHAT_DECISION")
+		local decision = w.Dialog(B, "CHILLZONE_WATCHCHAT_DECISION")
 		assert(decision.a:find(ns.L.WATCHCHAT_ROLE_ANY, 1, true) and not decision.a:find(ns.L.WATCHCHAT_ROLE_7, 1, true), decision.a)
 		eq(Au.WC.Store().audit[1].by, Au.name, "staff audit keeps real actor")
 		eq(record.by, Au.name, "appeal linkage retains actor privately")
@@ -1151,7 +1151,7 @@ test("watch: chat moderation: an appeal goes to the High Council; its answer lif
 		for _, row in ipairs(rows) do if row.tooltip and row.onClick then appealRow = row end end
 		assert(appealRow, "own record has an appeal")
 		w.As(B, appealRow.onClick)
-		local dialog = w.Dialog(B, "OLYMPUS_WATCHCHAT_APPEAL")
+		local dialog = w.Dialog(B, "CHILLZONE_WATCHCHAT_APPEAL")
 		eq(dialog.data.by, r.by); eq(dialog.data.seq, r.seq)
 		w.As(D, D.W.Show, "member")
 		for _, row in ipairs(w.As(D, D.W.Build)) do
@@ -1166,7 +1166,7 @@ test("watch: chat moderation: an appeal goes to the High Council; its answer lif
 		assert(w.As(Co, Co.WC.Answer, key, "L", "fair"))
 		w.Run()
 		eq(w.As(B, B.WC.SelfTimeout), nil, "lifted on appeal")
-		local d = w.Dialog(B, "OLYMPUS_WATCHCHAT_DECISION")
+		local d = w.Dialog(B, "CHILLZONE_WATCHCHAT_DECISION")
 		assert(d and d.a:find(ns.L.WATCHCHAT_ROLE_ANY, 1, true), d and d.a)
 	end)
 end)
@@ -1225,7 +1225,7 @@ test("watch: chat moderation: pending appeal retry survives reload, keeps its or
 		local at = record.appealed
 		w.author = "Lateauthor-Realm"
 		local Au = w.Client("Lateauthor", Y, 3)
-		w.As(B, function() assert(loadfile(ROOT .. "Olympus/WatchChat.lua"))("Olympus", B.ns) end)
+		w.As(B, function() assert(loadfile(ROOT .. "ChillZone/WatchChat.lua"))("ChillZone", B.ns) end)
 		B.WC = B.ns.WatchChat
 		local send = B.ns.Comm.Send
 		B.ns.Comm.Send = function(dist, msg, ...) if msg:find("MD~1~A~", 1, true) == 1 then return false end return send(dist, msg, ...) end
@@ -1312,7 +1312,7 @@ test("watch: chat moderation: current own guild timeout testimony repeats for a 
 		w.Run()
 		eq(#Co.WC.Store().audit, 1); eq(Co.WC.Store().audit[1].scope, "S")
 		eq(#w.As(Co, Co.W.Audit), 0, "no authenticated Watcher audit is invented")
-		w.As(B, function() assert(loadfile(ROOT .. "Olympus/WatchChat.lua"))("Olympus", B.ns) end)
+		w.As(B, function() assert(loadfile(ROOT .. "ChillZone/WatchChat.lua"))("ChillZone", B.ns) end)
 		B.WC = B.ns.WatchChat
 		w.As(B, B.WC.Tick)
 		for _, job in ipairs(w.wire) do assert(not job.msg:find("MD~1~S~", 1, true), "persisted interval survives reload") end
@@ -1336,7 +1336,7 @@ test("watch: chat moderation: real paced Comm drops queued own timeout testimony
 			local timeout = w.As(B, B.WC.SelfTimeout)
 			local prefix = ("MD~1~S~T~%d~%d~"):format(timeout.seq, timeout.at)
 			local native, events, login = {}, {}, nil
-			GetChannelName = function() return 7, "OlympusChannel" end
+			GetChannelName = function() return 7, "ChillZoneChannel" end
 			C_ChatInfo = { RegisterAddonMessagePrefix = function() return true end,
 				SendAddonMessageLogged = function(_, msg, dist)
 					native[#native + 1] = { msg = msg, dist = dist }
@@ -1347,7 +1347,7 @@ test("watch: chat moderation: real paced Comm drops queued own timeout testimony
 				B.ns.On = function(event, fn) if event == "LOGIN" then login = fn end end
 				B.ns.RegisterEvent = function(event, fn) events[event] = fn end
 				B.ns.Moderation.Blocks = function() return false end
-				assert(loadfile(ROOT .. "Olympus/Comm.lua"))("Olympus", B.ns)
+				assert(loadfile(ROOT .. "ChillZone/Comm.lua"))("ChillZone", B.ns)
 				for kind, handler in pairs(B.handlers) do B.ns.Comm.Handle(kind, handler) end
 				B.ns.On, B.ns.After = on, function() end
 				assert(login); login(); B.ns.Comm.JoinChannel()
@@ -1390,9 +1390,9 @@ test("watch: chat moderation: the King's word on a case reaches its player in a 
 		local G, A, B, D, Y1 = Standard(w)
 		assert(w.As(A, A.WC.TellCase, B.name, 42, "U"))
 		w.Run()
-		local d = w.Dialog(B, "OLYMPUS_WATCHCHAT_DECISION")
+		local d = w.Dialog(B, "CHILLZONE_WATCHCHAT_DECISION")
 		assert(d and d.a == ns.L.WATCHCHAT_DECISION_UP, d and d.a)
-		eq(w.Dialog(D, "OLYMPUS_WATCHCHAT_DECISION"), nil, "only he is told")
+		eq(w.Dialog(D, "CHILLZONE_WATCHCHAT_DECISION"), nil, "only he is told")
 		local n = #B.dialogs
 		w.epoch = w.epoch + A.WC.DECISION_EVERY
 		w.As(A, A.WC.Tick)
@@ -1499,14 +1499,14 @@ test("watch: chat moderation: a timeout passed on weighs its actor's: a moderato
 		local G, A, B, D, Y1 = Standard(w)
 		w.king, w.author = "Kingly-Realm", "Author-Realm"
 		w.council[Fold("Councillor-Realm")] = true
-		local K = w.Client("Kingly", "Olympus", 0)
+		local K = w.Client("Kingly", "ChillZone", 0)
 		local Co = w.Client("Councillor", Y, 3)
 		local Mo = w.Client("Modder", Y, 3)
 		local Au = w.Client("Author", Y, 2)
 		assert(w.As(Co, Co.WC.SetMod, Mo.name, true))
 		w.epoch = w.epoch + 3
 		w.Run()
-		eq(w.As(D, D.WC.IsMod, Mo.name), true, "an Olympus moderator")
+		eq(w.As(D, D.WC.IsMod, Mo.name), true, "an ChillZone moderator")
 		assert(w.As(K, K.WC.Timeout, B.name, 604800, ""))
 		w.Run()
 		local T = w.Sent("MD~1~T~O~")[1].msg
@@ -1569,12 +1569,12 @@ test("watch: chat moderation: an appeal's lift reaches a timeout the councillor'
 		eq(#w.Sent("MD~1~U~O~"), lifts + 1, "his lift went out")
 		eq(w.As(B, B.WC.SelfTimeout), nil, "lifted on the player's own client")
 		eq(w.As(D, D.WC.Silenced, B.name), false, "and on his guildmates'")
-		eq(w.Dialog(B, "OLYMPUS_WATCHCHAT_DECISION").a,
+		eq(w.Dialog(B, "CHILLZONE_WATCHCHAT_DECISION").a,
 			ns.L.WATCHCHAT_APPEAL_LIFTED_YOU:format(ns.L.WATCHCHAT_ROLE_ANY, ns.L.WATCHCHAT_REASON_PART:format("fair")))
 		-- One from higher up (the King's, which the councillor's client never heard): his lift
 		-- does not reach it, and the player is told so.
 		w.king = "Kingly-Realm"
-		local K = w.Client("Kingly", "Olympus", 0)
+		local K = w.Client("Kingly", "ChillZone", 0)
 		Co.online = false
 		w.epoch = w.epoch + 5
 		assert(w.As(K, K.WC.Timeout, B.name, 3600, ""))
@@ -1591,7 +1591,7 @@ test("watch: chat moderation: an appeal's lift reaches a timeout the councillor'
 		w.Run()
 		local still = w.As(B, B.WC.SelfTimeout)
 		assert(still and still.by == K.name, "still timed out by the King")
-		eq(w.Dialog(B, "OLYMPUS_WATCHCHAT_DECISION").a,
+		eq(w.Dialog(B, "CHILLZONE_WATCHCHAT_DECISION").a,
 			ns.L.WATCHCHAT_APPEAL_LIFTED_STILL:format(ns.L.WATCHCHAT_ROLE_ANY, "", w.As(B, B.WC.TimeoutText, still)))
 		-- An appeal on a deleted line: "found for him", never a lift of anything.
 		assert(w.As(K, K.WC.Lift, B.name, ""))
@@ -1610,7 +1610,7 @@ test("watch: chat moderation: an appeal's lift reaches a timeout the councillor'
 		assert(w.As(Co, Co.WC.Answer, key3, "L", ""))
 		w.Run()
 		eq(#w.Sent("MD~1~U~"), n, "no lift for a deleted line")
-		eq(w.Dialog(B, "OLYMPUS_WATCHCHAT_DECISION").a, ns.L.WATCHCHAT_APPEAL_GRANTED_YOU:format(ns.L.WATCHCHAT_ROLE_ANY, ""))
+		eq(w.Dialog(B, "CHILLZONE_WATCHCHAT_DECISION").a, ns.L.WATCHCHAT_APPEAL_GRANTED_YOU:format(ns.L.WATCHCHAT_ROLE_ANY, ""))
 	end)
 end)
 
@@ -1635,7 +1635,7 @@ test("watch: chat moderation: the desk's reason stays the desk's: the ladder's t
 		local S = w.Sent("MD~1~S~T~")
 		eq(S[#S].from, D.name)
 		eq(S[#S].msg:match("~([^~]*)$"), "", "no reason on the channel")
-		assert(w.Dialog(D, "OLYMPUS_WATCHCHAT_TIMED_OUT").a:find("spam", 1, true), "the player is told it")
+		assert(w.Dialog(D, "CHILLZONE_WATCHCHAT_TIMED_OUT").a:find("spam", 1, true), "the player is told it")
 	end)
 end)
 
@@ -1846,11 +1846,11 @@ test("watch: chat moderation: appeal answers retain replay floors after reload a
 		local first = w.Sent("MD~1~R~")[1].msg
 		local function Decisions()
 			local n = 0
-			for _, d in ipairs(B.dialogs) do if d.which == "OLYMPUS_WATCHCHAT_DECISION" then n = n + 1 end end
+			for _, d in ipairs(B.dialogs) do if d.which == "CHILLZONE_WATCHCHAT_DECISION" then n = n + 1 end end
 			return n
 		end
 		local n = Decisions()
-		w.As(B, function() assert(loadfile(ROOT .. "Olympus/WatchChat.lua"))("Olympus", B.ns); B.WC = B.ns.WatchChat end)
+		w.As(B, function() assert(loadfile(ROOT .. "ChillZone/WatchChat.lua"))("ChillZone", B.ns); B.WC = B.ns.WatchChat end)
 		eq(select(2, w.Inject("CHANNEL", Co.name, B, first)), "repeat")
 		eq(Decisions(), n, "the persisted answer does not show again after reload")
 		for i = 1, 6 do
@@ -1901,7 +1901,7 @@ test("watch: chat moderation: S testimony needs verified membership and a fresh 
 		local function Word(seq, guild) return ("MD~1~S~T~%d~%d~%s~%s~%d~-~"):format(seq, w.epoch, guild, A.name, w.epoch + 600) end
 		-- Channels.lua really returns 1,false for a new claim with no verified identity.
 		for i = 1, Co.WC.RATE_SELF_ALL + 5 do
-			eq(select(2, w.Inject("CHANNEL", "Claim" .. i .. "-Realm", Co, Word(i, "Olympus Ghosts"))), "guild")
+			eq(select(2, w.Inject("CHANNEL", "Claim" .. i .. "-Realm", Co, Word(i, "ChillZone Ghosts"))), "guild")
 		end
 		eq(#Co.WC.Store().audit, 0, "unknown claims do not frame the named Watcher")
 		w.census[X] = true
@@ -1974,8 +1974,8 @@ test("watch: chat moderation: two Watchers' timeouts: the longer binds on every 
 		w.epoch = w.epoch + 5
 		assert(w.As(G, G.WC.Timeout, B.name, 300, ""))
 		w.Run()
-		assert(w.Dialog(B, "OLYMPUS_WATCHCHAT_TIMED_OUT").a:find(ns.L.WATCHCHAT_SPAN_DAYS:format(7), 1, true),
-			"told the 7 days, never the 5 minutes given after: " .. w.Dialog(B, "OLYMPUS_WATCHCHAT_TIMED_OUT").a)
+		assert(w.Dialog(B, "CHILLZONE_WATCHCHAT_TIMED_OUT").a:find(ns.L.WATCHCHAT_SPAN_DAYS:format(7), 1, true),
+			"told the 7 days, never the 5 minutes given after: " .. w.Dialog(B, "CHILLZONE_WATCHCHAT_TIMED_OUT").a)
 		w.epoch = w.epoch + 301
 		for _, cl in ipairs({ B, D, Y1 }) do eq(w.As(cl, cl.WC.Barred, "games", cl == B and nil or B.name) ~= nil, true, "the 7 days on " .. cl.short) end
 		eq(w.As(Y1, Y1.WC.Silenced, B.name), true, "abroad, his lines still dropped")
@@ -1986,12 +1986,12 @@ test("watch: chat moderation: the King is never given a timeout (no client would
 	World(function(w)
 		local G, A, B, D, Y1 = Standard(w)
 		w.author, w.king = "Author-Realm", "Kingly-Realm"
-		local K = w.Client("Kingly", "Olympus", 0)
+		local K = w.Client("Kingly", "ChillZone", 0)
 		local Au = w.Client("Author", Y, 2)
 		local ok, why = w.As(Au, Au.WC.Timeout, K.name, 300, "")
 		eq(ok, false); eq(why, "king")
 		eq(#w.wire, 0, "nothing sent")
-		local _, fwhy = w.Inject("CHANNEL", Au.name, D, ("MD~1~T~O~%d~%d~Olympus~%s~%d~-~-~"):format(900, w.epoch, K.name, w.epoch + 300))
+		local _, fwhy = w.Inject("CHANNEL", Au.name, D, ("MD~1~T~O~%d~%d~ChillZone~%s~%d~-~-~"):format(900, w.epoch, K.name, w.epoch + 300))
 		eq(fwhy, "king", "nor taken")
 		w.Say(K, "A", "a royal line")
 		assert(w.As(Au, Au.WC.Delete, "A", w.Line(Au, "A", K.name, "a royal line"), ""))
@@ -2030,14 +2030,14 @@ test("watch: chat moderation: the King's upheld word reaches the guild's Justice
 		eq(w.As(A, A.WC.KingUpheld, B.name) ~= nil, true, "the officer who sent it")
 		eq(w.As(P, P.WC.KingUpheld, B.name), nil, "a member keeps nothing")
 		eq(w.As(B, B.WC.KingUpheld, B.name), nil, "nor the player")
-		eq(w.Dialog(B, "OLYMPUS_WATCHCHAT_DECISION").a, ns.L.WATCHCHAT_DECISION_UP, "the player is told")
+		eq(w.Dialog(B, "CHILLZONE_WATCHCHAT_DECISION").a, ns.L.WATCHCHAT_DECISION_UP, "the player is told")
 		eq(w.As(D, D.WC.MayApplyJudgment), true)
 		-- A warning from him applies it: it leaves his case's page.
 		assert(w.As(D, D.W.Warn, B.name, "the King's judgment"))
 		w.Run()
 		eq(w.As(D, D.WC.KingUpheld, B.name), nil, "applied")
 		-- The case's page offers it while it waits (Watch.lua reads WatchChat.KingUpheld).
-		local src = assert(io.open(ROOT .. "Olympus/Watch.lua", "rb")):read("*a")
+		local src = assert(io.open(ROOT .. "ChillZone/Watch.lua", "rb")):read("*a")
 		assert(src:find("WC.KingUpheld(target)", 1, true))
 	end)
 end)
@@ -2056,36 +2056,36 @@ test("watch: chat moderation: old clients: 1.1.4's Comm runs no handler for MD, 
 		cns.After, cns.Every = function() end, function() end
 		cns.Now = function() return 100000 end
 		C_ChatInfo = { RegisterAddonMessagePrefix = function() end }
-		assert(loadfile(ROOT .. "tests/fixtures/comm-1.1.4.lua"))("Olympus", cns)
+		assert(loadfile(ROOT .. "tests/fixtures/comm-1.1.4.lua"))("ChillZone", cns)
 		for _, fn in ipairs(login) do fn() end
 		local heard = 0
 		for _, kind in ipairs({ "M1", "M2", "MW", "T1" }) do cns.Comm.Handle(kind, function() heard = heard + 1 end) end
 		local function Deliver(dist, sender, text)
 			for _, fn in ipairs(events.CHAT_MSG_ADDON) do fn(ns.PREFIX, text, dist, sender) end
 		end
-		Deliver("GUILD", "Officer-Realm", "MD~1~T~G~900~1800000000~Olympus II~Member-Realm~1800000300~-~-~spam")
-		Deliver("CHANNEL", "Member-Realm", "MD~1~S~D~900~1800000000~Olympus II~Officer-Realm~-~A.12.abcdef~")
-		Deliver("GUILD", "Grandmaster-Realm", "MD~1~W~1800000000~Olympus II~1~1~-~Member-Realm")
+		Deliver("GUILD", "Officer-Realm", "MD~1~T~G~900~1800000000~ChillZone II~Member-Realm~1800000300~-~-~spam")
+		Deliver("CHANNEL", "Member-Realm", "MD~1~S~D~900~1800000000~ChillZone II~Officer-Realm~-~A.12.abcdef~")
+		Deliver("GUILD", "Grandmaster-Realm", "MD~1~W~1800000000~ChillZone II~1~1~-~Member-Realm")
 		eq(heard, 0, "no handler runs")
 		eq(cns.Comm.Stats().bad, 0, "none misread")
 	end)
 	C_ChatInfo = saved
 	if not ok then error(err, 0) end
-	local src = assert(io.open(ROOT .. "Olympus/Comm.lua", "rb")):read("*a")
+	local src = assert(io.open(ROOT .. "ChillZone/Comm.lua", "rb")):read("*a")
 	assert(src:find("WatchChat MD", 1, true))
 end)
 
-test("watch: chat moderation: under the gamepad UI every dialog is Olympus's own, the game's chat is left alone, and the line's button is a child of Olympus's bubble", function()
+test("watch: chat moderation: under the gamepad UI every dialog is ChillZone's own, the game's chat is left alone, and the line's button is a child of ChillZone's bubble", function()
 	World(function(w)
 		local G, A, B, D, Y1 = Standard(w)
 		w.gamepad = true
 		w.Say(B, "A", "under the gamepad")
 		local e = w.Line(A, "A", B.name, "under the gamepad")
 		eq(w.As(A, A.WC.AskEntry, e, "A"), true)
-		eq(A.dialogs[#A.dialogs].which, "OLYMPUS_WATCHCHAT_ACT", "ns.ShowDialog: Olympus's own window there")
-		for _, which in ipairs({ "OLYMPUS_WATCHCHAT_ACT", "OLYMPUS_WATCHCHAT_MORE", "OLYMPUS_WATCHCHAT_TIME", "OLYMPUS_WATCHCHAT_TIME2",
-			"OLYMPUS_WATCHCHAT_TIME3", "OLYMPUS_WATCHCHAT_WHY", "OLYMPUS_WATCHCHAT_TIMED_OUT", "OLYMPUS_WATCHCHAT_APPEAL",
-			"OLYMPUS_WATCHCHAT_ANSWER", "OLYMPUS_WATCHCHAT_DECISION", "OLYMPUS_WATCHCHAT_NAME", "OLYMPUS_WATCHCHAT_REMOVE" }) do
+		eq(A.dialogs[#A.dialogs].which, "CHILLZONE_WATCHCHAT_ACT", "ns.ShowDialog: ChillZone's own window there")
+		for _, which in ipairs({ "CHILLZONE_WATCHCHAT_ACT", "CHILLZONE_WATCHCHAT_MORE", "CHILLZONE_WATCHCHAT_TIME", "CHILLZONE_WATCHCHAT_TIME2",
+			"CHILLZONE_WATCHCHAT_TIME3", "CHILLZONE_WATCHCHAT_WHY", "CHILLZONE_WATCHCHAT_TIMED_OUT", "CHILLZONE_WATCHCHAT_APPEAL",
+			"CHILLZONE_WATCHCHAT_ANSWER", "CHILLZONE_WATCHCHAT_DECISION", "CHILLZONE_WATCHCHAT_NAME", "CHILLZONE_WATCHCHAT_REMOVE" }) do
 			assert(StaticPopupDialogs[which], which)
 		end
 		local frames = #Y1.frame.lines
@@ -2096,9 +2096,9 @@ test("watch: chat moderation: under the gamepad UI every dialog is Olympus's own
 		eq(w.Line(Y1, "A", B.name).del, true, "the Chat tab's history is replaced all the same")
 		assert(w.As(A, A.WC.Timeout, B.name, 300, ""))
 		w.Run()
-		eq(w.Dialog(B, "OLYMPUS_WATCHCHAT_TIMED_OUT") ~= nil, true, "the pop-up through ns.ShowDialog")
-		local cw = assert(io.open(ROOT .. "Olympus/ChatWindow.lua", "rb")):read("*a")
-		assert(cw:find('b.mod = CreateFrame("Button", nil, b)', 1, true), "the button's parent is Olympus's bubble")
+		eq(w.Dialog(B, "CHILLZONE_WATCHCHAT_TIMED_OUT") ~= nil, true, "the pop-up through ns.ShowDialog")
+		local cw = assert(io.open(ROOT .. "ChillZone/ChatWindow.lua", "rb")):read("*a")
+		assert(cw:find('b.mod = CreateFrame("Button", nil, b)', 1, true), "the button's parent is ChillZone's bubble")
 		assert(not cw:find("Menu.ModifyMenu", 1, true), "no game menu entry")
 	end)
 end)
@@ -2107,7 +2107,7 @@ test("watch: chat moderation: its strings in English and pt-BR, with the same pl
 	local oldLocale = GetLocale
 	local pt = {}
 	GetLocale = function() return "ptBR" end
-	local ok, err = pcall(assert(loadfile(ROOT .. "Olympus/Locales.lua")), "Olympus", pt)
+	local ok, err = pcall(assert(loadfile(ROOT .. "ChillZone/Locales.lua")), "ChillZone", pt)
 	GetLocale = oldLocale
 	if not ok then error(err, 0) end
 	local n = 0
@@ -2126,7 +2126,7 @@ test("watch: chat moderation: its strings in English and pt-BR, with the same pl
 	-- Every key the code reads is there.
 	-- (The chat warnings' file too, ChatStrikes.lua; and its keys outside WATCHCHAT_, in both languages.)
 	for _, file in ipairs({ "WatchChat.lua", "ChatStrikes.lua" }) do
-		local src = assert(io.open(ROOT .. "Olympus/" .. file, "rb")):read("*a")
+		local src = assert(io.open(ROOT .. "ChillZone/" .. file, "rb")):read("*a")
 		for key in src:gmatch("L%.(WATCHCHAT_[%w_]+)") do assert(rawget(ns.L, key), "missing: " .. key) end
 	end
 	for _, k in ipairs({ "CHATWIN_WHY_PAUSED", "ARENA_CHAT_WHY_PAUSED" }) do
@@ -2141,10 +2141,10 @@ end)
 
 -- 1.2.4, the author: "Precisam de uma sala para as pessoas que estão na The Watch ... Teria que serem
 -- as pessoas nomeadas, mais o High Council ali que está na The Watch, para os moderadores poderem
--- conversar entre si." The Watch's room on the Chat tab: whoever acts in Olympus scope (an Olympus
+-- conversar entre si." The Watch's room on the Chat tab: whoever acts in ChillZone scope (an ChillZone
 -- moderator's level or above, WatchChat.ActorLevel): the author, the King, every councillor, the
 -- moderators a fresh list names. Not a guild's own Watchers, nor anyone sanctioned.
-test("watch: chat moderation (1.2.4): The Watch's room: the author, the King, every councillor and the Olympus moderators named talk there; a lapsed list, a sanction and a guild's own Watcher keep one out", function()
+test("watch: chat moderation (1.2.4): The Watch's room: the author, the King, every councillor and the ChillZone moderators named talk there; a lapsed list, a sanction and a guild's own Watcher keep one out", function()
 	World(function(w)
 		local G, A, B, D, Y1 = Standard(w)
 		w.author, w.king = "Quill Wright-Realm", "Crown Rook-Realm"
@@ -2156,7 +2156,7 @@ test("watch: chat moderation (1.2.4): The Watch's room: the author, the King, ev
 		assert(w.As(Co, Co.WC.SetMod, Mo.name, true))
 		w.epoch = w.epoch + 3
 		w.Run()
-		-- A guild master's own Watcher (and his officers): his guild's, not Olympus's.
+		-- A guild master's own Watcher (and his officers): his guild's, not ChillZone's.
 		assert(w.As(G, G.WC.SetWatcher, B.name, true))
 		w.epoch = w.epoch + 3
 		w.Run()
@@ -2225,7 +2225,7 @@ local function Words(w, ...)
 	for i = 1, select("#", ...) do w.words[#w.words + 1] = select(i, ...) end
 	for _, cl in ipairs(w.clients) do List(cl.S, w.words) end
 end
--- The chat warnings' team: the author (online), the King, a councillor and the Olympus moderator he
+-- The chat warnings' team: the author (online), the King, a councillor and the ChillZone moderator he
 -- names; every client knows the council's signed names and that the author is online.
 local function Team(w)
 	w.author, w.king = "Quill Wright-Realm", "Crown Rook-Realm"
@@ -2296,9 +2296,9 @@ test("watch: chat moderation: strikes: the first warning: not sent (nothing queu
 		eq(#w.wire, 0, "nothing queued")
 		eq(e.n, 1); eq(e.untilAt - e.at, B.WC.DURATIONS[1]); eq(e.untilAt - e.at, 300)
 		eq(e.words, WORD); eq(e.text, "well this is a " .. WORD .. " for you"); eq(e.where, "A"); eq(e.char, B.name)
-		local d = w.Dialog(B, "OLYMPUS_WATCHCHAT_DECISION")
+		local d = w.Dialog(B, "CHILLZONE_WATCHCHAT_DECISION")
 		eq(d.a, B.ns.L.WATCHCHAT_STRIKE_1:format(B.WC.Span(300)))
-		for _, part in ipairs({ "5 minutes", "verify anyone's age", "Blizzard's Terms of Service", "screenshots", "Asmongold's team" }) do
+		for _, part in ipairs({ "5 minutes", "verify anyone's age", "Blizzard's Terms of Service", "screenshots", "the King's moderators" }) do
 			assert(d.a:find(part, 1, true), "the first pop-up says: " .. part)
 		end
 		assert(w.Printed(B, B.ns.L.WATCHCHAT_SEVERE_REFUSED), "the red line too")
@@ -2332,8 +2332,8 @@ test("watch: chat moderation: strikes: the second warning pauses 30 minutes; the
 		w.epoch = e1.at + 23 * 3600
 		local e2 = Strike(w, B)
 		eq(e2.n, 2); eq(e2.untilAt - e2.at, 1800)
-		eq(w.Dialog(B, "OLYMPUS_WATCHCHAT_DECISION").a, B.ns.L.WATCHCHAT_STRIKE_2:format(B.WC.Span(1800)))
-		assert(w.Dialog(B, "OLYMPUS_WATCHCHAT_DECISION").a:find("doing it again", 1, true))
+		eq(w.Dialog(B, "CHILLZONE_WATCHCHAT_DECISION").a, B.ns.L.WATCHCHAT_STRIKE_2:format(B.WC.Span(1800)))
+		assert(w.Dialog(B, "CHILLZONE_WATCHCHAT_DECISION").a:find("doing it again", 1, true))
 		w.epoch = e1.at + 25 * 3600
 		local e3 = Strike(w, B)
 		eq(e3.n, 2, "the first is more than 24 hours old: this is the second again")
@@ -2343,14 +2343,14 @@ test("watch: chat moderation: strikes: the second warning pauses 30 minutes; the
 	end)
 end)
 
-test("watch: chat moderation: strikes: the third warning in 24 hours: held until the team decides; its report (head and lines, logged whispers of at most 255 bytes) reaches the author online, the King, a councillor and an Olympus moderator, two a minute, nobody else, never on the channel or over guild; they keep his words exactly and say so", function()
+test("watch: chat moderation: strikes: the third warning in 24 hours: held until the team decides; its report (head and lines, logged whispers of at most 255 bytes) reaches the author online, the King, a councillor and an ChillZone moderator, two a minute, nobody else, never on the channel or over guild; they keep his words exactly and say so", function()
 	World(function(w)
 		local G, A, B, D, Y1 = Standard(w)
 		local Au, K, Co, Mo = Team(w)
 		Words(w, WORD)
 		local e3 = Held(w, B)
 		eq(e3.n, 3); eq(e3.untilAt, 0)
-		eq(w.Dialog(B, "OLYMPUS_WATCHCHAT_DECISION").a, B.ns.L.WATCHCHAT_STRIKE_3)
+		eq(w.Dialog(B, "CHILLZONE_WATCHCHAT_DECISION").a, B.ns.L.WATCHCHAT_STRIKE_3)
 		eq(w.As(B, B.S.Block).kind, "hold")
 		eq(w.As(B, B.WC.StripText), B.ns.L.WATCHCHAT_STRIP_STRIKE_HOLD)
 		local queued = {}
@@ -2444,7 +2444,7 @@ test("watch: chat moderation: strikes: \"Let them chat\": the hold ends on his c
 		assert(w.As(A, A.WC.Timeout, B.name, 604800, "guild matter"))
 		w.Run()
 		eq(w.As(B, B.WC.SelfTimeout).scope, "G")
-		-- Refused: the officer (no Olympus authority), an ordinary member, an older hold's id.
+		-- Refused: the officer (no ChillZone authority), an ordinary member, an older hold's id.
 		local forged = ("MS~1~D~%s~%d~R~%d"):format(B.name, e3.at, w.epoch)
 		for _, who in ipairs({ A, D }) do
 			local ok, why = w.Inject("WHISPER", who.name, B, forged)
@@ -2479,7 +2479,7 @@ test("watch: chat moderation: strikes: \"Let them chat\": the hold ends on his c
 	end)
 end)
 
-test("watch: chat moderation: strikes: an Olympus moderator's timeout decides the case instead: the chats open when it ends; a guild's timeout leaves the hold", function()
+test("watch: chat moderation: strikes: an ChillZone moderator's timeout decides the case instead: the chats open when it ends; a guild's timeout leaves the hold", function()
 	World(function(w)
 		local G, A, B, D, Y1 = Standard(w)
 		local Au, K, Co, Mo = Team(w)
@@ -2538,7 +2538,7 @@ test("watch: chat moderation: strikes: \"e assim por diante\": a fourth warning 
 		w.Run()
 		local e4 = Strike(w, B, "fourth " .. WORD)
 		eq(e4.n, 4); eq(e4.untilAt, 0); assert(e4.at > e3.at, "a new id")
-		eq(w.Dialog(B, "OLYMPUS_WATCHCHAT_DECISION").a, B.ns.L.WATCHCHAT_STRIKE_MORE:format(4))
+		eq(w.Dialog(B, "CHILLZONE_WATCHCHAT_DECISION").a, B.ns.L.WATCHCHAT_STRIKE_MORE:format(4))
 		w.Run(); Tick(w, B)
 		local c = Mo.S.Store().cases[CaseKey(B, e4)]
 		assert(c, "a new case"); eq(c.n, 4); eq(c.lines[#c.lines].text, "fourth " .. WORD); eq(#c.lines, 3, "the last three of the window")
@@ -2571,7 +2571,7 @@ test("watch: chat moderation: strikes: the King and the author have the line ref
 				eq(select(2, w.As(cl, cl.C.Send, "A", "a " .. WORD)), "severe", cl.short)
 			end
 			eq(#cl.S.Store().mine, 0, "no warning kept: " .. cl.short)
-			eq(w.Dialog(cl, "OLYMPUS_WATCHCHAT_DECISION"), nil, "no pop-up: " .. cl.short)
+			eq(w.Dialog(cl, "CHILLZONE_WATCHCHAT_DECISION"), nil, "no pop-up: " .. cl.short)
 			assert(w.Printed(cl, cl.ns.L.WATCHCHAT_SEVERE_REFUSED), "the red line: " .. cl.short)
 			eq((w.As(cl, cl.WC.BlockedCounts, cl.name)).severe, 4)
 			eq(w.As(cl, cl.S.Block), nil)
@@ -2634,9 +2634,9 @@ test("watch: chat moderation: strikes: every way a line leaves is covered: the t
 		B.ns.db.chatWarned = {}
 		local dialogs = #B.dialogs
 		eq(select(2, w.As(B, B.C.Send, "A", "a " .. WORD)), "severe")
-		for i = dialogs + 1, #B.dialogs do assert(B.dialogs[i].which ~= "OLYMPUS_CHAT_PRIVACY", "the privacy warning shown") end
+		for i = dialogs + 1, #B.dialogs do assert(B.dialogs[i].which ~= "CHILLZONE_CHAT_PRIVACY", "the privacy warning shown") end
 		Fresh(B)
-		eq(select(2, w.As(B, B.C.Confirm, { tier = "A", text = "a " .. WORD, channel = "OlympusChannel" }, true)), "severe")
+		eq(select(2, w.As(B, B.C.Confirm, { tier = "A", text = "a " .. WORD, channel = "ChillZoneChannel" }, true)), "severe")
 		eq(#w.wire, 0)
 		B.ns.db.chatWarned = { A = true, C = true, L = true }
 		-- Guild: the game's own send.
@@ -2756,7 +2756,7 @@ test("watch: chat moderation: strikes: the team's page and dialog: named moderat
 		local e3 = Held(w, B)
 		w.Run(); Tick(w, B)
 		local key = CaseKey(B, e3)
-		eq(w.As(Mo, Mo.WC.PageShown), true, "an Olympus moderator sees the Chat moderation page")
+		eq(w.As(Mo, Mo.WC.PageShown), true, "an ChillZone moderator sees the Chat moderation page")
 		eq(w.As(D, D.WC.PageShown), false)
 		local function PageText(cl)
 			local out = {}
@@ -2775,20 +2775,20 @@ test("watch: chat moderation: strikes: the team's page and dialog: named moderat
 		row.tooltip(tt)
 		assert(table.concat(said, "\n"):find(WORD, 1, true), "his words in the tooltip")
 		w.As(Mo, row.onClick)
-		local d = w.Dialog(Mo, "OLYMPUS_WATCHCHAT_STRIKE")
+		local d = w.Dialog(Mo, "CHILLZONE_WATCHCHAT_STRIKE")
 		eq(d.a, Mo.ns.L.WATCHCHAT_STRIKE_ASK:format("Member", 3, WORD)); eq(d.data.key, key)
 		-- Show all: the copy pop-up, each line with its words, and the note.
 		local copied
 		Mo.ns.UI.ShowCopy = function(title, body, _, opts) copied = { title = title, body = body, key = opts and opts.key } end
-		w.As(Mo, StaticPopupDialogs.OLYMPUS_WATCHCHAT_STRIKE.OnAlt, nil, d.data)
+		w.As(Mo, StaticPopupDialogs.CHILLZONE_WATCHCHAT_STRIKE.OnAlt, nil, d.data)
 		eq(copied.title, Mo.ns.L.WATCHCHAT_STRIKES_TITLE); eq(copied.key, "watch-strike")
 		for _, part in ipairs({ "first " .. WORD, "second " .. WORD, "third " .. WORD, Mo.ns.L.WATCHCHAT_STRIKE_COPY_NOTE, X }) do
 			assert(copied.body:find(part, 1, true), "the copy holds: " .. part)
 		end
 		-- Time out...: WatchChat's own timeout dialogs.
-		w.As(Mo, StaticPopupDialogs.OLYMPUS_WATCHCHAT_STRIKE.OnCancel, nil, d.data, "clicked")
-		eq(w.Dialog(Mo, "OLYMPUS_WATCHCHAT_TIME").data.name, B.name)
-		-- /oly watch strikes: the open cases in the copy pop-up.
+		w.As(Mo, StaticPopupDialogs.CHILLZONE_WATCHCHAT_STRIKE.OnCancel, nil, d.data, "clicked")
+		eq(w.Dialog(Mo, "CHILLZONE_WATCHCHAT_TIME").data.name, B.name)
+		-- /cz watch strikes: the open cases in the copy pop-up.
 		copied = nil
 		w.As(Mo, Mo.S.Slash, "strikes", "")
 		assert(copied and copied.body:find("third " .. WORD, 1, true))
@@ -2803,8 +2803,8 @@ test("watch: chat moderation: strikes: the team's page and dialog: named moderat
 		row.tooltip(tt)
 		assert(not table.concat(said, "\n"):find(WORD, 1, true), "the tooltip too")
 		Mo.masked = false
-		-- Let them chat: from the dialog; then /oly watch release finds nothing open.
-		w.As(Mo, StaticPopupDialogs.OLYMPUS_WATCHCHAT_STRIKE.OnAccept, nil, d.data)
+		-- Let them chat: from the dialog; then /cz watch release finds nothing open.
+		w.As(Mo, StaticPopupDialogs.CHILLZONE_WATCHCHAT_STRIKE.OnAccept, nil, d.data)
 		w.Run()
 		eq(w.As(B, B.S.Block), nil)
 		assert(w.Printed(Mo, Mo.ns.L.WATCHCHAT_STRIKE_DONE:format("Member")))
@@ -2818,7 +2818,7 @@ test("watch: chat moderation: strikes: the team's page and dialog: named moderat
 	end)
 end)
 
-test("watch: chat moderation: strikes: /oly watch release <name> lets the newest open case of that name chat; a client rebuilt from the same saved store keeps the count and the hold", function()
+test("watch: chat moderation: strikes: /cz watch release <name> lets the newest open case of that name chat; a client rebuilt from the same saved store keeps the count and the hold", function()
 	World(function(w)
 		local G, A, B, D, Y1 = Standard(w)
 		local Au, K, Co, Mo = Team(w)
@@ -2961,7 +2961,7 @@ test("watch: chat moderation: strikes: \"Let them chat\" while he plays another 
 end)
 
 -- (The review: SamePerson's links and the receiver's limits had no test of their own.)
-test("watch: chat moderation: strikes: an Olympus moderator's timeout on a character his player linked decides the hold too, on his client and on the team's", function()
+test("watch: chat moderation: strikes: an ChillZone moderator's timeout on a character his player linked decides the hold too, on his client and on the team's", function()
 	World(function(w)
 		local G, A, B, D, Y1 = Standard(w)
 		local Au, K, Co, Mo = Team(w)
@@ -3026,7 +3026,7 @@ test("watch: chat moderation: strikes: the team's side keeps its limits: 30 repo
 		eq(w.Inject("WHISPER", "Twice-Realm", Co, Head(w.epoch)), true)
 		eq(w.Inject("WHISPER", "Twice-Realm", Co, Line(w.epoch)), true)
 		eq(Notices("Twice"), 2, "ten minutes on: told again")
-		-- An Olympus moderator's timeout on him heard before his report: the case comes decided.
+		-- An ChillZone moderator's timeout on him heard before his report: the case comes decided.
 		local before = w.epoch
 		Refresh(w)
 		assert(w.As(Mo, Mo.WC.Timeout, B.name, 3600, "the team's call"))
@@ -3097,7 +3097,7 @@ test("watch: chat moderation: strikes: a name's flood of made-up reports pushes 
 end)
 
 -- (The review: the login's notice, The Watch's commands and CanWrite's telling had no test.)
-test("watch: chat moderation: strikes: at login a held player is told why in a pop-up, even right after another; CanWrite says why; the team's commands go through /oly watch", function()
+test("watch: chat moderation: strikes: at login a held player is told why in a pop-up, even right after another; CanWrite says why; the team's commands go through /cz watch", function()
 	World(function(w)
 		local G, A, B, D, Y1 = Standard(w)
 		local Au, K, Co, Mo = Team(w)
@@ -3117,8 +3117,8 @@ test("watch: chat moderation: strikes: at login a held player is told why in a p
 		w.epoch = w.epoch + 30
 		w.Run()
 		eq(#B.dialogs, dialogs + 1, "the login's pop-up, though one was shown a moment ago")
-		eq(B.dialogs[#B.dialogs].which, "OLYMPUS_WATCHCHAT_DECISION"); eq(B.dialogs[#B.dialogs].a, B.ns.L.WATCHCHAT_STRIKE_HELD)
-		-- /oly watch strikes and /oly watch release <name>: The Watch's own command.
+		eq(B.dialogs[#B.dialogs].which, "CHILLZONE_WATCHCHAT_DECISION"); eq(B.dialogs[#B.dialogs].a, B.ns.L.WATCHCHAT_STRIKE_HELD)
+		-- /cz watch strikes and /cz watch release <name>: The Watch's own command.
 		local copied
 		Mo.ns.UI.ShowCopy = function(_, body) copied = body end
 		w.As(Mo, Mo.W.Slash, "strikes")

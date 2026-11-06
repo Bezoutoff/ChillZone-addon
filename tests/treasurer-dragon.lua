@@ -2,28 +2,28 @@ local ns, test, eq, WithBorders, BorderUnit, king = ...
 test("office badges: Legates and correspondents lose the bronze role frame, keep distinct signed badges, and never replace earned or guild-master frames", function()
 	WithBorders(function(w)
 		local roles = { ["Legate-Realm"] = { "centurion" }, ["Correspondent-Realm"] = { "correspondent", "Department of War" } }
-		w.ns.Nominees = { RoleOf = function(name, guild) if guild == "Olympus II" and roles[name] then return unpack(roles[name]) end end }
+		w.ns.Nominees = { RoleOf = function(name, guild) if guild == "ChillZone II" and roles[name] then return unpack(roles[name]) end end }
 		w.ns.Roster = { RankOf = function(name) if roles[name] then return 3 end end }
 		w.internal("LOGIN")
-		w.target(BorderUnit("Legate", "Olympus II", "Member", 3))
+		w.target(BorderUnit("Legate", "ChillZone II", "Member", 3))
 		eq(w.B.TierOf("target"), nil); eq(w.shown("target"), nil, "the old bronze role frame is gone")
-		eq(w.B.TierOfName("Legate-Realm", "Olympus II"), nil, "Olympus portraits use the same frame rule")
-		eq(w.B.MarkOf("target"), "role-legate"); eq(w.B.MarkOfName("Legate-Realm", "Olympus II"), "role-legate")
-		eq(assert(w.roleBadge("target")).file, "Interface\\AddOns\\Olympus\\media\\pauldrons\\legate")
+		eq(w.B.TierOfName("Legate-Realm", "ChillZone II"), nil, "ChillZone portraits use the same frame rule")
+		eq(w.B.MarkOf("target"), "role-legate"); eq(w.B.MarkOfName("Legate-Realm", "ChillZone II"), "role-legate")
+		eq(assert(w.roleBadge("target")).file, "Interface\\AddOns\\ChillZone\\media\\pauldrons\\legate")
 		eq(w.roleBadge("target").size, "36 36")
-		w.target(BorderUnit("Correspondent", "Olympus II", "Member", 3))
+		w.target(BorderUnit("Correspondent", "ChillZone II", "Member", 3))
 		eq(w.B.TierOf("target"), nil); eq(w.shown("target"), nil, "a correspondent also has no bronze role frame")
 		eq(w.B.MarkOf("target"), "role-department-of-war")
-		eq(assert(w.roleBadge("target")).file, "Interface\\AddOns\\Olympus\\media\\pauldrons\\department-of-war")
-		w.target(BorderUnit("Guildmaster", "Olympus II", "Master", 0))
+		eq(assert(w.roleBadge("target")).file, "Interface\\AddOns\\ChillZone\\media\\pauldrons\\department-of-war")
+		w.target(BorderUnit("Guildmaster", "ChillZone II", "Master", 0))
 		eq(w.B.TierOf("target"), "bronze-elite", "guild-master wings unchanged")
 		eq(w.roleBadge("target"), nil)
 		w.ns.HonorsNet = { Verified = function(name) if name == "Legate-Realm" then return { frame = "retained-honour", metal = "bronze" } end end,
-			FrameTexture = function() return "Interface\\AddOns\\Olympus\\media\\borders\\bronze-plain", "plain" end }
-		w.target(BorderUnit("Legate", "Olympus II", "Member", 3))
+			FrameTexture = function() return "Interface\\AddOns\\ChillZone\\media\\borders\\bronze-plain", "plain" end }
+		w.target(BorderUnit("Legate", "ChillZone II", "Member", 3))
 		eq(w.B.TierOf("target"), nil)
-		eq(w.shownTexture("target").file, "Interface\\AddOns\\Olympus\\media\\borders\\bronze-plain", "a verified earned frame is not removed with the role frame")
-		eq(assert(w.roleBadge("target")).file, "Interface\\AddOns\\Olympus\\media\\pauldrons\\legate", "the office badge remains separate from the honour")
+		eq(w.shownTexture("target").file, "Interface\\AddOns\\ChillZone\\media\\borders\\bronze-plain", "a verified earned frame is not removed with the role frame")
+		eq(assert(w.roleBadge("target")).file, "Interface\\AddOns\\ChillZone\\media\\pauldrons\\legate", "the office badge remains separate from the honour")
 	end)
 end)
 
@@ -36,24 +36,24 @@ test("office badges: a missing badge invents no fallback frame, and signed High 
 		w.ns.CouncilTitle = function(name)
 			if name == "Sage Owl-Realm" then return { dept = "Council of Justice" } end
 		end
-		w.noFile["Interface\\AddOns\\Olympus\\media\\pauldrons\\legate"] = true
+		w.noFile["Interface\\AddOns\\ChillZone\\media\\pauldrons\\legate"] = true
 		w.internal("LOGIN")
-		w.target(BorderUnit("Legate", "Olympus II", "Member", 3)); eq(w.shown("target"), nil); eq(w.roleBadge("target"), nil)
-		w.target(BorderUnit("Correspondent", "Olympus II", "Member", 3)); eq(w.shown("target"), nil)
-		eq(assert(w.roleBadge("target")).file, "Interface\\AddOns\\Olympus\\media\\pauldrons\\federal-treasury")
-		w.target(BorderUnit("Sage Owl", "Olympus II", "Member", 3)); eq(w.shown("target"), "silver-elite")
-		eq(assert(w.roleBadge("target")).file, "Interface\\AddOns\\Olympus\\media\\pauldrons\\council-of-justice")
+		w.target(BorderUnit("Legate", "ChillZone II", "Member", 3)); eq(w.shown("target"), nil); eq(w.roleBadge("target"), nil)
+		w.target(BorderUnit("Correspondent", "ChillZone II", "Member", 3)); eq(w.shown("target"), nil)
+		eq(assert(w.roleBadge("target")).file, "Interface\\AddOns\\ChillZone\\media\\pauldrons\\federal-treasury")
+		w.target(BorderUnit("Sage Owl", "ChillZone II", "Member", 3)); eq(w.shown("target"), "silver-elite")
+		eq(assert(w.roleBadge("target")).file, "Interface\\AddOns\\ChillZone\\media\\pauldrons\\council-of-justice")
 		w.style = 1; w.fire("INPUT_DEVICE_INTERFACE_TRANSITION", 1, 0); eq(w.shown("target"), nil)
 		w.style = 0; w.fire("INPUT_DEVICE_INTERFACE_TRANSITION", 0, 1)
-		w.target(BorderUnit("Correspondent", "Olympus II", "Member", 3)); eq(w.shown("target"), nil); assert(w.roleBadge("target"))
+		w.target(BorderUnit("Correspondent", "ChillZone II", "Member", 3)); eq(w.shown("target"), nil); assert(w.roleBadge("target"))
 	end)
 end)
 
 test("office badge assets: the complete approved yellow-on-black family is square, RGBA and consistently authored", function()
 	local root = debug.getinfo(1, "S").source:match("^@(.*)tests[/\\]treasurer%-dragon%.lua$") or "./"
-	for _, name in ipairs({ "olympus", "legate", "federal-treasury", "department-of-war", "council-of-justice",
-		"association-of-artisanry", "department-of-heraldry", "missionary-church-of-olympus" }) do
-		local f = assert(io.open(root .. "Olympus/media/pauldrons/" .. name .. ".tga", "rb"), name)
+	for _, name in ipairs({ "chillzone", "legate", "federal-treasury", "department-of-war", "council-of-justice",
+		"association-of-artisanry", "department-of-heraldry", "missionary-church-of-chillzone" }) do
+		local f = assert(io.open(root .. "ChillZone/media/pauldrons/" .. name .. ".tga", "rb"), name)
 		local s = f:read("*a"); f:close()
 		eq(s:byte(13) + 256 * s:byte(14), 256, name .. " width")
 		eq(s:byte(15) + 256 * s:byte(16), 256, name .. " height")
@@ -80,12 +80,12 @@ test("honour frames: every plain family uses its normalized visible size without
 		}
 		w.ns.HonorsNet = {
 			Verified = function() return { frame = current, metal = "bronze" } end,
-			FrameTexture = function(key) return "Interface\\AddOns\\Olympus\\media\\honors\\" .. key .. "-bronze", "plain" end,
+			FrameTexture = function(key) return "Interface\\AddOns\\ChillZone\\media\\honors\\" .. key .. "-bronze", "plain" end,
 		}
 		w.internal("LOGIN")
 		for family, size in pairs(sizes) do
 			current = family
-			w.target(BorderUnit("Honor " .. family, "Olympus II", "Member", 3))
+			w.target(BorderUnit("Honor " .. family, "ChillZone II", "Member", 3))
 			local tex = assert(w.shownTexture("target"), family)
 			eq(tex.size, size .. " " .. size, family .. " normalized box")
 			eq(tex.at.x - size / 2, -50, family .. " horizontal centre")
@@ -101,14 +101,14 @@ test("Treasurer dragon: verified primary pin owns one supplied portrait overlay,
 	local ok, err = pcall(function()
 		WithBorders(function(w)
 			w.internal("LOGIN")
-			w.target(BorderUnit("Test Treasurer", "Olympus II", "Member", 3))
+			w.target(BorderUnit("Test Treasurer", "ChillZone II", "Member", 3))
 			eq(w.B.TierOf("target"), "treasurer-dragon")
 			eq(w.B.TierOfName(primary, nil), "treasurer-dragon", "no caller guild label needed")
 			local texture = assert(w.shownTextureOn("TargetFrame.TargetFrameContainer"))
-			eq(texture.file, "Interface\\AddOns\\Olympus\\media\\borders\\treasurer-dragon")
+			eq(texture.file, "Interface\\AddOns\\ChillZone\\media\\borders\\treasurer-dragon")
 			eq(texture.size, "100 95")
-			eq(w.B.TierOfName(mail, "Olympus II"), nil)
-			eq(w.B.TierOfName("Test Treasurer-Elsewhere", "Olympus II"), nil)
+			eq(w.B.TierOfName(mail, "ChillZone II"), nil)
+			eq(w.B.TierOfName("Test Treasurer-Elsewhere", "ChillZone II"), nil)
 			local computed = w.computed()
 			w.B.CensusChanged()
 			eq(w.computed(), computed, "unchanged primary pin keeps the cached border")
@@ -128,7 +128,7 @@ test("Treasurer dragon: verified primary pin owns one supplied portrait overlay,
 end)
 
 -- 1.2.1 (the owner's report: the Treasurer's dragon sat slightly off round a party member's
--- portrait). Each border Olympus draws from a file of its own (the dragon, Max's bronze wings and
+-- portrait). Each border ChillZone draws from a file of its own (the dragon, Max's bronze wings and
 -- plain bronze) is measured on the party member frame as placed: the inner edge of its ring is
 -- read from the file's alpha (rays from the portrait's centre, a circle fitted to the edge, the
 -- parts that are no circle, the dragon's claws and the plain frame's open side, left out), and its
@@ -136,7 +136,7 @@ end)
 -- own atlases are drawn at the game's offsets, so they are right by construction and not read here.
 local ROOT = debug.getinfo(1, "S").source:match("^@(.*)tests[/\\]treasurer%-dragon%.lua$") or "./"
 local function Alpha(file)
-	local f = assert(io.open(ROOT .. "Olympus/media/borders/" .. file:match("([^\\]+)$") .. ".tga", "rb"))
+	local f = assert(io.open(ROOT .. "ChillZone/media/borders/" .. file:match("([^\\]+)$") .. ".tga", "rb"))
 	local s = f:read("*a")
 	f:close()
 	local w, h = s:byte(13) + 256 * s:byte(14), s:byte(15) + 256 * s:byte(16)
@@ -211,13 +211,13 @@ local function SettledRingCentre(alpha, x0, y0)
 	return cx, cy
 end
 
-test("1.2.1 party borders: every border drawn from Olympus's own file (the Treasurer's dragon, the bronze wings, the plain bronze) has its ring round the party member's portrait, within a pixel of its centre", function()
+test("1.2.1 party borders: every border drawn from ChillZone's own file (the Treasurer's dragon, the bronze wings, the plain bronze) has its ring round the party member's portrait, within a pixel of its centre", function()
 	local saved = { ns.TREASURER, ns.TREASURER_CHARACTERS, ns.TREASURER_REALM }
 	ns.TREASURER, ns.TREASURER_CHARACTERS, ns.TREASURER_REALM = "Test Treasurer", { "Test Treasurer", "Test Mail" }, "Realm"
 	local ok, err = pcall(function()
 		WithBorders(function(w)
 			w.party()
-			w.units.party1 = BorderUnit("Test Treasurer", "Olympus II", "Member", 3)
+			w.units.party1 = BorderUnit("Test Treasurer", "ChillZone II", "Member", 3)
 			w.internal("LOGIN")
 			eq(w.shown("party1"), "treasurer-dragon", "the Treasurer's dragon round his party portrait")
 			local portrait = w.partyRegions.Portrait

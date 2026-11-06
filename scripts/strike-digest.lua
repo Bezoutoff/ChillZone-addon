@@ -1,4 +1,4 @@
--- The chat warnings' list (Olympus/ChatStrikes.lua's ChatStrikes.LIST) from a plain list of words:
+-- The chat warnings' list (ChillZone/ChatStrikes.lua's ChatStrikes.LIST) from a plain list of words:
 --   luajit scripts/strike-digest.lua <path>
 -- <path>: one word a line ("#" starts a comment), kept outside this repository (a path inside it is
 -- refused: the plain words never go into GitHub or the CurseForge package). Each word is read as
@@ -38,8 +38,8 @@ if full == root or full:sub(1, #root + 1) == root .. "/" then Fail("refused: the
 -- The addon's own reading of a word and its digest: Sign.lua and ChatStrikes.lua, loaded as the
 -- game loads them (nothing else of the addon: ChatStrikes reads plain words without it).
 local ns = { L = {}, On = function() end }
-assert(loadfile(ROOT .. "Olympus/Sign.lua"))("Olympus", ns)
-assert(loadfile(ROOT .. "Olympus/ChatStrikes.lua"))("Olympus", ns)
+assert(loadfile(ROOT .. "ChillZone/Sign.lua"))("ChillZone", ns)
+assert(loadfile(ROOT .. "ChillZone/ChatStrikes.lua"))("ChillZone", ns)
 local S = ns.ChatStrikes
 
 local function Lines(file)

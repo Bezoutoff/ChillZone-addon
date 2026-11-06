@@ -1,6 +1,6 @@
 local base, test, eq = ...
 local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]carry%-history%.lua$") or "./"
-local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "Olympus/", ns = base })
+local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "ChillZone/", ns = base })
 local function Setup()
 	local w = World.New({ council = false, compliance = "shipped", arenaFiles = { "ArenaMath", "ArenaNet", "ArenaMoney", "Debts" } })
 	local king, member = w:Role("king"), w:Role("fighterA")
@@ -9,7 +9,7 @@ local function Setup()
 			c.ns.ViewAs = { Previewing = function() return false end }
 			c.ns.Roster = { Fresh = function() return c.fresh ~= false and {} or nil end,
 				RankOf = function(name) for _, other in ipairs({ king, member }) do if name == other.name and other.guild == c.guild then return other.rank end end end }
-			assert(loadfile(ROOT .. "Olympus/CarryHistory.lua"))("Olympus", c.ns)
+			assert(loadfile(ROOT .. "ChillZone/CarryHistory.lua"))("ChillZone", c.ns)
 		end)
 	end
 	w:Group({ king.name, member.name })
@@ -97,7 +97,7 @@ test("carry-history: crypto callbacks recheck cancellation, guild transfer and c
 			if mode == "signature" then capsule.text = capsule.text:gsub("Keep your word", "Changed") end
 			assert(H.ReceiveOriginal(king.name, capsule))
 			if mode == "cancel" then H.CancelRequest(king.name)
-			elseif mode == "guild" then member.guild = "Olympus II" end
+			elseif mode == "guild" then member.guild = "ChillZone II" end
 		end)
 		w:Run(2)
 		w:As(member, function() eq(#member.ns.CarryHistory.Archive(), 0, mode) end)
@@ -106,7 +106,7 @@ end)
 
 local function TransferWorld()
 	local w, king, member = Setup()
-	local lord = w:Role("fighterB", { rank = 0, guild = "Olympus II" })
+	local lord = w:Role("fighterB", { rank = 0, guild = "ChillZone II" })
 	local source = w:Client("Source Warden-Emberfall", { rank = 0, guild = member.guild })
 	for _, c in ipairs({ king, member, lord, source }) do w:As(c, function()
 		c.ns.Roster = { Fresh = function() return c.fresh ~= false and {} or nil end,
@@ -123,9 +123,9 @@ local function TransferWorld()
 		c.ns.ViewAs = { Previewing = function() return false end }
 		c.ns.Dialog = { Show = function(_, _, _, data) c.question = data; return true end }
 		c.ns.RealmPages = {}
-		assert(loadfile(ROOT .. "Olympus/Locales/CarryText.lua"))("Olympus", c.ns)
-		if c == lord or c == source then assert(loadfile(ROOT .. "Olympus/CarryHistory.lua"))("Olympus", c.ns) end
-		assert(loadfile(ROOT .. "Olympus/Carry.lua"))("Olympus", c.ns)
+		assert(loadfile(ROOT .. "ChillZone/Locales/CarryText.lua"))("ChillZone", c.ns)
+		if c == lord or c == source then assert(loadfile(ROOT .. "ChillZone/CarryHistory.lua"))("ChillZone", c.ns) end
+		assert(loadfile(ROOT .. "ChillZone/Carry.lua"))("ChillZone", c.ns)
 	end) end
 	w:Group({ king.name, member.name, lord.name, source.name })
 	return w, king, member, lord, source
@@ -309,9 +309,9 @@ end)
 test("carry-history: real Court, Loot write/removal and royal Pardon functions capture only their actor-owned issuance with original deadline", function()
 	local w, king, member, _, source = TransferWorld()
 	w:As(king, function()
-		assert(loadfile(ROOT .. "Olympus/Chronicle.lua"))("Olympus", king.ns)
-		assert(loadfile(ROOT .. "Olympus/Court.lua"))("Olympus", king.ns)
-		assert(loadfile(ROOT .. "Olympus/Acts.lua"))("Olympus", king.ns)
+		assert(loadfile(ROOT .. "ChillZone/Chronicle.lua"))("ChillZone", king.ns)
+		assert(loadfile(ROOT .. "ChillZone/Court.lua"))("ChillZone", king.ns)
+		assert(loadfile(ROOT .. "ChillZone/Acts.lua"))("ChillZone", king.ns)
 		king.ns.Court.Toggle()
 		king.ns.Court.Request(member.name, king.ns.Court.Holding().id, member.guild)
 		king.ns.Court.Call(member.name, "A kept royal promise")
@@ -319,7 +319,7 @@ test("carry-history: real Court, Loot write/removal and royal Pardon functions c
 	end)
 	w:As(source, function()
 		source.ns.Roster.IsOfficer = function() return source.rank <= 1 end
-		assert(loadfile(ROOT .. "Olympus/Loot.lua"))("Olympus", source.ns)
+		assert(loadfile(ROOT .. "ChillZone/Loot.lua"))("ChillZone", source.ns)
 		local note = source.ns.Loot.Write("Native officer note", 123, member.name)
 		assert(note); source.ns.Loot.Remove(note.writer .. "#" .. note.id)
 	end)

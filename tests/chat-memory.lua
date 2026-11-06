@@ -41,8 +41,8 @@ end
 local T0 = h.T0
 local LINK = "|cff1eff00|Hitem:14342::::::::60:::::|h[Mooncloth]|h|r"
 local WORDS = { "hello", "anyone", "selling", "Mooncloth", "LFG", "Scholomance", "need", "healer", "tank", "for", "the", "raid",
-	"tonight", "Olympus", "guild", "join", "please", "thanks", "price", "Orgrimmar", "Stormwind", "quest", "help", "spam" }
-local GUILDS = { "Olympus II", "Olympus", "Olympus III" }
+	"tonight", "ChillZone", "guild", "join", "please", "thanks", "price", "Orgrimmar", "Stormwind", "quest", "help", "spam" }
+local GUILDS = { "ChillZone II", "ChillZone", "ChillZone III" }
 local CLASSES = { "WA", "PA", "MA", "PR", "RO", "DR", "HU", "WL", "SH" }
 
 local function Line(t, sender, guild, class, text, extra)
@@ -143,7 +143,7 @@ local function WithChannel(fn, closed)
 			-- throttle draws it.
 			w.arrive = function(text, sender, guild, class, extra)
 				table.remove(w.list, 1)
-				local e = Line(w.list[#w.list].t + 20, sender or "Newcomer-Realm", guild or "Olympus II", class or "PA", text, extra)
+				local e = Line(w.list[#w.list].t + 20, sender or "Newcomer-Realm", guild or "ChillZone II", class or "PA", text, extra)
 				w.list[#w.list + 1] = e
 				w.fire("CHAT_CHANGED", "A"); w.fire("CHAT_LINE", "A", e.sender, e.text)
 				w.tick(0.3)
@@ -186,8 +186,8 @@ test("1.2.3 memory: what the Chat tab draws for lines that came is what a redraw
 		w.arrive("a new writer's line"); Same("a new writer")
 		w.arrive("and his second", "Newcomer-Realm"); Same("his second, in his group")
 		w.arrive("and a third, much later", "Newcomer-Realm"); Same("his third")
-		w.arrive("ours " .. LINK, ns.me, "Olympus II", "WA", { mine = true }); Same("ours, with a link")
-		w.arrive("a councillor's line", "Writer3-Realm", "Olympus", "PA"); Same("a councillor's")
+		w.arrive("ours " .. LINK, ns.me, "ChillZone II", "WA", { mine = true }); Same("ours, with a link")
+		w.arrive("a councillor's line", "Writer3-Realm", "ChillZone", "PA"); Same("a councillor's")
 		w.arrive("spam spam spam", "Spammer-Realm"); Same("a line the block terms hide")
 		-- The block terms changed (their event, FILTER_CHANGED): the next throttled redraw shows it.
 		ns.db.filterWords = { spam = true, healer = true }
@@ -242,14 +242,14 @@ test("1.2.3 memory: nothing the Chat tab draws is older than ERA_MAX (the census
 				if b:IsShown() and b.entry and b.entry.sender == sender and b.header:IsShown() then return b.who:GetText() end
 			end
 		end
-		w.arrive("a line of a writer about to be named", "Writer5-Realm", "Olympus III", "MA")
+		w.arrive("a line of a writer about to be named", "Writer5-Realm", "ChillZone III", "MA")
 		local plain = Header("Writer5-Realm")
 		assert(plain and not plain:find(ns.HIGH_COUNCIL_COLOR, 1, true), "not a councillor yet")
 		-- The council's list names him, and nothing tells the tab: within ERA_MAX of the era's
 		-- start, a line that came keeps the era's names; past it, his name in the council's colour.
 		ns.rdb.council.names.writer5 = "Writer5"
 		w.tick(CW.ERA_MAX)
-		w.arrive("one more line", "Writer5-Realm", "Olympus III", "MA")
+		w.arrive("one more line", "Writer5-Realm", "ChillZone III", "MA")
 		assert(Header("Writer5-Realm"):find(ns.HIGH_COUNCIL_COLOR, 1, true), "past ERA_MAX: the council's colour")
 		SameDrawn(Drawn(w.f), Fresh(w), "as a redraw working it all out")
 		-- Off the list again: a click (a direct redraw) shows it at once.
@@ -319,7 +319,7 @@ local function BigCensus(n)
 	for g = 1, n do
 		local zones = {}
 		for z = 1, 8 do zones["m" .. (1400 + (g * 3 + z) % 60)] = (g + z) % 9 + 1 end
-		ns.rdb.guilds["Olympus " .. (100 + g)] = { total = 100 + g, online = 20 + g % 30, zones = zones, t = now - g, leader = "Lead" .. g,
+		ns.rdb.guilds["ChillZone " .. (100 + g)] = { total = 100 + g, online = 20 + g % 30, zones = zones, t = now - g, leader = "Lead" .. g,
 			leaderOnline = g % 2 == 0, officers = {}, top = {}, avgLevel = 14 }
 	end
 end
@@ -380,12 +380,12 @@ local function WithSquads(w)
 	local R = ns.Roster
 	local saved = { guild = GetGuildInfo, inGuild = IsInGuild, byName = R.byName, complete = R.complete, generation = R.generation,
 		guildOf = R.guild, group = R.group, faction = R.faction, at = R.snapshotAt }
-	GetGuildInfo = function() return "Olympus", "Officer", 1 end
+	GetGuildInfo = function() return "ChillZone", "Officer", 1 end
 	IsInGuild = function() return true end
 	ns.rdb.council.blob = "HS1~1~Alliance~Writer3-Realm,Writer7-Realm~abcdef"
 	R.byName = { [ns.me] = 1 }
 	for i = 1, 30 do R.byName["Writer" .. i .. "-Realm"] = 3 end
-	R.complete, R.generation, R.guild, R.group, R.faction, R.snapshotAt = true, 1, "Olympus", ns.group, ns.faction, ns.Now()
+	R.complete, R.generation, R.guild, R.group, R.faction, R.snapshotAt = true, 1, "ChillZone", ns.group, ns.faction, ns.Now()
 	local told = {}
 	w.groupAppointments = {
 		{ role = "centurion", name = "Writer3-Realm" }, { role = "centurion", name = "Writer7-Realm" },
@@ -396,7 +396,7 @@ local function WithSquads(w)
 	local sns = setmetatable({ Nominees = nominees, ChatRooms = false, Comm = { Handle = function() end, Send = function() return true end } }, { __index = ns })
 	sns.On = function(name, f) w.on[name] = w.on[name] or {}; table.insert(w.on[name], f) end
 	sns.Fire = function(name, ...) told[#told + 1] = name; w.fire(name, ...) end
-	assert(loadfile(h.ADDON_DIR .. "WarSquads.lua"))("Olympus", sns)
+	assert(loadfile(h.ADDON_DIR .. "WarSquads.lua"))("ChillZone", sns)
 	return sns.WarSquads, told, function()
 		GetGuildInfo, IsInGuild, R.byName, R.complete, R.generation = saved.guild, saved.inGuild, saved.byName, saved.complete, saved.generation
 		R.guild, R.group, R.faction, R.snapshotAt = saved.guildOf, saved.group, saved.faction, saved.at

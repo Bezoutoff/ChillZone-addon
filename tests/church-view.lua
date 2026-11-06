@@ -1,4 +1,4 @@
--- 1.1.6, the Missionary Church of Olympus: the tab, its pages, the dialogs (Olympus's own window
+-- 1.1.6, the Missionary Church of ChillZone: the tab, its pages, the dialogs (ChillZone's own window
 -- under the gamepad UI), the right-click line, the words in both languages, the README.
 -- Run alone: luajit tests/run.lua "1.1.6 Church"
 local ns, test, eq, extra = ...
@@ -171,7 +171,7 @@ test("Church discoverability: missionaries are the third visible group with exis
 	local name = Find(lines, L.CHURCH_NAME_MISSIONARY:format(11, 12))
 	assert(name and name.onClick, "existing authorized naming duty surfaced beside group")
 	name.onClick(); local dialog = c.a1.dialogs[#c.a1.dialogs]
-	eq(dialog.which, "OLYMPUS_CHURCH_NAME"); eq(dialog.data.kind, "missionary")
+	eq(dialog.which, "CHILLZONE_CHURCH_NAME"); eq(dialog.data.kind, "missionary")
 	eq(w:Act(c.a1, c.a1.View.Submit, dialog.data, "Fresh Face"), true)
 	eq(w:As(c.member, c.member.Church.Role, "Fresh Face-Realm"), "M")
 	lines = Build(w, c.member, "people")
@@ -332,12 +332,12 @@ test("1.1.6 Church: Mine, People, Name and Review: each one's numbers, the tree 
 	assert(Find(name, L.CHURCH_NAME_MISSIONARY:format(11, 12)), Texts(name))
 	name = Build(w, c.author, "name")
 	assert(Find(name, L.CHURCH_NAME_APOSTLE:format(9, 12)), Texts(name)) -- (two and the Head)
-	assert(Find(name, World.GUILD2), "every Olympus guild, each with its correspondent")
+	assert(Find(name, World.GUILD2), "every ChillZone guild, each with its correspondent")
 	name = Build(w, c.gm, "name")
 	local line = Find(name, L.CHURCH_NAME_CORRESPONDENT:format(World.GUILD))
 	assert(line and line.onClick)
 	line.onClick()
-	eq(c.gm.dialogs[#c.gm.dialogs].which, "OLYMPUS_CHURCH_NAME")
+	eq(c.gm.dialogs[#c.gm.dialogs].which, "CHILLZONE_CHURCH_NAME")
 	eq(c.gm.dialogs[#c.gm.dialogs].data.kind, "correspondent")
 	-- Review: roots only; an adopted missionary shows there with keep and move.
 	w:Act(c.m1, c.m1.Church.NameMissionary, "Nils Ford")
@@ -351,17 +351,17 @@ test("1.1.6 Church: Mine, People, Name and Review: each one's numbers, the tree 
 	assert(Find(review, L.CHURCH_ACT_KEEP)); assert(Find(review, L.CHURCH_ACT_MOVE))
 end)
 
-test("1.1.6 Church: the dialogs: a name typed names, a Yes confirms; under the gamepad UI they open in Olympus's own window, never the game's popup", function()
+test("1.1.6 Church: the dialogs: a name typed names, a Yes confirms; under the gamepad UI they open in ChillZone's own window, never the game's popup", function()
 	local w, c = Cast()
 	-- With mouse and keyboard, through ns.ShowDialog (here the world's stand-in): the data says what it does.
 	w:As(c.a1, c.a1.View.Ask, "missionary")
 	local d = c.a1.dialogs[#c.a1.dialogs]
-	eq(d.which, "OLYMPUS_CHURCH_NAME"); eq(d.data.kind, "missionary")
+	eq(d.which, "CHILLZONE_CHURCH_NAME"); eq(d.data.kind, "missionary")
 	w:Act(c.a1, c.a1.View.Submit, d.data, "Fresh Face")
 	eq(w:As(c.member, c.member.Church.Role, "Fresh Face-Realm"), "M")
 	w:As(c.a1, c.a1.View.AskConfirm, "remove", { role = "M", name = "Fresh Face-Realm" })
 	d = c.a1.dialogs[#c.a1.dialogs]
-	eq(d.which, "OLYMPUS_CHURCH_CONFIRM")
+	eq(d.which, "CHILLZONE_CHURCH_CONFIRM")
 	w:Act(c.a1, c.a1.View.Confirm, d.data)
 	eq(w:As(c.member, c.member.Church.Role, "Fresh Face-Realm"), nil)
 	-- The real ns.ShowDialog under the gamepad UI: Dialog.lua's window, the game's popup untouched. (One
@@ -374,7 +374,7 @@ test("1.1.6 Church: the dialogs: a name typed names, a Yes confirms; under the g
 			rawset(c.a1.c, "ShowDialog", nil)
 			local f = w:As(c.a1, c.a1.View.Ask, "missionary")
 			eq(#game.shown, 0, "never StaticPopup_Show")
-			assert(f and ns.Dialog.Find("OLYMPUS_CHURCH_NAME") == f, "Olympus's own window")
+			assert(f and ns.Dialog.Find("CHILLZONE_CHURCH_NAME") == f, "ChillZone's own window")
 			eq(f.editBox:IsShown(), true)
 			f.editBox:SetText("Pad Player")
 			w:As(c.a1, function() f.buttons[1]:Click() end)
@@ -383,7 +383,7 @@ test("1.1.6 Church: the dialogs: a name typed names, a Yes confirms; under the g
 		end)
 		extra.WithGamepadUI(false, function(game)
 			local which = w:As(c.a1, c.a1.View.AskConfirm, "remove", { role = "M", name = "Pad Player-Realm" })
-			eq(game.shown[1] and game.shown[1].which, "OLYMPUS_CHURCH_CONFIRM", "mouse and keyboard: the game's popup")
+			eq(game.shown[1] and game.shown[1].which, "CHILLZONE_CHURCH_CONFIRM", "mouse and keyboard: the game's popup")
 			_ = which
 		end)
 	end)
@@ -402,7 +402,7 @@ test("1.1.6 Church: the right-click line: an Apostle or a missionary names a mis
 	local b = Lines(c.a1, "Some Body-Realm")
 	eq(#b, 1); eq(b[1].text, L.CHURCH_MENU_MISSIONARY)
 	b[1].fn()
-	eq(c.a1.dialogs[#c.a1.dialogs].which, "OLYMPUS_CHURCH_CONFIRM")
+	eq(c.a1.dialogs[#c.a1.dialogs].which, "CHILLZONE_CHURCH_CONFIRM")
 	eq(#Lines(c.a1, "Mira Wells-Realm"), 0, "one who holds a place already")
 	local r = Lines(c.author, "Some Body-Realm")
 	eq(r[#r].text, L.CHURCH_MENU_APOSTLE)
@@ -422,7 +422,7 @@ end)
 -- 1.2.4 (an Apostle's report on 1.2.3: "can't name missionaries anymore"). One parent's ten
 -- (Church.NAMES_PER, the same since 1.2.0, with no time window: only a removal frees a place) left
 -- him nothing to read: the Name page's header went dead, the People page's line and the
--- right-click line vanished, and only /oly church name said why, with no count. Each way to name
+-- right-click line vanished, and only /cz church name said why, with no count. Each way to name
 -- now says he has named 10 of 10, the most one may, and what frees a place.
 test("1.2.4 Church: an Apostle at his ten is told why and how many he named, wherever he names from", function()
 	local w, c = Cast()
@@ -452,7 +452,7 @@ test("1.2.4 Church: an Apostle at his ten is told why and how many he named, whe
 	eq(menu.buttons[1].text, L.CHURCH_MENU_MISSIONARY_FULL:format(per, per))
 	eq(menu.buttons[1].enabled, false)
 	eq(menu.buttons[1].tip, L.CHURCH_NO_QUOTA_SELF:format(per, per))
-	-- /oly church name: refused, with his count and what frees a place; nobody is named.
+	-- /cz church name: refused, with his count and what frees a place; nobody is named.
 	eq(w:Act(c.a1, c.a1.Church.Slash, "name Kid Eleven"), false)
 	eq(w:Printed(c.a1), L.CHURCH_NO_QUOTA_SELF:format(per, per))
 	eq(w:As(c.member, c.member.Church.Role, "Kid Eleven-Realm"), nil)
@@ -523,7 +523,7 @@ test("1.2.4 Church: at the Church's total an Apostle with places of his own left
 		eq(menu.buttons[1].text, L.CHURCH_MENU_MISSIONARY)
 		eq(menu.buttons[1].enabled, false)
 		eq(menu.buttons[1].tip, text)
-		-- /oly church name: refused with the Church's total, not "That list is full."; nobody is named.
+		-- /cz church name: refused with the Church's total, not "That list is full."; nobody is named.
 		local before = #w.sent
 		eq(w:Act(c.a1, Ch.Slash, "name Kid Eleven"), false)
 		eq(w:Printed(c.a1), text)
@@ -589,7 +589,7 @@ test("1.2.4 Church: two namings at once past his ten: his words say his ten, nev
 	assert(Find(Build(w, c.a1, "name"), L.CHURCH_QUOTA_LINE:format(per, per)))
 end)
 
-test("1.1.6 Church: the Church chat button opens the Chat tab on the Church's room; /oly church status opens a window to copy from", function()
+test("1.1.6 Church: the Church chat button opens the Chat tab on the Church's room; /cz church status opens a window to copy from", function()
 	local w, c = Cast()
 	w:As(c.m1, c.m1.View.OpenChat)
 	eq(c.m1.chatOpened, true); eq(c.m1.chatRoom, "church")
@@ -608,8 +608,8 @@ test("1.1.6 Church: every word the Church shows is in English and pt-BR, with th
 		GetLocale = function() return locale end
 		local t = { L = {} }
 		local ok, err = pcall(function()
-			assert(loadfile(ROOT .. "Olympus/Locales/ChurchText.lua"))("Olympus", t)
-			assert(loadfile(ROOT .. "Olympus/Locales/ChurchFullnessText.lua"))("Olympus", t)
+			assert(loadfile(ROOT .. "ChillZone/Locales/ChurchText.lua"))("ChillZone", t)
+			assert(loadfile(ROOT .. "ChillZone/Locales/ChurchFullnessText.lua"))("ChillZone", t)
 		end)
 		GetLocale = savedLocale
 		if not ok then error(err, 0) end
@@ -619,7 +619,7 @@ test("1.1.6 Church: every word the Church shows is in English and pt-BR, with th
 	local function Codes(s) local out = {} for code in tostring(s):gmatch("%%[%a%%]") do out[#out + 1] = code end return table.concat(out) end
 	local used = {}
 	for _, file in ipairs({ "Church.lua", "ChurchCount.lua", "ChurchView.lua" }) do
-		local f = assert(io.open(ROOT .. "Olympus/" .. file))
+		local f = assert(io.open(ROOT .. "ChillZone/" .. file))
 		local src = f:read("*a")
 		f:close()
 		for key in src:gmatch("L%.(CHURCH_[%u%d_]+)") do used[key] = true end
@@ -640,13 +640,13 @@ end)
 
 test("1.1.6 Church: the README and the CurseForge page tell of the Church in the same words; the page's ? has its answers", function()
 	local function Read(p) local f = assert(io.open(ROOT .. p)) local s = f:read("*a") f:close() return s end
-	local PHRASES = { "### The Missionary Church of Olympus (1.1.6)", "the Twelve Apostles", "**Name as missionary**", "**pending**",
-		"**confirmed**", "**new to Olympus**", "**Register a recruit**", "25% of those you named, 10% of theirs", "off by", "`/oly church`" }
+	local PHRASES = { "### The Missionary Church of ChillZone (1.1.6)", "the Twelve Apostles", "**Name as missionary**", "**pending**",
+		"**confirmed**", "**new to ChillZone**", "**Register a recruit**", "25% of those you named, 10% of theirs", "off by", "`/cz church`" }
 	local sections = {}
 	for _, path in ipairs({ "README.md", "docs/CURSEFORGE.md" }) do
 		local doc = Read(path):gsub("%s+", " ")
 		for _, phrase in ipairs(PHRASES) do assert(doc:find(phrase, 1, true), path .. ": " .. phrase) end
-		sections[#sections + 1] = doc:match("### The Missionary Church of Olympus %(1%.1%.6%)(.-)###")
+		sections[#sections + 1] = doc:match("### The Missionary Church of ChillZone %(1%.1%.6%)(.-)###")
 	end
 	assert(sections[1] and sections[1] ~= "")
 	eq(sections[1], sections[2], "the same words on both pages")
@@ -655,12 +655,12 @@ test("1.1.6 Church: the README and the CurseForge page tell of the Church in the
 	local cl = w:Client("Some One", { view = true })
 	local page = cl.c.Answers.PAGES.church
 	eq(page[1], "feat-church"); eq(page[2], "feat-church-count")
-	local bank = Read("Olympus/AnswerBank.lua")
+	local bank = Read("ChillZone/AnswerBank.lua")
 	assert(bank:find('"feat-church"', 1, true) and bank:find('"feat-church-count"', 1, true))
 end)
 
 -- (1.2.4, the author's ask: the Church's Name page said "none" for every other guild: its master's
--- naming was taken on no client outside his guild, and nothing kept it.) Fails before: Olympus Vale's
+-- naming was taken on no client outside his guild, and nothing kept it.) Fails before: ChillZone Vale's
 -- row on the author's Name page read "none" with its master online, and after.
 test("1.2.4 Church: the root's Name page shows each guild's correspondent its master named, with that guild offline and after a reload", function()
 	local w, c = Cast()

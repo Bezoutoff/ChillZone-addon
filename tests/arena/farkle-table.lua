@@ -1,4 +1,4 @@
--- 1.2, the Bone Throw tables: Bone Throw's table (Olympus/FarkleTable.lua; the rules are ArenaFarkle.lua's, tested
+-- 1.2, the Bone Throw tables: Bone Throw's table (ChillZone/FarkleTable.lua; the rules are ArenaFarkle.lua's, tested
 -- in ArenaFarkle.lua): the protocol by whisper between the players and the arbiter, the server's
 -- roll lines witnessed by every client, the clocks, resync and the divergence rule, the stakes
 -- glue, the tavern rule (the design), the hiccup (the design), spectators, practice against the House,
@@ -1695,7 +1695,7 @@ test("1.2 the Bone Throw tables: practice, drunk: the player's own 'You feel' li
 	NoErrors(w)
 end)
 
-test("1.2 the Bone Throw tables: /oly farkle test rolls 46656 and reads the line back (name, range, value, dice, the match) into a copy pop-up, /oly status and /oly bug", function()
+test("1.2 the Bone Throw tables: /cz farkle test rolls 46656 and reads the line back (name, range, value, dice, the match) into a copy pop-up, /cz status and /cz bug", function()
 	local w = FW.New()
 	local a = w:Player(P1)
 	local copies = {}

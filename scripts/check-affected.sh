@@ -2,7 +2,7 @@
 # Full static/aux checks; only complete mapped Arena modules may be omitted.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-for affected_filter in OLYMPUS_TEST_FILTER OLYMPUS_TEST_AUTHORITY_ONLY OLYMPUS_TEST_WATCH_ONLY OLYMPUS_TEST_ARENA_MODULES; do
+for affected_filter in CHILLZONE_TEST_FILTER CHILLZONE_TEST_AUTHORITY_ONLY CHILLZONE_TEST_WATCH_ONLY CHILLZONE_TEST_ARENA_MODULES; do
 	if [ -n "${!affected_filter:-}" ]; then
 		printf 'Refusing inherited selector %s: affected checks must retain shared setup.\n' "$affected_filter" >&2
 		exit 2
@@ -38,11 +38,11 @@ while IFS=$'\t' read -r affected_key affected_value; do
 done <<< "$affected_plan"
 if [ "$affected_mode" = AFFECTED ]; then
 	# Without the module-aware harness integration, running FULL is safer than pretending to focus.
-	if ! rg -q 'OLYMPUS_TEST_ARENA_MODULES' tests/run.lua; then
+	if ! rg -q 'CHILLZONE_TEST_ARENA_MODULES' tests/run.lua; then
 		printf 'Module-aware harness unavailable; falling back FULL.\n'
 	else
 		[ -n "$affected_modules" ] || { printf 'Empty module selection.\n' >&2; exit 2; }
-		export OLYMPUS_TEST_ARENA_MODULES="$affected_modules"
+		export CHILLZONE_TEST_ARENA_MODULES="$affected_modules"
 		printf 'Affected Arena modules selected; complete main harness, gamepad and auxiliary checks retained.\n'
 	fi
 elif [ "$affected_mode" != FULL ]; then

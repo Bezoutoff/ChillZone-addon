@@ -2,7 +2,7 @@ local H = ...
 local test, eq = H.test, H.eq
 local ns = H.ns
 
-print("Diagnostics.lua: what /oly status, /oly bug and the error log never keep")
+print("Diagnostics.lua: what /cz status, /cz bug and the error log never keep")
 
 -- The saved tables and stand-ins these tests change, put back after, even when one fails.
 local function Saved(fn)
@@ -18,18 +18,18 @@ local function Saved(fn)
 	if not ok then error(err, 0) end
 end
 
--- Everything a player could paste or send: /oly status, /oly bug, the log and the saved errors.
+-- Everything a player could paste or send: /cz status, /cz bug, the log and the saved errors.
 local function Everything()
 	local text = table.concat({ ns.StatusText(), ns.BuildBugReport(), table.concat(ns.db.log, "\n") }, "\n")
 	for _, e in ipairs(ns.db.errors) do text = text .. "\n" .. e.key .. "\n" .. e.where .. "\n" .. e.msg .. "\n" .. (e.stack or "") end
 	return text
 end
 
-test("1.2.1 leaks: a failure inside /oly key <secret> keeps the command, never the key, in the errors, the log and /oly bug", function()
+test("1.2.1 leaks: a failure inside /cz key <secret> keeps the command, never the key, in the errors, the log and /cz bug", function()
 	Saved(function()
 		local secret = "Hidden Grove 4417"
 		ns.Comm.SetRealmKey = function(s) error("on purpose, with " .. tostring(s)) end
-		SlashCmdList.OLYMPUS("key " .. secret)
+		SlashCmdList.CHILLZONE("key " .. secret)
 		eq(#ns.db.errors, 1, "the failure was kept")
 		eq(ns.db.errors[1].where, "slash key", "the command alone")
 		eq(ns.db.errors[1].msg:find("on purpose", 1, true) ~= nil, true, "and what went wrong")
@@ -37,7 +37,7 @@ test("1.2.1 leaks: a failure inside /oly key <secret> keeps the command, never t
 		assert(not text:find(secret, 1, true), "the key is nowhere")
 		assert(not text:lower():find("hidden grove", 1, true), "in no case")
 		assert(ns.BuildBugReport():find("slash key", 1, true), "the report names the command")
-		-- "/oly key rotate" names no key: kept as typed; other commands as before.
+		-- "/cz key rotate" names no key: kept as typed; other commands as before.
 		ns.CaptureError("slash key rotate", "rotation failed")
 		ns.CaptureError("slash helpme where is the bank", "boom")
 		eq(ns.db.errors[2].where, "slash key rotate")
@@ -59,7 +59,7 @@ test("1.2.1 leaks: a key older versions kept with a failure leaves the saved err
 			"10-01 12:00:01 ERROR in slash key rotate: x",
 			"10-01 12:00:02 ERROR in slash key: kept as this version keeps it",
 		} }
-	assert(loadfile(H.ADDON_DIR .. "Diagnostics.lua"))("Olympus", dns)
+	assert(loadfile(H.ADDON_DIR .. "Diagnostics.lua"))("ChillZone", dns)
 	eq(#inits > 0, true, "an INIT handler")
 	for _, fn in ipairs(inits) do fn() end
 	local e = dns.db.errors[1]
@@ -71,7 +71,7 @@ test("1.2.1 leaks: a key older versions kept with a failure leaves the saved err
 	eq(dns.db.log[3], "10-01 12:00:02 ERROR in slash key: kept as this version keeps it")
 end)
 
-test("1.2.1 leaks: /oly status and /oly bug never name the sealed channel nor the player's own channels", function()
+test("1.2.1 leaks: /cz status and /cz bug never name the sealed channel nor the player's own channels", function()
 	Saved(function()
 		ns.rdb.realmKey = "Quiet Harbor 2291"
 		local sealed = (ns.Comm.ChannelSpec())
@@ -92,7 +92,7 @@ test("1.2.1 leaks: /oly status and /oly bug never name the sealed channel nor th
 			assert(not text:find("dawnwatchers", 1, true), "nor the player's own channel")
 		end
 		assert(status:find("channel (sealed channel) = #", 1, true), status)
-		assert(status:find("chat channels: 1 General, 2 Trade, 3 other, 4 Olympus", 1, true), status)
+		assert(status:find("chat channels: 1 General, 2 Trade, 3 other, 4 ChillZone", 1, true), status)
 		assert(bug:find("channel (sealed channel) is #4", 1, true), "the log line stays, without the name")
 		assert(bug:find("joining channel (sealed channel) (sealed)", 1, true))
 		-- The public channel's name is no secret: shown as before.
@@ -102,7 +102,7 @@ test("1.2.1 leaks: /oly status and /oly bug never name the sealed channel nor th
 	end)
 end)
 
-test("1.2.1 leaks: a character whose name looks like a sealed channel's keeps it in /oly status and /oly bug, the channel's name still goes", function()
+test("1.2.1 leaks: a character whose name looks like a sealed channel's keeps it in /cz status and /cz bug, the channel's name still goes", function()
 	Saved(function()
 		ns.rdb.realmKey = "Amber Weir 6603"
 		local sealed = (ns.Comm.ChannelSpec())
@@ -116,8 +116,8 @@ test("1.2.1 leaks: a character whose name looks like a sealed channel's keeps it
 		ns.db.log = {
 			"10-11 12:00:00 joining channel Oly7old2key (sealed)",
 			"10-11 12:00:01 channel " .. sealed .. ": PLAYER_BANNED Olyandersen-Realm by Olyhannahxx",
-			"10-11 12:00:02 left channel Oly7old2key: not in an Olympus guild",
-			"10-11 12:00:03 pin from Olyandersen-Realm <Olympus II> (rank 2)",
+			"10-11 12:00:02 left channel Oly7old2key: not in an ChillZone guild",
+			"10-11 12:00:03 pin from Olyandersen-Realm <ChillZone II> (rank 2)",
 			"10-11 12:00:04 lost " .. sealed .. " on a reload",
 		}
 		-- "Oly" and eight lowercase letters: a name the game allows (invented here).
@@ -132,7 +132,7 @@ test("1.2.1 leaks: a character whose name looks like a sealed channel's keeps it
 		assert(bug:find("channel (sealed channel): PLAYER_BANNED Olyandersen-Realm by Olyhannahxx", 1, true), bug)
 		assert(bug:find("joining channel (sealed channel) (sealed)", 1, true))
 		assert(bug:find("left channel (sealed channel): not in", 1, true))
-		assert(bug:find("pin from Olyandersen-Realm <Olympus II>", 1, true), "a player in the log keeps his name")
+		assert(bug:find("pin from Olyandersen-Realm <ChillZone II>", 1, true), "a player in the log keeps his name")
 		assert(bug:find("lost (sealed channel) on a reload", 1, true), "this key's name goes wherever it is")
 	end)
 end)

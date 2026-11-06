@@ -13,11 +13,11 @@ local World = H.World
 local W3 = assert(loadfile(H.ROOT .. "tests/arena/lib/fights-world.lua"))(H)
 local N = World.NAMES
 
-local MEDIA = "Interface\\AddOns\\Olympus\\media\\honors\\"
+local MEDIA = "Interface\\AddOns\\ChillZone\\media\\honors\\"
 -- The frames worn as Honors.lua ships them (the test world wears every family's: World's Load).
 local SHIPPED = (function()
 	local fresh = {}
-	assert(loadfile(H.ADDON_DIR .. "Honors.lua"))("Olympus", fresh)
+	assert(loadfile(H.ADDON_DIR .. "Honors.lua"))("ChillZone", fresh)
 	return fresh.Honors.FRAMES_SHIPPED
 end)()
 
@@ -30,8 +30,8 @@ local function LoadChurch(w, c)
 	local cns = setmetatable({ Comm = { Handle = function(kind, fn) handlers[kind] = fn end, Send = function() end, Whisper = function() end },
 		On = function() end, ChatRooms = false }, { __index = c.ns })
 	w:As(c, function()
-		assert(loadfile(H.ADDON_DIR .. "Church.lua"))("Olympus", cns)
-		assert(loadfile(H.ADDON_DIR .. "ChurchCount.lua"))("Olympus", cns)
+		assert(loadfile(H.ADDON_DIR .. "Church.lua"))("ChillZone", cns)
+		assert(loadfile(H.ADDON_DIR .. "ChurchCount.lua"))("ChillZone", cns)
 	end)
 	rawset(c.ns, "Church", cns.Church)
 	rawset(c.ns, "ChurchCount", cns.ChurchCount)
@@ -124,7 +124,7 @@ local function Frames(w, c)
 	g.UnitIsUnit = function(a, b) return a == b end
 	w:As(c, function()
 		rawset(c.ns, "Borders", nil)
-		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("ChillZone", c.ns)
 	end)
 	rec.B = W3.M(w, c, "Borders")
 	-- What a portrait shows now (worked out afresh): its foreground file (an honour's) or atlas (a

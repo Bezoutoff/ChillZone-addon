@@ -1,4 +1,4 @@
--- Names each listener of a /oly perf report by its file and line: "callback DATA_CHANGED #18" is
+-- Names each listener of a /cz perf report by its file and line: "callback DATA_CHANGED #18" is
 -- the 18th function registered for DATA_CHANGED (ns.On), "event CHAT_MSG_ADDON #3" the 3rd one
 -- registered for that event (ns.RegisterEvent).
 --
@@ -8,7 +8,7 @@
 -- it). Words: only the labels holding one of them (DATA_CHANGED, CHAT_MSG_ADDON); none, every
 -- label. --gamepad: the report's player had the gamepad UI on.
 --
--- Why: the game's Lua has no debug library, so Olympus/Perf.lua names most listeners by their
+-- Why: the game's Lua has no debug library, so ChillZone/Perf.lua names most listeners by their
 -- place alone (#n; a name where the namespace has the function). That place is the order of
 -- registration: the TOC's files in order, then what they register at the login, the same on every
 -- client of one version. This loads the checkout in the gamepad pass's model of the client
@@ -84,5 +84,5 @@ for _, a in ipairs(arg or {}) do
 	if a == "--gamepad" then gamepad = true else words[#words + 1] = a end
 end
 local _, ns = M.Session(gamepad)
-print(("Olympus %s, %s: each listener's #n in /oly perf"):format(tostring(ns.VERSION), gamepad and "gamepad UI" or "mouse and keyboard"))
+print(("ChillZone %s, %s: each listener's #n in /cz perf"):format(tostring(ns.VERSION), gamepad and "gamepad UI" or "mouse and keyboard"))
 for _, line in ipairs(M.Lines(M.Map(ns), words)) do print(line) end

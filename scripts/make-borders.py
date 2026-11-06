@@ -4,7 +4,7 @@
 Max drew the bronze frames over the game's own gold ones (Forever 1.60.1, uiunitframebossc602x,
 at twice their size on screen): media/borders/src/bronze-plain.png (200 x 200, over the plain
 gold elite frame) and bronze-winged.png (220 x 180, over the winged one). Each becomes
-Olympus/media/borders/<name>.tga, the format of the addon's other textures (media/logo64.tga)
+ChillZone/media/borders/<name>.tga, the format of the addon's other textures (media/logo64.tga)
 that Forever and the Classic clients load with SetTexture:
 
 - a power-of-two canvas, 256 x 256, the PNG's art at its top left and transparent elsewhere
@@ -13,8 +13,8 @@ that Forever and the Classic clients load with SetTexture:
   with the TGA 2.0 footer. The bytes are written here, not by Pillow's TGA writer, so the same
   PNGs always give the same files.
 
-The member's star (Nameplates.lua: the mark next to the name of any other member of an Olympus
-guild on a nameplate) is drawn here, not copied from the game's files: Olympus/media/borders/star.tga,
+The member's star (Nameplates.lua: the mark next to the name of any other member of an ChillZone
+guild on a nameplate) is drawn here, not copied from the game's files: ChillZone/media/borders/star.tga,
 a plain four-point star with no ring, white fading to a pale silver at its points, its edge soft
 (each pixel sampled 8 x 8 times, and a faint wider copy round it), on a 32 x 32 canvas (a power of
 two; shown at 16 x 16, half its size, like Max's frames). Only square roots and plain arithmetic go
@@ -35,7 +35,7 @@ from PIL import Image
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 SOURCES = os.path.join(ROOT, "media", "borders", "src")
-OUTPUT = os.path.join(ROOT, "Olympus", "media", "borders")
+OUTPUT = os.path.join(ROOT, "ChillZone", "media", "borders")
 CANVAS = 256
 
 # Each frame and the size of the game's frame it was drawn over (Borders.lua's texture

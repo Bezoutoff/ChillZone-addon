@@ -1,4 +1,4 @@
--- 1.1.6, Bones' lesson (Olympus_Arena/FarkleBoard.lua's Board.Lesson and Board.BustChance): a
+-- 1.1.6, Bones' lesson (ChillZone_Arena/FarkleBoard.lua's Board.Lesson and Board.BustChance): a
 -- practice game against the innkeeper with Show tips checked says, in the table's column, what
 -- the rules make of the dice in front of the player: which dice of a throw score and for how much,
 -- the turn's points and the chance of BONES! with the dice left, hot dice, a bust and a bank. The
@@ -183,9 +183,9 @@ local function Words(locale)
 	local saved = GetLocale
 	GetLocale = function() return locale end
 	local ok, err = pcall(function()
-		for _, f in ipairs({ "ComplianceText", "ArenaHomeText" }) do assert(loadfile(H.ADDON_DIR .. "Locales/" .. f .. ".lua"))("Olympus", { L = L }) end
+		for _, f in ipairs({ "ComplianceText", "ArenaHomeText" }) do assert(loadfile(H.ADDON_DIR .. "Locales/" .. f .. ".lua"))("ChillZone", { L = L }) end
 		for _, f in ipairs({ "FarkleText", "LotteryText", "UIText" }) do
-			assert(loadfile(H.ROOT .. "Olympus_Arena/Locales/" .. f .. ".lua"))("Olympus_Arena", { host = { L = L } })
+			assert(loadfile(H.ROOT .. "ChillZone_Arena/Locales/" .. f .. ".lua"))("ChillZone_Arena", { host = { L = L } })
 		end
 	end)
 	GetLocale = saved

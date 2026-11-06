@@ -1,14 +1,14 @@
--- The Companion's membership section and the Wanted list's realm (Olympus/BridgeSections.lua,
--- ns.REALM_KIND and ns.RealmPvP in Olympus/Core.lua): the Companion shows a PvP realm group's
+-- The Companion's membership section and the Wanted list's realm (ChillZone/BridgeSections.lua,
+-- ns.REALM_KIND and ns.RealmPvP in ChillZone/Core.lua): the Companion shows a PvP realm group's
 -- Wanted list to the PvE realms' players with a line saying it comes from PvP, so both sections
--- carry this character's census realm group and, for a realm Olympus names, whether it is a PvP
+-- carry this character's census realm group and, for a realm ChillZone names, whether it is a PvP
 -- realm. The launch realms are not known yet, so the table ships empty and pvp is absent for every
 -- realm (the relay then falls back to its own list). membership names nobody: it is given before
--- either Accord and outside Olympus, with the faction the Companion pairs with self's character and
+-- either Accord and outside ChillZone, with the faction the Companion pairs with self's character and
 -- guild. The Wanted list carries no GUID. Loaded by tests/run.lua.
 -- Run alone: luajit tests/run.lua "bridge membership"
 local ns, test, eq = ...
-local B = OlympusBridge
+local B = ChillZoneBridge
 
 local NOW = 1800000000
 
@@ -73,10 +73,10 @@ end)
 test("bridge membership: realmGroup, faction and pvp only where the realm is named; never a character, guild or BattleTag", function()
 	With({}, function()
 		local d = Data("membership")
-		eq(d.olympus, true); eq(d.realmGroup, "Realm"); eq(d.faction, "Alliance")
+		eq(d.chillzone, true); eq(d.realmGroup, "Realm"); eq(d.faction, "Alliance")
 		eq(d.pvp, nil, "an unknown realm: no pvp, the relay's own list decides")
 		for k in pairs(d) do
-			assert(({ olympus = true, accord = true, realmGroup = true, pvp = true, faction = true })[k], "membership field " .. k)
+			assert(({ chillzone = true, accord = true, realmGroup = true, pvp = true, faction = true })[k], "membership field " .. k)
 		end
 	end)
 	With({ realm = "Bloodmoon", kinds = { Bloodmoon = "pvp" }, links = { Bloodmoon = "Bloodmoon+Ironhold" } }, function()
@@ -91,25 +91,25 @@ test("bridge membership: realmGroup, faction and pvp only where the realm is nam
 	With({ faction = "Neutral" }, function()
 		eq(Data("membership").faction, nil, "only Alliance or Horde")
 	end)
-	-- It names nobody, so it goes before either Accord and outside Olympus too; after the Companion
+	-- It names nobody, so it goes before either Accord and outside ChillZone too; after the Companion
 	-- Accord it still names nobody (self carries the character and guild, tests/run.lua).
 	With({ realm = "Bloodmoon", kinds = { Bloodmoon = "pvp" } }, function()
 		ns.db.accord, ns.db.companionAccord = nil, nil
 		local d = Data("membership")
-		eq(d.olympus, false, "before the Olympus Accord he is no member yet"); eq(d.accord, false)
+		eq(d.chillzone, false, "before the ChillZone Accord he is no member yet"); eq(d.accord, false)
 		eq(d.realmGroup, "Bloodmoon"); eq(d.pvp, true); eq(d.faction, "Alliance")
 		ns.db.accord = { v = ns.ACCORD_VERSION, yes = true, at = 0 }
 		ns.db.companionAccord = { version = 1, accepted = true, at = 0 }
 		GetGuildInfo = function() return "Horde Pals", "Member", 3 end
 		d = Data("membership")
-		eq(d.olympus, false); eq(d.accord, true); eq(d.pvp, true, "outside Olympus too")
+		eq(d.chillzone, false); eq(d.accord, true); eq(d.pvp, true, "outside ChillZone too")
 		Never(d, "Tester"); Never(d, "Horde Pals", "the guild"); Never(d, "#", "a BattleTag")
 	end)
 	-- A realm-kind check that fails leaves pvp out; the rest is whole.
 	With({}, function()
 		ns.RealmPvP = function() error("boom") end
 		local d = Data("membership")
-		eq(d.pvp, nil); eq(d.realmGroup, "Realm"); eq(d.olympus, true)
+		eq(d.pvp, nil); eq(d.realmGroup, "Realm"); eq(d.chillzone, true)
 		ns.RealmPvP = function() return "pvp" end
 		eq(Data("membership").pvp, nil, "only a true or false counts")
 	end)
@@ -134,7 +134,7 @@ test("bridge membership: the Wanted list carries its realm group and pvp beside 
 	With({ realm = "Quietvale", kinds = { Quietvale = "pve" } }, function()
 		eq(Data("wanted").pvp, false)
 	end)
-	-- Still nothing before the Olympus Accord (1.2.6).
+	-- Still nothing before the ChillZone Accord (1.2.6).
 	With({}, function()
 		ns.db.accord = nil
 		eq(B.GetSection("wanted"), nil)

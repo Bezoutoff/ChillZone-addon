@@ -9,7 +9,7 @@ local WithUI, LoadUI = extra.WithUI, extra.LoadUI
 local L, V = ns.L, ns.Views
 
 -- The page's words, as the game loads them (English here; Portuguese below).
-assert(loadfile(ROOT .. "Olympus/Locales/CensusStatsText.lua"))("Olympus", ns)
+assert(loadfile(ROOT .. "ChillZone/Locales/CensusStatsText.lua"))("ChillZone", ns)
 
 local function Bare(s) return (tostring(s or ""):gsub("|T.-|t", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
 
@@ -37,7 +37,7 @@ local function World(o)
 		On = function(name, fn) w.on[name] = w.on[name] or {}; table.insert(w.on[name], fn) end,
 		Every = function(seconds, where, fn) w.every[#w.every + 1] = { seconds = seconds, where = where, fn = fn } end,
 	}, { __index = ns })
-	assert(loadfile(ROOT .. "Olympus/CensusStats.lua"))("Olympus", cns)
+	assert(loadfile(ROOT .. "ChillZone/CensusStats.lua"))("ChillZone", cns)
 	w.ns, w.CS = cns, cns.CensusStats
 	function w.History() return cns.rdb.censusHistory end
 	function w.Fire(name) for _, fn in ipairs(w.on[name] or {}) do fn() end end
@@ -185,9 +185,9 @@ end
 
 test("census page: characters, people, linked alts, online, guilds counted, the weighted average level, every server (1.4.0, no largest guilds) and the levels online", function()
 	WithCensus({
-		["Olympus"] = Report(900, { online = 200, avgLevel = 40, levels = { 10, 20, 30, 40, 50, 30, 20 } }),
-		["Olympus II"] = Report(300, { online = 50, avgLevel = 60, levels = { 0, 0, 0, 0, 10, 20, 20 } }),
-		["Olympus III"] = Report(100, { online = 0, avgLevel = nil, t = os.time() - ns.Data.FRESH - 60 }),
+		["ChillZone"] = Report(900, { online = 200, avgLevel = 40, levels = { 10, 20, 30, 40, 50, 30, 20 } }),
+		["ChillZone II"] = Report(300, { online = 50, avgLevel = 60, levels = { 0, 0, 0, 0, 10, 20, 20 } }),
+		["ChillZone III"] = Report(100, { online = 0, avgLevel = nil, t = os.time() - ns.Data.FRESH - 60 }),
 	}, 4, function()
 		local w = World({ realData = true, clock = os.time() })
 		local lines, title, text = w.CS.Build()
@@ -231,7 +231,7 @@ end)
 test("census page (1.4.0): every server: the totals, by ruleset and by region, each server with ours first; a lone report grey and out of the totals; the beta's never on a launch realm", function()
 	local saved = { group = ns.group, info = ns.RealmInfo, counted = ns.db.groupCensus, heard = ns.db.groupHeard, faction = ns.faction }
 	local ok, err = pcall(function()
-		WithCensus({ ["Olympus"] = Report(900, { online = 200 }) }, 0, function()
+		WithCensus({ ["ChillZone"] = Report(900, { online = 200 }) }, 0, function()
 			local now = os.time()
 			ns.group, ns.faction = "Normalone+Normaltwo", "Alliance"
 			ns.RealmInfo = function(realm)
@@ -281,7 +281,7 @@ test("census page (1.4.0): every server: the totals, by ruleset and by region, e
 end)
 
 test("census page: the graphs: 30 days of characters, the scale's ends written on its left, today last and brighter; 24 hours of online from 0; each slot its own tooltip", function()
-	WithCensus({ ["Olympus"] = Report(900, { online = 200 }) }, 0, function()
+	WithCensus({ ["ChillZone"] = Report(900, { online = 200 }) }, 0, function()
 		-- (Noon today: the samples' days and hours whatever the time the test runs.)
 		local d = os.date("*t")
 		local now = os.time({ year = d.year, month = d.month, day = d.day, hour = 12 })
@@ -379,8 +379,8 @@ end)
 local function OpenWindow(fn)
 	WithUI(function()
 		WithCensus({
-			["Olympus"] = Report(900, { online = 200, avgLevel = 40 }),
-			["Olympus II"] = Report(300, { online = 50 }),
+			["ChillZone"] = Report(900, { online = 200, avgLevel = 40 }),
+			["ChillZone II"] = Report(300, { online = 50 }),
 		}, 4, function()
 			local w = World({ realData = true, clock = os.time() })
 			local saved = ns.CensusStats
@@ -388,7 +388,7 @@ local function OpenWindow(fn)
 			local ok, err = pcall(function()
 				local UI = LoadUI()
 				UI.Toggle()
-				fn(OlympusFrame, UI, w)
+				fn(ChillZoneFrame, UI, w)
 			end)
 			ns.CensusStats = saved
 			if not ok then error(err, 0) end
@@ -423,10 +423,10 @@ test("census header: the characters, and next to them, smaller and darker, the p
 		Minimap = CreateFrame("Frame", "Minimap", UIParent)
 		Minimap:SetSize(140, 140)
 		UI.UpdateMinimapButton()
-		OlympusMinimapButton:Fire("OnEnter")
+		ChillZoneMinimapButton:Fire("OnEnter")
 		eq(GameTooltip.lines[2], L.ARMY_TOTAL:format("1,200") .. "  " .. UI.PEOPLE_CODE .. L.ARMY_PEOPLE:format("1,196") .. "|r")
 		Minimap = nil
-		-- On the Join screen (no Olympus guild) the header is the roast's alone.
+		-- On the Join screen (no ChillZone guild) the header is the roast's alone.
 		GetGuildInfo = function() return nil end
 		UI.Refresh()
 		eq(main.people:IsShown(), false)
@@ -476,7 +476,7 @@ end)
 
 test("census page: a client updated without a restart (no CensusStats.lua yet) keeps the Census list, says to restart on a click, and offers no click in the tooltip", function()
 	WithUI(function()
-		WithCensus({ ["Olympus"] = Report(900) }, 0, function()
+		WithCensus({ ["ChillZone"] = Report(900) }, 0, function()
 			local saved = ns.CensusStats
 			ns.CensusStats = nil
 			local printed = {}
@@ -485,7 +485,7 @@ test("census page: a client updated without a restart (no CensusStats.lua yet) k
 			local ok, err = pcall(function()
 				local UI = LoadUI()
 				UI.Toggle()
-				local main = OlympusFrame
+				local main = ChillZoneFrame
 				eq(main.people:GetText(), L.ARMY_PEOPLE:format("900"))
 				main.headerHover:Fire("OnEnter")
 				for _, line in ipairs(GameTooltip.lines) do assert(line ~= L.HEADER_TIP_OPEN, "no click offered") end
@@ -510,7 +510,7 @@ end)
 -- out of every total.
 local function Census(characters, people)
 	return { characters = characters, total = people, online = 0,
-		guilds = { { name = "Olympus", counted = true }, { name = "Olympus Gone", counted = false } } }
+		guilds = { { name = "ChillZone", counted = true }, { name = "ChillZone Gone", counted = false } } }
 end
 
 -- World with the samples this client holds, as the modules count them: o.team ({ characters,
@@ -535,7 +535,7 @@ test("census people estimate: on a moderation team client, the validated sample:
 	-- 800 + 9,040 / 1.2 = 8,333.3: 8,330.
 	eq(e.estimate, 8330); eq(e.shown, 8330); eq(e.people, 9850, "the plain count kept beside it")
 	eq(e.staff, true); eq(e.validated, 800); eq(e.validatedCharacters, 960); eq(e.unvalidated, 9040)
-	eq(w.asked.team.olympus, true); eq(w.asked.team["olympus gone"], nil, "a guild out of the total is not in the sample")
+	eq(w.asked.team.chillzone, true); eq(w.asked.team["chillzone gone"], nil, "a guild out of the total is not in the sample")
 	eq(w.CS.PeopleText(Census(10000, 9850)), L.ARMY_PEOPLE_APPROX:format("8,330"))
 	eq(w.CS.StaffLine(e), L.PEOPLE_STAFF_TAGS:format("800", "1.20", "9,040"))
 	local notes = w.CS.PeopleNotes(Census(10000, 9850))
@@ -610,7 +610,7 @@ test("census people estimate: three significant figures; never more than the pla
 	w = Sampled({ team = { characters = 200, accounts = 20 }, alts = { characters = 600, people = 300 } })
 	local e = w.CS.PeopleEstimate(Census(1000, 1000))
 	eq(e.sample.kind, "battletag"); eq(e.estimate, 300)
-	eq(w.asked.alts.olympus, true); eq(w.asked.alts["olympus gone"], nil, "the floor asks the guilds counted alone")
+	eq(w.asked.alts.chillzone, true); eq(w.asked.alts["chillzone gone"], nil, "the floor asks the guilds counted alone")
 	-- A sample bigger than the census (rows of guilds since grown smaller) never counts past it.
 	w = Sampled({ team = { characters = 5000, accounts = 4000 } })
 	e = w.CS.PeopleEstimate(Census(1000, 1000))
@@ -624,15 +624,15 @@ test("census people estimate: Alts.Sample counts the players whose confirmed lin
 		ns.db.alts, ns.rdb.altClaims = nil, nil
 		A.Reset()
 		local function AL(sender, role, guild, names) A.Handle("CHANNEL", sender, ("AL~1~%s~%s~%s"):format(role, guild, names)) end
-		AL("Main One-Realm", "M", "Olympus", "Alt One,Alt Two")
-		AL("Alt One-Realm", "A", "Olympus", "Main One")
-		AL("Alt Two-Realm", "A", "Olympus Far", "Main One")
-		AL("Main Two-Realm", "M", "Olympus Far", "Alt Three")
-		AL("Alt Three-Realm", "A", "Olympus", "Main Two")
-		AL("Main Three-Realm", "M", "Olympus", "Alt Four") -- (Alt Four never says so)
-		local c, p = A.Sample({ olympus = true })
+		AL("Main One-Realm", "M", "ChillZone", "Alt One,Alt Two")
+		AL("Alt One-Realm", "A", "ChillZone", "Main One")
+		AL("Alt Two-Realm", "A", "ChillZone Far", "Main One")
+		AL("Main Two-Realm", "M", "ChillZone Far", "Alt Three")
+		AL("Alt Three-Realm", "A", "ChillZone", "Main Two")
+		AL("Main Three-Realm", "M", "ChillZone", "Alt Four") -- (Alt Four never says so)
+		local c, p = A.Sample({ chillzone = true })
 		eq(c, 3, "Main One, Alt One and Alt Three"); eq(p, 2)
-		c, p = A.Sample({ olympus = true, ["olympus far"] = true })
+		c, p = A.Sample({ chillzone = true, ["chillzone far"] = true })
 		eq(c, 5); eq(p, 2)
 		c, p = A.Sample({})
 		eq(c, 0); eq(p, 0)
@@ -668,11 +668,11 @@ local function TagRows(accounts, seconds, guild)
 	local rows = {}
 	for i = 1, accounts do
 		local tag = ("Hidden%d#%d"):format(i, 1000 + i)
-		rows[("hidden%d-realm"):format(i)] = { name = ("Hidden%d-Realm"):format(i), tag = tag, guild = guild or "Olympus", last = os.time() }
-		if i <= seconds then rows[("second%d-realm"):format(i)] = { name = ("Second%d-Realm"):format(i), tag = tag, guild = guild or "Olympus", last = os.time() } end
+		rows[("hidden%d-realm"):format(i)] = { name = ("Hidden%d-Realm"):format(i), tag = tag, guild = guild or "ChillZone", last = os.time() }
+		if i <= seconds then rows[("second%d-realm"):format(i)] = { name = ("Second%d-Realm"):format(i), tag = tag, guild = guild or "ChillZone", last = os.time() } end
 	end
-	rows["far1-realm"] = { name = "Far1-Realm", tag = "Faraway#4242", guild = "Olympus Far", last = os.time() }
-	rows["far2-realm"] = { name = "Far2-Realm", tag = "Faraway#4243", guild = "Olympus Far", last = os.time() }
+	rows["far1-realm"] = { name = "Far1-Realm", tag = "Faraway#4242", guild = "ChillZone Far", last = os.time() }
+	rows["far2-realm"] = { name = "Far2-Realm", tag = "Faraway#4243", guild = "ChillZone Far", last = os.time() }
 	return rows
 end
 -- Every word a list of lines shows: text, right side and tooltip.
@@ -696,7 +696,7 @@ local function NoTagOrName(text, where)
 	end
 end
 local ESTIMATE_GUILDS = function()
-	return { ["Olympus"] = Report(900, { online = 200, avgLevel = 40 }), ["Olympus II"] = Report(300, { online = 50 }) }
+	return { ["ChillZone"] = Report(900, { online = 200, avgLevel = 40 }), ["ChillZone II"] = Report(300, { online = 50 }) }
 end
 
 test("census page: a member's people as before; a team client's ~ estimate, its tooltip and detail saying how it is made, the staff's validated accounts, characters not yet validated and rate under it, never on the King's stream; no BattleTag or name anywhere", function()
@@ -826,7 +826,7 @@ local function OpenSampled(o, fn)
 			local ok, err = pcall(function()
 				local UI = LoadUI()
 				UI.Toggle()
-				fn(OlympusFrame, UI, w)
+				fn(ChillZoneFrame, UI, w)
 			end)
 			ns.CensusStats = saved
 			if not ok then error(err, 0) end
@@ -834,7 +834,7 @@ local function OpenSampled(o, fn)
 	end)
 end
 
-test("census header: a member's people as before; a team client's ~ estimate, the hover saying what it means and that the more players use the Olympus addon and the Olympus Companion the more precise, the staff's line never on the King's stream; the same on the minimap and in the copy for Discord", function()
+test("census header: a member's people as before; a team client's ~ estimate, the hover saying what it means and that the more players use the ChillZone addon and the ChillZone Companion the more precise, the staff's line never on the King's stream; the same on the minimap and in the copy for Discord", function()
 	local o = { dups = 4, alts = { characters = 250, people = 100 } }
 	OpenSampled(o, function(main, UI)
 		local function Hover()
@@ -849,7 +849,7 @@ test("census header: a member's people as before; a team client's ~ estimate, th
 			Minimap = CreateFrame("Frame", "Minimap", UIParent)
 			Minimap:SetSize(140, 140)
 			UI.UpdateMinimapButton()
-			OlympusMinimapButton:Fire("OnEnter")
+			ChillZoneMinimapButton:Fire("OnEnter")
 			local line = GameTooltip.lines[2]
 			Minimap = nil
 			return line
@@ -890,12 +890,12 @@ test("census header: a member's people as before; a team client's ~ estimate, th
 	end)
 end)
 
-test("census people estimate: its words in English and Portuguese: the sign, how a team client's estimate is made and that the more players use the Olympus addon and the Olympus Companion, the more precise it gets; the staff's lines; the members' words unchanged", function()
+test("census people estimate: its words in English and Portuguese: the sign, how a team client's estimate is made and that the more players use the ChillZone addon and the ChillZone Companion, the more precise it gets; the staff's lines; the members' words unchanged", function()
 	local function Words(locale)
 		local savedLocale = GetLocale
 		GetLocale = function() return locale end
 		local w = { L = setmetatable({}, { __index = function(_, k) return k end }) }
-		local ok, err = pcall(function() assert(loadfile(ROOT .. "Olympus/Locales/CensusStatsText.lua"))("Olympus", w) end)
+		local ok, err = pcall(function() assert(loadfile(ROOT .. "ChillZone/Locales/CensusStatsText.lua"))("ChillZone", w) end)
 		GetLocale = savedLocale
 		if not ok then error(err, 0) end
 		return w.L
@@ -905,9 +905,9 @@ test("census people estimate: its words in English and Portuguese: the sign, how
 	eq(en.CENSUS_STATS_APPROX:format("480"), "~480")
 	eq(en.ARMY_PEOPLE:format("80,500"), "about 80,500 people", "the members' words, as before")
 	assert(en.PEOPLE_ESTIMATE_TIP:find("estimate", 1, true) and en.PEOPLE_ESTIMATE_TIP:find("BattleTags", 1, true), en.PEOPLE_ESTIMATE_TIP)
-	assert(en.PEOPLE_ESTIMATE_TIP:find("The more players use the Olympus addon and the Olympus Companion, the more precise this number gets.", 1, true))
+	assert(en.PEOPLE_ESTIMATE_TIP:find("The more players use the ChillZone addon and the ChillZone Companion, the more precise this number gets.", 1, true))
 	assert(pt.PEOPLE_ESTIMATE_TIP:find("estimativa", 1, true) and pt.PEOPLE_ESTIMATE_TIP:find("BattleTags", 1, true), pt.PEOPLE_ESTIMATE_TIP)
-	assert(pt.PEOPLE_ESTIMATE_TIP:find("Quanto mais jogadores usarem o addon Olympus e o Olympus Companion, mais preciso fica este número.", 1, true))
+	assert(pt.PEOPLE_ESTIMATE_TIP:find("Quanto mais jogadores usarem o addon ChillZone e o ChillZone Companion, mais preciso fica este número.", 1, true))
 	-- A member's number has no rate behind it, and the tip says so.
 	assert(en.PEOPLE_ESTIMATE_TIP:find("Members see the characters minus the confirmed linked alts", 1, true), en.PEOPLE_ESTIMATE_TIP)
 	assert(pt.PEOPLE_ESTIMATE_TIP:find("Os membros veem os personagens menos os alts ligados e confirmados", 1, true), pt.PEOPLE_ESTIMATE_TIP)
@@ -917,7 +917,7 @@ test("census people estimate: its words in English and Portuguese: the sign, how
 	eq(pt.PEOPLE_STAFF_TAGS:format("800", "1,20", "9.040"), "Staff: 800 contas validadas, 1,20 personagens por conta; 9.040 personagens ainda não validados.")
 	eq(en.PEOPLE_STAFF_TAGS:format("800", "1.20", "9,040"), "Staff: 800 accounts validated, 1.20 characters per account; 9,040 characters not yet validated.")
 	-- The linked alts' row beside an estimate: what a link does, not how the plain count goes.
-	assert(en.CENSUS_STATS_ALTS_TIP:find("/oly alts", 1, true) and pt.CENSUS_STATS_ALTS_TIP:find("/oly alts", 1, true))
+	assert(en.CENSUS_STATS_ALTS_TIP:find("/cz alts", 1, true) and pt.CENSUS_STATS_ALTS_TIP:find("/cz alts", 1, true))
 	assert(en.CENSUS_STATS_ALTS_TIP ~= pt.CENSUS_STATS_ALTS_TIP)
 	-- Not a word of "not counted": the words say what is shown, never what is missing.
 	for _, key in ipairs({ "ARMY_PEOPLE_APPROX", "CENSUS_STATS_APPROX", "PEOPLE_ESTIMATE_TIP" }) do
@@ -939,13 +939,13 @@ test("census page: every line in English and Portuguese, the Portuguese its own"
 	GetLocale = function() return "ptBR" end
 	local ok, err = pcall(function()
 		pt.L = setmetatable({}, { __index = function(_, k) return k end })
-		assert(loadfile(ROOT .. "Olympus/Locales/CensusStatsText.lua"))("Olympus", pt)
+		assert(loadfile(ROOT .. "ChillZone/Locales/CensusStatsText.lua"))("ChillZone", pt)
 	end)
 	GetLocale = savedLocale
 	if not ok then error(err, 0) end
 	local en = {}
 	en.L = setmetatable({}, { __index = function(_, k) return k end })
-	assert(loadfile(ROOT .. "Olympus/Locales/CensusStatsText.lua"))("Olympus", en)
+	assert(loadfile(ROOT .. "ChillZone/Locales/CensusStatsText.lua"))("ChillZone", en)
 	-- (1.4.0: the ~ of an estimate and the rulesets' names are the same words in both; a team client's
 	-- estimate adds CENSUS_STATS_APPROX, "~" and a number, the same in every language.)
 	local same = { CENSUS_STATS_TIME_FORMAT = true, CENSUS_STATS_WHEN = true, CENSUS_STATS_OF_CAP = true, CENSUS_STATS_APPROX = true,
@@ -982,7 +982,7 @@ local HOW_EN = {
 		"A newer report replaces the older one, guild by guild, unless the guild's other reporters outvote it while the older one is under 15 minutes old. A keeper's relay keeps the time its record was first observed and never replaces a record observed after it, so passing a record on never makes it newer.",
 	} },
 	{ "Where the numbers come from", {
-		"In each Olympus guild, the addon of one member reads the guild's roster and reports its size on Olympus's channel every few minutes; a second member's addon, when one is on, reports it less often.",
+		"In each ChillZone guild, the addon of one member reads the guild's roster and reports its size on ChillZone's channel every few minutes; a second member's addon, when one is on, reports it less often.",
 		"Every player's addon keeps those reports: the census is each guild's latest report. Nothing comes from Blizzard's servers directly.",
 	} },
 	{ "Validated data", {
@@ -992,7 +992,7 @@ local HOW_EN = {
 		"People are the characters minus the confirmed linked alts known here: an alt nobody linked, or whose two confirmations have not reached this client, counts as one more person, so the number can be high and fall as confirmations arrive.",
 		"On a moderation team's client with at least 20 validated BattleTags, people are an estimate (~): the validated accounts, plus the characters not yet validated at their characters per account.",
 		"That estimate is rounded to three significant figures and never falls below the players the samples count or rises above the plain count.",
-		"The more players use the Olympus addon and the Olympus Companion, the more precise this number gets.",
+		"The more players use the ChillZone addon and the ChillZone Companion, the more precise this number gets.",
 		"Online counts only reports from the last 15 minutes. A guild keeps its last size for 24 hours after its last report.",
 		"The graphs are this client's own samples: one every 15 minutes while you play (kept 48 hours) and each day's highest (kept 30 days).",
 	} },
@@ -1007,7 +1007,7 @@ local HOW_EN = {
 	} },
 	{ "How sanitizing works", {
 		"Sanitizing runs as numbered rules: S1 at the door, the others on what this client keeps. Past the door no rule changes what a guild reported: each keeps a value out of a total, holds it at its last good value or marks it, and records why.",
-		"S1 Valid record: A report must parse, name an Olympus guild, carry a size of at most 1,000 (the game's cap), and count no more players by zone, class or level than it has online; an online count above its size is cut to its size. A keeper's relayed row must also have no more online than members and not be dated more than 5 minutes ahead. What fails is refused at the door: it never enters the census.",
+		"S1 Valid record: A report must parse, name an ChillZone guild, carry a size of at most 1,000 (the game's cap), and count no more players by zone, class or level than it has online; an online count above its size is cut to its size. A keeper's relayed row must also have no more online than members and not be dated more than 5 minutes ahead. What fails is refused at the door: it never enters the census.",
 		"S2 Recency: Online counts only reports from the last 15 minutes: an older report is stale and leaves \"now\". A guild keeps its last size for 24 hours after its last report; after that it has departed: it leaves every total and is listed apart. It is forgotten 7 days after its last report.",
 		"S3 Exclusions: Guilds the moderators took off the network (banned) are in no total and their new reports are refused; they are listed apart with their last size, when this client holds one. Guilds only seen with /who (this client holds no report or relay of theirs) are in no total either; they are listed apart with the players /who saw online.",
 		"S4 Agreement: A size from your own guild's roster is confirmed. Any other guild's size, while its last report is under 15 minutes old, is confirmed when a trusted keeper relays it, or when two or more reporters voted on the guild in the last 30 minutes and no dispute is marked (How validation works); single when only one did, and disputed when a dispute is marked; older, it is stale. All count; each guild carries its confidence.",
@@ -1021,7 +1021,7 @@ local HOW_PT = {
 		"Um relato mais novo substitui o anterior, guilda por guilda, a menos que os outros relatores da guilda o vençam na votação enquanto o anterior tem menos de 15 minutos. O repasse de um guardião guarda a hora em que o registro foi observado pela primeira vez e nunca substitui um registro observado depois dele, então repassar um registro nunca o torna mais novo.",
 	} },
 	{ "De onde vêm os números", {
-		"Em cada guilda Olympus, o addon de um membro lê o roster da guilda e informa o tamanho dela no canal do Olympus a cada poucos minutos; o addon de um segundo membro, quando há um online, informa com menos frequência.",
+		"Em cada guilda ChillZone, o addon de um membro lê o roster da guilda e informa o tamanho dela no canal do ChillZone a cada poucos minutos; o addon de um segundo membro, quando há um online, informa com menos frequência.",
 		"O addon de cada jogador guarda esses relatos: o censo é o último relato de cada guilda. Nada vem diretamente dos servidores da Blizzard.",
 	} },
 	{ "Dados validados", {
@@ -1031,7 +1031,7 @@ local HOW_PT = {
 		"Pessoas são os personagens menos os alts ligados e confirmados conhecidos aqui: um alt que ninguém vinculou, ou cujas duas confirmações ainda não chegaram a este cliente, conta como mais uma pessoa, então o número pode ficar alto e cair quando as confirmações chegam.",
 		"No cliente da equipe de moderação com pelo menos 20 BattleTags validadas, pessoas é uma estimativa (~): as contas validadas, mais os personagens ainda não validados à razão de personagens por conta delas.",
 		"Essa estimativa é arredondada a três algarismos significativos e nunca fica abaixo dos jogadores que as amostras contam nem acima da contagem simples.",
-		"Quanto mais jogadores usarem o addon Olympus e o Olympus Companion, mais preciso fica este número.",
+		"Quanto mais jogadores usarem o addon ChillZone e o ChillZone Companion, mais preciso fica este número.",
 		"Online conta só relatos dos últimos 15 minutos. Uma guilda mantém seu último tamanho por 24 horas depois do último relato.",
 		"Os gráficos são amostras deste próprio cliente: uma a cada 15 minutos enquanto você joga (guardadas 48 horas) e o maior valor de cada dia (guardado 30 dias).",
 	} },
@@ -1046,7 +1046,7 @@ local HOW_PT = {
 	} },
 	{ "Como funciona a sanitização", {
 		"A sanitização roda como regras numeradas: a S1 na entrada, as outras sobre o que este cliente guarda. Depois da entrada, nenhuma regra altera o que uma guilda relatou: cada uma deixa um valor fora de um total, segura-o no último valor bom ou o marca, e registra por quê.",
-		"S1 Registro válido: um relato precisa ser legível, nomear uma guilda Olympus, trazer um tamanho de no máximo 1.000 (o limite do jogo) e não contar, por zona, classe ou nível, mais jogadores do que tem online; um online acima do tamanho é cortado para o tamanho. Uma linha repassada por um guardião também não pode ter mais online que membros nem estar datada mais de 5 minutos à frente. O que falha é recusado na entrada: nunca entra no censo.",
+		"S1 Registro válido: um relato precisa ser legível, nomear uma guilda ChillZone, trazer um tamanho de no máximo 1.000 (o limite do jogo) e não contar, por zona, classe ou nível, mais jogadores do que tem online; um online acima do tamanho é cortado para o tamanho. Uma linha repassada por um guardião também não pode ter mais online que membros nem estar datada mais de 5 minutos à frente. O que falha é recusado na entrada: nunca entra no censo.",
 		"S2 Atualidade: Online conta só relatos dos últimos 15 minutos: um relato mais antigo é velho e sai do \"agora\". Uma guilda mantém seu último tamanho por 24 horas depois do último relato; depois disso ela saiu: deixa todos os totais e é listada à parte. Ela é esquecida 7 dias depois do último relato.",
 		"S3 Exclusões: guildas que os moderadores tiraram da rede (banidas) não entram em nenhum total e seus relatos novos são recusados; são listadas à parte com o último tamanho delas, quando este cliente tem um. Guildas vistas só no /who (este cliente não tem nenhum relato nem repasse delas) também não entram em nenhum total; são listadas à parte com os jogadores que o /who viu online.",
 		"S4 Concordância: um tamanho do roster da sua própria guilda é confirmado. O de qualquer outra guilda, enquanto o último relato dela tem menos de 15 minutos, é confirmado quando um guardião confiável o repassa, ou quando dois ou mais relatores votaram sobre a guilda nos últimos 30 minutos e nenhuma disputa é marcada (Como funciona a validação); único quando só um votou, e em disputa quando uma disputa é marcada; mais antigo, é velho. Todas contam; cada guilda leva sua confiança.",
@@ -1070,7 +1070,7 @@ local function AllText(topics)
 end
 
 test("census page: how the census works, after the graphs and the lists: its header, then the seven topics in order, each a small gold title and its lines in grey rows that fit the page; none of the Companion's own lines", function()
-	WithCensus({ ["Olympus"] = Report(900, { online = 200, levels = { 10, 20, 30, 40, 50, 30, 20 } }) }, 0, function()
+	WithCensus({ ["ChillZone"] = Report(900, { online = 200, levels = { 10, 20, 30, 40, 50, 30, 20 } }) }, 0, function()
 		local w = World({ realData = true, clock = os.time() })
 		eq(w.CS.Sample(), true, "a sample, so the graphs draw")
 		local lines = w.CS.Build()
@@ -1170,7 +1170,7 @@ test("census page: how the census works in Portuguese: the same seven topics, ev
 		local savedLocale = GetLocale
 		GetLocale = function() return locale end
 		local w = { L = base or {} }
-		local ok, err = pcall(function() assert(loadfile(ROOT .. "Olympus/Locales/CensusStatsText.lua"))("Olympus", w) end)
+		local ok, err = pcall(function() assert(loadfile(ROOT .. "ChillZone/Locales/CensusStatsText.lua"))("ChillZone", w) end)
 		GetLocale = savedLocale
 		if not ok then error(err, 0) end
 		return w.L

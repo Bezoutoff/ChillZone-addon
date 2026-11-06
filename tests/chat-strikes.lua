@@ -1,10 +1,10 @@
 -- The chat warnings (ChatStrikes.lua, the author on 2026-10-19: three warnings in 24 hours for a
--- word of Olympus's list in what a player typed): how a typed line is read against the list, the
+-- word of ChillZone's list in what a player typed): how a typed line is read against the list, the
 -- shipped list and its script, and what it costs. Synthetic words only (as tests/watch-chat.lua's
 -- "plainword"): no real word of the list is ever written in this repository. The ladder, the report
 -- to the team and every chat it covers: tests/watch-chat.lua. Every test name starts with
 -- "watch: chat moderation: strikes:", so
---   OLYMPUS_TEST_WATCH_ONLY=1 luajit tests/run.lua "strikes"
+--   CHILLZONE_TEST_WATCH_ONLY=1 luajit tests/run.lua "strikes"
 -- runs them alone.
 local ns, test, eq, extra = ...
 local ROOT = (debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]chat%-strikes%.lua$")) or "./"
@@ -17,9 +17,9 @@ local function ReplyCodec()
 	if codec then return codec end
 	local cns = setmetatable({}, { __index = ns })
 	cns.On, cns.RegisterEvent = function() end, function() end
-	assert(loadfile(ROOT .. "Olympus/GamepadRegistry.lua"))("Olympus", cns)
-	assert(loadfile(ROOT .. "Olympus/Gamepad.lua"))("Olympus", cns)
-	assert(loadfile(ROOT .. "Olympus/ChatWindow.lua"))("Olympus", cns)
+	assert(loadfile(ROOT .. "ChillZone/GamepadRegistry.lua"))("ChillZone", cns)
+	assert(loadfile(ROOT .. "ChillZone/Gamepad.lua"))("ChillZone", cns)
+	assert(loadfile(ROOT .. "ChillZone/ChatWindow.lua"))("ChillZone", cns)
 	codec = cns.ChatWindow
 	return codec
 end
@@ -47,8 +47,8 @@ local function Client(opts)
 	if not opts.realDialogs then
 		c.ShowDialog = function(which, a, b, data) cl.dialogs[#cl.dialogs + 1] = { which = which, a = a, data = data } return true end
 	end
-	if opts.watchChat then assert(loadfile(ROOT .. "Olympus/WatchChat.lua"))("Olympus", c) end
-	assert(loadfile(ROOT .. "Olympus/ChatStrikes.lua"))("Olympus", c)
+	if opts.watchChat then assert(loadfile(ROOT .. "ChillZone/WatchChat.lua"))("ChillZone", c) end
+	assert(loadfile(ROOT .. "ChillZone/ChatStrikes.lua"))("ChillZone", c)
 	local S = c.ChatStrikes
 	for _, w in ipairs(opts.words or {}) do
 		local form = assert(S.Canon(w), w)
@@ -129,7 +129,7 @@ test("watch: chat moderation: strikes: a reply: only what he typed counts; a quo
 		eq(why, "severe", "his own words: a warning")
 		eq(#S.Store().mine, 1)
 		eq(S.Store().mine[1].text, "my plainword", "the words he typed, never the quote")
-		eq(cl.dialogs[#cl.dialogs].which, "OLYMPUS_WATCHCHAT_DECISION")
+		eq(cl.dialogs[#cl.dialogs].which, "CHILLZONE_WATCHCHAT_DECISION")
 	end)
 end)
 
@@ -308,8 +308,8 @@ test("watch: chat moderation: strikes: performance: a form of a length the list 
 	end)
 end)
 
--- (As the block terms' own check in tests/run.lua: /oly status and /oly bug never carry their words.)
-test("watch: chat moderation: strikes: struck lines and their words never reach /oly status or /oly bug, refused reports neither", function()
+-- (As the block terms' own check in tests/run.lua: /cz status and /cz bug never carry their words.)
+test("watch: chat moderation: strikes: struck lines and their words never reach /cz status or /cz bug, refused reports neither", function()
 	KeepDialogs(function()
 		local S, cl = Client({ words = WORDS, watchChat = true, realLog = true })
 		local secret = "zq" .. WORDS[1] .. "zq"
@@ -324,31 +324,31 @@ test("watch: chat moderation: strikes: struck lines and their words never reach 
 		assert(#S.Store().mine == 2 and S.Store().mine[2].text:find(secret, 1, true), "kept on his own client")
 		local status, bug = ns.StatusText(), ns.BuildBugReport()
 		for _, word in ipairs({ WORDS[1], secret }) do
-			assert(not status:find(word, 1, true), "/oly status names it: " .. word)
-			assert(not bug:find(word, 1, true), "/oly bug names it: " .. word)
+			assert(not status:find(word, 1, true), "/cz status names it: " .. word)
+			assert(not bug:find(word, 1, true), "/cz bug names it: " .. word)
 		end
 	end)
 end)
 
 -- tests/gamepad.lua's rule for every Blizzard-facing change: under the gamepad UI each pop-up of
--- this file goes through ns.ShowDialog to Olympus's own window (Dialog.lua), never the game's.
+-- this file goes through ns.ShowDialog to ChillZone's own window (Dialog.lua), never the game's.
 if extra.WithUI and extra.WithGamepadUI then
-	test("watch: chat moderation: strikes: under the gamepad UI the warning's pop-up and the team's dialog are Olympus's own windows, never the game's popups", function()
+	test("watch: chat moderation: strikes: under the gamepad UI the warning's pop-up and the team's dialog are ChillZone's own windows, never the game's popups", function()
 		KeepDialogs(function()
 			extra.WithUI(function()
 				extra.WithGamepadUI(true, function(game)
 					local S, cl = Client({ words = WORDS, watchChat = true, realDialogs = true })
 					eq(S.Refuse("a plainword", "A"), "severe")
 					eq(#game.shown, 0, "no game popup")
-					local f = ns.Dialog.Find("OLYMPUS_WATCHCHAT_DECISION")
-					assert(f and f:IsShown(), "the warning in Olympus's window")
+					local f = ns.Dialog.Find("CHILLZONE_WATCHCHAT_DECISION")
+					assert(f and f:IsShown(), "the warning in ChillZone's window")
 					assert(f.text:GetText():find(ns.L.WATCHCHAT_STRIKE_1:sub(1, 30), 1, true), f.text:GetText())
 					f:Hide()
 					S.Store().cases["x#1"] = { name = "Other-Realm", id = 1, n = 3, c24 = 3, c30 = 3, heard = 1,
 						lines = { { at = 1, n = 3, where = "A", words = "plainword", text = "a plainword" } } }
 					S.Ask("x#1")
-					local d = ns.Dialog.Find("OLYMPUS_WATCHCHAT_STRIKE")
-					assert(d and d:IsShown(), "the team's dialog in Olympus's window")
+					local d = ns.Dialog.Find("CHILLZONE_WATCHCHAT_STRIKE")
+					assert(d and d:IsShown(), "the team's dialog in ChillZone's window")
 					eq(d.buttons[1]:GetText(), ns.L.WATCHCHAT_STRIKE_LET); eq(d.buttons[3]:GetText(), ns.L.WATCHCHAT_STRIKE_SHOW)
 					eq(#game.shown, 0)
 					d:Hide()

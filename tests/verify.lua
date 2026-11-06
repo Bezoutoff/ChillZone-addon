@@ -10,11 +10,11 @@
 -- runs them alone.
 local ns, test, eq = ...
 local ROOT = (debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]verify%.lua$")) or "./"
-local ADDON_DIR = ROOT .. "Olympus/"
+local ADDON_DIR = ROOT .. "ChillZone/"
 
 local T0 = 1800000000 -- the server's clock when each world starts
 local H = 3600
-local GUILD, OTHER, ROGUES, HEARTH = "Olympus Vanguard", "Olympus Embers", "Olympus Rogues", "Olympus Hearth"
+local GUILD, OTHER, ROGUES, HEARTH = "ChillZone Vanguard", "ChillZone Embers", "ChillZone Rogues", "ChillZone Hearth"
 local HC, HC2 = "Vera Stone-Realm", "Odo Marsh-Realm"
 local GM, GM2 = "Bram Hollow-Realm", "Corin Ash-Realm"
 local MEMBER, FORGER, LATE = "Pip Fennel-Realm", "Mallo Crook-Realm", "Tamsin Reed-Realm"
@@ -79,8 +79,8 @@ local function World(fn)
 			end }
 		c.Workshop = setmetatable({ Available = function() return w.available end, AskCouncil = function(text) c.asked = text end,
 			AuthorOnline = function() return false end }, { __index = ns.Workshop })
-		assert(loadfile(ADDON_DIR .. "Locales/VerifyText.lua"))("Olympus", c)
-		assert(loadfile(ADDON_DIR .. "Verify.lua"))("Olympus", c)
+		assert(loadfile(ADDON_DIR .. "Locales/VerifyText.lua"))("ChillZone", c)
+		assert(loadfile(ADDON_DIR .. "Verify.lua"))("ChillZone", c)
 		c.Verify.Clock = function() return w.now end
 		c.Verify.random = function(a) return a end
 		w.clients[#w.clients + 1] = c
@@ -108,7 +108,7 @@ end
 test("verify: an approval is taken only from the King, a High Councillor or the author; a member's forged word or relay is refused", function()
 	World(function(w)
 		local hc = w.Client(HC, HEARTH, 3)
-		local king = w.Client(KING, "Olympus", 0)
+		local king = w.Client(KING, "ChillZone", 0)
 		local author = w.Client(AUTHOR, HEARTH, 3)
 		local forger = w.Client(FORGER, ROGUES, 3)
 		local member = w.Client(MEMBER, GUILD, 3)
@@ -312,7 +312,7 @@ test("verify: within 48 hours only the guild master sees \"GM verification pendi
 		eq(notice.action.label, gm.L.VERIFY_WHISPER_BTN); eq(notice.opts.second.label, gm.L.VERIFY_ASK_BTN)
 		local line = w.As(gm, gm.Verify.Lines)[1]
 		assert(line and line.text:find("GM verification pending", 1, true), "the line on top of the Census")
-		-- Once a session; reopened by the line or /oly verify.
+		-- Once a session; reopened by the line or /cz verify.
 		w.now = w.now + 60
 		eq(w.As(gm, gm.Verify.Tick), false)
 		eq(#gm.copies, 1)
@@ -326,7 +326,7 @@ test("verify: within 48 hours only the guild master sees \"GM verification pendi
 		w.now = w.now + member.Verify.NOTICE_AFTER
 		eq(w.As(member, member.Verify.Tick), true)
 		eq(w.As(gm, gm.Verify.Tick), true)
-		assert(Find(member.printed, "ask your guild master to verify it, or find another Olympus guild"), "the member's chat line")
+		assert(Find(member.printed, "ask your guild master to verify it, or find another ChillZone guild"), "the member's chat line")
 		local told = member.copies[1]
 		assert(told.text:find("not sanctioned", 1, true) and told.text:find("Bram Hollow", 1, true), told.text)
 		assert(told.text:find(member.L.VERIFY_NO_GATE, 1, true), "nothing is taken")
@@ -398,7 +398,7 @@ test("verify: past 48 hours an unverified guild master's own powers are held (ra
 		w.Census(GUILD, "Bram Hollow", 120)
 		w.As(gm, gm.Verify.Observe)
 		w.As(hc, hc.Verify.Observe)
-		w.As(gm, function() assert(loadfile(ADDON_DIR .. "GuildCharter.lua"))("Olympus", gm) end)
+		w.As(gm, function() assert(loadfile(ADDON_DIR .. "GuildCharter.lua"))("ChillZone", gm) end)
 		-- The harness's own modules ask the harness's predicate: this guild master's here.
 		local saved = { held = ns.MasterHeld, known = ns.Data.KnownRank }
 		ns.MasterHeld = function(guild) return gm.MasterHeld(guild) end
@@ -437,26 +437,26 @@ end)
 
 test("verify: the King's guild needs no verification; the gate switch off changes nothing; Core's stand-ins say yes", function()
 	World(function(w)
-		local king = w.Client(KING, "Olympus", 0)
+		local king = w.Client(KING, "ChillZone", 0)
 		local hc = w.Client(HC, HEARTH, 3)
 		local member = w.Client(MEMBER, GUILD, 3)
-		w.Census("Olympus", ns.KingCharacter(), 900)
+		w.Census("ChillZone", ns.KingCharacter(), 900)
 		w.Census(GUILD, "Bram Hollow", 120)
 		for _, c in ipairs({ king, hc, member }) do w.As(c, c.Verify.Login) end
 		w.now = T0 + 60 * H
-		eq(w.Status(member, "Olympus"), "exempt")
+		eq(w.Status(member, "ChillZone"), "exempt")
 		eq(w.As(king, king.Verify.Mine), nil, "the King is told nothing")
 		eq(w.As(king, king.Verify.Tick), false)
 		eq(#king.copies, 0)
-		eq(w.As(member, member.MasterHeld, "Olympus"), false)
-		for _, r in ipairs((w.As(hc, hc.Verify.Pending))) do assert(r.guild ~= "Olympus", "not on the verifiers' list") end
+		eq(w.As(member, member.MasterHeld, "ChillZone"), false)
+		for _, r in ipairs((w.As(hc, hc.Verify.Pending))) do assert(r.guild ~= "ChillZone", "not on the verifiers' list") end
 		-- The gate: off as it ships, every guild sanctioned; on, the overdue one is not.
 		eq(w.Status(member, GUILD), "overdue")
 		eq(member.VERIFY_GATE, false, "Core.lua ships it off")
 		eq(w.As(member, member.GuildSanctioned, GUILD), true, "off: nothing gated")
 		member.VERIFY_GATE = true
 		eq(w.As(member, member.GuildSanctioned, GUILD), false, "on: the overdue guild is not sanctioned")
-		eq(w.As(member, member.GuildSanctioned, "Olympus"), true)
+		eq(w.As(member, member.GuildSanctioned, "ChillZone"), true)
 		member.VERIFY_GATE = nil
 		eq(w.Status(member, GUILD), "overdue", "the switch changes no status")
 		-- Core.lua's stand-ins (Verify.lua not loaded: a client updated without a restart).
@@ -494,7 +494,7 @@ end)
 test("verify: the verifiers' page lists pending and overdue guilds with guild master, members and time; a click approves or whispers; Copy opens a pop-up; a verified one revokes", function()
 	World(function(w)
 		local member = w.Client(MEMBER, GUILD, 3)
-		local hc = w.Client(HC, "Olympus", 3) -- (a councillor in the King's guild: his own guild asks nothing of him)
+		local hc = w.Client(HC, "ChillZone", 3) -- (a councillor in the King's guild: his own guild asks nothing of him)
 		w.Census(GUILD, "Bram Hollow", 120)
 		w.As(hc, hc.Verify.Observe)
 		w.As(member, member.Verify.Observe)
@@ -522,11 +522,11 @@ test("verify: the verifiers' page lists pending and overdue guilds with guild ma
 		-- A click: the question, with approve and whisper.
 		w.As(hc, first.onClick)
 		local d = hc.dialogs[#hc.dialogs]
-		eq(d.which, "OLYMPUS_VERIFY_GUILD"); eq(d.data.guild, GUILD); eq(d.data.gm, GM)
-		local def = StaticPopupDialogs.OLYMPUS_VERIFY_GUILD
+		eq(d.which, "CHILLZONE_VERIFY_GUILD"); eq(d.data.guild, GUILD); eq(d.data.gm, GM)
+		local def = StaticPopupDialogs.CHILLZONE_VERIFY_GUILD
 		eq(def.button1, hc.L.VERIFY_APPROVE_BTN); eq(def.button3, hc.L.VERIFY_WHISPER_GM_BTN)
 		w.As(hc, hc.Verify.Nudge, d.data)
-		eq(hc.whispers[1].to, "Bram Hollow"); assert(hc.whispers[1].text:find("/oly verify", 1, true), "install it and verify")
+		eq(hc.whispers[1].to, "Bram Hollow"); assert(hc.whispers[1].text:find("/cz verify", 1, true), "install it and verify")
 		w.As(hc, hc.Verify.ApproveClick, d.data)
 		eq(w.Status(member, GUILD), "verified")
 		-- The verified section: a click asks to revoke.
@@ -535,7 +535,7 @@ test("verify: the verifiers' page lists pending and overdue guilds with guild ma
 		for _, l in ipairs(lines) do if l.text and l.text:find(hc.Verify.MARK_OK .. "<" .. GUILD .. ">", 1, true) then done = l end end
 		assert(done and done.right:find("by Vera Stone", 1, true), "verified, and by whom")
 		w.As(hc, done.onClick)
-		eq(hc.dialogs[#hc.dialogs].which, "OLYMPUS_VERIFY_REVOKE")
+		eq(hc.dialogs[#hc.dialogs].which, "CHILLZONE_VERIFY_REVOKE")
 		w.As(hc, hc.Verify.RevokeInput, hc.dialogs[#hc.dialogs].data.guild)
 		eq(w.Status(member, GUILD), "overdue")
 		-- Copy: a pop-up the list can be copied from.
@@ -544,7 +544,7 @@ test("verify: the verifiers' page lists pending and overdue guilds with guild ma
 		eq(copy.opts.key, "verify-list")
 		assert(copy.text:find("<" .. GUILD .. ">  guild master: Bram Hollow  members: 120", 1, true), copy.text)
 		assert(copy.text:find("<" .. OTHER .. ">", 1, true) and copy.text:find("code ", 1, true), copy.text)
-		-- /oly verify alone opens The Watch on its Guilds for a verifier.
+		-- /cz verify alone opens The Watch on its Guilds for a verifier.
 		w.As(hc, hc.Verify.Slash, "")
 		eq(hc.tab, "watch")
 		-- The Census's marks: verified for everyone, overdue for the verifiers alone.
@@ -577,11 +577,11 @@ test("verify: the guild master's buttons whisper a verifier online with his code
 		eq(w.Status(gm, GUILD), "verified")
 		-- A guild's name with spaces and a guild master's name after it.
 		w.now = w.now + 60
-		w.As(hc, hc.Verify.Slash, "approve olympus vanguard Corin Ash")
+		w.As(hc, hc.Verify.Slash, "approve chillzone vanguard Corin Ash")
 		local _, info = w.Status(hc, GUILD)
 		eq(info.entry.gm, GM2, "the name typed")
 		assert(Find(hc.printed, "the census names Bram Hollow"), "warned: the census names another")
-		w.As(hc, hc.Verify.Slash, "approve Olympus Nowhere")
+		w.As(hc, hc.Verify.Slash, "approve ChillZone Nowhere")
 		assert(Find(hc.printed, hc.L.VERIFY_BAD_GUILD), "an unknown guild")
 		w.As(hc, hc.Verify.Slash, "revoke " .. GUILD)
 		eq(w.Status(gm, GUILD), "pending")
@@ -618,9 +618,9 @@ test("verify: The Watch shows the verifiers its Guilds, and nobody else", functi
 	GetGuildInfo = function() return HEARTH, "Member", 3 end
 	IsInGuild = function() return true end
 	local ok, err = pcall(function()
-		assert(loadfile(ADDON_DIR .. "Locales/VerifyText.lua"))("Olympus", c)
+		assert(loadfile(ADDON_DIR .. "Locales/VerifyText.lua"))("ChillZone", c)
 		for _, file in ipairs({ "ViewAs", "Court", "Watch", "Judgment", "WatchChat" }) do
-			assert(loadfile(ADDON_DIR .. file .. ".lua"))("Olympus", c)
+			assert(loadfile(ADDON_DIR .. file .. ".lua"))("ChillZone", c)
 		end
 		local W = c.Watch
 		local function Nav()
@@ -655,20 +655,20 @@ test("verify: GV in Comm.lua's list; the TOC loads its words with the locales an
 		return s
 	end
 	local at, n = {}, 0
-	for line in Read("Olympus/Olympus.toc"):gmatch("[^\n]+") do n = n + 1; at[line:gsub("%s+$", "")] = n end
+	for line in Read("ChillZone/ChillZone.toc"):gmatch("[^\n]+") do n = n + 1; at[line:gsub("%s+$", "")] = n end
 	assert(at["Locales\\VerifyText.lua"] and at["Locales\\VerifyText.lua"] < at["Core.lua"], "with the locales")
 	for _, f in ipairs({ "Comm.lua", "Data.lua", "Workshop.lua", "Watch.lua", "Cover.lua" }) do assert(at[f] < at["Verify.lua"], f .. " first") end
-	assert(Read("Olympus/Comm.lua"):find("--   Verify GV (guild verification", 1, true), "Comm.lua's list")
-	local core = Read("Olympus/Core.lua")
+	assert(Read("ChillZone/Comm.lua"):find("--   Verify GV (guild verification", 1, true), "Comm.lua's list")
+	local core = Read("ChillZone/Core.lua")
 	assert(core:find('StandIn("Verify", { "Slash" })', 1, true), "the stand-in")
 	local loginList = core:match('for _, key in ipairs%(({ "Who", [^}]*})%) do')
 	assert(loginList and loginList:find('"Verify"', 1, true), "PLAYER_LOGIN checks it")
-	assert(core:find('cmd == "verify" or cmd == "verificar"', 1, true), "/oly verify")
+	assert(core:find('cmd == "verify" or cmd == "verificar"', 1, true), "/cz verify")
 	assert(core:find('rawget(L, "HELP_VERIFY")', 1, true), "the help line")
-	assert(Read("Olympus/Views.lua"):find("Views.DisputeMark(g) .. VerifyMark(e.name) .. Plain(e.name)", 1, true), "the Census's mark")
+	assert(Read("ChillZone/Views.lua"):find("Views.DisputeMark(g) .. VerifyMark(e.name) .. Plain(e.name)", 1, true), "the Census's mark")
 	-- No real player's name in the module or its words (the verifier to whisper is a locale line, empty).
 	eq(rawget(ns.L, "VERIFY_WHISPER_TO") == nil or ns.L.VERIFY_WHISPER_TO == "", true)
-	assert(Read("Olympus/Locales/VerifyText.lua"):find('L.VERIFY_WHISPER_TO = ""', 1, true))
+	assert(Read("ChillZone/Locales/VerifyText.lua"):find('L.VERIFY_WHISPER_TO = ""', 1, true))
 end)
 
 test("verify: Brazilian Portuguese has every line, with the same codes as the English", function()
@@ -676,7 +676,7 @@ test("verify: Brazilian Portuguese has every line, with the same codes as the En
 		local saved = GetLocale
 		GetLocale = function() return locale end
 		local L = {}
-		local ok, err = pcall(function() assert(loadfile(ADDON_DIR .. "Locales/VerifyText.lua"))("Olympus", { L = L }) end)
+		local ok, err = pcall(function() assert(loadfile(ADDON_DIR .. "Locales/VerifyText.lua"))("ChillZone", { L = L }) end)
 		GetLocale = saved
 		if not ok then error(err, 0) end
 		return L

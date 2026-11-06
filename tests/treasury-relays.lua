@@ -32,13 +32,13 @@ test("1.0 the Treasurer's mail character's book passed on again unchanged: its w
 			w.sent = {}
 			T.Share(true)
 			local first = Relayed()[1]
-			assert(first and first:find("~TB~1%.0~Olympus~400000~450000~50000~0~50000~1~~"), tostring(first))
+			assert(first and first:find("~TB~1%.0~ChillZone~400000~450000~50000~0~50000~1~~"), tostring(first))
 			-- ...and again eight days later: the same book, the same date, its week now empty.
 			w.clock = w.clock + 8 * 86400
 			w.sent = {}
 			T.Share(true)
 			local later = Relayed()[1]
-			assert(later and later:find("~TB~1%.0~Olympus~400000~450000~50000~0~0~0~~"), tostring(later))
+			assert(later and later:find("~TB~1%.0~ChillZone~400000~450000~50000~0~0~0~~"), tostring(later))
 			eq(later:match("^TR~[^~]*~(%d+)~"), tostring(changed), "dated when its book last changed, as before")
 			-- A soldier who took the first copy takes the second in its place.
 			ns.db.myCharacters = {}
@@ -84,28 +84,28 @@ test("1.0 the early supporters from two of the Treasurer's characters: each one'
 				return out
 			end
 			local function Early() local l = T.EarlySupporters() return l and table.concat(l.names, ",") end
-			-- 0.9's book on his account, read by both his characters: fifteen names of 21 letters.
+			-- 0.9's book on his account, read by both his characters: fifteen names of 17 letters.
 			local names, lines = {}, {}
-			for i = 1, 15 do names[i] = "Supporter " .. string.char(96 + i, 96 + i) .. "longnamex" end
+			for i = 1, 15 do names[i] = "Supporter " .. string.char(96 + i, 96 + i) .. "longn" end
 			for i, n in ipairs(names) do lines[i] = { name = n, money = 10, how = "mail", t = w.clock - 1000 } end
 			ns.rdb.treasuryArchive = { ["0.9"] = { lines = lines, closed = w.clock - 500 } }
 			ns.rdb.treasuryFlags = { ranking = true, at = w.clock - 1 }
 			ns.db.myCharacters = { [h.TREASURER_KEY] = true, [h.ANDARAI_KEY] = true }
 			ns.db.keeperShares = { [h.TREASURER_KEY] = true, [h.ANDARAI_KEY] = true }
-			-- The Treasurer in <Olympus> sends the list; later his mail character, in a guild of a
+			-- The Treasurer in <ChillZone> sends the list; later his mail character, in a guild of a
 			-- longer name, sends the same list: as many pieces, cut elsewhere.
 			h.AsTreasurer(); IsInGuild = saved.inGuild
 			local treasurer = ns.me
 			w.sent = {}
 			eq(T.SendEarly(true), true); RunTimers()
 			local his = Pieces()
-			h.AsAndarai("Olympus Zeus")
+			h.AsAndarai("ChillZone Zeus")
 			w.clock = w.clock + T.EARLY_GAP
 			w.sent = {}
 			eq(T.SendEarly(true), true); RunTimers()
 			local its = Pieces()
 			eq(#his, 2); eq(#its, 2, "as many pieces")
-			assert(his[1] ~= its[1]:gsub("~Olympus Zeus~", "~Olympus~"), "cut elsewhere: " .. his[1] .. " / " .. its[1])
+			assert(his[1] ~= its[1]:gsub("~ChillZone Zeus~", "~ChillZone~"), "cut elsewhere: " .. his[1] .. " / " .. its[1])
 			-- A soldier hears its first piece (its sending cut short), then his second: no list yet.
 			h.AsSoldier()
 			T.HandleEarly("CHANNEL", h.ANDARAI, its[1])

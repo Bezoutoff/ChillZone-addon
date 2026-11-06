@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root=$(cd "$(dirname "$0")/.." && pwd)
 scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT
-export OLYMPUS_COUNCIL_KEY="$scratch/key.json"
+export CHILLZONE_COUNCIL_KEY="$scratch/key.json"
 python3 "$repo_root/scripts/council-sign.py" keygen > "$scratch/public.txt"
 digest=$(python3 -c 'import hashlib; print(hashlib.sha256(b"Test Person-Emberfall,1,1,0").hexdigest())')
 request="RS1~1790000000~Emberfall+Emberfall2~Alliance~b~24318~1~$digest"

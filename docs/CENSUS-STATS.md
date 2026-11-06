@@ -1,13 +1,13 @@
 # Census statistics
 
 Daniel, 2026-10-19: clicking the soldiers number opens a statistics page, in the addon's Census
-tab and in the Olympus Companion, with a chart and these figures: the census with and without
+tab and in the ChillZone Companion, with a chart and these figures: the census with and without
 banned guilds, the Battle.net accounts ("contas azuis"), the people who have the addon, a clean
 (sanitized) census, and the list of all guilds.
 
 ## Who does what
 
-- **The game's page** is `Olympus/CensusStats.lua` (commit 4cf3677b, branch `batch/census-chat`):
+- **The game's page** is `ChillZone/CensusStats.lua` (commit 4cf3677b, branch `batch/census-chat`):
   the header shows the characters large and the people smaller; a click on the count opens a page in
   the Census tab with characters, people, linked alts, online now, guilds counted and reporting, the
   size-weighted average level, every server (1.4.0, in place of the largest guilds: Data.Groups), the levels online, and two
@@ -19,7 +19,7 @@ banned guilds, the Battle.net accounts ("contas azuis"), the people who have the
   (valid record, recency, exclusions, agreement, impossible jump) (`CensusStats.HowTopics`, its
   numbers formatted from the constants). The Companion's page uses the same words, plus lines about
   what only it does.
-- **The sanitized census** is `Olympus/CensusClean.lua` (branch `claude/census-stats-section`):
+- **The sanitized census** is `ChillZone/CensusClean.lua` (branch `claude/census-stats-section`):
   computation only, no page. Its figures can become lines on the game's page once
   `batch/census-chat` is in the integration.
 - **The Companion** reads both from the Bridge's `stats` section and shows them; it never
@@ -57,13 +57,13 @@ and the confirmed alt links. Nothing is sent.
    header's count stays `Data.Summary()`'s. The last good sizes are `ns.rdb.censusClean.sizes`,
    pruned at login past `Data.KEEP`.
 
-**Validated people** (the Olympus Accord's BattleTags): only a moderation team client holds any
+**Validated people** (the ChillZone Accord's BattleTags): only a moderation team client holds any
 (`Accord.lua`'s team store), so only its export carries `validated`: how many distinct BattleTags and
 characters it holds, never a tag or a name. Every other client sends none and its Companion shows
 no line for it (Daniel, 2026-10-20: the public sees only what is counted).
 
 **People, estimated** (the author, 2026-10-20: the people can't be told exactly until every player
-shared his account): `CensusStats.PeopleEstimate` (`Olympus/CensusStats.lua`) gives the people as
+shared his account): `CensusStats.PeopleEstimate` (`ChillZone/CensusStats.lua`) gives the people as
 each client can tell them:
 
 - **A member's client** (and a team client with fewer than 20 validated accounts): the plain people
@@ -79,8 +79,8 @@ each client can tell them:
   samples tell apart (BattleTags, and the players who linked alts, `Alts.Sample`) and never more
   than the plain people count. The header, the census page, the minimap button and the copy for
   Discord show it as "~80,500 people" (the game's fonts have no approximately-equal sign); the
-  tooltip and the page's detail say how it is made and that the more players use the Olympus addon
-  and the Olympus Companion, the more precise it gets. The census page's graphs give each day's and
+  tooltip and the page's detail say how it is made and that the more players use the ChillZone addon
+  and the ChillZone Companion, the more precise it gets. The census page's graphs give each day's and
   hour's people the same way ("~", that sample's characters at the estimate's people per character,
   never above its own count).
 
@@ -93,7 +93,7 @@ Counting them needs a census wire change on every reporter (a per-account flag i
 fields for guildmates seen with the addon). Not in this release: the export leaves them out and the
 Companion shows no line for them. To be designed with Daniel after 2026-10-21.
 
-## Export (`stats` section, version 1, `Olympus/BridgeSections.lua`)
+## Export (`stats` section, version 1, `ChillZone/BridgeSections.lua`)
 
 The page's figures come from `Data.Summary()` and its series from `CensusStats.DaySeries` /
 `HourSeries` / `AverageLevel` when the build has them (without them the series are empty). Strings
@@ -133,9 +133,9 @@ guild name is the last field, so nothing in it can shift the others.
 
 ## The Companion
 
-- The Companion's own bridge addon (OlympusCompanionBridge, kept with the Companion, not in this
+- The Companion's own bridge addon (ChillZoneCompanionBridge, kept with the Companion, not in this
   repository) saves `stats` with the other sections at logout or `/reload`, read through
-  `OlympusBridge.GetSection("stats")`.
+  `ChillZoneBridge.GetSection("stats")`.
 - The core reads it from the same SavedVariables file as the checkpoint (`CensusStatisticsDecoder`,
   `companion/core/.../CheckpointIngestion.kt`); a missing, unknown or malformed section is null and
   never blocks the census. `CensusStatisticsPage` gives both shells the same lines and words.

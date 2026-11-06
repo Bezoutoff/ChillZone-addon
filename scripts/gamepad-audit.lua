@@ -1,19 +1,19 @@
--- The gamepad gate's static audit (1.1.5). Every place where Olympus's code reaches into the game's
--- own UI must be registered with the gate (Olympus/GamepadRegistry.lua) and follow its rule; this
+-- The gamepad gate's static audit (1.1.5). Every place where ChillZone's code reaches into the game's
+-- own UI must be registered with the gate (ChillZone/GamepadRegistry.lua) and follow its rule; this
 -- script fails the check when one is not. It needs no controller and runs on every check.
 --
 --   luajit scripts/gamepad-audit.lua          the audit: nothing printed but a summary when it passes
 --   luajit scripts/gamepad-audit.lua --list   every reach found, with its file, line and ids (review)
 --   luajit scripts/gamepad-audit.lua --write-baseline   rewrites scripts/gamepad-baseline.txt
 --
--- Nothing of the addon runs: each .lua file under Olympus/ and under the 1.2 companion's folder,
--- Olympus_Arena/ (Olympus's code too, loaded on demand), is compiled (loadfile) and its bytecode
+-- Nothing of the addon runs: each .lua file under ChillZone/ and under the 1.2 companion's folder,
+-- ChillZone_Arena/ (ChillZone's code too, loaded on demand), is compiled (loadfile) and its bytecode
 -- read with LuaJIT's jit.util, so comments and strings can't fool it and every line is exact. The
 -- one file it runs is the registry, pure data, in an empty environment. (Loaded with the argument
 -- "--module" it returns its lists and its scan instead: tests/gamepad.lua sets its traps from them.)
 --
 -- What counts as reaching the game's UI (each such site needs a "-- gp:<id>" tag):
---   1. writing a global that is not Olympus's (no tag excuses it; the "slash" entry's globals aside);
+--   1. writing a global that is not ChillZone's (no tag excuses it; the "slash" entry's globals aside);
 --   2. reading one of the REACH globals below (registrations, the escape list, popups, the chat
 --      box, bindings, panels, the game's frame helpers, restricted calls);
 --   3. a member of one of the NAMESPACES below that is not a plain read (one the lists don't know
@@ -23,7 +23,7 @@
 --      file instead, against scripts/gamepad-baseline.txt (the count may go down, never up
 --      without the baseline changing in the same diff);
 --   5. one of the game's frames used as a value (a parent, an anchor's owner, an argument),
---      UIParent aside (the root every window of Olympus's hangs from);
+--      UIParent aside (the root every window of ChillZone's hangs from);
 --   6. a dynamic _G[...] read or write, and writing into one of the game's tables.
 --
 -- Tags. "-- gp:<id>" at the end of the line with the reach, or alone on the line above (it then
@@ -42,6 +42,8 @@
 --   in its files; an entry tagged nowhere, or in a file its `files` doesn't list (or listing one
 --   with no tag); an entry no test covers (GP.Covers("<id>") under tests/, once tests/gamepad.lua,
 --   the gamepad pass, exists); malformed entries; and the ratchet.
+-- (The offline tests wrap loadfile with their identity fixture, tests/fixtures/identity.lua; the audit reads the files as they are.)
+local loadfile = RAW_LOADFILE or loadfile
 
 local MODULE = ... == "--module"
 local ju = require("jit.util")
@@ -136,7 +138,7 @@ for _, m in ipairs({
 	"GetCanvasScale", "GetNormalizedCursorPosition", "GetScript", "HasScript", "GetUnit", "NumLines", "GetID",
 }) do A.READS[m] = true end
 
--- Counted per file against the baseline instead of tagged: Olympus's own tooltips (its frames'
+-- Counted per file against the baseline instead of tagged: ChillZone's own tooltips (its frames'
 -- OnEnter and OnLeave) and its lines printed in the chat window.
 A.RATCHET = {
 	GameTooltip = { kind = "tooltip", methods = { SetOwner = true, AddLine = true, AddDoubleLine = true, SetText = true,
@@ -145,9 +147,9 @@ A.RATCHET = {
 	DEFAULT_CHAT_FRAME = { kind = "print", methods = { AddMessage = true } },
 }
 
--- Olympus's own globals.
+-- ChillZone's own globals.
 function A.Own(name)
-	return type(name) == "string" and (name:find("^Olympus") or name:find("^SLASH_OLYMPUS") or name:find("^BINDING_.*OLYMPUS")) and true or false
+	return type(name) == "string" and (name:find("^ChillZone") or name:find("^SLASH_CHILLZONE") or name:find("^BINDING_.*CHILLZONE")) and true or false
 end
 
 -- (GetCurrentStyle: the game's own test of its style, which ns.GamepadUI and Bootstrap.lua's own make.)
@@ -338,7 +340,7 @@ local function Walk(proto, out)
 				Site(pc, base.g .. (op == "TSETS" and ("." .. tostring(Key())) or "[...]") .. " =", "reach")
 			elseif base and base.g == "StaticPopupDialogs" then
 				local key = op == "TSETS" and Key() or nil
-				if not (type(key) == "string" and key:find("^OLYMPUS_")) then Site(pc, "StaticPopupDialogs[...] =", "reach") end
+				if not (type(key) == "string" and key:find("^CHILLZONE_")) then Site(pc, "StaticPopupDialogs[...] =", "reach") end
 			end
 			-- The table a Gate.Hooks call gets: its install and park functions are the gate's.
 			if op == "TSETS" and HOOK_FIELDS[Key()] and reg[a] and reg[a].fn then
@@ -369,7 +371,7 @@ local function Walk(proto, out)
 			end
 			-- One of the game's frames as an argument (not the self of its own method). Lua's own
 			-- looks (type, rawget...) don't use it; pcall(Frame.Method, Frame, ...) is that method;
-			-- GameTooltip and the chat window handed to Olympus's code to fill count in the ratchet.
+			-- GameTooltip and the chat window handed to ChillZone's code to fill count in the ratchet.
 			local from, to = a + ARG, nargs and (a + ARG - 1 + nargs) or (a + ARG + 255)
 			local looks = fnReg and fnReg.g and LOOKS[fnReg.g]
 			local result
@@ -596,14 +598,14 @@ end
 
 -- The registry, run in an empty environment (it is pure data).
 function A.LoadRegistry(root)
-	local path = root .. "/Olympus/GamepadRegistry.lua"
+	local path = root .. "/ChillZone/GamepadRegistry.lua"
 	local chunk, err = loadfile(path)
-	if not chunk then return nil, "cannot read Olympus/GamepadRegistry.lua: " .. tostring(err) end
+	if not chunk then return nil, "cannot read ChillZone/GamepadRegistry.lua: " .. tostring(err) end
 	setfenv(chunk, {})
 	local ns = {}
-	local ok, e = pcall(chunk, "Olympus", ns)
-	if not ok then return nil, "Olympus/GamepadRegistry.lua failed: " .. tostring(e) end
-	if type(ns.GAMEPAD) ~= "table" then return nil, "Olympus/GamepadRegistry.lua sets no ns.GAMEPAD list" end
+	local ok, e = pcall(chunk, "ChillZone", ns)
+	if not ok then return nil, "ChillZone/GamepadRegistry.lua failed: " .. tostring(e) end
+	if type(ns.GAMEPAD) ~= "table" then return nil, "ChillZone/GamepadRegistry.lua sets no ns.GAMEPAD list" end
 	return ns.GAMEPAD, ns
 end
 
@@ -632,11 +634,11 @@ function A.Audit(root)
 	if not list then return { err = regNs } end
 	local byId = {}
 	for i, e in ipairs(list) do
-		local where = ("Olympus/GamepadRegistry.lua: entry %d"):format(i)
+		local where = ("ChillZone/GamepadRegistry.lua: entry %d"):format(i)
 		if type(e) ~= "table" or type(e.id) ~= "string" or not e.id:match("^[%w%-]+$") then
 			Fail("%s has no id (letters, digits and dashes).", where)
 		else
-			where = ("Olympus/GamepadRegistry.lua: %s"):format(e.id)
+			where = ("ChillZone/GamepadRegistry.lua: %s"):format(e.id)
 			if byId[e.id] then Fail("%s is listed twice.", where) end
 			byId[e.id] = e
 			if type(e.kind) ~= "string" or e.kind == "" then Fail("%s has no kind.", where) end
@@ -646,7 +648,7 @@ function A.Audit(root)
 			if not SAFE[e.safe] then Fail("%s: safe must be off or keep.", where) end
 			if type(e.why) ~= "string" or #e.why < 10 then Fail("%s: say why, in a sentence.", where) end
 			if type(e.files) ~= "table" or (#e.files == 0 and not (type(e.vendor) == "table" and #e.vendor > 0)) then
-				Fail("%s: list its files (under Olympus/, or Olympus_Arena/... for the companion's; a vendored library's in `vendor`).", where)
+				Fail("%s: list its files (under ChillZone/, or ChillZone_Arena/... for the companion's; a vendored library's in `vendor`).", where)
 			end
 			if e.guard == "exempt" and (type(e.approved) ~= "string" or e.approved == "") then
 				Fail("%s: an exempt entry needs `approved` (who said yes, and when).", where)
@@ -656,12 +658,12 @@ function A.Audit(root)
 			end
 		end
 	end
-	-- A registry file name's path from the repository's root: under Olympus/, or the companion's,
-	-- named with its folder in front (Olympus_Arena/...).
+	-- A registry file name's path from the repository's root: under ChillZone/, or the companion's,
+	-- named with its folder in front (ChillZone_Arena/...).
 	local function Rel(f)
 		f = tostring(f)
-		if f:find("^Olympus_Arena/") then return f end
-		return "Olympus/" .. f
+		if f:find("^ChillZone_Arena/") then return f end
+		return "ChillZone/" .. f
 	end
 	-- The game's globals an entry may write, and where: [name] = { [file] = true }.
 	local mayWrite = {}
@@ -673,8 +675,8 @@ function A.Audit(root)
 		end
 	end
 
-	local files = LuaFiles(root, "Olympus")
-	for _, rel in ipairs(LuaFiles(root, "Olympus_Arena")) do files[#files + 1] = rel end
+	local files = LuaFiles(root, "ChillZone")
+	for _, rel in ipairs(LuaFiles(root, "ChillZone_Arena")) do files[#files + 1] = rel end
 	local all, tagged, taggedIn, hooksIn, counts = {}, {}, {}, {}, {}
 	local vendored = {}
 	for _, e in pairs(byId) do
@@ -685,7 +687,7 @@ function A.Audit(root)
 		if not scan then
 			Fail("%s: does not compile: %s", rel, tostring(err))
 		else
-			local short = rel:gsub("^Olympus/", "")
+			local short = rel:gsub("^ChillZone/", "")
 			local vendor = vendored[rel]
 			for id in pairs(scan.hooks) do hooksIn[id] = hooksIn[id] or {}; hooksIn[id][short] = true end
 			-- Every tag names a listed id.
@@ -694,7 +696,7 @@ function A.Audit(root)
 					if t.bad then Fail("%s:%d: the tag \"gp:%s\" is not an id (letters, digits, dashes; \"!hook\" or \"!undo\" after one).", rel, line, t.bad) end
 					for _, id in ipairs(t.ids) do
 						if not byId[id] then
-							Fail("%s:%d: the tag gp:%s names no entry of Olympus/GamepadRegistry.lua. Add the entry, or fix the id.", rel, line, id)
+							Fail("%s:%d: the tag gp:%s names no entry of ChillZone/GamepadRegistry.lua. Add the entry, or fix the id.", rel, line, id)
 						else
 							tagged[id] = true
 							taggedIn[id] = taggedIn[id] or {}
@@ -705,7 +707,7 @@ function A.Audit(root)
 			end
 			for _, g in ipairs(scan.gsets) do
 				if not (mayWrite[g.name] and mayWrite[g.name][rel]) then
-					Fail("%s:%d: writes the global %s, which is not Olympus's. Keep it local (or name it Olympus...): Olympus writes none of the game's globals.", rel, g.line, g.name)
+					Fail("%s:%d: writes the global %s, which is not ChillZone's. Keep it local (or name it ChillZone...): ChillZone writes none of the game's globals.", rel, g.line, g.name)
 				end
 			end
 			for _, s in ipairs(scan.sites) do
@@ -719,7 +721,7 @@ function A.Audit(root)
 				elseif s.kind == "unknown" and not s.tag then
 					Fail("%s:%d: %s is an API the audit doesn't know. List it in scripts/gamepad-audit.lua (NAMESPACES) as a read, or as a reach and tag it.", rel, s.line, s.what)
 				elseif not s.tag then
-					Fail("%s:%d: %s reaches the game's UI without a gp: tag. Register it: add \"-- gp:<id>\" here and an entry in Olympus/GamepadRegistry.lua.", rel, s.line, s.what)
+					Fail("%s:%d: %s reaches the game's UI without a gp: tag. Register it: add \"-- gp:<id>\" here and an entry in ChillZone/GamepadRegistry.lua.", rel, s.line, s.what)
 				else
 					s.ids = s.tag.ids
 					local gate, hook = false, false
@@ -753,7 +755,7 @@ function A.Audit(root)
 		local inVendor = false
 		for _, f in ipairs(type(e.vendor) == "table" and e.vendor or {}) do inVendor = true end
 		if not tagged[id] and not inVendor then
-			Fail("Olympus/GamepadRegistry.lua: %s is tagged nowhere (no \"-- gp:%s\" in Olympus/ or Olympus_Arena/). Tag its sites, or remove the entry.", id, id)
+			Fail("ChillZone/GamepadRegistry.lua: %s is tagged nowhere (no \"-- gp:%s\" in ChillZone/ or ChillZone_Arena/). Tag its sites, or remove the entry.", id, id)
 		end
 		local listed = {}
 		for _, f in ipairs(type(e.files) == "table" and e.files or {}) do listed[f] = true end
@@ -762,14 +764,14 @@ function A.Audit(root)
 		end
 		for f in pairs(listed) do
 			if not (taggedIn[id] or {})[f] and not (hooksIn[id] or {})[f] and not inVendor then
-				Fail("Olympus/GamepadRegistry.lua: %s lists %s, where nothing is tagged gp:%s. Tag it there, or take the file off.", id, f, id)
+				Fail("ChillZone/GamepadRegistry.lua: %s lists %s, where nothing is tagged gp:%s. Tag it there, or take the file off.", id, f, id)
 			end
 		end
 		if e.toPad == "park" or e.toPad == "remove" or e.toMouse == "install" then
 			local found = false
 			for f in pairs(hooksIn[id] or {}) do if listed[f] then found = true end end
 			if not found then
-				Fail("Olympus/GamepadRegistry.lua: %s says toPad = %s, toMouse = %s, but none of its files calls Gate.Hooks(\"%s\", ...) for the switch.", id, tostring(e.toPad), tostring(e.toMouse), id)
+				Fail("ChillZone/GamepadRegistry.lua: %s says toPad = %s, toMouse = %s, but none of its files calls Gate.Hooks(\"%s\", ...) for the switch.", id, tostring(e.toPad), tostring(e.toMouse), id)
 			end
 		end
 		if pass and not covered[id] then
@@ -814,7 +816,7 @@ if mode == "--write-baseline" then
 	local keys = {}
 	for k in pairs(r.counts) do keys[#keys + 1] = k end
 	table.sort(keys)
-	local out = { "# The gamepad audit's ratchet (scripts/gamepad-audit.lua): per file, Olympus's uses of the",
+	local out = { "# The gamepad audit's ratchet (scripts/gamepad-audit.lua): per file, ChillZone's uses of the",
 		"# game's GameTooltip (tooltip) and chat window (print) that need no gp: tag. A count may go down;",
 		"# raising one is a change the review reads. Format: file kind count." }
 	for _, k in ipairs(keys) do out[#out + 1] = k .. " " .. r.counts[k] end

@@ -1,7 +1,7 @@
--- Olympus/Codec.lua as 0.9.8 and 0.9.9 ship it, for tests/run.lua: copied unchanged from
--- `git show v0.9.8:Olympus/Codec.lua` (the file is the same from 0.9.3 to 0.9.9). Its report
+-- ChillZone/Codec.lua as 0.9.8 and 0.9.9 ship it, for tests/run.lua: copied unchanged from
+-- `git show v0.9.8:ChillZone/Codec.lua` (the file is the same from 0.9.3 to 0.9.9). Its report
 -- decoder reads 24 fields and leaves any after them unread. Loaded like the addon loads its
--- files: loadfile("tests/fixtures/codec-0.9.8.lua")("Olympus", ns) sets ns.Codec.
+-- files: loadfile("tests/fixtures/codec-0.9.8.lua")("ChillZone", ns) sets ns.Codec.
 local ADDON, ns = ...
 
 -- Wire format. Pure functions, no WoW API, covered by tests/run.lua.

@@ -105,46 +105,46 @@ end
 
 test("1.4.0 groups: a listing's message, its checks, its words made safe; later fields are left for later versions", function()
 	local G = ns.Groups
-	local msg = G.Encode({ id = "a7", guild = "Olympus II", kind = "D", target = "DM", level = 18, class = "PR", need = "103", size = 2,
+	local msg = G.Encode({ id = "a7", guild = "ChillZone II", kind = "D", target = "DM", level = 18, class = "PR", need = "103", size = 2,
 		every = 10, age = 3, note = " need |cffff0000heals|r~now " })
-	eq(msg, "GL~a7~Olympus II~D~DM~18~PR~103~2~~~10~3~~need cffff0000heals r now")
+	eq(msg, "GL~a7~ChillZone II~D~DM~18~PR~103~2~~~10~3~~need cffff0000heals r now")
 	local e = G.Decode(msg)
 	eq(e.kind, "D"); eq(e.target, "DM"); eq(e.need, "103"); eq(e.size, 2); eq(e.age, 3); eq(e.title, ""); eq(e.note, "need cffff0000heals r now")
 	-- A quest carries its title (cut at 40 bytes); another kind's title is never read.
-	e = G.Decode(G.Encode({ id = "q", guild = "Olympus II", kind = "Q", target = "1234", level = 30, need = "012", size = 1, every = 10, age = 0,
+	e = G.Decode(G.Encode({ id = "q", guild = "ChillZone II", kind = "Q", target = "1234", level = 30, need = "012", size = 1, every = 10, age = 0,
 		title = "The Defias Brotherhood " .. string.rep("x", 40) }))
 	eq(e.target, "1234"); eq(#e.title, 40)
-	eq(G.Decode("GL~a~Olympus II~D~DM~18~PR~113~1~~~10~0~smuggled~hi").title, "", "a dungeon has no title")
-	eq(G.Decode("GL~a~Olympus II~R~MC~60~PR~+++~12~~~10~0~~hi~future").note, "hi", "fields after the note: later versions'")
+	eq(G.Decode("GL~a~ChillZone II~D~DM~18~PR~113~1~~~10~0~smuggled~hi").title, "", "a dungeon has no title")
+	eq(G.Decode("GL~a~ChillZone II~R~MC~60~PR~+++~12~~~10~0~~hi~future").note, "hi", "fields after the note: later versions'")
 	-- An unknown place of a later version still shows, as Other.
-	e = G.Decode("GL~a~Olympus II~D~NEWDG~18~PR~113~1~~~10~0~~")
+	e = G.Decode("GL~a~ChillZone II~D~NEWDG~18~PR~113~1~~~10~0~~")
 	eq(G.Target(e.kind, e.target, e.title), ns.L.GROUPS_OTHER)
 	eq(G.Target("D", "MC"), ns.L.GROUPS_OTHER, "a raid's key is no dungeon")
 	for _, bad in ipairs({
-		"GL~ABC~Olympus II~D~DM~18~PR~113~1~~~10~0~~", "GL~a~Olympus II~X~DM~18~PR~113~1~~~10~0~~", "GL~a~Olympus II~D~dm~18~PR~113~1~~~10~0~~",
-		"GL~a~Olympus II~Q~DM~18~PR~113~1~~~10~0~~", "GL~a~Olympus II~Q~0~18~PR~113~1~~~10~0~~", "GL~a~Olympus II~D~DM~18~PR~11~1~~~10~0~~",
-		"GL~a~Olympus II~D~DM~18~PR~1a3~1~~~10~0~~", "GL~a~Olympus II~D~DM~0~PR~113~1~~~10~0~~", "GL~a~Olympus II~D~DM~18~Pr~113~1~~~10~0~~",
-		"GL~a~Olympus II~D~DM~18~PR~113~0~~~10~0~~", "GL~a~Olympus II~D~DM~18~PR~113~41~~~10~0~~", "GL~a~Olympus II~D~DM~18~PR~113~1~~~31~0~~",
-		"GL~a~Olympus II~D~DM~18~PR~113~1~~~10~61~~", "GL~a~Olympus II~Q~12~18~PR~113~1~~~10~31~~", "GL~a~~D~DM~18~PR~113~1~~~10~0~~",
-		"GL~a~Olympus II~D~DM~18~PR~113~1~~~10", "G1~a~Olympus II~D~42~PR~10~3~~", 42 }) do
+		"GL~ABC~ChillZone II~D~DM~18~PR~113~1~~~10~0~~", "GL~a~ChillZone II~X~DM~18~PR~113~1~~~10~0~~", "GL~a~ChillZone II~D~dm~18~PR~113~1~~~10~0~~",
+		"GL~a~ChillZone II~Q~DM~18~PR~113~1~~~10~0~~", "GL~a~ChillZone II~Q~0~18~PR~113~1~~~10~0~~", "GL~a~ChillZone II~D~DM~18~PR~11~1~~~10~0~~",
+		"GL~a~ChillZone II~D~DM~18~PR~1a3~1~~~10~0~~", "GL~a~ChillZone II~D~DM~0~PR~113~1~~~10~0~~", "GL~a~ChillZone II~D~DM~18~Pr~113~1~~~10~0~~",
+		"GL~a~ChillZone II~D~DM~18~PR~113~0~~~10~0~~", "GL~a~ChillZone II~D~DM~18~PR~113~41~~~10~0~~", "GL~a~ChillZone II~D~DM~18~PR~113~1~~~31~0~~",
+		"GL~a~ChillZone II~D~DM~18~PR~113~1~~~10~61~~", "GL~a~ChillZone II~Q~12~18~PR~113~1~~~10~31~~", "GL~a~~D~DM~18~PR~113~1~~~10~0~~",
+		"GL~a~ChillZone II~D~DM~18~PR~113~1~~~10", "G1~a~ChillZone II~D~42~PR~10~3~~", 42 }) do
 		eq(G.Decode(bad), nil, tostring(bad))
 	end
 	-- 1.4.0: a minimum level (2-99, or empty for any); a quest by a typed name (its target 0, its
 	-- title the name; never without one).
-	e = G.Decode(G.Encode({ id = "m", guild = "Olympus II", kind = "D", target = "SM", level = 30, need = "113", size = 1, every = 10, age = 0, min = 30 }))
+	e = G.Decode(G.Encode({ id = "m", guild = "ChillZone II", kind = "D", target = "SM", level = 30, need = "113", size = 1, every = 10, age = 0, min = 30 }))
 	eq(e.min, 30)
-	eq(G.Decode(G.Encode({ id = "m", guild = "Olympus II", kind = "D", target = "SM", level = 30, need = "113", size = 1, every = 10, age = 0, min = 1 })).min, nil, "1: anyone")
+	eq(G.Decode(G.Encode({ id = "m", guild = "ChillZone II", kind = "D", target = "SM", level = 30, need = "113", size = 1, every = 10, age = 0, min = 1 })).min, nil, "1: anyone")
 	for _, bad in ipairs({ "1", "100", "ab", "5x" }) do
-		eq(G.Decode("GL~a~Olympus II~D~DM~18~PR~113~1~" .. bad .. "~~10~0~~"), nil, "min " .. bad)
+		eq(G.Decode("GL~a~ChillZone II~D~DM~18~PR~113~1~" .. bad .. "~~10~0~~"), nil, "min " .. bad)
 	end
-	e = G.Decode(G.Encode({ id = "t", guild = "Olympus II", kind = "Q", target = "0", level = 30, need = "012", size = 1, every = 10, age = 0, title = "Mor'Ladim" }))
+	e = G.Decode(G.Encode({ id = "t", guild = "ChillZone II", kind = "Q", target = "0", level = 30, need = "012", size = 1, every = 10, age = 0, title = "Mor'Ladim" }))
 	eq(e.target, "0"); eq(G.Target(e.kind, e.target, e.title), "Mor'Ladim")
 	-- A quest's zone (cut at 30 bytes, made safe); another kind's never read; every 5 to 30 minutes.
-	e = G.Decode(G.Encode({ id = "z", guild = "Olympus II", kind = "Q", target = "176", level = 11, need = "012", size = 1, every = 5, age = 0,
+	e = G.Decode(G.Encode({ id = "z", guild = "ChillZone II", kind = "Q", target = "176", level = 11, need = "012", size = 1, every = 5, age = 0,
 		title = "Kill Hogger", zone = "Elwynn |cffff0000Forest~" .. string.rep("x", 40) }))
 	eq(e.every, 5); eq(#e.zone, 30); assert(e.zone:find("^Elwynn cffff0000Forest"), e.zone)
-	eq(G.Decode("GL~a~Olympus II~D~DM~18~PR~113~1~~Elwynn~10~0~~").zone, "", "a dungeon has no zone")
-	eq(G.Decode("GL~a~Olympus II~D~DM~18~PR~113~1~~~4~0~~"), nil, "every 4: too often")
+	eq(G.Decode("GL~a~ChillZone II~D~DM~18~PR~113~1~~Elwynn~10~0~~").zone, "", "a dungeon has no zone")
+	eq(G.Decode("GL~a~ChillZone II~D~DM~18~PR~113~1~~~4~0~~"), nil, "every 4: too often")
 	eq(G.NeedShort("113"), "1T 1H 3D"); eq(G.NeedShort("0++"), "H+ D+"); eq(G.NeedShort("000"), ns.L.GROUPS_FULL)
 	-- Who else is in a group (GM, review of PR #62): how many, by class and role, never a name.
 	local counts = G.MemberCounts({ { name = "Brenna Stoutheart-Realm", class = "PR", role = "H" }, { name = "Cora-Other", class = "MA" },
@@ -179,9 +179,9 @@ test("1.4.0 groups: a listing's message, its checks, its words made safe; later 
 	assert(#worst <= 250, "one message: " .. #worst)
 	assert(G.Decode(worst), "the longest decodes")
 	-- An application: a role, the applicant's level and class, a note.
-	local a = G.DecodeApply(G.EncodeApply("a7", "Olympus Zeus", "H", 31, "PR", "|cff00ff00hi~"))
+	local a = G.DecodeApply(G.EncodeApply("a7", "ChillZone Zeus", "H", 31, "PR", "|cff00ff00hi~"))
 	eq(a.role, "H"); eq(a.level, 31); eq(a.note, "cff00ff00hi")
-	eq(G.DecodeApply("GA~a7~Olympus Zeus~X~31~PR~"), nil, "no such role")
+	eq(G.DecodeApply("GA~a7~ChillZone Zeus~X~31~PR~"), nil, "no such role")
 	eq(G.DecodeApply("GA~a7~~T~31~PR~"), nil, "no guild")
 	-- What a need says.
 	eq(G.NeedText("113"), "Tank, Healer, Damage x3")
@@ -194,7 +194,7 @@ end)
 test("1.4.0 groups: the Board's strip; the flags page is as it was; a leader lists a dungeon group (where, roles, a note logged)", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
-		B.HandlePost("CHANNEL", "Aldric-Realm", ns.Board.Encode({ id = "f1", guild = "Olympus Zeus", flag = "R", level = 30, class = "WA", every = 10, age = 0, note = "lf raid" }))
+		B.HandlePost("CHANNEL", "Aldric-Realm", ns.Board.Encode({ id = "f1", guild = "ChillZone Zeus", flag = "R", level = 30, class = "WA", every = 10, age = 0, note = "lf raid" }))
 		-- The Flags section first: the strip, then the Board's page as before.
 		local lines = B.Lines()
 		assert(lines[2].nav, "the strip under the way back")
@@ -227,7 +227,7 @@ test("1.4.0 groups: the Board's strip; the flags page is as it was; a leader lis
 		eq(#w.sent, 0, "nothing sent while composing")
 		Line(B.Lines(), ns.L.GROUPS_POST).onClick()
 		local p = w.popups[#w.popups]
-		eq(p.name, "OLYMPUS_GROUPS_LIST")
+		eq(p.name, "CHILLZONE_GROUPS_LIST")
 		assert(p.a:find("Deadmines", 1, true) and p.a:find(ns.L.GROUPS_NEEDS:format("Tank x2, Healer, Damage"), 1, true), p.a)
 		eq(p.b, ns.Comm.Audience())
 		G.ConfirmList(p.data, "  bring |cffffffffwater ")
@@ -235,7 +235,7 @@ test("1.4.0 groups: the Board's strip; the flags page is as it was; a leader lis
 		local s = Sent(w, "GL~")
 		eq(s.dist, "CHANNEL"); eq(s.logged, true, "a note goes logged")
 		local e = G.Decode(s.msg)
-		eq(e.kind, "D"); eq(e.target, "DM"); eq(e.need, "211"); eq(e.note, "bring cffffffffwater"); eq(e.guild, "Olympus II"); eq(e.size, 1)
+		eq(e.kind, "D"); eq(e.target, "DM"); eq(e.need, "211"); eq(e.note, "bring cffffffffwater"); eq(e.guild, "ChillZone II"); eq(e.size, 1)
 		eq(#w.sent, 1, "one listing")
 		eq(G.Mine().id, e.id)
 		lines = B.Lines()
@@ -254,15 +254,15 @@ test("1.4.0 groups: the Board's strip; the flags page is as it was; a leader lis
 	end)
 end)
 
-test("1.4.0 groups: others' listings on the Board, by kind; only Olympus guilds, never an ignored or netted-off player; lowered at once", function()
+test("1.4.0 groups: others' listings on the Board, by kind; only ChillZone guilds, never an ignored or netted-off player; lowered at once", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
-		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("a1", "Olympus Zeus", "D", "SFK", "103", 2, "lfm sfk"))
-		G.HandlePost("CHANNEL", "Brenna-Realm", Listing("b1", "Olympus Zeus", "R", "MC", "+++", 0))
+		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("a1", "ChillZone Zeus", "D", "SFK", "103", 2, "lfm sfk"))
+		G.HandlePost("CHANNEL", "Brenna-Realm", Listing("b1", "ChillZone Zeus", "R", "MC", "+++", 0))
 		G.HandlePost("CHANNEL", "Outsider-Realm", Listing("c1", "Horde Guild", "D", "DM"))
-		G.HandlePost("CHANNEL", "Troll-Realm", Listing("t1", "Olympus Zeus", "D", "DM"))
-		G.HandlePost("GUILD", "Cora-Realm", Listing("g1", "Olympus Zeus", "D", "DM"))
-		G.HandlePost("WHISPER", "Dora-Realm", Listing("d1", "Olympus Zeus", "D", "DM"))
+		G.HandlePost("CHANNEL", "Troll-Realm", Listing("t1", "ChillZone Zeus", "D", "DM"))
+		G.HandlePost("GUILD", "Cora-Realm", Listing("g1", "ChillZone Zeus", "D", "DM"))
+		G.HandlePost("WHISPER", "Dora-Realm", Listing("d1", "ChillZone Zeus", "D", "DM"))
 		eq(#G.List("D"), 1); eq(#G.List("R"), 1); eq(#G.List(), 2)
 		G.Show("D", true)
 		local lines = B.Lines()
@@ -284,16 +284,16 @@ test("1.4.0 groups: others' listings on the Board, by kind; only Olympus guilds,
 		assert(not Line(B.Lines(ns.Fold("molten")), "[Shadowfang Keep]"))
 		-- A refresh updates it in place; its words without the logged API are dropped.
 		w.logged = false
-		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("a1", "Olympus Zeus", "D", "SFK", "003", 3, "lfm sfk"))
+		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("a1", "ChillZone Zeus", "D", "SFK", "003", 3, "lfm sfk"))
 		eq(G.List("D")[1].need, "003"); eq(G.List("D")[1].note, "")
 		w.logged = true
 		-- Lowered: gone, and a late refresh of it doesn't bring it back.
 		G.HandleLower("CHANNEL", "Aldric-Realm", "GX~a1")
 		eq(#G.List("D"), 0)
-		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("a1", "Olympus Zeus", "D", "SFK", "003", 4))
+		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("a1", "ChillZone Zeus", "D", "SFK", "003", 4))
 		eq(#G.List("D"), 0, "a lowered id stays down")
 		-- Its hour over, a listing leaves; a quest's after half an hour.
-		G.HandlePost("CHANNEL", "Cora-Realm", Listing("q1", "Olympus Zeus", "Q", "555", "012", 25, nil, "Kill Hogger"))
+		G.HandlePost("CHANNEL", "Cora-Realm", Listing("q1", "ChillZone Zeus", "Q", "555", "012", 25, nil, "Kill Hogger"))
 		eq(#G.List("Q"), 1)
 		w.clock = w.clock + 6 * 60
 		eq(#G.List("Q"), 0, "half an hour for a quest")
@@ -306,7 +306,7 @@ end)
 test("1.4.0 groups: apply with a role the group needs (the note logged, to the leader alone); withdraw; the leader's answers", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
-		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("a1", "Olympus Zeus", "D", "SFK", "103", 0))
+		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("a1", "ChillZone Zeus", "D", "SFK", "103", 0))
 		G.Show("D", true)
 		Line(B.Lines(), "Shadowfang Keep").onClick()
 		local lines = B.Lines()
@@ -317,13 +317,13 @@ test("1.4.0 groups: apply with a role the group needs (the note logged, to the l
 		eq(#w.whispered, 0)
 		Line(lines, ns.L.GROUPS_APPLY_AS:format(ns.L.GROUPS_ROLE_T)).onClick()
 		local p = w.popups[#w.popups]
-		eq(p.name, "OLYMPUS_GROUPS_APPLY")
+		eq(p.name, "CHILLZONE_GROUPS_APPLY")
 		eq(p.a, ns.L.GROUPS_APPLY_WHAT:format(ns.L.GROUPS_ROLE_T, "Shadowfang Keep", "Aldric"))
 		G.ConfirmApply(p.data, "prot war, 25")
 		local wh = LastWhisper(w)
 		eq(wh.to, "Aldric-Realm"); eq(wh.logged, true)
 		local a = G.DecodeApply(wh.msg)
-		eq(a.id, "a1"); eq(a.role, "T"); eq(a.guild, "Olympus II"); eq(a.note, "prot war, 25"); eq(a.level, 42); eq(a.class, "PR")
+		eq(a.id, "a1"); eq(a.role, "T"); eq(a.guild, "ChillZone II"); eq(a.note, "prot war, 25"); eq(a.level, 42); eq(a.class, "PR")
 		eq(#w.sent, 0, "nothing on the channel")
 		lines = B.Lines()
 		assert(Line(lines, ns.L.GROUPS_APP_SENT:format(ns.L.GROUPS_ROLE_T)), Texts(lines))
@@ -352,7 +352,7 @@ test("1.4.0 groups: apply with a role the group needs (the note logged, to the l
 		eq(G.Applied("Aldric-Realm"), nil)
 		-- Five applications waiting at most.
 		for i = 1, 6 do
-			G.HandlePost("CHANNEL", "Lead" .. i .. "-Realm", Listing("l" .. i, "Olympus Zeus", "D", "DM", "113", 0))
+			G.HandlePost("CHANNEL", "Lead" .. i .. "-Realm", Listing("l" .. i, "ChillZone Zeus", "D", "DM", "113", 0))
 		end
 		for i = 1, 5 do assert(G.Apply("Lead" .. i .. "-Realm", "D")) end
 		eq(select(2, G.Apply("Lead6-Realm", "D")), "many")
@@ -364,17 +364,17 @@ test("1.4.0 groups: the leader's applicants (a sound, details on hover); Invite 
 		AsSoldier()
 		assert(G.Post("D", "DM", nil, "112", "lfm"))
 		local id = G.Mine().id
-		G.HandleApply("WHISPER", "Aldric-Realm", G.EncodeApply(id, "Olympus Zeus", "T", 20, "WA", "prot"))
-		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "Olympus Zeus", "D", 19, "MA", ""))
-		G.HandleApply("WHISPER", "Cora-Realm", G.EncodeApply(id, "Olympus Zeus", "H", 18, "PR", ""))
-		-- Not for this listing, not whispered, not of an Olympus guild, ignored: nothing.
-		G.HandleApply("WHISPER", "Dora-Realm", G.EncodeApply("zz", "Olympus Zeus", "D", 19, "MA", ""))
-		G.HandleApply("CHANNEL", "Dora-Realm", G.EncodeApply(id, "Olympus Zeus", "D", 19, "MA", ""))
+		G.HandleApply("WHISPER", "Aldric-Realm", G.EncodeApply(id, "ChillZone Zeus", "T", 20, "WA", "prot"))
+		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "ChillZone Zeus", "D", 19, "MA", ""))
+		G.HandleApply("WHISPER", "Cora-Realm", G.EncodeApply(id, "ChillZone Zeus", "H", 18, "PR", ""))
+		-- Not for this listing, not whispered, not of an ChillZone guild, ignored: nothing.
+		G.HandleApply("WHISPER", "Dora-Realm", G.EncodeApply("zz", "ChillZone Zeus", "D", 19, "MA", ""))
+		G.HandleApply("CHANNEL", "Dora-Realm", G.EncodeApply(id, "ChillZone Zeus", "D", 19, "MA", ""))
 		G.HandleApply("WHISPER", "Dora-Realm", G.EncodeApply(id, "Horde Guild", "D", 19, "MA", ""))
-		G.HandleApply("WHISPER", "Troll-Realm", G.EncodeApply(id, "Olympus Zeus", "D", 19, "MA", ""))
+		G.HandleApply("WHISPER", "Troll-Realm", G.EncodeApply(id, "ChillZone Zeus", "D", 19, "MA", ""))
 		eq(#G.Applicants(), 3)
 		eq(w.sounds, 3, "a sound for each new applicant")
-		G.HandleApply("WHISPER", "Aldric-Realm", G.EncodeApply(id, "Olympus Zeus", "T", 20, "WA", "prot"))
+		G.HandleApply("WHISPER", "Aldric-Realm", G.EncodeApply(id, "ChillZone Zeus", "T", 20, "WA", "prot"))
 		eq(w.sounds, 3, "none for the same one again")
 		G.Show("D", true)
 		local lines = B.Lines()
@@ -382,7 +382,7 @@ test("1.4.0 groups: the leader's applicants (a sound, details on hover); Invite 
 		local tank = Line(lines, "Aldric")
 		assert(tank and tank.text:find(ns.L.GROUPS_ROLE_T, 1, true), Texts(lines))
 		local tip = Tip(tank)
-		assert(tip:find(ns.L.GROUPS_ROLE_T, 1, true) and tip:find("Olympus Zeus", 1, true) and tip:find("prot", 1, true), tip)
+		assert(tip:find(ns.L.GROUPS_ROLE_T, 1, true) and tip:find("ChillZone Zeus", 1, true) and tip:find("prot", 1, true), tip)
 		-- Nothing invites until the leader clicks Invite as their role.
 		eq(#w.invited, 0)
 		tank.onClick()
@@ -438,9 +438,9 @@ test("1.4.0 groups: the leader's applicants (a sound, details on hover); Invite 
 		eq(G.Mine().need, "002")
 		-- The last of them: the listing closes, its GX goes, and the ones still waiting are told.
 		w.clock = w.clock + G.APPLY_GAP
-		G.HandleApply("WHISPER", "Dora-Realm", G.EncodeApply(id, "Olympus Zeus", "D", 19, "MA", ""))
-		G.HandleApply("WHISPER", "Eda-Realm", G.EncodeApply(id, "Olympus Zeus", "D", 19, "MA", ""))
-		G.HandleApply("WHISPER", "Finn-Realm", G.EncodeApply(id, "Olympus Zeus", "D", 19, "MA", ""))
+		G.HandleApply("WHISPER", "Dora-Realm", G.EncodeApply(id, "ChillZone Zeus", "D", 19, "MA", ""))
+		G.HandleApply("WHISPER", "Eda-Realm", G.EncodeApply(id, "ChillZone Zeus", "D", 19, "MA", ""))
+		G.HandleApply("WHISPER", "Finn-Realm", G.EncodeApply(id, "ChillZone Zeus", "D", 19, "MA", ""))
 		G.Invite("Dora-Realm"); G.Invite("Eda-Realm")
 		assert(G.Mine(), "still listed while they haven't joined")
 		w.party = { { "Aldric", "", "WARRIOR" }, { "Cora", "", "PRIEST" }, { "Dora", "", "MAGE" } }
@@ -468,7 +468,7 @@ test("1.4.0 groups: the leader's applicants (a sound, details on hover); Invite 
 	end)
 end)
 
-test("1.4.0 groups: the Board's ask is answered with our listing; it survives a /reload; it ends after its hour; /oly group", function()
+test("1.4.0 groups: the Board's ask is answered with our listing; it survives a /reload; it ends after its hour; /cz group", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		assert(G.Post("R", "MC", nil, "+++", ""))
@@ -479,14 +479,14 @@ test("1.4.0 groups: the Board's ask is answered with our listing; it survives a 
 		local wh = LastWhisper(w)
 		eq(wh.to, "Asker-Realm"); eq(G.Decode(wh.msg).id, id)
 		-- A whispered listing is taken only after our own ask.
-		G.HandlePost("WHISPER", "Brenna-Realm", Listing("b1", "Olympus Zeus", "D", "DM"))
+		G.HandlePost("WHISPER", "Brenna-Realm", Listing("b1", "ChillZone Zeus", "D", "DM"))
 		eq(#G.List("D"), 0)
 		ns.Comm.joinedAt = w.clock - 60
 		assert(B.Ask())
-		G.HandlePost("WHISPER", "Brenna-Realm", Listing("b1", "Olympus Zeus", "D", "DM"))
+		G.HandlePost("WHISPER", "Brenna-Realm", Listing("b1", "ChillZone Zeus", "D", "DM"))
 		eq(#G.List("D"), 1)
 		-- A /reload keeps our listing and its applicants.
-		G.HandleApply("WHISPER", "Aldric-Realm", G.EncodeApply(id, "Olympus Zeus", "H", 60, "PR", "hi"))
+		G.HandleApply("WHISPER", "Aldric-Realm", G.EncodeApply(id, "ChillZone Zeus", "H", 60, "PR", "hi"))
 		local saved = ns.rdb.groups
 		G.Reset()
 		ns.rdb.groups = saved
@@ -501,14 +501,14 @@ test("1.4.0 groups: the Board's ask is answered with our listing; it survives a 
 		G.Tick()
 		eq(G.Mine(), nil)
 		eq(w.sent[#w.sent].msg, "GX~" .. id)
-		-- /oly group opens the Board on a kind; off lowers ours.
+		-- /cz group opens the Board on a kind; off lowers ours.
 		B.Slash("group", "raid")
 		eq(G.View(), "R"); eq(ns.Views.BoardShown(), true)
 		B.Slash("lfg", "")
-		eq(G.View(), "flags", "/oly lfg: the flags")
+		eq(G.View(), "flags", "/cz lfg: the flags")
 		B.Slash("group", "off")
 		B.Slash("group", "nonsense")
-		assert(w.printed[#w.printed]:find("/oly group", 1, true), w.printed[#w.printed])
+		assert(w.printed[#w.printed]:find("/cz group", 1, true), w.printed[#w.printed])
 		G.Show("flags", true)
 	end)
 end)
@@ -532,9 +532,9 @@ test("1.4.0 groups: a quest from our own log, its title with it; quests we have 
 		local e = G.Decode(s.msg)
 		eq(e.target, "176"); eq(e.title, "Kill Hogger")
 		-- Others' quests: the ones in our log first, marked.
-		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("a1", "Olympus Zeus", "Q", "999", "012", 0, nil, "Other Quest"))
+		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("a1", "ChillZone Zeus", "Q", "999", "012", 0, nil, "Other Quest"))
 		w.clock = w.clock + 1
-		G.HandlePost("CHANNEL", "Brenna-Realm", Listing("b1", "Olympus Zeus", "Q", "33", "012", 0, nil, "Wolves Across the Border"))
+		G.HandlePost("CHANNEL", "Brenna-Realm", Listing("b1", "ChillZone Zeus", "Q", "33", "012", 0, nil, "Wolves Across the Border"))
 		local list = G.List("Q")
 		eq(list[1].sender, "Brenna-Realm")
 		assert(G.Card(list[1]).text:find(ns.L.GROUPS_IN_LOG, 1, true))
@@ -542,11 +542,11 @@ test("1.4.0 groups: a quest from our own log, its title with it; quests we have 
 	end)
 end)
 
-test("1.4.0 groups: English and Portuguese for every string; the help names /oly group", function()
+test("1.4.0 groups: English and Portuguese for every string; the help names /cz group", function()
 	local pt = {}
 	local saved = GetLocale
 	GetLocale = function() return "ptBR" end
-	local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales.lua"))("Olympus", pt) end)
+	local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales.lua"))("ChillZone", pt) end)
 	GetLocale = saved
 	if not ok then error(err, 0) end
 	local n = 0
@@ -561,7 +561,7 @@ test("1.4.0 groups: English and Portuguese for every string; the help names /oly
 		end
 	end
 	assert(n > 60, "the strings: " .. n)
-	assert(ns.L.HELP_GROUPS:find("/oly group", 1, true))
+	assert(ns.L.HELP_GROUPS:find("/cz group", 1, true))
 end)
 
 test("1.4.0 groups: a minimum level: the composer starts at the place's own, a click steps it; under it no apply, and the leader takes none", function()
@@ -587,11 +587,11 @@ test("1.4.0 groups: a minimum level: the composer starts at the place's own, a c
 		eq(G.Decode(Sent(w, "GL~").msg).min, 40)
 		-- A level 41 applicant is taken; a level 39 one isn't (its addon would have refused it).
 		local id = G.Mine().id
-		G.HandleApply("WHISPER", "Low-Realm", G.EncodeApply(id, "Olympus Zeus", "D", 39, "WA", ""))
-		G.HandleApply("WHISPER", "High-Realm", G.EncodeApply(id, "Olympus Zeus", "D", 41, "WA", ""))
+		G.HandleApply("WHISPER", "Low-Realm", G.EncodeApply(id, "ChillZone Zeus", "D", 39, "WA", ""))
+		G.HandleApply("WHISPER", "High-Realm", G.EncodeApply(id, "ChillZone Zeus", "D", 41, "WA", ""))
 		eq(#G.Applicants(), 1); eq(G.Applicants()[1].name, "High-Realm")
 		-- Someone else's group from level 50: the card says so, and we (42) can't apply.
-		G.HandlePost("CHANNEL", "Aldric-Realm", G.Encode({ id = "a1", guild = "Olympus Zeus", kind = "D", target = "BRD", level = 55, class = "WA",
+		G.HandlePost("CHANNEL", "Aldric-Realm", G.Encode({ id = "a1", guild = "ChillZone Zeus", kind = "D", target = "BRD", level = 55, class = "WA",
 			need = "113", size = 1, min = 50, every = 10, age = 0 }))
 		local card = Line(B.Lines(), "[Blackrock Depths]")
 		assert(card.right:find(ns.L.GROUPS_MIN_SHORT:format(50), 1, true), card.right)
@@ -615,7 +615,7 @@ test("1.4.0 groups: a quest by a typed name (an elite, a rare): its dialog, then
 		assert(Line(lines, ns.L.GROUPS_NO_QUESTS), "an empty log says so")
 		Line(lines, ns.L.GROUPS_TYPE_NAME).onClick()
 		local p = w.popups[#w.popups]
-		eq(p.name, "OLYMPUS_GROUPS_NAME")
+		eq(p.name, "CHILLZONE_GROUPS_NAME")
 		eq(G.ConfirmName(p.data, "   "), nil, "no name: still choosing")
 		p.data.answered = nil
 		G.ConfirmName(p.data, "Mor'Ladim |cff00ff00now")
@@ -628,7 +628,7 @@ test("1.4.0 groups: a quest by a typed name (an elite, a rare): its dialog, then
 		eq(e.target, "0"); eq(e.title, "Mor'Ladim cff00ff00now")
 		eq(select(2, G.Post("Q", "0", "", "012", "")), "target", "never without a name")
 		-- On another Board it shows by its name, and is never "in your log".
-		G.HandlePost("CHANNEL", "Aldric-Realm", (s.msg:gsub("Olympus II", "Olympus Zeus")))
+		G.HandlePost("CHANNEL", "Aldric-Realm", (s.msg:gsub("ChillZone II", "ChillZone Zeus")))
 		local card = G.Card(G.List("Q")[1])
 		assert(card.text:find("[Mor'Ladim cff00ff00now]", 1, true) and not card.text:find(ns.L.GROUPS_IN_LOG, 1, true), card.text)
 	end)
@@ -641,9 +641,9 @@ test("1.4.0 groups: who is in a listed group: the leader's GM counts them by cla
 		assert(G.Post("D", "DM", nil, "113", ""))
 		eq(Sent(w, "GM~"), nil, "alone: no GM")
 		local id = G.Mine().id
-		G.HandleApply("WHISPER", "Brenna Stoutheart-Realm", G.EncodeApply(id, "Olympus Zeus", "H", 20, "PR", ""))
+		G.HandleApply("WHISPER", "Brenna Stoutheart-Realm", G.EncodeApply(id, "ChillZone Zeus", "H", 20, "PR", ""))
 		G.Invite("Brenna Stoutheart-Realm")
-		-- She and a friend from the chat (outside Olympus) join; the next send carries the listing
+		-- She and a friend from the chat (outside ChillZone) join; the next send carries the listing
 		-- and how many are in it. (Forever's unit names: a first name, then the surname.)
 		w.party = { { "Brenna", "Stoutheart", "PRIEST" }, { "Cora", "Wildmane", "MAGE" } }
 		w.clock = w.clock + G.UPDATE_GAP
@@ -666,11 +666,11 @@ test("1.4.0 groups: who is in a listed group: the leader's GM counts them by cla
 		B.HandleAsk("CHANNEL", "Asker-Realm", "GQ~")
 		for _, t in ipairs(w.later) do if t.where == "board answer" then t.fn() end end
 		eq(LastWhisper(w).to, "Asker-Realm"); eq(LastWhisper(w).msg, "GM~" .. id .. "~PRH1")
-		-- Another Board (a reader of another Olympus guild: the leader's guild by its claim) shows
+		-- Another Board (a reader of another ChillZone guild: the leader's guild by its claim) shows
 		-- the counts in the card's tooltip and on its card.
 		G.Reset()
 		w.party = {}
-		GetGuildInfo = function() return "Olympus Zeus", "Member", 3 end
+		GetGuildInfo = function() return "ChillZone Zeus", "Member", 3 end
 		ns.me = "Reader-Realm"
 		G.HandleMembers("CHANNEL", "Soldier-Realm", first)
 		eq(#G.List("D"), 0, "a GM before its listing is nothing")
@@ -724,11 +724,11 @@ test("1.4.0 flags for several places: roles and picks after the note (a 1.1 Boar
 		G.FlagPick("R", "*")
 		Line(B.Lines(), ns.L.GROUPS_FLAG_RAISE).onClick()
 		local p = w.popups[#w.popups]
-		eq(p.name, "OLYMPUS_BOARD_RAISE")
+		eq(p.name, "CHILLZONE_BOARD_RAISE")
 		eq(p.a, "Deadmines, Shadowfang Keep, " .. ns.L.GROUPS_ANY_P .. "  (" .. ns.L.GROUPS_ROLE_T .. ", " .. ns.L.GROUPS_ROLE_H .. ")")
 		B.Confirm(p.data, "any time tonight")
 		local s = Sent(w, "G1~")
-		local plain = B.Encode({ id = B.Mine().id, guild = "Olympus II", flag = "D", level = 42, class = "PR", every = s.msg:match("^G1~[^~]*~[^~]*~[^~]*~[^~]*~[^~]*~(%d+)"),
+		local plain = B.Encode({ id = B.Mine().id, guild = "ChillZone II", flag = "D", level = 42, class = "PR", every = s.msg:match("^G1~[^~]*~[^~]*~[^~]*~[^~]*~[^~]*~(%d+)"),
 			age = 0, note = "any time tonight" })
 		eq(s.msg, plain .. "~TH~D:DM,SFK;P:*", "the flag as before, then its roles and picks")
 		eq(G.FlagComposing(), false, "raised: the composer closes")
@@ -741,8 +741,8 @@ test("1.4.0 flags for several places: roles and picks after the note (a 1.1 Boar
 		eq(B.Decode(plain .. "~T~P:*;D:DM").picks, "", "kinds in order")
 		eq(B.ParsePicks("D:A,B,C,D,E,F,G,H,I"), nil, "nine places")
 		-- Someone else's: on the flags page by name and roles; in Dungeons and PvP, not in Raids.
-		B.HandlePost("CHANNEL", "Aldric-Realm", s.msg:gsub("^G1~[^~]*", "G1~a1"):gsub("Olympus II", "Olympus Zeus"))
-		B.HandlePost("CHANNEL", "Brenna-Realm", B.Encode({ id = "b1", guild = "Olympus Zeus", flag = "R", level = 60, class = "PR", every = 10, age = 0 }))
+		B.HandlePost("CHANNEL", "Aldric-Realm", s.msg:gsub("^G1~[^~]*", "G1~a1"):gsub("ChillZone II", "ChillZone Zeus"))
+		B.HandlePost("CHANNEL", "Brenna-Realm", B.Encode({ id = "b1", guild = "ChillZone Zeus", flag = "R", level = 60, class = "PR", every = 10, age = 0 }))
 		local card = Line(B.Lines(), "Aldric")
 		assert(card.text:find("[Deadmines, Shadowfang Keep, " .. ns.L.GROUPS_ANY_P .. "]", 1, true) and card.text:find(ns.L.GROUPS_ROLE_T .. ", " .. ns.L.GROUPS_ROLE_H, 1, true), card.text)
 		eq(#G.Looking("D"), 1); eq(#G.Looking("P"), 1); eq(#G.Looking("R"), 1); eq(G.Looking("R")[1].sender, "Brenna-Realm", "a plain raid flag")
@@ -792,12 +792,12 @@ test("1.4.0 groups: our own group shows in the list, marked, with its card and o
 		lines = B.Lines()
 		assert(Line(lines, ns.L.GROUPS_MANAGE_ABOVE) and not Line(lines, ns.L.GROUPS_APPLY_AS:format(ns.L.GROUPS_ROLE_T)), Texts(lines))
 		-- Someone else's group: its card has its leader, needs, minimum, note and members, then Apply.
-		G.HandlePost("CHANNEL", "Aldric-Realm", G.Encode({ id = "a1", guild = "Olympus Zeus", kind = "D", target = "DM", level = 20, class = "WA",
+		G.HandlePost("CHANNEL", "Aldric-Realm", G.Encode({ id = "a1", guild = "ChillZone Zeus", kind = "D", target = "DM", level = 20, class = "WA",
 			need = "011", size = 2, min = 16, every = 5, age = 0, note = "chill run" }))
 		G.HandleMembers("CHANNEL", "Aldric-Realm", G.EncodeMembers("a1", { { class = "MA", role = "D", count = 1 } }))
 		Line(B.Lines(), "[Deadmines]").onClick()
 		lines = B.Lines()
-		for _, want in ipairs({ ns.L.GROUPS_CARD_LEADER:format("Aldric", "Olympus Zeus"), ns.L.GROUPS_NEEDS:format("Healer, Damage"),
+		for _, want in ipairs({ ns.L.GROUPS_CARD_LEADER:format("Aldric", "ChillZone Zeus"), ns.L.GROUPS_NEEDS:format("Healer, Damage"),
 			ns.L.GROUPS_MIN_TIP:format(16), '"chill run"', ns.L.GROUPS_IN_GROUP, ns.L.GROUPS_COUNT:format("Mage", 1), ns.L.GROUPS_APPLY_AS:format(ns.L.GROUPS_ROLE_H) }) do
 			assert(Line(lines, want), want .. "\n" .. Texts(lines))
 		end
@@ -827,11 +827,11 @@ end)
 test("1.4.0 groups: filters (I can join, in my log, my zone; players by fit and role); a flag's player invited as a role their flag names", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
-		G.HandlePost("CHANNEL", "Aldric-Realm", G.Encode({ id = "a1", guild = "Olympus Zeus", kind = "D", target = "BRD", level = 55, class = "WA",
+		G.HandlePost("CHANNEL", "Aldric-Realm", G.Encode({ id = "a1", guild = "ChillZone Zeus", kind = "D", target = "BRD", level = 55, class = "WA",
 			need = "113", size = 1, min = 50, every = 5, age = 0 }))
-		G.HandlePost("CHANNEL", "Brenna-Realm", G.Encode({ id = "b1", guild = "Olympus Zeus", kind = "D", target = "SM", level = 40, class = "PR",
+		G.HandlePost("CHANNEL", "Brenna-Realm", G.Encode({ id = "b1", guild = "ChillZone Zeus", kind = "D", target = "SM", level = 40, class = "PR",
 			need = "113", size = 1, min = 30, every = 5, age = 0 }))
-		G.HandlePost("CHANNEL", "Cora-Realm", G.Encode({ id = "c1", guild = "Olympus Zeus", kind = "D", target = "RFC", level = 15, class = "MA",
+		G.HandlePost("CHANNEL", "Cora-Realm", G.Encode({ id = "c1", guild = "ChillZone Zeus", kind = "D", target = "RFC", level = 15, class = "MA",
 			need = "000", size = 5, every = 5, age = 0 }))
 		G.Show("D", true)
 		local lines = B.Lines()
@@ -846,9 +846,9 @@ test("1.4.0 groups: filters (I can join, in my log, my zone; players by fit and 
 		assert(not Line(lines, "[Ragefire Chasm]"), "full")
 		-- Quests: in my log; my zone.
 		w.quests = { { title = "Elwynn Forest", header = true }, { title = "Kill Hogger", level = 11, id = 176, group = 3 } }
-		G.HandlePost("CHANNEL", "Dora-Realm", G.Encode({ id = "d1", guild = "Olympus Zeus", kind = "Q", target = "176", level = 12, class = "MA",
+		G.HandlePost("CHANNEL", "Dora-Realm", G.Encode({ id = "d1", guild = "ChillZone Zeus", kind = "Q", target = "176", level = 12, class = "MA",
 			need = "012", size = 1, every = 5, age = 0, title = "Kill Hogger", zone = "Elwynn Forest" }))
-		G.HandlePost("CHANNEL", "Eda-Realm", G.Encode({ id = "e1", guild = "Olympus Zeus", kind = "Q", target = "0", level = 30, class = "MA",
+		G.HandlePost("CHANNEL", "Eda-Realm", G.Encode({ id = "e1", guild = "ChillZone Zeus", kind = "Q", target = "0", level = 30, class = "MA",
 			need = "012", size = 1, every = 5, age = 0, title = "Mor'Ladim", zone = "Duskwood" }))
 		G.Show("Q", true)
 		G.SetFilter("Q", "log")
@@ -863,7 +863,7 @@ test("1.4.0 groups: filters (I can join, in my log, my zone; players by fit and 
 		assert(Tip(Line(lines, "[Mor'Ladim]")):find(ns.L.GROUPS_ZONE:format("Duskwood"), 1, true))
 		-- Players looking, by fit and role; invited as a role their flag names and we need.
 		local function Flagged(id, name, roles, picks)
-			B.HandlePost("CHANNEL", name, B.Encode({ id = id, guild = "Olympus Zeus", flag = "D", level = 40, class = "PR", every = 10, age = 0, roles = roles, picks = picks }))
+			B.HandlePost("CHANNEL", name, B.Encode({ id = id, guild = "ChillZone Zeus", flag = "D", level = 40, class = "PR", every = 10, age = 0, roles = roles, picks = picks }))
 		end
 		Flagged("f1", "Tanky-Realm", "T", "D:SM")
 		Flagged("f2", "Heals-Realm", "H", "D:*")
@@ -901,7 +901,7 @@ test("1.4.0 groups: a listing repeats every 5 minutes while few are up (up to 30
 		assert(G.Post("D", "DM", nil, "113", ""))
 		eq(G.Decode(Sent(w, "GL~").msg).every, 5)
 		AsSoldier("Reader")
-		GetGuildInfo = function() return "Olympus Zeus", "Member", 3 end
+		GetGuildInfo = function() return "ChillZone Zeus", "Member", 3 end
 		G.HandlePost("CHANNEL", "Soldier-Realm", Sent(w, "GL~").msg)
 		eq(#G.List("D"), 1)
 		w.clock = w.clock + 11 * 60
@@ -921,7 +921,7 @@ test("1.4.0 groups review (B1): on WoW: Forever an invited applicant who joins i
 		ns.splitNames = true
 		assert(G.Post("D", "DM", nil, "112", ""))
 		local id = G.Mine().id
-		G.HandleApply("WHISPER", "Aldric Stoutheart-Realm", G.EncodeApply(id, "Olympus Zeus", "T", 20, "WA", ""))
+		G.HandleApply("WHISPER", "Aldric Stoutheart-Realm", G.EncodeApply(id, "ChillZone Zeus", "T", 20, "WA", ""))
 		eq(#G.Applicants(), 1)
 		G.Invite("Aldric Stoutheart-Realm")
 		-- As tests/run.lua's "WoW: Forever names" models the client: "Aldric", "Stoutheart".
@@ -951,7 +951,7 @@ test("1.4.0 groups review (B3): the listing dialog says what goes out: counts by
 		G.ChooseTarget("DM")
 		G.PromptList()
 		local p = w.popups[#w.popups]
-		eq(p.name, "OLYMPUS_GROUPS_LIST")
+		eq(p.name, "CHILLZONE_GROUPS_LIST")
 		local text = ns.L.GROUPS_LIST_ASK
 		assert(text:find("by class and role", 1, true) and text:find("never their names", 1, true), text)
 		assert(ns.L.GROUPS_YOURS_TIP:find("never their names", 1, true), ns.L.GROUPS_YOURS_TIP)
@@ -995,10 +995,10 @@ end)
 test("1.4.0 groups review (B5): on the King's screen a quest's title and zone are a player's words: a typed name never shows, a log quest only as his own log has it", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
-		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("t1", "Olympus Zeus", "Q", "0", "012", 0, "rude note", "some rude words"))
-		G.HandlePost("CHANNEL", "Brenna-Realm", G.Encode({ id = "b1", guild = "Olympus Zeus", kind = "Q", target = "176", level = 12, class = "MA",
+		G.HandlePost("CHANNEL", "Aldric-Realm", Listing("t1", "ChillZone Zeus", "Q", "0", "012", 0, "rude note", "some rude words"))
+		G.HandlePost("CHANNEL", "Brenna-Realm", G.Encode({ id = "b1", guild = "ChillZone Zeus", kind = "Q", target = "176", level = 12, class = "MA",
 			need = "012", size = 1, every = 5, age = 0, title = "more rude words", zone = "rude zone" }))
-		G.HandlePost("CHANNEL", "Cora-Realm", G.Encode({ id = "c1", guild = "Olympus Zeus", kind = "Q", target = "33", level = 12, class = "MA",
+		G.HandlePost("CHANNEL", "Cora-Realm", G.Encode({ id = "c1", guild = "ChillZone Zeus", kind = "Q", target = "33", level = 12, class = "MA",
 			need = "012", size = 1, every = 5, age = 0, title = "rude again", zone = "rude place" }))
 		w.quests = { { title = "Elwynn Forest", header = true }, { title = "Kill Hogger", level = 11, id = 176, group = 3 } }
 		G.Show("Q", true)
@@ -1027,7 +1027,7 @@ test("1.4.0 groups review (B6): the Board's answer share counts group listings t
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		for i = 1, 99 do
-			G.HandlePost("CHANNEL", ("Holder%02d-Realm"):format(i), Listing(("%02d"):format(i), "Olympus Zeus", "D", "DM", "113", 0))
+			G.HandlePost("CHANNEL", ("Holder%02d-Realm"):format(i), Listing(("%02d"):format(i), "ChillZone Zeus", "D", "DM", "113", 0))
 		end
 		eq(G.Count(), 99)
 		eq(B.Count(), 0)
@@ -1046,7 +1046,7 @@ test("1.4.0 groups review (B6): the Board's answer share counts group listings t
 	end)
 end)
 
-test("1.4.0 groups review (B7): /oly group before the game restarts after the update (Groups.lua not loaded yet) says to restart, no error", function()
+test("1.4.0 groups review (B7): /cz group before the game restarts after the update (Groups.lua not loaded yet) says to restart, no error", function()
 	local savedSlash, savedEvents, savedDialogs = {}, #EVENT_SCRIPTS, {}
 	for k, v in pairs(SlashCmdList) do savedSlash[k] = v end
 	for k, v in pairs(StaticPopupDialogs) do savedDialogs[k] = v end
@@ -1055,7 +1055,7 @@ test("1.4.0 groups review (B7): /oly group before the game restarts after the up
 		-- Core.lua as the game loads it at a /reload after the update: its stand-in for a file the
 		-- game hasn't read yet.
 		local fresh = setmetatable({}, { __index = ns })
-		assert(loadfile(H.ADDON_DIR .. "Core.lua"))("Olympus", fresh)
+		assert(loadfile(H.ADDON_DIR .. "Core.lua"))("ChillZone", fresh)
 		local standIn = rawget(fresh, "Groups")
 		assert(type(standIn) == "table" and standIn.missing == true, "Groups.lua stood in for")
 		-- (Its "restart the game" line is that namespace's print, as it is the game's.)
@@ -1091,12 +1091,12 @@ test("1.4.0 groups review (8): a quest's zone is the sender's words too: heard w
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		w.logged = false
-		G.HandlePost("CHANNEL", "Aldric-Realm", G.Encode({ id = "a1", guild = "Olympus Zeus", kind = "Q", target = "176", level = 12, class = "MA",
+		G.HandlePost("CHANNEL", "Aldric-Realm", G.Encode({ id = "a1", guild = "ChillZone Zeus", kind = "Q", target = "176", level = 12, class = "MA",
 			need = "012", size = 1, every = 5, age = 0, title = "Kill Hogger", zone = "some words here" }))
 		local e = G.List("Q")[1]
 		eq(e.zone, ""); eq(e.title, ""); eq(e.note, "")
 		w.logged = true
-		G.HandlePost("CHANNEL", "Brenna-Realm", G.Encode({ id = "b1", guild = "Olympus Zeus", kind = "Q", target = "176", level = 12, class = "MA",
+		G.HandlePost("CHANNEL", "Brenna-Realm", G.Encode({ id = "b1", guild = "ChillZone Zeus", kind = "Q", target = "176", level = 12, class = "MA",
 			need = "012", size = 1, every = 5, age = 0, title = "Kill Hogger", zone = "Elwynn Forest" }))
 		for _, x in ipairs(G.List("Q")) do if x.sender == "Brenna-Realm" then eq(x.zone, "Elwynn Forest") end end
 	end)
@@ -1107,7 +1107,7 @@ test("1.4.0 groups review (9): the Quests section reads the quest log once for t
 		AsSoldier()
 		w.quests = { { title = "Elwynn Forest", header = true }, { title = "Kill Hogger", level = 11, id = 176, group = 3 } }
 		for i = 1, 8 do
-			G.HandlePost("CHANNEL", ("Lead%d-Realm"):format(i), G.Encode({ id = "q" .. i, guild = "Olympus Zeus", kind = "Q", target = tostring(170 + i),
+			G.HandlePost("CHANNEL", ("Lead%d-Realm"):format(i), G.Encode({ id = "q" .. i, guild = "ChillZone Zeus", kind = "Q", target = tostring(170 + i),
 				level = 12, class = "MA", need = "012", size = 1, every = 5, age = 0, title = "Quest " .. i, zone = "Elwynn Forest" }))
 		end
 		local reads, count = 0, GetNumQuestLogEntries
@@ -1154,21 +1154,21 @@ test("1.4.0 groups review (11): an application for a role the listing no longer 
 		AsSoldier()
 		assert(G.Post("D", "DM", nil, "103", ""))
 		local id = G.Mine().id
-		G.HandleApply("WHISPER", "Aldric-Realm", G.EncodeApply(id, "Olympus Zeus", "H", 20, "PR", ""))
+		G.HandleApply("WHISPER", "Aldric-Realm", G.EncodeApply(id, "ChillZone Zeus", "H", 20, "PR", ""))
 		eq(#G.Applicants(), 0, "no healer wanted: refused")
 		local before = #w.printed
-		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "Olympus Zeus", "D", 20, "MA", ""))
+		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "ChillZone Zeus", "D", 20, "MA", ""))
 		eq(#G.Applicants(), 1); eq(#w.printed, before + 1, "a new applicant: one line")
 		w.clock = w.clock + G.APPLY_GAP
-		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "Olympus Zeus", "D", 20, "MA", ""))
+		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "ChillZone Zeus", "D", 20, "MA", ""))
 		eq(#w.printed, before + 1, "the same application again: no second line")
 		w.clock = w.clock + G.APPLY_GAP
-		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "Olympus Zeus", "T", 20, "MA", ""))
+		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "ChillZone Zeus", "T", 20, "MA", ""))
 		eq(#w.printed, before + 2, "another role: its line"); eq(G.Applicants()[1].role, "T")
 		-- Her earlier application stays as it was when the new role is one no longer wanted.
 		G.Mine().need = "003"
 		w.clock = w.clock + G.APPLY_GAP
-		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "Olympus Zeus", "H", 20, "MA", ""))
+		G.HandleApply("WHISPER", "Brenna-Realm", G.EncodeApply(id, "ChillZone Zeus", "H", 20, "MA", ""))
 		eq(G.Applicants()[1].role, "T")
 	end)
 end)
@@ -1178,7 +1178,7 @@ test("1.4.0 groups review (12): a refused game invite never breaks the click: no
 		AsSoldier()
 		assert(G.Post("D", "DM", nil, "113", ""))
 		local id = G.Mine().id
-		G.HandleApply("WHISPER", "Aldric-Realm", G.EncodeApply(id, "Olympus Zeus", "T", 20, "WA", ""))
+		G.HandleApply("WHISPER", "Aldric-Realm", G.EncodeApply(id, "ChillZone Zeus", "T", 20, "WA", ""))
 		C_PartyInfo = { InviteUnit = function() error("refused") end }
 		local whispers = #w.whispered
 		local ok, why = G.Invite("Aldric-Realm")
@@ -1190,14 +1190,14 @@ test("1.4.0 groups review (12): a refused game invite never breaks the click: no
 	end)
 end)
 
-test("1.4.0 groups review (13, 15): /oly status counts the groups (no name); players looking are sorted with their fit worked out once each", function()
+test("1.4.0 groups review (13, 15): /cz status counts the groups (no name); players looking are sorted with their fit worked out once each", function()
 	WithGroups(function(w, G, B)
 		AsSoldier()
 		assert(G.Post("D", "DM", nil, "103", ""))
 		local status = ns.StatusText()
 		assert(status:find("board groups: groups 0  |  mine: D DM", 1, true), status)
 		for i = 1, 6 do
-			B.HandlePost("CHANNEL", ("Flag%d-Realm"):format(i), B.Encode({ id = "f" .. i, guild = "Olympus Zeus", flag = "D", level = 40, class = "PR",
+			B.HandlePost("CHANNEL", ("Flag%d-Realm"):format(i), B.Encode({ id = "f" .. i, guild = "ChillZone Zeus", flag = "D", level = 40, class = "PR",
 				every = 10, age = i, roles = i % 2 == 0 and "T" or "H", picks = "D:DM" }))
 		end
 		local calls, fits = 0, G.Fits
@@ -1217,8 +1217,8 @@ end)
 -- said Yes to moderator protection. The whisper and the game's invite keep the real name.
 test("1.4.0 groups: a moderator's cover name on the group sections, as on the flags; the whisper and the invite keep the real name", function()
 	if not ns.Cover then
-		assert(loadfile(H.ADDON_DIR .. "Locales/CoverText.lua"))("Olympus", ns)
-		assert(loadfile(H.ADDON_DIR .. "Cover.lua"))("Olympus", ns)
+		assert(loadfile(H.ADDON_DIR .. "Locales/CoverText.lua"))("ChillZone", ns)
+		assert(loadfile(H.ADDON_DIR .. "Cover.lua"))("ChillZone", ns)
 	end
 	WithGroups(function(w, G, B)
 		AsSoldier()
@@ -1231,7 +1231,7 @@ test("1.4.0 groups: a moderator's cover name on the group sections, as on the fl
 			eq(ns.CoverSwap("Watch Keeper"), "Corwin Ashdale", "the cover is held")
 			local function NoRealName(text, what) assert(not tostring(text):find("Watch Keeper", 1, true), what .. ": " .. tostring(text)) end
 			-- His listing: the row, its tooltip, its card and the apply dialog say the cover name.
-			G.HandlePost("CHANNEL", "Watch Keeper-Realm", Listing("m1", "Olympus Zeus", "D", "SFK", "103", 0))
+			G.HandlePost("CHANNEL", "Watch Keeper-Realm", Listing("m1", "ChillZone Zeus", "D", "SFK", "103", 0))
 			G.Show("D", true)
 			local row = Line(B.Lines(), "[Shadowfang Keep]")
 			assert(row and row.text:find("Corwin Ashdale", 1, true), Texts(B.Lines()))
@@ -1253,7 +1253,7 @@ test("1.4.0 groups: a moderator's cover name on the group sections, as on the fl
 			assert(G.Post("D", "DM", nil, "112", ""))
 			local id = G.Mine().id
 			local printed = #w.printed
-			G.HandleApply("WHISPER", "Watch Keeper-Realm", G.EncodeApply(id, "Olympus Zeus", "T", 20, "WA", ""))
+			G.HandleApply("WHISPER", "Watch Keeper-Realm", G.EncodeApply(id, "ChillZone Zeus", "T", 20, "WA", ""))
 			eq(#G.Applicants(), 1)
 			assert(#w.printed > printed and w.printed[#w.printed]:find("Corwin Ashdale", 1, true), tostring(w.printed[#w.printed]))
 			NoRealName(w.printed[#w.printed], "the chat line")
@@ -1279,7 +1279,7 @@ end)
 -- the CurseForge page and the store page made from it name him for it, and the API section of the
 -- README and the CurseForge page says a companion group finder may build on the Board's groups.
 test("1.4.0 groups: HTX credited for PR #62 in the README, the CurseForge page and its store page; the API section names the Board's groups", function()
-	local root = H.ADDON_DIR:sub(1, -#"Olympus/" - 1)
+	local root = H.ADDON_DIR:sub(1, -#"ChillZone/" - 1)
 	local function Read(path)
 		local f = assert(io.open(root .. path, "rb"), path)
 		local s = f:read("*a")
@@ -1292,7 +1292,7 @@ test("1.4.0 groups: HTX credited for PR #62 in the README, the CurseForge page a
 		assert(credits:find("HTX (the Board's group listings, applications and invites, adapted from PR #62)", 1, true), path .. ": HTX's credit")
 	end
 	for _, path in ipairs({ "README.md", "docs/CURSEFORGE.md" }) do
-		local api = assert(Read(path):match("### Other addons: the Olympus API %(1%.2%.4%) (.-) ## "), path .. ": the API section")
+		local api = assert(Read(path):match("### Other addons: the ChillZone API %(1%.2%.4%) (.-) ## "), path .. ": the API section")
 		for _, word in ipairs({ "the Board's groups (1.4.0)", "never their names", "in place of the Board's **Your group**",
 			"never lists a group, raises a flag, applies or writes words for you", "A group finder builds on this" }) do
 			assert(api:find(word, 1, true), path .. ": " .. word)

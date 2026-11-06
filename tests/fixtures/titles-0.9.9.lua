@@ -1,6 +1,6 @@
--- The High Council's titles list as an Olympus 0.9.9 client takes it, for tests/run.lua: copied
--- unchanged from Olympus/Workshop.lua at the last 0.9.9 commit to that file (lines 1098-1114 and
--- 1150-1207 of `git show 88a2c3c:Olympus/Workshop.lua`): the signature budget (MayVerify,
+-- The High Council's titles list as an ChillZone 0.9.9 client takes it, for tests/run.lua: copied
+-- unchanged from ChillZone/Workshop.lua at the last 0.9.9 commit to that file (lines 1098-1114 and
+-- 1150-1207 of `git show 88a2c3c:ChillZone/Workshop.lua`): the signature budget (MayVerify,
 -- RememberFalse), ReadDepartments, TakeTitles and HandleTitles, which registers the "HT" type on
 -- ns.Comm. The rest it reads (ns.Sign, ns.CouncilIconValue, Workshop.COUNCIL_MAX, ns.Log...) is the
 -- same in 0.9.9 and comes from the namespace and the module the tests hand it.

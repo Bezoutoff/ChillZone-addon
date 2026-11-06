@@ -1,4 +1,4 @@
--- 1.2.3, Bones' live tables (Olympus/FarkleTable.lua's KN, the Arena window's Bones > Live tables):
+-- 1.2.3, Bones' live tables (ChillZone/FarkleTable.lua's KN, the Arena window's Bones > Live tables):
 -- a table between two players with the default settings is announced by both and listed for a
 -- member who is not at it, and stays listed while it is played (KN every minute, the list keeps a
 -- notice three minutes). The triple check of 1.2.2 (bug 6): the live record kept neither player's

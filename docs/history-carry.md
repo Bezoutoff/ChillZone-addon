@@ -1,7 +1,7 @@
 # Private history carry for 1.2.4 testing
 
 This is a bounded, opt-in archive for the **same character** moving manually between
-Olympus sister guilds. Older quotes remain unverified. A separate XC2 path preserves
+ChillZone sister guilds. Older quotes remain unverified. A separate XC2 path preserves
 original signatures after independent first-hand key confirmation. The separate XC3 named
 merger route is described below; neither route certifies an old office merely from a current
 title. No row enters Loot, Court,
@@ -11,22 +11,22 @@ punishment or payment action is performed.
 ## Player flow
 
 1. Before preparing, collect available original declarations with
-   `/oly carry history collect <original author-Realm>`. The original must answer
+   `/cz carry history collect <original author-Realm>`. The original must answer
    directly, and the key must bind to that server-stamped character through native GUID
    evidence. A relayed self-signed name/key cannot establish first-use identity.
    Ordinary collection excludes private Loot and moderator records.
 2. While still in the original guild, with a current complete roster, run
-   `/oly carry prepare <destination guild master-Realm>` and confirm the question.
+   `/cz carry prepare <destination guild master-Realm>` and confirm the question.
    The destination guild master must have a current signed role or pinned King identity
    accepted by `Data.AuthorizedRank`; an ordinary census claim is insufficient. If this
    authority is unavailable, preparing is refused. Nothing is sent at preparation.
 3. Arrange the guild move with the officers and accept the game's manual invitation.
 4. Once the destination's roster confirms this character and its same verified master,
-   open `/oly carry`, then choose **Offer prepared quotes** (or `/oly carry offer`).
-5. That master opens `/oly carry`, reviews the warning and explicitly accepts the
+   open `/cz carry`, then choose **Offer prepared quotes** (or `/cz carry offer`).
+5. That master opens `/cz carry`, reviews the warning and explicitly accepts the
    copy. Offers expire after three minutes. Queued messages recheck guild, identity,
    complete roster, authority and revocation before every native send.
-6. The moved character can choose **Revoke this transfer** or `/oly carry cancel`.
+6. The moved character can choose **Revoke this transfer** or `/cz carry cancel`.
    Revocation cancels pending data and sends a private withdrawal to the same recipient.
    The receiving client hides its copy and retains a replay floor when it hears withdrawal.
    This is an ordinary addon whisper: delivery to an offline recipient is not guaranteed.
@@ -80,13 +80,13 @@ rechecked after cryptographic work and before sending.
 
 ## Named guild merger: a separate frozen archive
 
-Before the source guild folds, its actual current native GM opens `/oly carry merger prepare
+Before the source guild folds, its actual current native GM opens `/cz carry merger prepare
 <exact heir guild master-Realm>`. The actual King, the source GM and that exact current heir
 GM each review and sign the same frozen record index (OLYCM1), source/destination guilds and
 private reader. This requires current signed role material and firsthand native character/key
 binding. A census claim or a key forwarded in a packet cannot establish authority. The King
 must be the pinned actual King of the connected realm group, not someone whose title looks
-similar. `/oly carry` displays the mandate, three approvals and per-character progress.
+similar. `/cz carry` displays the mandate, three approvals and per-character progress.
 
 Each subject separately consents to that exact source/destination archive. The subject receives
 no private Loot; keepers send only retained records included in the frozen index to the exact
@@ -97,14 +97,14 @@ after reload; a retry retains the same root, subject consent and reader scope. A
 master receives no inherited permission. Revocation cancels queued work and hides received
 records when delivered, with durable replay floors.
 
-After the source folds, its source keeper must still manually remain/join Olympus to use the
+After the source folds, its source keeper must still manually remain/join ChillZone to use the
 ordinary private transport; no outsider exception is added. The historical mandate proves only
 what was approved before dissolution. It imports no office, key, active pardon, payment status
 or points and reconstructs no lost record. Alts and moderator material are still excluded.
 
 ## Validation and remaining live checks
 
-`OLYMPUS_TEST_FILTER='carry:' luajit tests/run.lua` exercises the actual Carry functions,
+`CHILLZONE_TEST_FILTER='carry:' luajit tests/run.lua` exercises the actual Carry functions,
 Comm dispatcher and scheduler, Loot book and Court/Chronicle readers. Coverage includes
 both consents, sender/recipient forgery, other-character subjects, missing consent,
 faction/realm scope, replay, conflicts, revocation, expiry, malformed/oversized packets,
@@ -113,22 +113,22 @@ The original WIP's binary SHA256 digest failed transport tests; encoding its bin
 as hexadecimal restores successful bounded packets. A signed destination role also now
 keeps the multiple return values that the WIP's Lua `and` expression discarded.
 
-`OLYMPUS_TEST_FILTER='carry-history:' luajit tests/run.lua` adds actual Ed25519 account
+`CHILLZONE_TEST_FILTER='carry-history:' luajit tests/run.lua` adds actual Ed25519 account
 signing and native GUID binding, source-event captures, 12-record archives larger than
 34 transport messages, direct-key recovery, loss/retry/ACK, scope/cancellation after
 crypto, private staff-only Loot and consent-only members. A regression against the
 pre-fix Carry source proves that a retained private Loot note could previously enter
 the member's quote export; the new path refuses that leak.
 
-`OLYMPUS_TEST_FILTER='carry-merger:' luajit tests/run.lua` exercises the actual mandate,
+`CHILLZONE_TEST_FILTER='carry-merger:' luajit tests/run.lua` exercises the actual mandate,
 original Ed25519 declarations and signed role proofs, native identity binding, private Comm
 sanitization, frozen index and hashes, each subject's separate consent, pages/ACK/retry, saved
 progress, cancellation, scope changes and admission after a source guild folds. Mutation
 regressions cover stale native GM rank, historical source admission and missing resume action.
 
 Run the consolidated `bash scripts/check.sh` after integration. The gamepad session pass
-loads the TOC and exercises all Olympus dialog definitions through existing dialog flows;
-the carry consent questions use Olympus's own dialog in both input modes.
+loads the TOC and exercises all ChillZone dialog definitions through existing dialog flows;
+the carry consent questions use ChillZone's own dialog in both input modes.
 
 Still needed in the real Forever client, with two players and retained source records:
 

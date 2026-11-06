@@ -26,7 +26,7 @@ local FAR = "HT1~1793722482~Farrealm~0~^^Test Councillor=Council Speaker;^king^A
 
 local AUTHOR, KING, TREASURER, MAIL = "Quill Maker-Launchrealm", "Crown Owl-Launchrealm", "Ledger Wren-Launchrealm", "Ledger Post-Launchrealm"
 
-if not ns.Keys then assert(loadfile(h.ADDON_DIR .. "Keys.lua"))("Olympus", ns) end
+if not ns.Keys then assert(loadfile(h.ADDON_DIR .. "Keys.lua"))("ChillZone", ns) end
 
 -- The test key in place of the author's while fn runs (a list's signature is checked then).
 local function Signed(fn) ns.Sign.WithKey(KEY_N, KEY_MU, 86, fn) end
@@ -59,11 +59,11 @@ test("1.3.4 launch identities: on a launch realm group the signed list names the
 		eq(ns.IsKingCharacter(KING), true); eq(ns.IsKingCharacter("Crown Owl"), true, "a name without a realm is ours")
 		eq(ns.IsKingCharacter("Crown Owl-Launchtwo"), false, "a namesake on another realm group")
 		eq(ns.IsKingCharacter(ns.KING_CHARACTER.Alliance .. "-Launchrealm"), false, "the code's King is the beta's")
-		-- The Treasurer (in the guild Olympus alone) and his mail character (any guild).
+		-- The Treasurer (in the guild ChillZone alone) and his mail character (any guild).
 		eq(ns.TreasurerFull(), TREASURER); eq(ns.TreasurerName(), "Ledger Wren"); eq(ns.TreasurerRealm(), "Launchrealm")
-		eq(ns.IsTreasurer(TREASURER, "Olympus"), true); eq(ns.IsTreasurer(TREASURER, "Olympus II"), false)
-		eq(ns.IsTreasurer("Ledger Wren-Launchtwo", "Olympus"), false, "a namesake on another realm group")
-		eq(ns.IsTreasurer(ns.TREASURER .. "-Launchrealm", "Olympus"), false, "the code's Treasurer is the beta's")
+		eq(ns.IsTreasurer(TREASURER, "ChillZone"), true); eq(ns.IsTreasurer(TREASURER, "ChillZone II"), false)
+		eq(ns.IsTreasurer("Ledger Wren-Launchtwo", "ChillZone"), false, "a namesake on another realm group")
+		eq(ns.IsTreasurer(ns.TREASURER .. "-Launchrealm", "ChillZone"), false, "the code's Treasurer is the beta's")
 		eq(ns.IsTreasurerMail(MAIL), true); eq(ns.IsTreasurerMail(TREASURER), false)
 		eq(ns.IsTreasurerCharacter(MAIL), true); eq(ns.IsTreasurerCharacter(TREASURER), true)
 		eq(ns.IsTreasurerCharacter("Ledger Post-Launchtwo"), false)
@@ -84,9 +84,9 @@ test("1.3.4 launch identities: on a launch realm group the signed list names the
 		eq(ns.KingCharacter(), "Tusk Crown"); eq(ns.IsKingCharacter("Tusk Crown-Launchrealm"), true)
 		eq(ns.IsKingCharacter(KING), false, "the Alliance's King is not the Horde's")
 		eq(ns.TreasurerRealm(), ns.TREASURER_REALM)
-		eq(ns.IsTreasurer(TREASURER, "Olympus"), false)
+		eq(ns.IsTreasurer(TREASURER, "ChillZone"), false)
 		eq(W.IsAuthorName(AUTHOR), true, "the author's characters whatever our side")
-		-- /oly status: where each comes from, no name.
+		-- /cz status: where each comes from, no name.
 		ns.faction = "Alliance"
 		local status = ns.PinsStatus()
 		assert(status:find("King signed", 1, true) and status:find("Treasurer signed (2)", 1, true)
@@ -136,7 +136,7 @@ test("1.3.4 launch identities: the code's pins keep working on their own realm g
 	WithWorld("Realm", "Alliance", OLD, function()
 		eq(ns.KingCharacter(), ns.KING_CHARACTER.Alliance)
 		eq(ns.IsKingCharacter(ns.KING_CHARACTER.Alliance .. "-Realm"), true)
-		eq(ns.IsTreasurer(ns.TREASURER .. "-Realm", "Olympus"), true)
+		eq(ns.IsTreasurer(ns.TREASURER .. "-Realm", "ChillZone"), true)
 		eq(ns.TreasurerFull(), ns.TREASURER .. "-Realm")
 		eq(ns.Workshop.IsAuthorName(ns.AUTHOR .. "-" .. ns.AUTHOR_REALM), true)
 		local status = ns.PinsStatus()
@@ -146,8 +146,8 @@ test("1.3.4 launch identities: the code's pins keep working on their own realm g
 		eq(ns.KingCharacter(), "Other Crown")
 		eq(ns.IsKingCharacter("Other Crown-Realm"), true)
 		eq(ns.IsKingCharacter(ns.KING_CHARACTER.Alliance .. "-Realm"), false, "the signed King in the code's place")
-		eq(ns.IsTreasurer("Other Coin-Realm", "Olympus"), true)
-		eq(ns.IsTreasurer(ns.TREASURER .. "-Realm", "Olympus"), false, "the signed Treasurer in the code's place")
+		eq(ns.IsTreasurer("Other Coin-Realm", "ChillZone"), true)
+		eq(ns.IsTreasurer(ns.TREASURER .. "-Realm", "ChillZone"), false, "the signed Treasurer in the code's place")
 		eq(ns.IsTreasurerMail(ns.TREASURER_CHARACTERS[2] .. "-Realm"), false, "his mail character with him")
 		eq(ns.Dues.MailTo(), "Other Coin-Realm", "no mail character signed: the Treasurer himself")
 		eq(ns.Workshop.IsAuthorName(ns.AUTHOR .. "-" .. ns.AUTHOR_REALM), true, "no author's character signed: the code's")
@@ -186,10 +186,10 @@ test("1.3.4 launch identities: the code's Horde King, his realm not known, is no
 end)
 
 -- (A regression: where no King was pinned, the guild master of a guild of the King's guild's name was
--- the King, as on a launch realm group whoever founds <Olympus> first.)
+-- the King, as on a launch realm group whoever founds <ChillZone> first.)
 test("1.3.4 launch identities: where the signed list reaches and names no King for our side, the guild master of the King's guild is not the King", function()
 	local function AsMaster(name)
-		GetGuildInfo = function() return "Olympus", "Guild Master", 0 end
+		GetGuildInfo = function() return "ChillZone", "Guild Master", 0 end
 		ns.me = name
 	end
 	WithWorld("Launchrealm", "Alliance", LAUNCH_B, function()
@@ -292,7 +292,7 @@ test("1.3.4 launch identities: a launch list is taken, shown and passed on as be
 		for _, g in ipairs(ns.ApprovedGuilds()) do if g == "Owl Legion" then approved = true end end
 		eq(approved, true)
 		eq(t.blob, LAUNCH_A, "kept as signed: relayed byte for byte")
-		-- Pasted in (/oly approved paste), a newer one replaces it at once.
+		-- Pasted in (/cz approved paste), a newer one replaces it at once.
 		local W = ns.Workshop
 		local relays, savedCouncil, savedGuild = 0, W.RelayCouncil, W.RelayGuild
 		W.RelayCouncil = function() relays = relays + 1 end
@@ -323,8 +323,8 @@ local function WithKeys(fn)
 				KY.Reset()
 				w.joined = 0
 				ns.Comm.JoinChannel = function() w.joined = w.joined + 1 end
-				ns.rdb.seen = { ["Olympus Zeus"] = { online = 5, t = w.clock } }
-				ns.rdb.guilds["Olympus Zeus"] = h.Vouched({ total = 100, online = 9, zones = {}, t = w.clock, leader = "Zed",
+				ns.rdb.seen = { ["ChillZone Zeus"] = { online = 5, t = w.clock } }
+				ns.rdb.guilds["ChillZone Zeus"] = h.Vouched({ total = 100, online = 9, zones = {}, t = w.clock, leader = "Zed",
 					leaderOnline = true, realm = "Launchrealm", officers = { { name = "Zeus Cap", online = true, days = 0 } } },
 					"W3-Launchrealm", "W4-Launchrealm")
 				fn(w, K)
@@ -337,7 +337,7 @@ local function WithKeys(fn)
 		end)
 	end)
 end
-local function AsMember(name) GetGuildInfo = function() return "Olympus II", "Member", 3 end; ns.me = name end
+local function AsMember(name) GetGuildInfo = function() return "ChillZone II", "Member", 3 end; ns.me = name end
 local function Printed(w, text)
 	for _, p in ipairs(w.printed) do if p:find(text, 1, true) then return true end end
 	return false
@@ -362,7 +362,7 @@ test("1.3.4 the army's key: the author rotates it and hands it out to the Lords 
 		local rot = KY.Rotation()
 		assert(rot and rot.picking and #rot.key == 20, "a new key from his addon")
 		eq(#w.whispered, 0, "nothing before he picks")
-		KY.Saw("Zed-Launchrealm", "Olympus Zeus") -- (his /who listed the Lord in his guild)
+		KY.Saw("Zed-Launchrealm", "ChillZone Zeus") -- (his /who listed the Lord in his guild)
 		eq(KY.Start(), true)
 		local to = {}
 		for _, x in ipairs(w.whispered) do if x.msg:sub(1, 3) == "K8~" then to[#to + 1] = x.to end end
@@ -373,7 +373,7 @@ end)
 
 test("1.3.4 the army's key: a Lord takes the author's whispered key, from his signed character alone", function()
 	WithKeys(function(w)
-		GetGuildInfo = function() return "Olympus Zeus", "Lord", 0 end
+		GetGuildInfo = function() return "ChillZone Zeus", "Lord", 0 end
 		ns.me = "Zed-Launchrealm"
 		local msg = ("K8~%d~authorkey0001"):format(w.clock)
 		KY.HandleKey("WHISPER", "Quill Maker-Launchtwo", msg)
@@ -427,7 +427,7 @@ test("1.3.4 channel owner: a ban seen on the author's characters the signed list
 		SetChannelPassword, ChannelUnban, ChannelModerate, ChannelUnmute = Rec("password"), Rec("unban"), Rec("moderate"), Rec("unmute")
 		ns.rdb.realmKey, ns.Roster.byName = nil, {}
 		WithWorld("Launchrealm", "Alliance", LAUNCH_A, function()
-			GetGuildInfo = function() return "Olympus II", "Member", 3 end
+			GetGuildInfo = function() return "ChillZone II", "Member", 3 end
 			local events, login, timers = {}, {}, {}
 			local cns = setmetatable({}, { __index = ns })
 			cns.RegisterEvent = function(event, fn) events[event] = events[event] or {}; table.insert(events[event], fn) end
@@ -436,7 +436,7 @@ test("1.3.4 channel owner: a ban seen on the author's characters the signed list
 			cns.Now = function() return cns.clock end
 			cns.After = function(delay, _, fn) timers[#timers + 1] = { at = cns.clock + (delay or 0), fn = fn } end
 			cns.Every, cns.Print = function() end, function() end
-			assert(loadfile(h.ADDON_DIR .. "Comm.lua"))("Olympus", cns)
+			assert(loadfile(h.ADDON_DIR .. "Comm.lua"))("ChillZone", cns)
 			for _, fn in ipairs(login) do fn() end
 			local C = cns.Comm
 			C.JoinChannel()

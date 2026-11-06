@@ -3,7 +3,7 @@
 # scripts/deploy.sh (from that commit) whenever the branch moves. Then /reload in game.
 # Your working copy is not touched: each push is unpacked into a temp folder.
 #   WOW_HOST=user@192.168.0.10 scripts/watch-deploy.sh [branch]
-# Deploys to every WoW folder (_classic_era_, _anniversary_...) that already has Olympus,
+# Deploys to every WoW folder (_classic_era_, _anniversary_...) that already has ChillZone,
 # or only to WOW_FLAVOR if set. Same optional WOW_DIR as deploy.sh; WATCH_INTERVAL in
 # seconds. Ctrl+C stops it.
 set -uo pipefail
@@ -16,10 +16,10 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 last=""
 
-# The WoW folders that have Olympus installed (WOW_FLAVOR alone if set; empty = deploy.sh's default).
+# The WoW folders that have ChillZone installed (WOW_FLAVOR alone if set; empty = deploy.sh's default).
 flavors() {
 	if [ -n "${WOW_FLAVOR:-}" ]; then echo "$WOW_FLAVOR"; return; fi
-	ssh "$WOW_HOST" "powershell -NoProfile -Command \"Get-ChildItem -Directory -Path '$WOW_DIR/*/Interface/AddOns/Olympus' -ErrorAction SilentlyContinue | ForEach-Object { \$_.Parent.Parent.Parent.Name }\"" | tr -d '\r'
+	ssh "$WOW_HOST" "powershell -NoProfile -Command \"Get-ChildItem -Directory -Path '$WOW_DIR/*/Interface/AddOns/ChillZone' -ErrorAction SilentlyContinue | ForEach-Object { \$_.Parent.Parent.Parent.Name }\"" | tr -d '\r'
 }
 
 deploy() {
@@ -44,16 +44,16 @@ while true; do
 		sha=$(git rev-parse FETCH_HEAD)
 		if [ "$sha" != "$last" ]; then
 			rm -rf "$WORK/tree" && mkdir -p "$WORK/tree"
-			# (1.2: the Olympus Arena module folder too, on a branch that has it; 1.3.3: and the site
+			# (1.2: the ChillZone Arena module folder too, on a branch that has it; 1.3.3: and the site
 			# export's, which scripts/deploy.sh requires there.)
-			paths="Olympus scripts"
-			git cat-file -e "$sha:Olympus_Arena" 2>/dev/null && paths="$paths Olympus_Arena"
-			git cat-file -e "$sha:OlympusSiteAggregate" 2>/dev/null && paths="$paths OlympusSiteAggregate"
+			paths="ChillZone scripts"
+			git cat-file -e "$sha:ChillZone_Arena" 2>/dev/null && paths="$paths ChillZone_Arena"
+			git cat-file -e "$sha:ChillZoneSiteAggregate" 2>/dev/null && paths="$paths ChillZoneSiteAggregate"
 			git archive "$sha" $paths | tar -xf - -C "$WORK/tree"
 			if deploy; then
 				last=$sha
 				echo "$(date +%H:%M:%S) deployed $(git log -1 --format='%h %s' "$sha") to ${DEPLOYED//$'\n'/ }  -> /reload in game"
-				osascript -e "display notification \"/reload in game\" with title \"Olympus ${sha:0:7} deployed\"" 2>/dev/null || true
+				osascript -e "display notification \"/reload in game\" with title \"ChillZone ${sha:0:7} deployed\"" 2>/dev/null || true
 			else
 				echo "$(date +%H:%M:%S) deploy of ${sha:0:7} failed, trying again in ${INTERVAL}s"
 			fi

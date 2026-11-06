@@ -199,7 +199,7 @@ test("1.2.3 two halves: one half alone never counts (the other fighter's client 
 	local w, cast = World123()
 	local sp = cast.spectator
 	W3.Companion(w, sp)
-	-- (B's client publishes no half: an older Olympus, or one that refuses to sign.)
+	-- (B's client publishes no half: an older ChillZone, or one that refuses to sign.)
 	rawset(cast.B.ns.ArenaLedger, "Publish", nil)
 	local oid = Agreed(w, cast)
 	Round(w, cast, cast.A, cast.B)

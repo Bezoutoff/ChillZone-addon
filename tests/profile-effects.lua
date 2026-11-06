@@ -92,7 +92,7 @@ local function WithWorld(fn)
 		end
 
 		function w.client(name, issuer)
-			local c = { me = Full(name), guild = "Olympus II", target = nil, targetCoordinates = { 0.42, 0.61 },
+			local c = { me = Full(name), guild = "ChillZone II", target = nil, targetCoordinates = { 0.42, 0.61 },
 				jobs = {}, handlers = {}, events = {}, listeners = {}, gateHooks = {}, remote = {}, hidden = {},
 				issuers = {}, member = true, selfOff = false, gamepad = false }
 			if issuer ~= false then c.issuers[c.me:lower()] = true end
@@ -100,7 +100,7 @@ local function WithWorld(fn)
 			c.FullName = Full
 			c.Fold = function(value) return type(value) == "string" and Full(value):lower() or nil end
 			c.UnitFullName = function(unit) return unit == "target" and c.target or nil end
-			c.IsFederation = function(guild) return guild == "Olympus II" end
+			c.IsFederation = function(guild) return guild == "ChillZone II" end
 			c.IsMember = function() return c.member == true end
 			c.Sign = base.Sign
 			c.Data = { ServerTime = function() return w.clock end }
@@ -117,7 +117,7 @@ local function WithWorld(fn)
 					and options.buckets[sender] == nil then
 					options.buckets[sender] = { tokens = 6, t = w.clock }
 				end
-				return guild == "Olympus II" and c.remote[Full(sender):lower()] == true
+				return guild == "ChillZone II" and c.remote[Full(sender):lower()] == true
 					and type(options) == "table" and options.where == "profile effect"
 			end }
 			c.Comm = {
@@ -147,7 +147,7 @@ local function WithWorld(fn)
 				Allowed = function(id) return id == "borders" and not c.gamepad end,
 				Hooks = function(id, hooks) c.gateHooks[id] = hooks end,
 			}
-			assert(loadfile(ROOT .. "Olympus/ProfileEffects.lua"))("Olympus", c)
+			assert(loadfile(ROOT .. "ChillZone/ProfileEffects.lua"))("ChillZone", c)
 			return c
 		end
 

@@ -50,7 +50,7 @@ local function Client(name, guild)
 			w.sent[#w.sent + 1] = { text = msg, dist = dist, target = target }; return true
 		end } }, { __index = _G })
 	w.env = env
-	local function Load(file) local chunk = assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua")); setfenv(chunk, env); chunk("Olympus", n) end
+	local function Load(file) local chunk = assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua")); setfenv(chunk, env); chunk("ChillZone", n) end
 	Load("Comm"); local login = w.login; login()
 	n.L = setmetatable({}, { __index = base.L })
 	Load("Locales/CarryText"); Load("Loot"); Load("Chronicle"); Load("Court"); Load("Carry")
@@ -65,7 +65,7 @@ local function Client(name, guild)
 	return w
 end
 local function Setup()
-	local m, g = Client("Migrant-Realm", "Olympus II"), Client("Lord-Realm", "Olympus III")
+	local m, g = Client("Migrant-Realm", "ChillZone II"), Client("Lord-Realm", "ChillZone III")
 	m.member(m.name, 3); g.member(g.name, 0); g.member(m.name, 3)
 	m.roles[base.Fold(g.name)] = { guild = g.guild, rank = 0, source = "signed" }
 	local book = m.ns.Loot.Book()
@@ -159,14 +159,14 @@ end)
 test("carry: guild and role changes invalidate consent, queued batches and imported private views", function()
 	local m, g = Setup(); local d, key = Offered(m, g); local accept = Accept(g, key)
 	m.receive(g.name, accept); m.member(g.name, 1); m.pump(); eq(#m.sent, 1, "real queue guard refuses demoted recipient")
-	m.member(g.name, 0); m.receive(g.name, accept); m.move("Olympus IV"); m.pump(); eq(#m.sent, 1, "real guild session cancels queued pieces")
+	m.member(g.name, 0); m.receive(g.name, accept); m.move("ChillZone IV"); m.pump(); eq(#m.sent, 1, "real guild session cancels queued pieces")
 	m.move(g.guild); m.ns.me = "UnknownAlt-Realm"; eq(m.ns.Carry.Offer(), false, "no alt identity inheritance")
 	m.ns.me = m.name; m.ns.group = "OtherGroup"; eq(m.ns.Carry.Offer(), false)
 	local a, b = Setup(); local _, k = Offered(a, b); local parts = Data(a, b, Accept(b, k))
 	for _, msg in ipairs(parts) do b.receive(a.name, msg) end
 	eq(#b.ns.Carry.List(), 1); b.member(b.name, 1); eq(#b.ns.Carry.List(), 0)
 	b.member("Replacement-Realm", 0); b.ns.me = "Replacement-Realm"; eq(#b.ns.Carry.List(), 0, "saved quote copy belongs to its exact consenting GM")
-	b.ns.me = b.name; b.member(b.name, 0); b.snapshotGuild = "Olympus II"; eq(#b.ns.Carry.List(), 0, "old roster is not authority after moving")
+	b.ns.me = b.name; b.member(b.name, 0); b.snapshotGuild = "ChillZone II"; eq(#b.ns.Carry.List(), 0, "old roster is not authority after moving")
 end)
 
 test("carry: native player demotion overrides a still-fresh rank-zero roster before accepting private history", function()
@@ -266,13 +266,13 @@ test("carry: optional payer receipt quotes remain own-character observations and
 end)
 
 test("carry: all five shipped translations keep the same consent and provenance placeholders", function()
-	local w = Client("Reader-Realm", "Olympus III")
+	local w = Client("Reader-Realm", "ChillZone III")
 	local english
 	local function Placeholders(text) local out = {}; for p in text:gmatch("%%[ds]") do out[#out + 1] = p end; return table.concat(out) end
 	for _, locale in ipairs({ "enUS", "ptBR", "deDE", "esES", "frFR" }) do
 		w.env.GetLocale = function() return locale end
 		w.ns.L = {}
-		local chunk = assert(loadfile(ROOT .. "Olympus/Locales/CarryText.lua")); setfenv(chunk, w.env); chunk("Olympus", w.ns)
+		local chunk = assert(loadfile(ROOT .. "ChillZone/Locales/CarryText.lua")); setfenv(chunk, w.env); chunk("ChillZone", w.ns)
 		if locale == "enUS" then english = w.ns.L else
 			for key, text in pairs(english) do
 				assert(type(w.ns.L[key]) == "string" and w.ns.L[key] ~= "", locale .. ": " .. key)

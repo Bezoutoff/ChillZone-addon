@@ -1,6 +1,6 @@
 local ns, test, eq, H = ...
 local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]dues%-history%.lua$") or "./"
-local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "Olympus/", ns = ns })
+local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "ChillZone/", ns = ns })
 
 local function Client(w, role, options)
 	local c = w:Role(role, options)
@@ -8,7 +8,7 @@ local function Client(w, role, options)
 		c.ns.splitNames = true -- this fixture models the supported surname client
 		c.ns.L = setmetatable({}, { __index = ns.L })
 		for _, file in ipairs({ "Roster", "Data", "Locales/DuesHistoryText", "DuesHistory" }) do
-			assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua"))("Olympus", c.ns)
+			assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua"))("ChillZone", c.ns)
 		end
 	end)
 	c.ns.UI = { SelectTab = function(tab) c.tab = tab end }
@@ -109,33 +109,33 @@ end
 test("Dues history: current receipts, observed opening denominator and frozen closing sums", function()
 	local w, t = Setup()
 	BeforeReset(w, t); local first = Boundary(w, t)
-	Receipt(w, t, "Lida Fenn-Emberfall", 5000000, "Olympus Ember")
-	Receipt(w, t, "Parric Stowe-Emberfall", 1, "Olympus Ember")
+	Receipt(w, t, "Lida Fenn-Emberfall", 5000000, "ChillZone Ember")
+	Receipt(w, t, "Parric Stowe-Emberfall", 1, "ChillZone Ember")
 	w:As(t, function()
 		local data = t.ns.DuesHistory.Data()
 		assert(t.ns.DuesHistory.Raw(t.ns.Dues.Week()).complete, "both pinned books cover the week")
-		local current = data.guilds["olympus ember"].weeks[1]
+		local current = data.guilds["chillzone ember"].weeks[1]
 		eq(current.copper, 5000001); eq(current.payers, 2); eq(current.paid, 1)
-		eq(data.guilds.olympus.weeks[1].members, 2)
-		eq(data.guilds.olympus.weeks[1].paid, 0, "complete books and no own-guild receipts")
+		eq(data.guilds.chillzone.weeks[1].members, 2)
+		eq(data.guilds.chillzone.weeks[1].paid, 0, "complete books and no own-guild receipts")
 		eq(t.ns.rdb.duesHistory.weeks[first].members, nil, "first observed close has no invented opening")
 	end)
 	BeforeReset(w, t); local closed = Boundary(w, t)
 	w:As(t, function()
 		local data = t.ns.DuesHistory.Data()
-		eq(data.guilds["olympus ember"].weeks[2].paid, 1)
-		eq(data.guilds.olympus.weeks[2].members, 2)
+		eq(data.guilds["chillzone ember"].weeks[2].paid, 1)
+		eq(data.guilds.chillzone.weeks[2].members, 2)
 		local saved = t.ns.rdb.duesHistory.weeks[closed].closed
 		t.ns.rdb.duesAmount = { copper = 9000000, before = 9000000, at = w.clock, from = World.NAMES.king }
-		eq(t.ns.DuesHistory.Data().guilds["olympus ember"].weeks[2].paid, 1)
+		eq(t.ns.DuesHistory.Data().guilds["chillzone ember"].weeks[2].paid, 1)
 		eq(t.ns.rdb.duesHistory.weeks[closed].closed.amount, saved.amount)
 	end)
-	Receipt(w, t, "Wenna Crale-Emberfall", 5000000, "Olympus Ember", "Olympus dues " .. tostring(closed))
+	Receipt(w, t, "Wenna Crale-Emberfall", 5000000, "ChillZone Ember", "ChillZone dues " .. tostring(closed))
 	-- A verified old receipt changes the book digest; a closing paid count cannot be reinterpreted.
 	w:As(t, function()
 		local b = t.ns.Treasury.Book()
 		b.lines[#b.lines].wk = closed; b.sums = nil
-		eq(t.ns.DuesHistory.Data().guilds["olympus ember"].weeks[2].paid, nil)
+		eq(t.ns.DuesHistory.Data().guilds["chillzone ember"].weeks[2].paid, nil)
 	end)
 end)
 
@@ -151,7 +151,7 @@ test("Dues history: missing, stale and interrupted reset observations never inve
 			local ok = t.ns.DuesHistory.Observe()
 			if mode ~= "roster" then eq(ok, false, mode) end
 			local data = t.ns.DuesHistory.Data()
-			local g = data.guilds.olympus
+			local g = data.guilds.chillzone
 			if mode == "roster" then assert(not g or g.weeks[1].members == nil) end
 		end)
 	end
@@ -167,13 +167,13 @@ test("Dues history: an empty own roster never creates a zero denominator", funct
 		t.ns.Roster.Scan()
 		assert(t.ns.DuesHistory.Observe())
 		local members = t.ns.rdb.duesHistory.weeks[t.ns.Dues.Week()].members
-		eq(members.olympus, nil)
+		eq(members.chillzone, nil)
 	end)
 end)
 
 test("Dues history: private replies reject unknown rank sources, previews and public delivery", function()
 	local w, t, king, steward = Setup()
-	Receipt(w, t, "Lida Fenn-Emberfall", 5000000, "Olympus Ember")
+	Receipt(w, t, "Lida Fenn-Emberfall", 5000000, "ChillZone Ember")
 	w:As(t, function()
 		local DH = t.ns.DuesHistory
 		local message = DH.Message(w.clock * 1000)
@@ -222,7 +222,7 @@ test("Dues history: correlated replies expire, cannot replay and do not cross st
 		if mode == "store" then king.ns.rdb = World.Copy(king.ns.rdb) end
 		if mode == "faction" then king.ns.faction = "Horde" end
 		if mode == "realm" then king.ns.realm = "Emberfall2" end
-		if mode == "guild" then king.guild = "Olympus Ember" end
+		if mode == "guild" then king.guild = "ChillZone Ember" end
 		if mode == "stale" then w.clock = w.clock + 181 end
 		if mode == "wrong" then msg = msg:gsub("D~" .. tostring(id), "D~" .. tostring(id + 1), 1) end
 		w:As(king, function()
@@ -239,7 +239,7 @@ test("Dues history: historical census needs two independent fresh undisputed mat
 		w.clock = w.clock + 30
 		w:As(t, function()
 			local function Report(sender, total)
-				local r = assert(t.ns.Codec.DecodeReport(t.ns.Codec.EncodeReport({ guild = "Olympus Ember", total = total,
+				local r = assert(t.ns.Codec.DecodeReport(t.ns.Codec.EncodeReport({ guild = "ChillZone Ember", total = total,
 					online = 1, leader = "Petra Wick", faction = "Alliance" })))
 				t.ns.Data.Receive(r, sender)
 			end
@@ -248,7 +248,7 @@ test("Dues history: historical census needs two independent fresh undisputed mat
 			if mode ~= "one" then Report("Lida Fenn-Emberfall", mode == "disputed" and 90 or 20) end
 			if mode == "stale" then w.clock = w.clock + 100 end
 			eq(t.ns.DuesHistory.Observe(), true)
-			local g = t.ns.DuesHistory.Data().guilds["olympus ember"]
+			local g = t.ns.DuesHistory.Data().guilds["chillzone ember"]
 			if mode == "two" then eq(g.weeks[1].members, 20)
 			else assert(not g or g.weeks[1].members == nil, mode) end
 		end)
@@ -265,7 +265,7 @@ test("Dues history: queued private replies cancel after store or realm changes",
 		if mode == "store" then t.ns.rdb = World.Copy(t.ns.rdb) end
 		if mode == "realm" then t.ns.realm = "Emberfall2" end
 		if mode == "faction" then t.ns.faction = "Horde" end
-		if mode == "guild" then t.guild = "Olympus Ember" end
+		if mode == "guild" then t.guild = "ChillZone Ember" end
 		if mode == "role" then t.ns.me = World.NAMES.treasurerMail end
 		w:Run(2)
 		eq(#w:Sent({ from = t, type = "TW" }), 0, mode)
@@ -279,13 +279,13 @@ test("Dues history: local and wire guild bounds disclose truncation and keep fiv
 		local D, DH, b = t.ns.Dues, t.ns.DuesHistory, t.ns.Treasury.Book()
 		for i = 151, 1, -1 do
 			b.lines[#b.lines + 1] = { name = ("Soldier %03d"):format(i), money = 1, how = "trade",
-				t = D.WeekStart(D.Week() - 4) + 60, wk = D.Week() - 4, guild = ("Olympus %03d"):format(i), gv = true }
+				t = D.WeekStart(D.Week() - 4) + 60, wk = D.Week() - 4, guild = ("ChillZone %03d"):format(i), gv = true }
 		end
 		b.sums = nil
 		local data, count = DH.Data(), 0
 		for _ in pairs(data.guilds) do count = count + 1 end
 		eq(count, 150); eq(data.cut, true)
-		assert(data.guilds["olympus 001"]); eq(data.guilds["olympus 151"], nil, "sorted deterministic boundary")
+		assert(data.guilds["chillzone 001"]); eq(data.guilds["chillzone 151"], nil, "sorted deterministic boundary")
 		local words = {}
 		for _, line in ipairs(DH.Build()) do words[#words + 1] = line.text or "" end
 		assert(table.concat(words, " "):find(t.ns.L.DUESHISTORY_CUT, 1, true), "local truncation is visible")
@@ -311,7 +311,7 @@ test("Dues history: local and wire guild bounds disclose truncation and keep fiv
 		local c = censusTreasurer.ns
 		for i = 1, 151 do
 			for j = 1, 2 do
-				local r = assert(c.Codec.DecodeReport(c.Codec.EncodeReport({ guild = ("Olympus Census %03d"):format(i),
+				local r = assert(c.Codec.DecodeReport(c.Codec.EncodeReport({ guild = ("ChillZone Census %03d"):format(i),
 					total = 2, online = 1, leader = ("Lord %03d"):format(i), faction = "Alliance" })))
 				assert(c.Data.Receive(r, ("Scout %03d %d-Emberfall"):format(i, j)))
 			end
@@ -335,12 +335,12 @@ test("Dues history: reply parser rejects invalid cells, extra rows and oversize 
 			cells:gsub("^%-/%-", "0/-"), cells:gsub("^%-/%-", "-/0"),
 			cells:gsub("p", "s", 1), cells:gsub("p", "z", 1), cells:gsub("p", "l", 1),
 			cells:gsub("/%-/p", "/0/p", 1), (cells:gsub("/0/0/", "/-1/0/", 1)) }
-		for _, value in ipairs(invalid) do eq(king.ns.DuesHistory.Handle("WHISPER", t.name, head .. "Olympus=" .. value), false) end
-		local rows = {}; for i = 1, 31 do rows[i] = "Olympus " .. i .. "=" .. cells end
+		for _, value in ipairs(invalid) do eq(king.ns.DuesHistory.Handle("WHISPER", t.name, head .. "ChillZone=" .. value), false) end
+		local rows = {}; for i = 1, 31 do rows[i] = "ChillZone " .. i .. "=" .. cells end
 		eq(king.ns.DuesHistory.Handle("WHISPER", t.name, head .. table.concat(rows, ";")), false)
 		eq(king.ns.DuesHistory.Handle("WHISPER", t.name, head .. string.rep("x", 6001)), false)
-		eq(king.ns.DuesHistory.Handle("WHISPER", t.name, head .. "Olympus=" .. cells .. ";Olympus=" .. cells), false)
-		eq(king.ns.DuesHistory.Handle("WHISPER", t.name, head .. "Olympus=" .. cells), true, "invalid replies do not consume the pending request")
+		eq(king.ns.DuesHistory.Handle("WHISPER", t.name, head .. "ChillZone=" .. cells .. ";ChillZone=" .. cells), false)
+		eq(king.ns.DuesHistory.Handle("WHISPER", t.name, head .. "ChillZone=" .. cells), true, "invalid replies do not consume the pending request")
 	end)
 end)
 
@@ -349,14 +349,14 @@ test("Dues history: actual two-way Treasury private transport and shared Dues na
 		H.WithUI(function()
 			H.WithGamepadUI(gamepad, function()
 				local w, t, king = Setup()
-				Receipt(w, t, "Lida Fenn-Emberfall", 5000000, "Olympus Ember")
+				Receipt(w, t, "Lida Fenn-Emberfall", 5000000, "ChillZone Ember")
 				w:As(king, function() assert(king.ns.DuesHistory.Ask()) end)
 				w:Run(5)
 				w:As(king, function()
 					eq(king.ns.GamepadUI(), gamepad)
 					local DH, D = king.ns.DuesHistory, king.ns.Dues
 					local held = assert(DH.Held(), "the Treasurer answered through real TW handlers")
-					eq(held.guilds["olympus ember"].weeks[1].copper, 5000000)
+					eq(held.guilds["chillzone ember"].weeks[1].copper, 5000000)
 					D.Open(); eq(king.ns.Treasury.mode, "dues")
 					local link
 					for _, line in ipairs(D.Build()) do if line.text == king.ns.L.DUESHISTORY_LINK then link = line end end

@@ -2,7 +2,7 @@ local ns, test, eq = ...
 local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]squads%.lua$") or "./"
 local function World(fn)
 	local saved = { GetGuildInfo, IsInGuild, GetServerTime, GetTime, C_ChatInfo, StaticPopupDialogs }
-	local w = { guild = "Olympus II", now = 1800000000, fresh = true, jobs = {}, council = {}, ranks = {}, events = {}, on = {} }
+	local w = { guild = "ChillZone II", now = 1800000000, fresh = true, jobs = {}, council = {}, ranks = {}, events = {}, on = {} }
 	local ok, err = pcall(function()
 		GetGuildInfo = function() return w.guild end
 		IsInGuild = function() return w.guild ~= nil end
@@ -23,8 +23,8 @@ local function World(fn)
 		c.CouncilMasked = function() return w.masked == true end
 		c.Now = function() return w.now end
 		c.IsMember = function() return w.member ~= false end
-		c.IsFederation = function(guild) return guild == "Olympus II" or guild == "Olympus" end
-		c.IsKingGuild = function(guild) return guild == "Olympus" end
+		c.IsFederation = function(guild) return guild == "ChillZone II" or guild == "ChillZone" end
+		c.IsKingGuild = function(guild) return guild == "ChillZone" end
 		c.IsHighCouncillor = function(name) return w.council[name] == true end
 		c.ChatLocked = function() return w.locked == true end
 		c.ViewAs.Previewing = function() return w.preview == true end
@@ -59,7 +59,7 @@ local function World(fn)
 		c.PartyGuard.InviteGuildmate = function(name) w.invited = name; return true end
 		c.Channels = { Admit = function() return not w.filtered, "filtered" end }
 		c.Moderation = { Hides = function() return w.hidden == true end, Blocks = function() return false end }
-		assert(loadfile(ROOT .. "Olympus/WarSquads.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/WarSquads.lua"))("ChillZone", c)
 		fn(w, c.WarSquads)
 	end)
 	GetGuildInfo, IsInGuild, GetServerTime, GetTime, C_ChatInfo, StaticPopupDialogs = unpack(saved, 1, 6)
@@ -67,7 +67,7 @@ local function World(fn)
 end
 local function RealTransport(w)
 	local c, events, login = w.c, {}, {}
-	c.PREFIX = ns.PREFIX or "Olympus"
+	c.PREFIX = ns.PREFIX or "ChillZone"
 	c.db.blocked = {}
 	c.RegisterEvent = function(event, callback) events[event] = callback end
 	c.On = function(event, callback) if event == "LOGIN" then login[#login + 1] = callback end end
@@ -76,7 +76,7 @@ local function RealTransport(w)
 	w.native = {}
 	local function Send(prefix, msg, dist, target) w.native[#w.native + 1] = { prefix = prefix, msg = msg, dist = dist, target = target }; return 0 end
 	C_ChatInfo = { RegisterAddonMessagePrefix = function() end, SendAddonMessage = Send, SendAddonMessageLogged = Send }
-	assert(loadfile(ROOT .. "Olympus/Comm.lua"))("Olympus", c)
+	assert(loadfile(ROOT .. "ChillZone/Comm.lua"))("ChillZone", c)
 	for _, callback in ipairs(login) do callback() end
 	c.Comm.Handle("WU", c.WarSquads.Handle)
 	c.Comm.Handle("SC", c.WarSquads.ReceiveChat)
@@ -140,7 +140,7 @@ end)
 
 test("Legates: a King's guild High Councillor without a manual appointment has no group or implicit room", function()
 	World(function(w, s)
-		w.guild = "Olympus"; w.council["Leader-Realm"] = true
+		w.guild = "ChillZone"; w.council["Leader-Realm"] = true
 		w.c.rdb.council = { blob = "HS1~1~Alliance~Leader~abcd" }
 		w.list.entries = {}
 		eq(#s.Leaders(), 0); eq(s.Get("Leader"), nil); eq(#w.provider.Options("role"), 0)
@@ -159,7 +159,7 @@ end)
 test("Legates: legacy oversized saved groups remain intact as read-only overflow, never new forty-plus membership", function()
 	World(function(w, s)
 		assert(s.Replace("Leader", { "Soldier1" }))
-		local store = w.c.rdb.warSquads["olympus ii"]
+		local store = w.c.rdb.warSquads["chillzone ii"]
 		local members = {}; for i = 1, 99 do members[i] = "Soldier" .. i .. "-Realm" end
 		local row = { leader = "Leader-Realm", rev = w.now, members = members }
 		store.rows["leader-realm"] = row
@@ -181,14 +181,14 @@ test("Legates: legacy oversized saved groups remain intact as read-only overflow
 		w.c.me = "Officer-Realm"
 		local jobs = #w.jobs; eq(s.Handle("GUILD", "Soldier1-Realm", "WU~1~Q"), true)
 		eq(#w.jobs, jobs, "legacy oversized membership is not reissued as a new live assignment")
-		eq(s.Review("Leader"), true); eq(w.dialog[1], "OLYMPUS_SQUAD_REVIEW")
+		eq(s.Review("Leader"), true); eq(w.dialog[1], "CHILLZONE_SQUAD_REVIEW")
 		local reset, focus = nil, false
-		StaticPopupDialogs.OLYMPUS_SQUAD_REVIEW.OnShow({ editBox = { SetText = function(_, text) reset = text end, SetFocus = function() focus = true end } })
+		StaticPopupDialogs.CHILLZONE_SQUAD_REVIEW.OnShow({ editBox = { SetText = function(_, text) reset = text end, SetFocus = function() focus = true end } })
 		eq(reset, ""); eq(focus, true, "a reviewed list is a fresh explicit input")
 		local input = { data = w.dialog[4], editBox = { GetText = function() return "Soldier1, Soldier2" end } }
-		eq(select(2, StaticPopupDialogs.OLYMPUS_SQUAD_REVIEW.OnAccept(input)), "confirmation", "actual review dialog requires a separate explicit confirmation")
+		eq(select(2, StaticPopupDialogs.CHILLZONE_SQUAD_REVIEW.OnAccept(input)), "confirmation", "actual review dialog requires a separate explicit confirmation")
 		eq(select(2, s.Replace("Leader", { "Soldier1", "Soldier2" })), "confirmation")
-		eq(w.dialog[1], "OLYMPUS_SQUAD_REPLACE"); eq(store.rows["leader-realm"], row)
+		eq(w.dialog[1], "CHILLZONE_SQUAD_REPLACE"); eq(store.rows["leader-realm"], row)
 		local confirmation = w.dialog[4]
 		w.preview = true; eq(s.ConfirmReplacement(confirmation), false); w.preview = false
 		eq(s.ConfirmReplacement(confirmation), true)
@@ -201,7 +201,7 @@ end)
 test("Legates: a full legacy archive refuses reviewed replacement without discarding either membership", function()
 	World(function(w, s)
 		assert(s.Replace("Leader", { "Soldier1" }))
-		local store = w.c.rdb.warSquads["olympus ii"]
+		local store = w.c.rdb.warSquads["chillzone ii"]
 		local members = {}; for i = 1, 40 do members[i] = "Soldier" .. i .. "-Realm" end
 		local row = { leader = "Leader-Realm", rev = w.now, members = members }; store.rows["leader-realm"] = row
 		store.legacy = {}; for i = 1, s.MAX_ROWS do store.legacy["old" .. i] = { retained = true } end
@@ -242,7 +242,7 @@ test("Legate live overflow: provider access, options and queued writes close whi
 		for _, line in ipairs(s.Lines("Leader")) do if line.readonlyHistory == room then read = line.onClick end end
 		assert(read); eq(read(), true); assert(w.copy[2]:find("already received", 1, true))
 		w.c.me = "Outsider-Realm"; eq(#s.ChatHistory(room), 0); eq(read(), false, "stale history button rechecks private membership")
-		w.c.me = "Leader-Realm"; w.guild = "Olympus"; eq(read(), false, "another guild cannot read the old transcript")
+		w.c.me = "Leader-Realm"; w.guild = "ChillZone"; eq(read(), false, "another guild cannot read the old transcript")
 	end)
 end)
 
@@ -340,9 +340,9 @@ test("Squads: actual Realm tree inserts only own-guild hierarchy when that guild
 		-- level, its order a tie-break, Data.AvgLevelText and Data.SortGuildCounts.)
 		c.Data = setmetatable({ Dispute = function() return nil end, Summary = function() return { guilds = {
 			{ name = w.guild, fresh = true, g = { leader = "Officer", total = 15, online = 0, mine = true } },
-			{ name = "Olympus III", fresh = true, g = { leader = "Foreign", total = 15, online = 0 } },
+			{ name = "ChillZone III", fresh = true, g = { leader = "Foreign", total = 15, online = 0 } },
 		} } end }, { __index = ns.Data })
-		assert(loadfile(ROOT .. "Olympus/Views.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Views.lua"))("ChillZone", c)
 		local function Count(lines) local count = 0; for _, line in ipairs(lines) do if line.squadLeader then count = count + 1 end end return count end
 		eq(Count(c.Views.RealmLines()), 0)
 		local header
@@ -358,8 +358,8 @@ test("Squads: discoverable leader hierarchy includes zero squads, capped officer
 		local empty, add = 0, nil
 		for _, line in ipairs(lines) do if line.text == "No soldiers assigned" then empty = empty + 1 end; if line.text == "Assign soldier" then add = line end end
 		eq(empty, 2); eq(add ~= nil, true); eq(add.onClick(), true)
-		eq(w.dialog[1], "OLYMPUS_WAR_INPUT"); eq(w.dialog[4].prefix, "squadadd OtherLeader-Realm|")
-		assert(loadfile(ROOT .. "Olympus/War.lua"))("Olympus", w.c)
+		eq(w.dialog[1], "CHILLZONE_WAR_INPUT"); eq(w.dialog[4].prefix, "squadadd OtherLeader-Realm|")
+		assert(loadfile(ROOT .. "ChillZone/War.lua"))("ChillZone", w.c)
 		local seen = false; for _, line in ipairs(w.c.War.Lines("OtherLeader")) do if line.squadLeader == "OtherLeader-Realm" then seen = true end end
 		eq(seen, true)
 		eq(w.c.War.Slash(w.dialog[4].prefix .. "Soldier1"), true)
@@ -370,7 +370,7 @@ test("Squads: discoverable leader hierarchy includes zero squads, capped officer
 		w.c.me = "Outsider-Realm"; eq(remove.onClick(), false); eq(s.Get("OtherLeader").count, 1)
 		w.c.me = "Officer-Realm"; eq(remove.onClick(), true); eq(s.Get("OtherLeader").count, 0)
 		eq(#s.Lines("not found"), 0)
-		w.guild = "Olympus"; w.c.rdb.council = { blob = "HS1~1~Alliance~Leader~abcd" }; w.council["Leader-Realm"] = true; w.masked = true
+		w.guild = "ChillZone"; w.c.rdb.council = { blob = "HS1~1~Alliance~Leader~abcd" }; w.council["Leader-Realm"] = true; w.masked = true
 		for _, line in ipairs(s.Lines()) do eq(line.text:find("Leader", 1, true), nil); eq(line.player, nil); eq(line.squadLeader, nil); eq(line.onClick, nil) end
 		eq(#s.Lines("Leader"), 0)
 	end)
@@ -379,7 +379,7 @@ test("Squads: actual ChatRooms dynamic Roles menu discovers only authorized priv
 	World(function(w, s)
 		eq(s.Replace("Leader", { "Soldier1" }), true)
 		local room = s.Get("Leader").room
-		assert(loadfile(ROOT .. "Olympus/ChatRooms.lua"))("Olympus", w.c)
+		assert(loadfile(ROOT .. "ChillZone/ChatRooms.lua"))("ChillZone", w.c)
 		local r = w.c.ChatRooms; eq(r.RegisterProvider(s.ChatProvider), true)
 		w.c.me = "Soldier1-Realm"
 		local found = false; for _, info in ipairs(r.Options("role")) do if info.id == room then found = true end end
@@ -395,7 +395,7 @@ test("Squads: actual hierarchy chat callback and OpenMatter route select only th
 	World(function(w, s)
 		eq(s.Replace("Leader", { "Soldier1" }), true)
 		local room = s.Get("Leader").room; w.c.me = "Soldier1-Realm"
-		assert(loadfile(ROOT .. "Olympus/ChatRooms.lua"))("Olympus", w.c)
+		assert(loadfile(ROOT .. "ChillZone/ChatRooms.lua"))("ChillZone", w.c)
 		local rooms = w.c.ChatRooms; eq(rooms.RegisterProvider(s.ChatProvider), true)
 		-- Only the native window boundary is simulated; both the row callback and
 		-- logical room/opening dispatcher are the actual addon functions.
@@ -413,14 +413,14 @@ test("Squads: actual hierarchy chat callback and OpenMatter route select only th
 end)
 test("Squads: main leaders follow verified manual appointment order without invented identities or foreign roster authority", function()
 	World(function(w, s)
-		w.guild = "Olympus"; w.c.council = nil
+		w.guild = "ChillZone"; w.c.council = nil
 		w.c.rdb.council = { blob = "HS1~1~Alliance~OtherLeader,Missing,Leader~abcd" }
 		w.council["OtherLeader-Realm"], w.council["Leader-Realm"] = true, true
 		w.list.entries = { { name = "OtherLeader-Realm", role = "centurion" }, { name = "Missing-Realm", role = "centurion" }, { name = "Leader-Realm", role = "centurion" } }
 		local leaders = s.Leaders(); eq(#leaders, 2); eq(leaders[1].name, "OtherLeader-Realm"); eq(leaders[2].name, "Leader-Realm")
 		w.council["Leader-Realm"] = nil; eq(#s.Leaders(), 2, "council membership is not the appointment")
 		w.list.entries[3] = nil; eq(#s.Leaders(), 1)
-		w.guild = "Olympus II"; w.proven = false; eq(#s.Leaders(), 0)
+		w.guild = "ChillZone II"; w.proven = false; eq(#s.Leaders(), 0)
 		w.proven = true; w.ranks["Officer-Realm"] = 1; eq(#s.Leaders(), 0)
 	end)
 end)
@@ -544,14 +544,14 @@ test("Squads: malformed saved containers fail closed without replacing existing 
 	World(function(w, s)
 		for _, bad in ipairs({ false, "broken", 12 }) do
 			w.c.rdb.warSquads = bad; eq(s.Replace("Leader", {}), false); eq(w.c.rdb.warSquads, bad)
-			w.c.rdb.warSquads = { ["olympus ii"] = bad }; eq(s.Replace("Leader", {}), false); eq(w.c.rdb.warSquads["olympus ii"], bad)
+			w.c.rdb.warSquads = { ["chillzone ii"] = bad }; eq(s.Replace("Leader", {}), false); eq(w.c.rdb.warSquads["chillzone ii"], bad)
 		end
 	end)
 end)
 test("Squads: malformed saved rows reject rendering, mutation, replay and unsafe query serialization", function()
 	World(function(w, s)
 		eq(s.Replace("Leader", { "Soldier1" }), true)
-		local store = w.c.rdb.warSquads["olympus ii"]
+		local store = w.c.rdb.warSquads["chillzone ii"]
 		for _, members in ipairs({ { false }, { [2] = "Soldier1-Realm" }, { "Soldier1-Realm", "Soldier1-Realm" }, { "Leader-Realm" }, { junk = "Soldier1-Realm" } }) do
 			local row = { leader = "Leader-Realm", rev = w.now, members = members }; store.rows["leader-realm"] = row
 			eq(s.Get("Leader").count, 0); eq(s.Replace("Leader", {}), false); eq(store.rows["leader-realm"], row)
@@ -565,7 +565,7 @@ end)
 test("Squads: malformed saved chat lines and seen maps fail closed without overwriting history", function()
 	World(function(w, s)
 		eq(s.Replace("Leader", { "Soldier1" }), true)
-		local store, room = w.c.rdb.warSquads["olympus ii"], s.Get("Leader").room
+		local store, room = w.c.rdb.warSquads["chillzone ii"], s.Get("Leader").room
 		w.c.me = "Leader-Realm"
 		local badChats = { false, "broken", { seq = 0, lines = {}, seen = false }, { seq = 0, lines = { false }, seen = {} },
 			{ seq = 0, lines = { [2] = { sender = "Leader-Realm", text = "old", t = w.now, id = 1 } }, seen = {} },
@@ -584,7 +584,7 @@ test("Squads: malformed saved chat lines and seen maps fail closed without overw
 	end)
 end)
 -- 1.2.3 (the author's measure on his game: each redraw of the Chat tab made 2.5 MB of garbage, most of
--- it here): ChatRooms asks every provider about every room id it is given, the Olympus channels',
+-- it here): ChatRooms asks every provider about every room id it is given, the ChillZone channels',
 -- the race, class, guild and role rooms' too, a few hundred times a redraw of the tab's destinations,
 -- and each ask read the squads' leaders again (in the King's guild, the signed council list parsed
 -- and each councillor's name checked). An id that is not a squad's reads none; the Roles menu reads
@@ -701,7 +701,7 @@ test("Squads (1.2.3): a census notice (DATA_CHANGED) tells SQUADS_CHANGED and CH
 		w.preview = true; eq(Notice("a preview"), BOTH, "a preview"); w.preview = false; eq(Notice("over"), BOTH, "the preview over")
 		w.locked = true; eq(Notice("locked"), BOTH, "the chats locked"); w.locked = false; eq(Notice("unlocked"), BOTH, "unlocked")
 		w.guild = nil; eq(Notice("out"), BOTH, "out of the guild"); eq(Notice("still out"), "", "nothing more while out")
-		w.guild = "Olympus II"; eq(Notice("in"), BOTH, "back in it"); eq(Notice("again"), "")
+		w.guild = "ChillZone II"; eq(Notice("in"), BOTH, "back in it"); eq(Notice("again"), "")
 		-- What a notice reads, every second or so: the leaders once, each one's name folded once
 		-- (his room found by the names as they were given).
 		local reads, folds, leaders, fold = 0, 0, s.Leaders, w.c.Fold
@@ -720,7 +720,7 @@ end)
 
 -- The Companion's chat record (Bridge.lua's ns.RecordChat, a stand-in noting each call here): a
 -- squad room's line kept and shown, the sender's own once its whisper left, as his own; never a
--- line that never left, one Olympus's checks refused, or one from outside the room.
+-- line that never left, one ChillZone's checks refused, or one from outside the room.
 test("Squads: the Companion's chat record: each squad line kept, the sender's own once it left, never one refused or unsent", function()
 	World(function(w, s)
 		local rec = {}
@@ -770,7 +770,7 @@ test("Legates (1.4.0): with the shipped Party Guard the online soldier's raid in
 			c.Hop = { GroupState = function() return 0, true end }
 			c.Print = function(text) printed[#printed + 1] = text end
 			c.PartyGuard = nil
-			assert(loadfile(ROOT .. "Olympus/PartyGuard.lua"))("Olympus", c)
+			assert(loadfile(ROOT .. "ChillZone/PartyGuard.lua"))("ChillZone", c)
 			assert(type(c.PartyGuard.InviteGuildmate) == "function", "the shipped Party Guard has it")
 			local R = c.Roster
 			R.generation, R.snapshotAt = 1, w.now

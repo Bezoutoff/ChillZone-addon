@@ -1,6 +1,6 @@
 -- 1.2, the fights part: the profile (ArenaProfile.lua) and its Edit in the core window (ProfileEdit.lua), on the
 -- test world: the pickers, the view model, "preview as others see me", the person card's rows.
--- 1.2.4: the Edit is "My profile", the player's own person page in the Olympus window (its sections,
+-- 1.2.4: the Edit is "My profile", the player's own person page in the ChillZone window (its sections,
 -- the icon picker inline, no window of its own); the window is stood in (W3.PageUI).
 -- Every name is invented.
 local H = ...
@@ -63,8 +63,8 @@ test("1.2 the fights part: the Edit's view model: the rank's frame, none, every 
 	eq(vm.frames[3].selected, true, "switched on when earned")
 	eq(vm.titles[1].key, "none"); eq(vm.titles[2].label, "Arena Champion")
 	eq(vm.preview.frame, "arena-champion"); eq(vm.preview.titleText, "Arena Champion")
-	eq(vm.preview.frameTexture, "Interface\\AddOns\\Olympus\\media\\honors\\gryphon-gold")
-	eq(vm.preview.markTexture, "Interface\\AddOns\\Olympus\\media\\honors\\gryphon-gold-mark")
+	eq(vm.preview.frameTexture, "Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-gold")
+	eq(vm.preview.markTexture, "Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-gold-mark")
 	eq(#vm.letters, 1, "the King's letter, to read again")
 	-- The nickname: a step through each list, words only from them.
 	eq(PE(w, A).NickStep("a", 1), true)
@@ -97,9 +97,9 @@ test("1.2 the fights part: the Edit's view model: the rank's frame, none, every 
 	W3.NoErrors(w)
 end)
 
-print("ProfileEdit: My profile, the player's own page in the Olympus window (1.2.4)")
+print("ProfileEdit: My profile, the player's own page in the ChillZone window (1.2.4)")
 
--- The page as PlayerProfile.Build hands it on his own (the Olympus window stood in: W3.PageUI):
+-- The page as PlayerProfile.Build hands it on his own (the ChillZone window stood in: W3.PageUI):
 -- its lines, the detail box's title and text, its buttons and the portrait's art.
 local function Page(w, c, facts) return w:As(c, c.ns.ProfileEdit.Page, { full = c.name }, facts or {}) end
 local function Plain(s) return (tostring(s or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
@@ -124,7 +124,7 @@ local function Windows(c, names)
 	end
 	return table.concat(found, ",")
 end
-local NO_WINDOWS = { OlympusProfileEdit = true, OlympusCouncilIconFrame = true, OlympusArenaPreview = true, OlympusArenaLetters = true }
+local NO_WINDOWS = { ChillZoneProfileEdit = true, ChillZoneCouncilIconFrame = true, ChillZoneArenaPreview = true, ChillZoneArenaLetters = true }
 local function MacroIcons(c, n)
 	local calls = { n = 0 }
 	c.globals.GetMacroIcons = function(t)
@@ -138,8 +138,8 @@ end
 -- The owner's screenshot (1.2.2/1.2.3): the Games window's Profile, More, Edit, Emblem stacked three
 -- windows (the Games window, the floating Edit panel at DIALOG strata, the picker it hosted, spilling
 -- 54 px right and 122 down, with the council's words on an emblem). Fails on 1.2.3: the panel is
--- made (OlympusProfileEdit) and the Olympus window is never asked for his page.
-test("1.2.4 My profile (the three stacked windows): Edit opens the player's own person page in the Olympus window (UI.OpenPlayerProfile on himself), no window of its own: no Edit panel, no picker window, nothing on the escape list; no game popup in the core's arena files", function()
+-- made (ChillZoneProfileEdit) and the ChillZone window is never asked for his page.
+test("1.2.4 My profile (the three stacked windows): Edit opens the player's own person page in the ChillZone window (UI.OpenPlayerProfile on himself), no window of its own: no Edit panel, no picker window, nothing on the escape list; no game popup in the core's arena files", function()
 	local w, cast = W3.New()
 	local A = cast.A
 	Belt(w, cast, A, cast.B, { A })
@@ -162,7 +162,7 @@ test("1.2.4 My profile (the three stacked windows): Edit opens the player's own 
 	-- The chat icon's list: his honour's mark first. (The emblem's is the game's icons only: an
 	-- emblem is a game icon on both ends, the design, so no honour mark is offered there; review.)
 	local list = PE(w, A).IconList("icon")
-	eq(type(list[1]), "table"); eq(list[1].key, "gryphon-gold"); eq(list[1].texture, "Interface\\AddOns\\Olympus\\media\\honors\\gryphon-gold-mark")
+	eq(type(list[1]), "table"); eq(list[1].key, "gryphon-gold"); eq(list[1].texture, "Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-gold-mark")
 	for _, icon in ipairs(PE(w, A).IconList("emblem")) do eq(type(icon) ~= "table", true, "no honour mark as an emblem") end
 	-- No game popup anywhere in the core's arena files (the source rule).
 	for _, f in ipairs({ "ProfileEdit", "HonorsNet", "ArenaProfile", "ArenaFights", "ArenaLedger", "ArenaTourney" }) do
@@ -170,7 +170,7 @@ test("1.2.4 My profile (the three stacked windows): Edit opens the player's own 
 		assert(not src:find("StaticPopup", 1, true), f)
 		assert(not src:find("UISpecialFrames", 1, true), f)
 	end
-	-- Not in an Olympus guild: refused, nothing opened.
+	-- Not in an ChillZone guild: refused, nothing opened.
 	local member = A.ns.IsMember
 	A.ns.IsMember = function() return false end
 	eq(select(2, PE(w, A).Open()), "guild"); eq(#ui.opened, 2, "nothing opened")
@@ -178,8 +178,8 @@ test("1.2.4 My profile (the three stacked windows): Edit opens the player's own 
 	W3.NoErrors(w)
 end)
 
--- 1.2.3's /oly arena emblem opened the panel without its picker (Open took "icon" alone). Fails on 1.2.3.
-test("1.2.4 My profile (/oly arena emblem landed without the picker): Open('emblem') opens the Icons section on the emblem; Open('icon') a councillor's chat icon, Look for anyone else; /oly arena emblem and the arena's action land there", function()
+-- 1.2.3's /cz arena emblem opened the panel without its picker (Open took "icon" alone). Fails on 1.2.3.
+test("1.2.4 My profile (/cz arena emblem landed without the picker): Open('emblem') opens the Icons section on the emblem; Open('icon') a councillor's chat icon, Look for anyone else; /cz arena emblem and the arena's action land there", function()
 	local w, cast = W3.New({ more = { { "hc", N.councillor } } })
 	local A, hc = cast.A, cast.hc
 	MacroIcons(A); MacroIcons(hc)
@@ -196,9 +196,9 @@ test("1.2.4 My profile (/oly arena emblem landed without the picker): Open('embl
 	eq(PE(w, hc).Icons().kind, "icon")
 	-- The slash and the action.
 	PE(w, A).SetSection("look")
-	w:As(A, function() A.slashes.OLYMPUS("arena emblem") end)
+	w:As(A, function() A.slashes.CHILLZONE("arena emblem") end)
 	s, kind = PE(w, A).Section()
-	eq(s, "icons", "/oly arena emblem"); eq(kind, "emblem")
+	eq(s, "icons", "/cz arena emblem"); eq(kind, "emblem")
 	PE(w, A).SetSection("look")
 	eq(w:As(A, A.ns.Arena.Do, "profile.edit", "emblem"), true)
 	eq(PE(w, A).Section(), "icons", "Arena.Action('profile.edit')")
@@ -405,7 +405,7 @@ test("1.2.4 My profile, Icons: the picker inline, the list built once per open (
 	-- A mark is never an emblem (AP carries a game icon alone).
 	PE(w, A).SetSection("icons", "emblem")
 	eq(calls.n, 2, "built again for the new open")
-	PE(w, A).Icons().choice = { key = "gryphon-gold", texture = "Interface\\AddOns\\Olympus\\media\\honors\\gryphon-gold-mark" }
+	PE(w, A).Icons().choice = { key = "gryphon-gold", texture = "Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-gold-mark" }
 	local ok, why = PE(w, A).UseIcon()
 	eq(ok, false); eq(why, "mark"); eq(Printed(A, A.ns.L.PROFILE_ICON_REFUSED), true)
 	eq(A.ns.ArenaProfile.Mine().emblem, 200031, "unchanged")
@@ -446,14 +446,14 @@ end)
 -- 1.2.4, the author in game on the Icons page ("design dos icons na pagina nao ta aproveitando bem
 -- espaco vazio da window"): 7 x 4 slots 2 px apart at the list's left, whatever the window (on
 -- Forever, 77 of its list's 352 px empty at the right). The grid now takes the window's room. Drawn
--- here on the real Olympus window (UI.lua loaded over the harness's stand-in frames, H.WithUI),
+-- here on the real ChillZone window (UI.lua loaded over the harness's stand-in frames, H.WithUI),
 -- docked as on Forever (the HD look, the Social window's 385 wide, the Communities window's 426
 -- tall) or on its own with the gamepad UI, and by Views.Render as UI.Refresh draws a page.
 -- Fails on 1.2.4's first: 7 columns, 28 slots a page at every size.
-local function OlympusWindow()
+local function ChillZoneWindow()
 	local uns = setmetatable({}, { __index = H.ns })
 	uns.On = function() end
-	assert(loadfile(H.ADDON_DIR .. "UI.lua"))("Olympus", uns)
+	assert(loadfile(H.ADDON_DIR .. "UI.lua"))("ChillZone", uns)
 	local social = CreateFrame("Frame", "FriendsFrame", UIParent) -- (named: WithUI clears it)
 	social:SetSize(385, 424)
 	local host = CreateFrame("Frame", nil, UIParent)
@@ -504,7 +504,7 @@ local function Inside(content, row, slots, grid, why)
 	assert(math.abs(leftRoom - rightRoom) <= 1, why .. ": in the middle of the list: " .. leftRoom .. " left, " .. rightRoom .. " right")
 end
 
-test("1.2.4 My profile, Icons fill the Olympus window: as many columns as its width holds and rows as its height holds (never fewer than 7 x 4 a page), evenly apart, every slot inside the list, fewer pages; a window resized lays it out again, the icon chosen still chosen; the councillor's strip, the sample, the filter, the pager and the buttons kept; the gamepad UI's own window too", function()
+test("1.2.4 My profile, Icons fill the ChillZone window: as many columns as its width holds and rows as its height holds (never fewer than 7 x 4 a page), evenly apart, every slot inside the list, fewer pages; a window resized lays it out again, the icon chosen still chosen; the councillor's strip, the sample, the filter, the pager and the buttons kept; the gamepad UI's own window too", function()
 	local w, cast = W3.New({ more = { { "hc", N.councillor } } })
 	local A, hc = cast.A, cast.hc
 	local L = A.ns.L
@@ -513,13 +513,13 @@ test("1.2.4 My profile, Icons fill the Olympus window: as many columns as its wi
 	local hcUI = W3.PageUI(w, hc)
 	eq(PE(w, A).Emblem(200040), true, "an emblem in use, the 40th icon")
 	eq(PE(w, A).Open("emblem"), true)
-	-- Drawn outside the Olympus window (no room known): 7 x 4 as 1.2.4's first, on 5 pages.
+	-- Drawn outside the ChillZone window (no room known): 7 x 4 as 1.2.4's first, on 5 pages.
 	local lines = Page(w, A)
 	eq(GridLine(lines).columns, 7); eq(#GridLine(lines).items, 28); eq(GridLine(lines).gap, nil, "drawn as before")
 	eq(PagerText(lines), L.COUNCIL_ICON_PAGE:format(2, 5))
 	H.WithUI(function()
-		local real = OlympusWindow()
-		local main = assert(_G.OlympusFrameHD, "the HD window")
+		local real = ChillZoneWindow()
+		local main = assert(_G.ChillZoneFrameHD, "the HD window")
 		eq(main:GetWidth(), 385); eq(main:GetHeight(), 426)
 		H.WithStub("UI", real, function()
 			ui.ListRoom, hcUI.ListRoom = real.ListRoom, real.ListRoom
@@ -593,8 +593,8 @@ test("1.2.4 My profile, Icons fill the Olympus window: as many columns as its wi
 	-- With the gamepad UI on, the window opens on its own (never docked): the old look, 338 x 424.
 	H.WithGamepadUI(true, function()
 		H.WithUI(function()
-			local real = OlympusWindow()
-			local main = assert(_G.OlympusFrame, "the window at its own place")
+			local real = ChillZoneWindow()
+			local main = assert(_G.ChillZoneFrame, "the window at its own place")
 			eq(main:GetWidth(), 338); eq(main:GetHeight(), 424)
 			H.WithStub("UI", real, function()
 				ui.ListRoom = real.ListRoom
@@ -667,14 +667,14 @@ test("1.2.4 My profile, Who sees what: what goes out, his page's facts as others
 end)
 
 -- The design reworded the fight list's choice ("my profile", the whole addon's), but the edit went
--- to a copy of the key in ArenaFightsText.lua: ArenaHomeText.lua, after it in Olympus.toc, set the
+-- to a copy of the key in ArenaFightsText.lua: ArenaHomeText.lua, after it in ChillZone.toc, set the
 -- key again, and Consent reads the last one. The words loaded as the game loads them (Locales.lua,
 -- then every Locales file in the TOC's order), in both languages; and each of its two keys has one
 -- definition, so a later edit is never dead. Fails on the branch's first page: "Your arena fight
 -- history" / "Seu histórico de lutas na arena", and the keys in two files.
 test("1.2.4 My profile, Who sees what: the fight list's choice reads the design's words, as the TOC loads them, in English and pt-BR; its keys have one definition", function()
 	local files = {}
-	for line in io.lines(H.ADDON_DIR .. "Olympus.toc") do
+	for line in io.lines(H.ADDON_DIR .. "ChillZone.toc") do
 		local file = line:match("^Locales\\(.-)%.lua%s*$")
 		if file then files[#files + 1] = file end
 	end
@@ -684,8 +684,8 @@ test("1.2.4 My profile, Who sees what: the fight list's choice reads the design'
 		local saved = GetLocale
 		GetLocale = function() return locale end
 		local ok, err = pcall(function()
-			assert(loadfile(H.ADDON_DIR .. "Locales.lua"))("Olympus", lns)
-			for _, file in ipairs(files) do assert(loadfile(H.ADDON_DIR .. "Locales/" .. file .. ".lua"))("Olympus", lns) end
+			assert(loadfile(H.ADDON_DIR .. "Locales.lua"))("ChillZone", lns)
+			for _, file in ipairs(files) do assert(loadfile(H.ADDON_DIR .. "Locales/" .. file .. ".lua"))("ChillZone", lns) end
 		end)
 		GetLocale = saved
 		assert(ok, err)
@@ -747,19 +747,19 @@ test("My profile, Letters: durable duty briefings share the list and reopen in t
 	W3.NoErrors(w)
 end)
 
--- /oly profile with no name (or his own) is a click on My profile, as the person card's and the
+-- /cz profile with no name (or his own) is a click on My profile, as the person card's and the
 -- Realm's ways in: on Look, where an older open of the page was left on another section.
-test("1.2.4 /oly profile with no name (or his own) is My profile, on Look; another's name, his page", function()
+test("1.2.4 /cz profile with no name (or his own) is My profile, on Look; another's name, his page", function()
 	local w, cast = W3.New()
 	local A = cast.A
 	local ui = W3.PageUI(w, A)
 	PE(w, A).SetSection("letters")
-	w:As(A, function() A.slashes.OLYMPUS("profile") end)
+	w:As(A, function() A.slashes.CHILLZONE("profile") end)
 	eq(ui.OwnProfileShown(), true); eq(PE(w, A).Section(), "look")
 	PE(w, A).SetSection("letters")
-	w:As(A, function() A.slashes.OLYMPUS("profile " .. A.short) end)
+	w:As(A, function() A.slashes.CHILLZONE("profile " .. A.short) end)
 	eq(ui.OwnProfileShown(), true, "his own name: the same"); eq(PE(w, A).Section(), "look")
-	w:As(A, function() A.slashes.OLYMPUS("profile Selka Drummond") end)
+	w:As(A, function() A.slashes.CHILLZONE("profile Selka Drummond") end)
 	eq(ui.OwnProfileShown(), false); eq(ui.person.name, "Selka Drummond", "another's: his page")
 	W3.NoErrors(w)
 end)
@@ -852,7 +852,7 @@ test("1.2.4 My profile from the Realm: its link (a Realm page's, before the Boar
 	eq(ui.OwnProfileShown(), true); eq(PE(w, A).Section(), "look")
 	local member = A.ns.IsMember
 	A.ns.IsMember = function() return false end
-	eq(w:As(A, entry.Link), nil, "outside an Olympus guild: none")
+	eq(w:As(A, entry.Link), nil, "outside an ChillZone guild: none")
 	A.ns.IsMember = member
 	W3.NoErrors(w)
 end)
@@ -864,7 +864,7 @@ test("1.2.4 My profile's words: the page's name, the letter waiting's notice, th
 		local L = setmetatable({}, { __index = function(_, k) return k end })
 		local saved = GetLocale
 		GetLocale = function() return locale end
-		local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaFightsText.lua"))("Olympus", { L = L }) end)
+		local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaFightsText.lua"))("ChillZone", { L = L }) end)
 		GetLocale = saved
 		assert(ok, err)
 		return L
@@ -873,7 +873,7 @@ test("1.2.4 My profile's words: the page's name, the letter waiting's notice, th
 		local L = setmetatable({}, { __index = function(_, k) return k end })
 		local saved = GetLocale
 		GetLocale = function() return locale end
-		local ok, err = pcall(function() assert(loadfile(H.ARENA_DIR .. "Locales/UIText.lua"))("Olympus_Arena", { host = { L = L } }) end)
+		local ok, err = pcall(function() assert(loadfile(H.ARENA_DIR .. "Locales/UIText.lua"))("ChillZone_Arena", { host = { L = L } }) end)
 		GetLocale = saved
 		assert(ok, err)
 		return L

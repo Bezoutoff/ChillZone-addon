@@ -57,27 +57,27 @@ end)
 test("1.2.1 leaks: the census copy: a reported guild, its leader and a zone named as text never end the table or show as markup", function()
 	local now = ns.Now()
 	WithRdb("guilds", {
-		["Olympus " .. HOSTILE] = { total = 50, online = 5, zones = { ["t" .. HOSTILE] = 5 }, t = now, leader = "Lead" .. FENCE .. BOLD },
-		["Olympus Quiet"] = { total = 40, online = 4, zones = {}, t = now, leader = "Calm" },
+		["ChillZone " .. HOSTILE] = { total = 50, online = 5, zones = { ["t" .. HOSTILE] = 5 }, t = now, leader = "Lead" .. FENCE .. BOLD },
+		["ChillZone Quiet"] = { total = 40, online = 4, zones = {}, t = now, leader = "Calm" },
 	}, function()
 		local text = ns.Data.DiscordText()
 		Inert(text, 2, "census")
-		assert(text:find("Olympus ''' " .. BOLD, 1, true), "the guild as written, in the table\n" .. text)
+		assert(text:find("ChillZone ''' " .. BOLD, 1, true), "the guild as written, in the table\n" .. text)
 		assert(text:find("Lead'''", 1, true), "its leader too")
 		assert(text:find("\\[free gold\\]", 1, true), "the zone, outside the table, escaped\n" .. text)
-		assert(text:find("Olympus Quiet", 1, true) and text:find("Calm", 1, true), "the rest as before")
+		assert(text:find("ChillZone Quiet", 1, true) and text:find("Calm", 1, true), "the rest as before")
 	end)
 end)
 
 test("1.2.1 leaks: the tabard inspection copy: names, guilds and notes never end the table, a marked guild never shows as markup", function()
 	local now = ns.Now()
 	WithRdb("inspect", { players = {
-			Rogue = { name = "Rogue", guild = "Olympus" .. FENCE, status = "NONE", t = now, note = HOSTILE },
-		}, guildMarks = { ["Olympus " .. BOLD .. " " .. LINK] = true } }, function()
+			Rogue = { name = "Rogue", guild = "ChillZone" .. FENCE, status = "NONE", t = now, note = HOSTILE },
+		}, guildMarks = { ["ChillZone " .. BOLD .. " " .. LINK] = true } }, function()
 		local text = ns.Inspect.DiscordText()
 		Inert(text, 2, "inspection")
 		assert(text:find("\\*\\*loud\\*\\*", 1, true), "the marked guild, escaped\n" .. text)
-		assert(text:find("<Olympus'''>", 1, true), "the player's guild in the table\n" .. text)
+		assert(text:find("<ChillZone'''>", 1, true), "the player's guild in the table\n" .. text)
 	end)
 end)
 
@@ -123,8 +123,8 @@ local function WithWatch(fn)
 		IsKingCharacter = function() return false end,
 		IsHighCouncillor = function(name) return ns.ShortName(name) == "Voter" .. BOLD end }, { __index = ns })
 	local ok, err = pcall(function()
-		assert(loadfile(H.ADDON_DIR .. "Watch.lua"))("Olympus", wns)
-		assert(loadfile(H.ADDON_DIR .. "Judgment.lua"))("Olympus", wns)
+		assert(loadfile(H.ADDON_DIR .. "Watch.lua"))("ChillZone", wns)
+		assert(loadfile(H.ADDON_DIR .. "Judgment.lua"))("ChillZone", wns)
 		fn(wns.Watch, wns.Judgment)
 	end)
 	for k in pairs(StaticPopupDialogs) do StaticPopupDialogs[k] = dialogs[k] end
@@ -147,12 +147,12 @@ end)
 test("1.2.1 leaks: a judgment's copy: the accused, his guild, the sender and the voters never show as markup", function()
 	WithWatch(function(_, J)
 		local now = ns.Now()
-		local text = J.Text({ target = "Accused" .. LINK .. "-Realm", guild = "Olympus" .. FENCE .. BOLD, from = "Sender" .. BOLD .. "-Realm",
+		local text = J.Text({ target = "Accused" .. LINK .. "-Realm", guild = "ChillZone" .. FENCE .. BOLD, from = "Sender" .. BOLD .. "-Realm",
 			cats = { O = 1 }, reporters = 1, lines = 1, at = now, closes = now + 3600, finding = "U",
 			votes = { ["Voter" .. BOLD .. "-Realm"] = { v = "U", at = now } } })
 		Inert(text, 0, "judgment")
 		assert(text:find("Sender\\*\\*loud\\*\\*", 1, true), "the sender\n" .. text)
 		assert(text:find("Voter\\*\\*loud\\*\\*", 1, true), "the voter\n" .. text)
-		assert(text:find("<Olympus\\`\\`\\`\\*\\*loud\\*\\*>", 1, true), "the guild\n" .. text)
+		assert(text:find("<ChillZone\\`\\`\\`\\*\\*loud\\*\\*>", 1, true), "the guild\n" .. text)
 	end)
 end)

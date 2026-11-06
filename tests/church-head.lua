@@ -38,7 +38,7 @@ test("Church immutable head: actual people view announces Asmongold without a no
 	local head
 	for _, line in ipairs(lines) do if line.text == ns.L.CHURCH_HEAD then head = line end end
 	assert(head)
-	eq(head.right, "Asmongold")
+	eq(head.right, "The King")
 	eq(head.onClick, nil)
 	local tooltip = {}
 	head.tooltip({ AddLine = function(_, text) tooltip[#tooltip + 1] = text end })

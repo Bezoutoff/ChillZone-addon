@@ -12,20 +12,20 @@
 -- the author's machine whenever the Forever build changes (and whenever the addon or the pass
 -- starts reading a name the fixture doesn't list), then commit the fixture.
 --
--- What it records, for the names Olympus and the pass use (not the whole client):
+-- What it records, for the names ChillZone and the pass use (not the whole client):
 --   globals[name]   "api" (a documented function), "namespace" (a documented C_ table), "function",
 --                   "table" or "value" (defined in Blizzard's Lua), "frame" or "font" (a named
 --                   object in Blizzard's XML), "used" (read by Blizzard's own code and defined
 --                   nowhere in its source: the engine's, like strsplit or the global strings),
---                   "seen" (proved in game by Olympus itself, below), or false: nothing in the
+--                   "seen" (proved in game by ChillZone itself, below), or false: nothing in the
 --                   client's source has it.
 --   members["T.k"]  the same for a member of a table (C_FriendList.SendWho, Menu.ModifyMenu...).
 --   restricted[f]   "protected" (IsProtectedFunction) or "restricted" (HasRestrictions).
 --   events[e]       true for an event the documentation lists, false for one it doesn't.
---   enums[name]     the Enum tables Olympus reads, with their values.
+--   enums[name]     the Enum tables ChillZone reads, with their values.
 --   widgets[type]   every method the documentation gives that widget type (its API tables and
 --                   the ones it inherits, below), as a sorted, space-separated list.
---   templates[t]    a template Olympus uses: its widget type, its keys (parentKey children and
+--   templates[t]    a template ChillZone uses: its widget type, its keys (parentKey children and
 --                   their types) and its mixins' methods.
 -- Files are read for the camelot game type (Forever: WOW_PROJECT_CAMELOT), as its TOCs choose them
 -- ([Family] is Mainline, [Game] Camelot; a line for mainline loads too, one excluding camelot
@@ -47,10 +47,10 @@ local CHECK = arg[2] == "--check"
 local BUILD = tonumber(arg[2]) or 70205
 local OUT = ROOT .. "/tests/fixtures/forever-api.lua"
 
--- Proved in game by Olympus itself, though no line of the client's source shows them (functions
+-- Proved in game by ChillZone itself, though no line of the client's source shows them (functions
 -- of the engine Blizzard's own code doesn't call): each with what proves it.
 local SEEN_IN_GAME = {
-	JoinChannelByName = "Olympus's census channel is joined with it on Forever since 0.1 (the census fills in game)",
+	JoinChannelByName = "ChillZone's census channel is joined with it on Forever since 0.1 (the census fills in game)",
 	GetGuildRosterInfo = "Roster.lua reads every member with it, unguarded, and the census counts Forever guilds in game",
 	issecurevariable = "the taint probe's line in players' bug reports from Forever names the values it checked (#56)",
 }
@@ -370,7 +370,7 @@ for name, groups in pairs(TYPES) do
 end
 
 ---------------------------------------------------------------------------
--- The names Olympus (and the pass) use.
+-- The names ChillZone (and the pass) use.
 ---------------------------------------------------------------------------
 
 local wantGlobals, wantMembers, wantEvents, wantTemplates, wantEnums, wantConstants, wantStrings = {}, {}, {}, {}, {}, {}, {}
@@ -435,7 +435,7 @@ local function WalkAddon(proto)
 end
 -- The companion uses the same native client: include its API/event reads, even while it is
 -- unloaded during the pass's --names inventory (for example Bones' UNIT_AURA refresh).
-for _, path in ipairs(List('cd "' .. ROOT .. '" && find Olympus Olympus_Arena -name "*.lua" 2>/dev/null')) do
+for _, path in ipairs(List('cd "' .. ROOT .. '" && find ChillZone ChillZone_Arena -name "*.lua" 2>/dev/null')) do
 	local chunk = loadfile(ROOT .. "/" .. path)
 	if chunk then WalkAddon(chunk) end
 end
@@ -467,7 +467,7 @@ local function Kind(name)
 end
 local globals, memberKinds, restricted, eventKinds = {}, {}, {}, {}
 -- (The addon's strings that name something the client has, and those that look like a frame's name
--- whether it has it or not: the ones Olympus looks up with _G[name], the pass needs to know.)
+-- whether it has it or not: the ones ChillZone looks up with _G[name], the pass needs to know.)
 for name in pairs(wantStrings) do
 	if not wantGlobals[name] and not events[name] then
 		local kind = Kind(name)
@@ -486,9 +486,9 @@ for full in pairs(wantMembers) do
 		if apiMember[full] then kind = "api"
 		elseif members[full] then kind = "lua"
 		elseif used[full] then kind = "used" end
-		-- (Members of Olympus's own tables, or of a table the client lacks, are left out.)
+		-- (Members of ChillZone's own tables, or of a table the client lacks, are left out.)
 		if globals[base] or Kind(base) then
-			if not base:find("^Olympus") then memberKinds[full] = kind end
+			if not base:find("^ChillZone") then memberKinds[full] = kind end
 		end
 	end
 end
@@ -554,7 +554,7 @@ while #pending > 0 do
 		end
 	end
 end
--- The game's named frames Olympus and the pass use, made the same way.
+-- The game's named frames ChillZone and the pass use, made the same way.
 local frameOut = {}
 for name in pairs(wantGlobals) do
 	if namedDefs[name] then

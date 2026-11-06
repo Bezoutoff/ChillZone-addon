@@ -3,7 +3,7 @@
 -- "descriptionType": 1}, and the server refuses a body above about 100 KiB (413, "request entity
 -- too large": measured 2026-09-30, 102,382 bytes passed and 102,421 were refused). This script
 -- renders a page to HTML the way the editor does (Markdown with GitHub's tables, headings with
--- ids like <h1 id="olympus">, the characters & < > " ' as entities), wraps it as that body and
+-- ids like <h1 id="chillzone">, the characters & < > " ' as entities), wraps it as that body and
 -- prints its size in bytes. The page pasted there is docs/CURSEFORGE-STORE.md (1.1.5: what
 -- scripts/curseforge-page.lua makes of docs/CURSEFORGE.md, the whole page, nearly twice the limit).
 --   luajit scripts/curseforge-size.lua                 the size of docs/CURSEFORGE-STORE.md's body

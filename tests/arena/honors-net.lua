@@ -51,9 +51,9 @@ test("1.2 the fights part: the level race (the design: the first to 20, 40, 60):
 	-- (1.4.0, the review's High 7) Her guild's two senders listed her at 19 before her level-up, and
 	-- the late one's his: each sender saw them cross 20 (the race asks it).
 	for _, r in ipairs({ cast.reporter, cast.reporter2 }) do
-		W3.Report(viewer, "Olympus Vale", r, { { name = "Brisa Vale", level = 19, class = "MA" } })
+		W3.Report(viewer, "ChillZone Vale", r, { { name = "Brisa Vale", level = 19, class = "MA" } })
 		w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
-		W3.Report(viewer, "Olympus Ash", r, { { name = "Corin Ash", level = 19, class = "WA" } })
+		W3.Report(viewer, "ChillZone Ash", r, { { name = "Corin Ash", level = 19, class = "WA" } })
 		w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
 	end
 	w:Fire(young, "PLAYER_LEVEL_UP", 20)
@@ -67,11 +67,11 @@ test("1.2 the fights part: the level race (the design: the first to 20, 40, 60):
 	eq(claim.level, 20); eq(claim.vouched, false)
 	eq(#(s.levels[20] or {}), 0, "unvouched: no place")
 	-- The census: another sender's report of her guild, her at 20: one row, no proof (1.2.1).
-	W3.Report(viewer, "Olympus Vale", cast.reporter, { { name = "Brisa Vale", level = 20, class = "MA" } })
+	W3.Report(viewer, "ChillZone Vale", cast.reporter, { { name = "Brisa Vale", level = 20, class = "MA" } })
 	w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
 	eq(claim.vouched, false, "one census row")
 	-- Her guild's second sender, in his turn: vouched.
-	W3.Report(viewer, "Olympus Vale", cast.reporter2, { { name = "Brisa Vale", level = 20, class = "MA" } })
+	W3.Report(viewer, "ChillZone Vale", cast.reporter2, { { name = "Brisa Vale", level = 20, class = "MA" } })
 	w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
 	eq(claim.vouched, true)
 	eq(#(s.levels[20] or {}), 0, "vouched, still waiting CONFIRM_AFTER")
@@ -83,14 +83,14 @@ test("1.2 the fights part: the level race (the design: the first to 20, 40, 60):
 	-- A later claimant: vouched too, never the place.
 	w:Fire(cast.late, "PLAYER_LEVEL_UP", 20)
 	w:Run(61)
-	W3.Report(viewer, "Olympus Ash", cast.reporter, { { name = "Corin Ash", level = 20, class = "WA" } })
+	W3.Report(viewer, "ChillZone Ash", cast.reporter, { { name = "Corin Ash", level = 20, class = "WA" } })
 	w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
-	W3.Report(viewer, "Olympus Ash", cast.reporter2, { { name = "Corin Ash", level = 20, class = "WA" } })
+	W3.Report(viewer, "ChillZone Ash", cast.reporter2, { { name = "Corin Ash", level = 20, class = "WA" } })
 	w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
 	w:Run(viewer.ns.Honors.CONFIRM_AFTER + 2)
 	eq(#s.levels[20], 1); eq(s.levels[20][1].name, young.name, "the place never moves")
 	-- The claim's report is the census's alone: the claimant's own report vouches for nothing.
-	local own = W3.Report(viewer, "Olympus Solo", cast.late, { { name = "Corin Ash", level = 40 } })
+	local own = W3.Report(viewer, "ChillZone Solo", cast.late, { { name = "Corin Ash", level = 40 } })
 	w:Fire(cast.late, "PLAYER_LEVEL_UP", 40)
 	w:Run(61)
 	eq(#(s.levels[40] or {}), 0)
@@ -147,7 +147,7 @@ test("1.2.1 the level race: a census change with 200 claims waiting and 150 guil
 	for i = 1, 150 do
 		local top = {}
 		for j = 1, 5 do top[j] = { name = ("Tamsin%d Row%d"):format(j, i), level = 60, class = "WA" } end
-		W3.Report(viewer, ("Olympus Row %d"):format(i), { short = ("Odell%d Row"):format(i), name = ("Odell%d Row-%s"):format(i, viewer.realm) }, top)
+		W3.Report(viewer, ("ChillZone Row %d"):format(i), { short = ("Odell%d Row"):format(i), name = ("Odell%d Row-%s"):format(i, viewer.realm) }, top)
 	end
 	-- 200 claims heard this hour, nobody listing them.
 	for i = 1, 200 do
@@ -202,7 +202,7 @@ test("1.4.0 the level race (the review's High 8): a census change looks again on
 	for i = 1, 40 do
 		local top = {}
 		for j = 1, 5 do top[j] = { name = names[(i - 1) * 5 + j], level = 60, class = "WA" } end
-		W3.Report(viewer, ("Olympus Row %d"):format(i), { short = ("Odell%d Row"):format(i), name = ("Odell%d Row-%s"):format(i, viewer.realm) }, top)
+		W3.Report(viewer, ("ChillZone Row %d"):format(i), { short = ("Odell%d Row"):format(i), name = ("Odell%d Row-%s"):format(i, viewer.realm) }, top)
 		w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
 	end
 	w:Run(net.RACE_SOON + 1)
@@ -212,10 +212,10 @@ test("1.4.0 the level race (the review's High 8): a census change looks again on
 	-- listing none of the waiting, never.
 	local fresh = "Tamsin Oake-" .. viewer.realm
 	s.claims[fresh:lower() .. ":60"] = { gk = "3e8.0000beef", name = fresh, level = 60, t = w.clock - 60, heardLocal = w.clock - 60, vouched = false }
-	W3.Report(viewer, "Olympus Oake", { short = "Odell Oake", name = "Odell Oake-" .. viewer.realm }, { { name = fresh, level = 59, class = "WA" } })
+	W3.Report(viewer, "ChillZone Oake", { short = "Odell Oake", name = "Odell Oake-" .. viewer.realm }, { { name = fresh, level = 59, class = "WA" } })
 	w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
 	eq(net.ListingBuilds(), builds + 1, "its claimant listed: one look")
-	W3.Report(viewer, "Olympus Row 1", { short = "Odell1 Row", name = "Odell1 Row-" .. viewer.realm }, { { name = names[1], level = 60, class = "WA" } })
+	W3.Report(viewer, "ChillZone Row 1", { short = "Odell1 Row", name = "Odell1 Row-" .. viewer.realm }, { { name = names[1], level = 60, class = "WA" } })
 	w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
 	eq(net.ListingBuilds(), builds + 1, "none of the waiting listed: none")
 	viewer.ns.HonorsNet.RunRace = race
@@ -259,57 +259,57 @@ test("1.2.1 the level race: a claim's vouch is what it was with the census looke
 	end
 	-- Two senders of her guild, one after the other (each report replaces the last).
 	local c = Claim(20)
-	Below("Olympus Vale", { cast.f1, cast.f2 }, 20)
-	Row("Olympus Vale", cast.f1, 20)
+	Below("ChillZone Vale", { cast.f1, cast.f2 }, 20)
+	Row("ChillZone Vale", cast.f1, 20)
 	eq(net.Vouched(c), false, "one sender")
-	Row("Olympus Vale", cast.f2, 20)
+	Row("ChillZone Vale", cast.f2, 20)
 	eq(net.Vouched(c), true, "her guild's second sender")
-	eq(Senders(c, "olympus vale"), "dovan quell,elsa thornby")
+	eq(Senders(c, "chillzone vale"), "dovan quell,elsa thornby")
 	-- Her own report: never her proof.
 	c = Claim(40, true)
-	Below("Olympus Solo", { who }, 40)
-	Row("Olympus Solo", who, 40)
+	Below("ChillZone Solo", { who }, 40)
+	Row("ChillZone Solo", who, 40)
 	eq(net.Vouched(c), false, "her own report")
 	eq(next(c.by), nil)
 	-- A level below the claim's.
 	c = Claim(40)
-	Below("Olympus Low", { cast.f1, cast.f2 }, 40)
-	Row("Olympus Low", cast.f1, 39)
-	Row("Olympus Low", cast.f2, 39)
+	Below("ChillZone Low", { cast.f1, cast.f2 }, 40)
+	Row("ChillZone Low", cast.f1, 39)
+	Row("ChillZone Low", cast.f2, 39)
 	eq(net.Vouched(c), false, "listed below it")
 	-- Reports a day and more after the claim; at the day's very end, yes.
 	c = Claim(20)
-	Below("Olympus Late", { cast.f1, cast.f2 }, 20)
-	Row("Olympus Late", cast.f1, 20).t = w.clock + WINDOW + 1
+	Below("ChillZone Late", { cast.f1, cast.f2 }, 20)
+	Row("ChillZone Late", cast.f1, 20).t = w.clock + WINDOW + 1
 	eq(net.Vouched(c), false)
-	Row("Olympus Late", cast.f2, 20).t = w.clock + WINDOW + 1
+	Row("ChillZone Late", cast.f2, 20).t = w.clock + WINDOW + 1
 	eq(net.Vouched(c), false, "a day off")
 	c = Claim(20)
-	Below("Olympus Edge", { cast.f1, cast.f2 }, 20)
-	Row("Olympus Edge", cast.f1, 20).t = w.clock + WINDOW
+	Below("ChillZone Edge", { cast.f1, cast.f2 }, 20)
+	Row("ChillZone Edge", cast.f1, 20).t = w.clock + WINDOW
 	eq(net.Vouched(c), false)
-	Row("Olympus Edge", cast.f2, 20).t = w.clock + WINDOW
+	Row("ChillZone Edge", cast.f2, 20).t = w.clock + WINDOW
 	eq(net.Vouched(c), true, "within the day")
 	-- Two guilds, one sender each.
 	c = Claim(60)
-	Below("Olympus East", { cast.f1 }, 60)
-	Below("Olympus West", { cast.f2 }, 60)
-	Row("Olympus East", cast.f1, 60)
-	Row("Olympus West", cast.f2, 60)
+	Below("ChillZone East", { cast.f1 }, 60)
+	Below("ChillZone West", { cast.f2 }, 60)
+	Row("ChillZone East", cast.f1, 60)
+	Row("ChillZone West", cast.f2, 60)
 	eq(net.Vouched(c), false, "two guilds")
 	-- A guild off the network (Data.NetOff, the harness's census here): its rows say nothing while it is.
 	local D = viewer.ns.Data
 	local netOff = D.NetOff
 	c = Claim(20)
-	Below("Olympus Off", { cast.f1, cast.f2 }, 20)
-	D.NetOff = function(g) return g == "Olympus Off" or netOff(g) end
-	Row("Olympus Off", cast.f1, 20)
+	Below("ChillZone Off", { cast.f1, cast.f2 }, 20)
+	D.NetOff = function(g) return g == "ChillZone Off" or netOff(g) end
+	Row("ChillZone Off", cast.f1, 20)
 	eq(net.Vouched(c), false)
-	Row("Olympus Off", cast.f2, 20)
+	Row("ChillZone Off", cast.f2, 20)
 	eq(net.Vouched(c), false, "off the network")
 	D.NetOff = netOff
 	eq(net.Vouched(c), false, "back: one sender in its row now")
-	Row("Olympus Off", cast.f1, 20)
+	Row("ChillZone Off", cast.f1, 20)
 	eq(net.Vouched(c), true, "and the other one's next report")
 	-- Her name however a report spells it (no realm, another case), and a row changed where it stands.
 	-- (Here her crossing is the server's word: her unit in view at 39, then at 40, so a sender's row
@@ -318,25 +318,25 @@ test("1.2.1 the level race: a claim's vouch is what it was with the census looke
 	viewer.target, who.level = who.name, 39
 	eq(net.Vouched(c), false)
 	who.level = 40
-	Row("Olympus Case", cast.f1, 40, short:upper())
+	Row("ChillZone Case", cast.f1, 40, short:upper())
 	eq(net.Vouched(c), false)
-	eq(Senders(c, "olympus case"), "dovan quell", "her short name in capitals")
-	local r = Row("Olympus Case", cast.f2, 39, c.name)
+	eq(Senders(c, "chillzone case"), "dovan quell", "her short name in capitals")
+	local r = Row("ChillZone Case", cast.f2, 39, c.name)
 	eq(net.Vouched(c), false, "39")
 	r.top[2].level = 40
 	eq(net.Vouched(c), true, "the row as it stands")
 	viewer.target = nil
 	-- Forever's split names: "First-Surname" is hers only where this client splits names.
 	c = Claim(60)
-	Below("Olympus Split", { cast.f1, cast.f2 }, 60)
+	Below("ChillZone Split", { cast.f1, cast.f2 }, 60)
 	local split = short:gsub(" ", "-")
-	Row("Olympus Split", cast.f1, 60, split)
-	Row("Olympus Split", cast.f2, 60, split)
+	Row("ChillZone Split", cast.f1, 60, split)
+	Row("ChillZone Split", cast.f2, 60, split)
 	eq(net.Vouched(c), false, "not split: " .. short:match("^%S+"))
 	eq(next(c.by), nil)
 	viewer.ns.splitNames = true
 	eq(net.Vouched(c), false, "split: " .. short .. ", one sender in the row")
-	Row("Olympus Split", cast.f1, 60, split)
+	Row("ChillZone Split", cast.f1, 60, split)
 	eq(net.Vouched(c), true, "and the other one")
 	viewer.ns.splitNames = nil
 	W3.NoErrors(w)
@@ -353,7 +353,7 @@ test("1.2.1 the level race: a burst of census changes (50 in a second) looks at 
 	-- (1.4.0, the review's High 7) The first two of the burst's senders listed her at 19 before: they
 	-- saw her cross 20; the other 48 never did.
 	for i = 1, 2 do
-		W3.Report(viewer, "Olympus Vale", { short = ("Hollis%d Quell"):format(i), name = ("Hollis%d Quell-%s"):format(i, viewer.realm) },
+		W3.Report(viewer, "ChillZone Vale", { short = ("Hollis%d Quell"):format(i), name = ("Hollis%d Quell-%s"):format(i, viewer.realm) },
 			{ { name = young.name, level = 19, class = "MA" } })
 		w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
 	end
@@ -370,7 +370,7 @@ test("1.2.1 the level race: a burst of census changes (50 in a second) looks at 
 	-- 50 reports of her guild within a second, each from another of its senders.
 	runs = 0
 	for i = 1, 50 do
-		W3.Report(viewer, "Olympus Vale", { short = ("Hollis%d Quell"):format(i), name = ("Hollis%d Quell-%s"):format(i, viewer.realm) },
+		W3.Report(viewer, "ChillZone Vale", { short = ("Hollis%d Quell"):format(i), name = ("Hollis%d Quell-%s"):format(i, viewer.realm) },
 			{ { name = young.name, level = 20, class = "MA" } })
 		w:As(viewer, function() viewer.ns.Fire("DATA_CHANGED") end)
 		w:Run(0.02)
@@ -378,7 +378,7 @@ test("1.2.1 the level race: a burst of census changes (50 in a second) looks at 
 	eq(runs, 0, "none inside the census's handler")
 	eq(claim.vouched, true, "her guild's senders seen as they came")
 	local kept = {}
-	for k in pairs(claim.by["olympus vale"]) do kept[#kept + 1] = k end
+	for k in pairs(claim.by["chillzone vale"]) do kept[#kept + 1] = k end
 	table.sort(kept)
 	eq(table.concat(kept, ","), "hollis1 quell,hollis2 quell", "the first two (each replaced within the second): vouched, the rest not looked for (1.4.0: nor seen her cross)")
 	w:Run(net.RACE_SOON)
@@ -421,7 +421,7 @@ end)
 local function OwnCensus(w, c)
 	return w:As(c, function()
 		rawset(c.ns, "Who", { Listen = function() end })
-		assert(loadfile(H.ADDON_DIR .. "Data.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Data.lua"))("ChillZone", c.ns)
 		return rawget(c.ns, "Data")
 	end)
 end
@@ -444,7 +444,7 @@ test("1.2.1 the level race: two senders of her guild heard through the census wi
 	-- (1.4.0, the review's High 7) Her guild's senders listed her at 19 before her level-up (each its
 	-- own report, the census's own DATA_CHANGED for each): they saw her cross 20.
 	for _, sender in ipairs({ f1, f2 }) do
-		eq(Heard(w, viewer, "Olympus Vale", sender, { { name = young.short, level = 19, class = "MA" } }), true)
+		eq(Heard(w, viewer, "ChillZone Vale", sender, { { name = young.short, level = 19, class = "MA" } }), true)
 		w:Run(D.NOTIFY_GAP)
 	end
 	w:Fire(young, "PLAYER_LEVEL_UP", 20)
@@ -455,23 +455,23 @@ test("1.2.1 the level race: two senders of her guild heard through the census wi
 	assert(claim and not claim.vouched, "her claim, waiting")
 	local function Senders()
 		local out = {}
-		for k in pairs(claim.by and claim.by["olympus vale"] or {}) do out[#out + 1] = k end
+		for k in pairs(claim.by and claim.by["chillzone vale"] or {}) do out[#out + 1] = k end
 		table.sort(out)
 		return table.concat(out, ",")
 	end
 	-- Her own report, one listing her a level below, and one the census refuses (the other faction's).
-	eq(Heard(w, viewer, "Olympus Solo", young.name, { { name = young.short, level = 20, class = "MA" } }), true)
-	eq(Heard(w, viewer, "Olympus Vale", f3, { { name = young.short, level = 19, class = "MA" } }), true)
-	eq(Heard(w, viewer, "Olympus Vale", "Hal Brenn-" .. realm, { { name = young.short, level = 20, class = "MA" } }, "Horde"), false)
+	eq(Heard(w, viewer, "ChillZone Solo", young.name, { { name = young.short, level = 20, class = "MA" } }), true)
+	eq(Heard(w, viewer, "ChillZone Vale", f3, { { name = young.short, level = 19, class = "MA" } }), true)
+	eq(Heard(w, viewer, "ChillZone Vale", "Hal Brenn-" .. realm, { { name = young.short, level = 20, class = "MA" } }, "Horde"), false)
 	w:Run(D.NOTIFY_GAP)
 	eq(Senders(), "", "nothing kept")
 	eq(claim.vouched, false)
 	-- Two senders of her guild, 0.3 s apart: the second report takes the first one's place in the census
 	-- before the burst's DATA_CHANGED.
-	eq(Heard(w, viewer, "Olympus Vale", f1, { { name = "Corin Ash", level = 60, class = "WA" }, { name = young.short, level = 20, class = "MA" } }), true)
+	eq(Heard(w, viewer, "ChillZone Vale", f1, { { name = "Corin Ash", level = 60, class = "WA" }, { name = young.short, level = 20, class = "MA" } }), true)
 	w:Run(0.3)
-	eq(Heard(w, viewer, "Olympus Vale", f2, { { name = young.short, level = 21, class = "MA" } }), true)
-	eq(viewer.rdb.guilds["Olympus Vale"].reporterFull, f2, "the first sender's row replaced")
+	eq(Heard(w, viewer, "ChillZone Vale", f2, { { name = young.short, level = 21, class = "MA" } }), true)
+	eq(viewer.rdb.guilds["ChillZone Vale"].reporterFull, f2, "the first sender's row replaced")
 	w:Run(D.NOTIFY_GAP)
 	eq(Senders(), "dovan quell,elsa thornby", "both senders kept")
 	eq(claim.vouched, true, "vouched")
@@ -555,7 +555,7 @@ test("1.2 the fights part: a far viewer sees a belt holder's picked frame once v
 	W3.NoErrors(w)
 end)
 
-test("1.2 the fights part: a newly earned honour switches on by itself and the King's letter comes (Olympus's own frame, queued, 'Wear it'); a locked pick stays as set; the letters stay to read again", function()
+test("1.2 the fights part: a newly earned honour switches on by itself and the King's letter comes (ChillZone's own frame, queued, 'Wear it'); a locked pick stays as set; the letters stay to read again", function()
 	local w, cast = W3.New()
 	local A = Kept(w, cast.A)
 	Kept(w, cast.B)
@@ -667,8 +667,8 @@ local function Frames(w, c)
 	w:As(c, function()
 		rawset(c.ns, "Borders", nil)
 		rawset(c.ns, "Nameplates", nil)
-		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("Olympus", c.ns)
-		assert(loadfile(H.ADDON_DIR .. "Nameplates.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("ChillZone", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Nameplates.lua"))("ChillZone", c.ns)
 	end)
 	rec.B, rec.NP = W3.M(w, c, "Borders"), W3.M(w, c, "Nameplates")
 	rec.plate = plate
@@ -705,11 +705,11 @@ test("1.2 the fights part: Borders and Nameplates show the verified honour's fra
 	cast.A.rank, cast.A.rankName = 0, "Guild Master" -- (his rank's frame: Max's bronze wings, a guild master's since 1.1.5)
 	viewer.target = cast.A.name
 	r.B.Refresh("target", true)
-	eq(r.Shown("target"), "Interface\\AddOns\\Olympus\\media\\honors\\gryphon-gold", "the gryphon")
+	eq(r.Shown("target"), "Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-gold", "the gryphon")
 	-- (1.2.4, the author's call: no plain dragon under an honour, the portrait's own ring alone.)
 	eq(r.Underlay("target").shown, false, "no metal underlay under an honour")
 	r.NP.Added("nameplate1")
-	eq(r.Shown("plate"), "Interface\\AddOns\\Olympus\\media\\honors\\gryphon-gold-mark", "its mark")
+	eq(r.Shown("plate"), "Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-gold-mark", "its mark")
 	-- B, no belt, and a forged pick of it: his rank's (1.1.5: the bronze wings of a guild master).
 	cast.B.rank, cast.B.rankName = 0, "Guild Master"
 	w:As(viewer, function()
@@ -718,17 +718,17 @@ test("1.2 the fights part: Borders and Nameplates show the verified honour's fra
 	end)
 	viewer.target = cast.B.name
 	r.B.Refresh("target", true)
-	eq(r.Shown("target"), "Interface\\AddOns\\Olympus\\media\\borders\\bronze-winged", "his rank's frame")
+	eq(r.Shown("target"), "Interface\\AddOns\\ChillZone\\media\\borders\\bronze-winged", "his rank's frame")
 	r.NP.RefreshAll(true)
 	eq(r.Shown("plate"), "nameplates-icon-elite-gold", "his rank's mark (the bronze: the gold without colour)")
 	-- The file missing: the rank's frame instead.
 	viewer.target = cast.A.name
-	r.noFile["Interface\\AddOns\\Olympus\\media\\honors\\gryphon-gold"] = true
+	r.noFile["Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-gold"] = true
 	r.B.Refresh("target", true)
-	eq(r.Shown("target"), "Interface\\AddOns\\Olympus\\media\\borders\\bronze-winged", "missing art: the rank's")
+	eq(r.Shown("target"), "Interface\\AddOns\\ChillZone\\media\\borders\\bronze-winged", "missing art: the rank's")
 	r.noFile = {}
 	r.B.Refresh("target", true)
-	eq(r.Shown("target"), "Interface\\AddOns\\Olympus\\media\\honors\\gryphon-gold")
+	eq(r.Shown("target"), "Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-gold")
 	-- Net-off: nothing (no border, no mark).
 	local M = viewer.ns.Moderation
 	local hides = M.Hides
@@ -754,7 +754,7 @@ test("1.2 the fights part: an honour's nameplate mark the client can't load fall
 	local r = Frames(w, viewer)
 	cast.A.rank, cast.A.rankName = 0, "Guild Master" -- (his rank's mark: the bronze, a guild master's since 1.1.5)
 	viewer.target = cast.A.name
-	local file = "Interface\\AddOns\\Olympus\\media\\honors\\gryphon-gold-mark"
+	local file = "Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-gold-mark"
 	r.noFile[file] = true
 	r.NP.Added("nameplate1")
 	eq(r.Shown("plate"), "nameplates-icon-elite-gold", "his rank's mark, not none")
@@ -771,11 +771,11 @@ test("1.2 the fights part: an honour's nameplate mark the client can't load fall
 	-- The same honour over a plain member's rank: the star, his own rank's mark.
 	cast.A.rank, cast.A.rankName = 3, "Member"
 	r.NP.RefreshAll(true)
-	eq(r.Shown("plate"), "Interface\\AddOns\\Olympus\\media\\borders\\star", "the star")
+	eq(r.Shown("plate"), "Interface\\AddOns\\ChillZone\\media\\borders\\star", "the star")
 	W3.NoErrors(w)
 end)
 
-test("1.2 the fights part review: a nameplate whose honour's mark can't load, next showing a player outside Olympus with that honour (no rank's mark to fall back to), never keeps the last player's rank mark", function()
+test("1.2 the fights part review: a nameplate whose honour's mark can't load, next showing a player outside ChillZone with that honour (no rank's mark to fall back to), never keeps the last player's rank mark", function()
 	local w, cast = W3.New()
 	local viewer = cast.spectator
 	Belt(w, cast, cast.A, cast.B, { viewer, cast.A })
@@ -784,10 +784,10 @@ test("1.2 the fights part review: a nameplate whose honour's mark can't load, ne
 	local r = Frames(w, viewer)
 	cast.A.rank, cast.A.rankName = 0, "Guild Master" -- (1.1.5: a guild master's bronze)
 	viewer.target = cast.A.name
-	r.noFile["Interface\\AddOns\\Olympus\\media\\honors\\gryphon-gold-mark"] = true
+	r.noFile["Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-gold-mark"] = true
 	r.NP.Added("nameplate1")
 	eq(r.Shown("plate"), "nameplates-icon-elite-gold", "a member's: his rank's mark")
-	-- The plate's player now outside Olympus, his honour still verified: no rank's mark.
+	-- The plate's player now outside ChillZone, his honour still verified: no rank's mark.
 	cast.A.guild = "Ironforge Traders"
 	eq(w:As(viewer, viewer.ns.Borders.MarkOf, "nameplate1"), nil, "no rank's mark")
 	r.NP.RefreshAll(true)
@@ -832,7 +832,7 @@ test("1.2 the fights part: 80 honour picks make one texture per normalized famil
 		slots[shape == "plain" and family or shape] = true
 		current = { frame = key, mark = art, art = art, shape = shape }
 		r.B.Refresh("target", true)
-		eq(r.Shown("target"), "Interface\\AddOns\\Olympus\\media\\honors\\" .. art, key)
+		eq(r.Shown("target"), "Interface\\AddOns\\ChillZone\\media\\honors\\" .. art, key)
 	end
 	local slotCount = 0
 	for _ in pairs(slots) do slotCount = slotCount + 1 end
@@ -865,13 +865,13 @@ test("1.2 the fights part: the author's preview (Borders.SetPreview) takes an ho
 	eq(r.B.SetPreview("arena-class-mage-2"), true)
 	eq(r.B.Preview(), "arena-class-mage-2")
 	r.B.Refresh("player", true)
-	eq(r.Shown("player"), "Interface\\AddOns\\Olympus\\media\\honors\\mage-silver")
+	eq(r.Shown("player"), "Interface\\AddOns\\ChillZone\\media\\honors\\mage-silver")
 	local t
 	for _, x in ipairs(r.textures) do if x.owner == "player" and x.shown then t = x end end
 	eq(t.coord, "0.78125 0 0 0.78125", "turned round on his own frame")
 	eq(t.size, "95x95", "the mage family's normalized box")
 	r.NP.RefreshAll(true)
-	eq(r.Shown("plate"), "Interface\\AddOns\\Olympus\\media\\honors\\mage-silver-mark")
+	eq(r.Shown("plate"), "Interface\\AddOns\\ChillZone\\media\\honors\\mage-silver-mark")
 	local lines = {}
 	r.B.PreviewLines(lines)
 	local listed = {}
@@ -881,22 +881,22 @@ test("1.2 the fights part: the author's preview (Borders.SetPreview) takes an ho
 		assert(text:find(key, 1, true), "a Workshop line for " .. key)
 	end
 	eq(r.B.SetPreview("off"), true)
-	-- Anyone else: no preview (what /oly borders says).
+	-- Anyone else: no preview (what /cz borders says).
 	local rr = Frames(w, other)
 	eq(rr.B.SetPreview("arena-champion"), false)
 	W3.NoErrors(w)
 end)
 
--- 1.2.1 (the author's ask): the new frames, a preview only. /oly borders test <key> shows each round
+-- 1.2.1 (the author's ask): the new frames, a preview only. /cz borders test <key> shows each round
 -- his own portrait as a holder sees his own, on its plain metal (the red cross on the black), and
 -- its mark on the plates; nobody else can preview them, and nobody's real border changes.
-test("1.2.1 the new frames: /oly borders test apostle-1/2/3, bones-1/2/3, arena-race-skyborn(-2/-3) and apostle-red show the cross, the charm, the owlcat and the red cross round the author's own portrait, and their marks", function()
+test("1.2.1 the new frames: /cz borders test apostle-1/2/3, bones-1/2/3, arena-race-skyborn(-2/-3) and apostle-red show the cross, the charm, the owlcat and the red cross round the author's own portrait, and their marks", function()
 	local w = World.New()
 	local author = w:Client(N.author)
 	local other = w:Client(N.fighterA)
 	local r = Frames(w, author)
 	author.target = other.name
-	local MEDIA = "Interface\\AddOns\\Olympus\\media\\honors\\"
+	local MEDIA = "Interface\\AddOns\\ChillZone\\media\\honors\\"
 	local want = {
 		{ "apostle-1", "cross-gold", "1 1 1 1" }, { "apostle-2", "cross-silver", "1 1 1 1" }, { "apostle-3", "cross-bronze" },
 		{ "bones-1", "charm-gold" }, { "bones-2", "charm-silver" }, { "bones-3", "charm-bronze" },
@@ -936,7 +936,7 @@ test("1.2.1 the new frames: /oly borders test apostle-1/2/3, bones-1/2/3, arena-
 	W3.NoErrors(w)
 end)
 
--- 1.2 (the owner's ask, test build 33): every Olympus portrait identical to the player's own on his
+-- 1.2 (the owner's ask, test build 33): every ChillZone portrait identical to the player's own on his
 -- unit frame. The core's windows that show his portrait with a frame (the King's letter, the
 -- profile's Edit) drew their own: a square picture and the frame centred on it at a size of their
 -- own. They are Borders.NewPortrait's now (HonorsNet.NewPortrait), as the Arena's portraits.
@@ -960,7 +960,7 @@ local function Placed(c)
 	c.globals.SetPortraitTexture = function(tex, unit, square) pictures[#pictures + 1] = { tex = tex, unit = unit, square = square } end
 	return points, pictures
 end
-local GRYPHON = "Interface\\AddOns\\Olympus\\media\\honors\\gryphon-gold"
+local GRYPHON = "Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-gold"
 
 test("1.2 the King's letter: his portrait drawn as his own on his unit frame (Borders.NewPortrait, his frame's 60 across, turned round): the honour won the very art round his own portrait, his picture square; the words clear of the art", function()
 	local w, cast = W3.New()
@@ -996,10 +996,10 @@ test("1.2 the King's letter: his portrait drawn as his own on his unit frame (Bo
 	W3.NoErrors(w)
 end)
 
--- 1.2.4: the panel's preview is "My profile"'s detail box now (the Olympus window's, UI.lua: made
+-- 1.2.4: the panel's preview is "My profile"'s detail box now (the ChillZone window's, UI.lua: made
 -- with HonorsNet.NewPortrait, dressed by ProfileEdit.DressPortrait with the art the page gives).
 -- The same assertions on that portrait; its place inside the detail box is UI.lua's, tested in
--- tests/run.lua (the Olympus window's own harness).
+-- tests/run.lua (the ChillZone window's own harness).
 test("1.2 the profile's Edit: its preview is his portrait drawn as his own on his unit frame (Borders.NewPortrait): the honour picked, his rank's border for the rank's frame, nothing for none, each as round his own portrait (1.2.4: My profile's detail box, from the page's art)", function()
 	local w, cast = W3.New()
 	local A = cast.A
@@ -1031,7 +1031,7 @@ test("1.2 the profile's Edit: its preview is his portrait drawn as his own on hi
 	eq(rig.shown, "arena-champion"); eq(Preview(), GRYPHON); eq(Own(), GRYPHON)
 	eq(w:As(A, A.ns.ProfileEdit.PickFrame, "rank"), true)
 	eq(Draw(), "rank")
-	eq(rig.shown, "bronze-elite", "his rank's border"); eq(Preview(), "Interface\\AddOns\\Olympus\\media\\borders\\bronze-winged"); eq(Own(), Preview())
+	eq(rig.shown, "bronze-elite", "his rank's border"); eq(Preview(), "Interface\\AddOns\\ChillZone\\media\\borders\\bronze-winged"); eq(Own(), Preview())
 	eq(w:As(A, A.ns.ProfileEdit.PickFrame, "none"), true)
 	eq(Draw(), nil)
 	eq(rig.shown, nil); eq(Preview(), nil); eq(Own(), nil)
@@ -1054,9 +1054,9 @@ end)
 
 print("The honours' art and words")
 
-test("1.2 the fights part: every art file the honours name ships in Olympus/media/honors: a 256 x 256 frame and a 32 x 32 mark, 32-bit uncompressed TGA with its footer (scripts/make-honors.py); nothing else there", function()
+test("1.2 the fights part: every art file the honours name ships in ChillZone/media/honors: a 256 x 256 frame and a 32 x 32 mark, 32-bit uncompressed TGA with its footer (scripts/make-honors.py); nothing else there", function()
 	local ns = { Honors = nil }
-	assert(loadfile(H.ADDON_DIR .. "Honors.lua"))("Olympus", ns)
+	assert(loadfile(H.ADDON_DIR .. "Honors.lua"))("ChillZone", ns)
 	ns.Honors.FRAMES_SHIPPED = nil -- (every family's frame: the machinery's tests; 1.2.0 wears the donors' alone)
 	local dir = H.ADDON_DIR .. "media/honors/"
 	local function Check(path, size)
@@ -1097,7 +1097,7 @@ test("1.2 the fights part: the words of fights and honours exist in English and 
 		local L = setmetatable({}, { __index = function(_, k) return k end })
 		local saved = GetLocale
 		GetLocale = function() return locale end
-		local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaFightsText.lua"))("Olympus", { L = L }) end)
+		local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaFightsText.lua"))("ChillZone", { L = L }) end)
 		GetLocale = saved
 		assert(ok, err)
 		return L
@@ -1123,11 +1123,11 @@ test("1.2 the fights part: the words of fights and honours exist in English and 
 	local base = {}
 	local saved = GetLocale
 	GetLocale = function() return "enUS" end
-	local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales.lua"))("Olympus", base) end)
+	local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales.lua"))("ChillZone", base) end)
 	-- (1.2.4: the history's Consent line, which ArenaProfile.lua names by its keys, is defined in
 	-- ArenaHomeText.lua alone, the file that loads after this one and so always won: defined there
 	-- counts. tests/arena/profile-edit.lua checks its words as the TOC loads them.)
-	if ok then ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaHomeText.lua"))("Olympus", base) end) end
+	if ok then ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaHomeText.lua"))("ChillZone", base) end) end
 	GetLocale = saved
 	assert(ok, err)
 	for k in pairs(used) do assert(rawget(E, k) ~= nil or rawget(base.L, k) ~= nil, "not defined: " .. k) end

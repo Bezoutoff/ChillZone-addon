@@ -4,7 +4,7 @@
 -- Portuguese. Loaded by tests/run.lua.
 local ns, test, eq, extra = ...
 local ROOT = assert(extra and extra.ROOT, "tests/run.lua hands ROOT to this file")
-local ADDON = ROOT .. "Olympus/"
+local ADDON = ROOT .. "ChillZone/"
 
 local LANGS = { deDE = "deDE", esES = "esES", esMX = "esES", frFR = "frFR", itIT = "itIT", ruRU = "ruRU" }
 -- Lines whispered to another player stay English, the network's own language: the one who reads
@@ -22,9 +22,9 @@ local function Load(code)
 	local saved = GetLocale
 	GetLocale = function() return code end
 	local ok, err = pcall(function()
-		for line in io.lines(ADDON .. "Olympus.toc") do
+		for line in io.lines(ADDON .. "ChillZone.toc") do
 			local f = line:match("^%s*(Locales%.lua)%s*$") or line:match("^%s*(Locales[\\/].-%.lua)%s*$")
-			if f then assert(loadfile(ADDON .. f:gsub("\\", "/")))("Olympus", lns) end
+			if f then assert(loadfile(ADDON .. f:gsub("\\", "/")))("ChillZone", lns) end
 		end
 	end)
 	GetLocale = saved
@@ -73,10 +73,10 @@ test("languages (1.4.0): an English or Portuguese game builds no other language'
 		local saved = GetLocale
 		GetLocale = function() return code end
 		local ok, err = pcall(function()
-			assert(loadfile(ADDON .. "Locales.lua"))("Olympus", lns)
+			assert(loadfile(ADDON .. "Locales.lua"))("ChillZone", lns)
 			lns.Locale = function() calls = calls + 1 return 0 end
 			for _, file in ipairs({ "deDE", "esES", "frFR", "itIT", "ruRU" }) do
-				assert(loadfile(ADDON .. "Locales/" .. file .. ".lua"))("Olympus", lns)
+				assert(loadfile(ADDON .. "Locales/" .. file .. ".lua"))("ChillZone", lns)
 			end
 		end)
 		GetLocale = saved
@@ -115,14 +115,14 @@ test("languages (1.4.0): the lists (places, weekdays, months, class and race nam
 	end
 end)
 
--- 1.4.0 (the Board's groups and IsOlympusMember join the API): what another addon's Yes gives grew
+-- 1.4.0 (the Board's groups and IsChillZoneMember join the API): what another addon's Yes gives grew
 -- (API.CONSENT_VERSION 10), and the two privacy lines say so. (Changed on purpose: they were held in
 -- English until translated from contract 10's words; translated now, each language names the groups
 -- and the unit check in its own words, never the earlier English's.)
 local CONTRACT_10 = { "API_CONSENT_TEXT", "API_CONSENT_TEXT_BASIC" }
 test("languages (1.4.0): the API's privacy lines, translated from contract 10's words, in every language", function()
 	assert(english.L.API_CONSENT_TEXT:find("Board's group listings", 1, true), "the English line names the groups")
-	assert(english.L.API_CONSENT_TEXT:find("is in an Olympus guild", 1, true), "and the unit check")
+	assert(english.L.API_CONSENT_TEXT:find("is in an ChillZone guild", 1, true), "and the unit check")
 	for code, file in pairs(LANGS) do
 		local L = Load(code).L
 		for _, k in ipairs(CONTRACT_10) do

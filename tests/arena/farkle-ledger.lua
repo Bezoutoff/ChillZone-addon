@@ -37,7 +37,7 @@ local ONE_FIVE = { 1, 5, 2, 3, 4, 6 } -- a 1 and a 5 (150), positions 1 and 2
 local function Files116()
 	local gone = {}
 	for line in io.lines(H.ROOT .. "scripts/bets-only.txt") do
-		local file = line:gsub("\r$", ""):match("^Olympus/([%w_]+)%.lua$")
+		local file = line:gsub("\r$", ""):match("^ChillZone/([%w_]+)%.lua$")
 		if file then gone[file] = true end
 	end
 	local out = {}

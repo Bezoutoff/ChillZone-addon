@@ -13,7 +13,7 @@ local function Fresh()
 		IsKingCharacter = function(name) return name == "Crowned-Realm" end,
 		IsHighCouncillor = function(name) return name == "Sage-Realm" end,
 	}, { __index = ns })
-	assert(loadfile(H.ADDON_DIR .. "Codec.lua"))("Olympus", cns)
+	assert(loadfile(H.ADDON_DIR .. "Codec.lua"))("ChillZone", cns)
 	return cns.Codec, kin
 end
 

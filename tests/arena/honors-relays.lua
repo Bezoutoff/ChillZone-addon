@@ -12,7 +12,7 @@ local World = H.World
 local W3 = assert(loadfile(H.ROOT .. "tests/arena/lib/fights-world.lua"))(H)
 local N = World.NAMES
 
-local MEDIA = "Interface\\AddOns\\Olympus\\media\\honors\\"
+local MEDIA = "Interface\\AddOns\\ChillZone\\media\\honors\\"
 local DAY = 86400
 
 local function HN(w, c) return W3.M(w, c, "HonorsNet") end
@@ -55,7 +55,7 @@ local function Frames(w, c)
 	g.UnitIsUnit = function(a, b) return a == b end
 	w:As(c, function()
 		rawset(c.ns, "Borders", nil)
-		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("ChillZone", c.ns)
 	end)
 	rec.B = W3.M(w, c, "Borders")
 	function rec.Shown(owner)
@@ -88,8 +88,8 @@ local function ChurchOn(w, clients, apostles)
 			Send = function(dist, text) sent[#sent + 1] = { dist = dist, text = text } return true end },
 			On = function() end, ChatRooms = false, CouncilTitles = function() return titles end }, { __index = c.ns })
 		w:As(c, function()
-			assert(loadfile(H.ADDON_DIR .. "Church.lua"))("Olympus", cns)
-			assert(loadfile(H.ADDON_DIR .. "ChurchCount.lua"))("Olympus", cns)
+			assert(loadfile(H.ADDON_DIR .. "Church.lua"))("ChillZone", cns)
+			assert(loadfile(H.ADDON_DIR .. "ChurchCount.lua"))("ChillZone", cns)
 		end)
 		rawset(c.ns, "Church", cns.Church)
 		rawset(c.ns, "ChurchCount", cns.ChurchCount)

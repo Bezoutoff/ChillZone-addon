@@ -5,7 +5,7 @@
 -- Councils 3 and 4 (1.0.0) are council 1 with the King's Steward marked ("steward"), then with
 -- him removed ("steward --remove"): the addon's own code makes him the Steward, then no longer.
 -- Councils 5 and 6 (1.1) are the council with an approved guild ("guild"), then without it
--- ("guild --remove"): the addon's own code makes it an Olympus guild, then no longer.
+-- ("guild --remove"): the addon's own code makes it an ChillZone guild, then no longer.
 -- Councils 7 and 8 (1.2) are the council with a signed arena arbiter and auditor ("arbiter --audit"),
 -- then without him ("arbiter --remove"): the addon's own code makes him one, then no longer.
 -- Council 1 and 3-8 carry a separate signed leadership set; council 9 is its empty, higher-epoch
@@ -13,6 +13,8 @@
 -- multipart set, and council 12 is the 128-guild/512-person parser and signing bound.
 --   luajit tests/sign-roundtrip.lua <repo root> <key file> <future> <list.lua> x3 <council.lua> x12
 local root, keyPath, future = arg[1], arg[2], tonumber(arg[3])
+-- ChillZone: the tests' network and people (tests/fixtures/identity.lua), before any addon file.
+assert(loadfile(root .. "/tests/fixtures/identity.lua"))()
 
 -- The addon's files that read the lists, with the few game functions they touch while loading
 -- (no frame is ever shown, nothing is sent: Comm is left out). Our guild: none, until council 5.
@@ -27,7 +29,7 @@ time, date = os.time, os.date
 local ns = {}
 for _, file in ipairs({ "Locales", "Core", "Codec", "Sign", "Authority", "Workshop" }) do
 	if file == "Workshop" then ns.Comm = { Handle = stub } end
-	assert(loadfile(root .. "/Olympus/" .. file .. ".lua"))("Olympus", ns)
+	assert(loadfile(root .. "/ChillZone/" .. file .. ".lua"))("ChillZone", ns)
 end
 local Sign, W = ns.Sign, ns.Workshop
 
@@ -48,7 +50,7 @@ assert(n and mu and k, "the key file has n, mu and k")
 local lists, councils = {}, {}
 for i = 4, #arg do
 	local lns = {}
-	assert(loadfile(arg[i]))("Olympus", lns)
+	assert(loadfile(arg[i]))("ChillZone", lns)
 	if i <= 6 then
 		check(lns.COUNCIL_TITLES == nil, "list " .. (i - 3) .. ": the names alone, as before 0.9.9")
 		lists[#lists + 1] = lns.COUNCIL_SIGNED
@@ -119,7 +121,7 @@ Sign.WithKey(n, mu, k, function()
 	end
 
 	-- Taken by the addon, as a client on Forever's realm group takes them from the channel.
-	-- Membership now requires the account-level Olympus Accord as well as an Olympus guild. Keep
+	-- Membership now requires the account-level ChillZone Accord as well as an ChillZone guild. Keep
 	-- this signer test focused on the signed guild transition with an account that accepted it.
 	ns.realm, ns.group, ns.me, ns.rdb, ns.db = "ClassicBetaPvP", "ClassicBetaPvP+ClassicBetaPvP2", "Tester-ClassicBetaPvP", {},
 		{ log = {}, accord = { v = ns.ACCORD_VERSION, yes = true } }
@@ -129,8 +131,8 @@ Sign.WithKey(n, mu, k, function()
 	check(not ns.Authority.Enforced(), "ordinary HT1 does not silently activate cross-guild authority")
 	check(ns.Authority.LoadLocal(c1.authority), "council 1: its separate signed authority set is taken")
 	check(ns.Authority.Enforced(), "council 1: its explicit signed leadership activates enforcement")
-	check(ns.Authority.Rank("Test Lord-ClassicBetaPvP", "Olympus Zeus") == 0
-		and ns.Authority.Rank("Test Captain-ClassicBetaPvP2", "Olympus Zeus") == 1,
+	check(ns.Authority.Rank("Test Lord-ClassicBetaPvP", "ChillZone Zeus") == 0
+		and ns.Authority.Rank("Test Captain-ClassicBetaPvP2", "ChillZone Zeus") == 1,
 		"council 1: exact-realm Lord and Captain ranks come from the signed extension")
 	local _, _, realm, names = Parts(c1.names)
 	check(realm == "ClassicBetaPvP+ClassicBetaPvP2", "Forever's realm group by default")
@@ -220,14 +222,14 @@ Sign.WithKey(n, mu, k, function()
 	local c5, c6 = councils[5], councils[6]
 	check(c5.titles:find(";^guilds^Alliance^Test Guild", 1, true) ~= nil
 		and not c5.titles:find("^leaders^", 1, true), "the approved guild entry is trimmed and HT1 remains compatible")
-	check(not ns.IsFederation("Test Guild"), "no Olympus guild by its name")
+	check(not ns.IsFederation("Test Guild"), "no ChillZone guild by its name")
 	ourGuild = "Test Guild"
-	check(not ns.IsMember(), "its members: no Olympus members")
+	check(not ns.IsMember(), "its members: no ChillZone members")
 	check(not W.TakeTitles((c5.titles:gsub("Test Guild", "Fake Guild", 1))), "a changed guild is refused")
 	check(W.TakeCouncil(c5.names) and W.TakeTitles(c5.titles, "Relay5-ClassicBetaPvP"), "council 5: taken")
 	check(ns.Authority.LoadLocal(c5.authority), "council 5: its authority set is taken")
-	check(ns.IsFederation("Test Guild") and ns.IsFederation("TEST GUILD"), "an Olympus guild now, whatever the case")
-	check(ns.IsMember(), "and its members Olympus members")
+	check(ns.IsFederation("Test Guild") and ns.IsFederation("TEST GUILD"), "an ChillZone guild now, whatever the case")
+	check(ns.IsMember(), "and its members ChillZone members")
 	ns.faction = "Horde"
 	check(not ns.IsFederation("Test Guild"), "the Alliance's alone")
 	ns.faction = "Alliance"
@@ -238,7 +240,7 @@ Sign.WithKey(n, mu, k, function()
 	check(#loose == 1 and #depts == 2, "the census shows the same departments, no entry for the guilds")
 	check(W.TakeTitles(c6.titles, "Relay6-ClassicBetaPvP"), "council 6: taken")
 	check(ns.Authority.LoadLocal(c6.authority), "council 6: its authority set is taken")
-	check(not ns.IsFederation("Test Guild") and not ns.IsMember(), "removed in a newer list: no longer an Olympus guild")
+	check(not ns.IsFederation("Test Guild") and not ns.IsMember(), "removed in a newer list: no longer an ChillZone guild")
 	ourGuild = nil
 
 	-- The Blood Arena's signed arbiters (1.2): council 7 names "Test Arbiter" an arbiter and an
@@ -266,10 +268,10 @@ Sign.WithKey(n, mu, k, function()
 	local c9, c10 = councils[9], councils[10]
 	check(W.TakeTitles(c9.titles) and ns.Authority.LoadLocal(c9.authority),
 		"council 9: the separate explicit empty leadership tombstone is taken")
-	check(ns.Authority.Enforced() and ns.Authority.Rank("Test Lord-ClassicBetaPvP", "Olympus Zeus") == nil,
+	check(ns.Authority.Enforced() and ns.Authority.Rank("Test Lord-ClassicBetaPvP", "ChillZone Zeus") == nil,
 		"the tombstone keeps enforcement and revokes the old Lord")
 	check(W.TakeTitles(c10.titles), "council 10: a newer legacy HT1 is taken")
-	check(ns.Authority.Enforced() and ns.Authority.Rank("Test Lord-ClassicBetaPvP", "Olympus Zeus") == nil,
+	check(ns.Authority.Enforced() and ns.Authority.Rank("Test Lord-ClassicBetaPvP", "ChillZone Zeus") == nil,
 		"newer absence cannot reopen authority after activation")
 	check(not W.TakeTitles(c8.titles), "an older leadership manifest cannot replay")
 	check(not ns.Authority.LoadLocal(c8.authority), "nor can its separate authority set replay")

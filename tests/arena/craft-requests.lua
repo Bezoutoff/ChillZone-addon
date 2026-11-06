@@ -231,7 +231,7 @@ test("1.2 craft requests: after a claim only private words move a deal; a card c
 	eq(rb.settlement.state, "awaiting_exchange")
 	-- 1.2 review: c1639e1's card had a crafter field anyone named was adopted from. That shape (21
 	-- fields, version 1) is refused, and the new card has no such field at all.
-	local old = ("CQ~1~zzzold1~1~%d~%d~14342~1~c~~Olympus Ember~Mooncloth~~crafter~a~%s~0~0~~0~"):format(w.clock, w.clock + 3600, c.name)
+	local old = ("CQ~1~zzzold1~1~%d~%d~14342~1~c~~ChillZone Ember~Mooncloth~~crafter~a~%s~0~0~~0~"):format(w.clock, w.clock + 3600, c.name)
 	eq(c.Craft.ReceiveSnapshot("CHANNEL", a.name, old), false)
 	eq(K.Rec(w, c, "zzzold1"), nil, "no record, no private room for the named player")
 	-- An "accepted" answer to a claim c never made: refused, nothing adopted.
@@ -515,7 +515,7 @@ test("1.2 craft requests: the guild rail needs the Arena's live gold (live switc
 	w:Run(0)
 	eq(r.terms, nil)
 	-- The custodian refuses an invite while the switches are off.
-	a.Comm.Whisper(t.name, ("CK~1~%s~1~invite~7ps~7ga~go~b2m~1~t~u~%s~%s~%s~Olympus Ember"):format(r.id, "1p9xyz", a.name, b.name), nil, true, true)
+	a.Comm.Whisper(t.name, ("CK~1~%s~1~invite~7ps~7ga~go~b2m~1~t~u~%s~%s~%s~ChillZone Ember"):format(r.id, "1p9xyz", a.name, b.name), nil, true, true)
 	w:Run(0)
 	eq(K.Rec(w, t, r.id) and K.Rec(w, t, r.id).settlement, nil)
 	eq(b.Craft.ConfigureSettlement(r.id, "direct", "trade"), true, "the direct rail needs no switch")
@@ -572,7 +572,7 @@ test("1.2 craft requests (the guild fee): a direct sale's 6% is the seller's deb
 	eq(rb.state, "completed"); eq(rb.settlement.guildFee, 600)
 	eq(rb.settlement.feeState, "due", "owed all the same")
 	eq(rb.settlement.feeDue, rb.completedAt + b.Craft.FEE_DUE)
-	assert(Printed(b, "Olympus craft fee " .. r.id), "he is told how much, by when, to whom and the mail's subject")
+	assert(Printed(b, "ChillZone craft fee " .. r.id), "he is told how much, by when, to whom and the mail's subject")
 	eq(r.settlement.feeState, "crafter")
 	eq(b.Craft.PrivilegeStatus(b.name).tier, "notice")
 	eq(b.Craft.FeesOwed().count, 1)
@@ -657,9 +657,9 @@ test("1.2 craft requests (the guild fee): the fee mail lands in the desk's book 
 	eq(b.Craft.PrivilegeStatus(b.name).tier, "restricted")
 	-- His fill names the desk and the subject; the mail he sends stops the clock.
 	b.Craft.PayFee(r.id)
-	assert(Printed(b, "Olympus craft fee " .. r.id))
+	assert(Printed(b, "ChillZone craft fee " .. r.id))
 	local balance = desk.Treasury.Balance()
-	local i = w:Mail(b, desk, 600, "Olympus craft fee " .. r.id)
+	local i = w:Mail(b, desk, 600, "ChillZone craft fee " .. r.id)
 	eq(rb.settlement.feeState, "mailed")
 	eq(b.Craft.PrivilegeStatus(b.name).tier, "clear", "mailed: the clock stops")
 	w:Take(desk, i)
@@ -715,7 +715,7 @@ test("1.2 craft requests (the guild fee): the Treasurer's characters and the Kin
 	for _, m in ipairs(K.Words(w, "CK", desk, a)) do if m.msg:find("~debt", 1, true) then toA = toA + 1 end end
 	eq(toA, 0)
 	-- Debt words the King never asked for change nothing on his copy.
-	desk.Comm.Whisper(king.name, ("CK~1~zz9~%d~debt~%s~%s~7ps~go~0~1~s~0~1~Olympus Ember"):format(w.clock + 99, c.name, a.name), nil, true, true)
+	desk.Comm.Whisper(king.name, ("CK~1~zz9~%d~debt~%s~%s~7ps~go~0~1~s~0~1~ChillZone Ember"):format(w.clock + 99, c.name, a.name), nil, true, true)
 	w:Run(0)
 	eq(#king.Craft.Debtors().entries, 3)
 	-- A preview of the Treasurer's or the King's view reads nothing, and has no page for it.
@@ -893,7 +893,7 @@ test("1.2 craft requests (the guild fee): the higher of the two figures sets the
 	e = OneEntry(desk)
 	eq(e.grossS, 100); eq(e.grossB, 10000)
 	eq(e.fee, 600, "the buyer's higher figure")
-	local i = w:Mail(b, desk, 6, "Olympus craft fee " .. r.id)
+	local i = w:Mail(b, desk, 6, "ChillZone craft fee " .. r.id)
 	w:Take(desk, i)
 	eq(e.paid, 6); eq(e.state, "due", "6c pays none of the 600 off")
 	local d = desk.Craft.Debtors()
@@ -915,7 +915,7 @@ test("1.2 craft requests (the guild fee): the King's character's fee mail is boo
 	local r, rk = Completed(w, a, king)
 	eq(rk.settlement.feeState, "due")
 	local e = OneEntry(desk)
-	local i = w:Mail(king, desk, 600, "Olympus craft fee " .. r.id)
+	local i = w:Mail(king, desk, 600, "ChillZone craft fee " .. r.id)
 	w:Take(desk, i)
 	eq(e.state, "paid", "booked against his fee")
 	local kinds = {}
@@ -935,7 +935,7 @@ test("1.2 craft requests (the guild fee): a fee mailed is never owed again by th
 	-- (The desk's addon is never heard: nothing can ever say the fee is paid.)
 	local r, rb = Completed(w, a, b)
 	eq(rb.settlement.feeState, "due")
-	local i = w:Mail(b, desk, 600, "Olympus craft fee " .. r.id)
+	local i = w:Mail(b, desk, 600, "ChillZone craft fee " .. r.id)
 	eq(rb.settlement.feeState, "mailed")
 	K.Jump(w, 31 * 86400)
 	w:Run(61)
@@ -1295,14 +1295,14 @@ test("1.2 craft requests: an idle client registers no trade or mail watcher for 
 	DirectDeal(w, a, b, 1)
 	eq(#(b.events.TRADE_SHOW or {}), before + 2, "installed once")
 	-- The buyer mails the crafter gold titled for another request: not this one's.
-	local i = w:Mail(a, b, 7000, "Olympus craft zzz999")
+	local i = w:Mail(a, b, 7000, "ChillZone craft zzz999")
 	w:Take(b, i)
 	eq(K.Rec(w, b, r.id).settlement.direct.copper, nil)
-	i = w:Mail(a, b, 7000, "Olympus craft " .. r.id)
+	i = w:Mail(a, b, 7000, "ChillZone craft " .. r.id)
 	w:Take(b, i)
 	eq(K.Rec(w, b, r.id).settlement.direct.copper, 7000)
 	-- An attachment counts once the mail no longer holds it and the bags hold it.
-	local m = K.MailItems(w, b, a, { { id = ITEM, count = 1 } }, "Olympus craft " .. r.id)
+	local m = K.MailItems(w, b, a, { { id = ITEM, count = 1 } }, "ChillZone craft " .. r.id)
 	K.TakeItem(w, a, m, 1)
 	eq(r.settlement.direct.itemQuantity, 1)
 	NoErrors(w)
@@ -1344,11 +1344,11 @@ local function Tabbed(c, room)
 end
 
 -- (The owner's decision, 2026-10-04: every pending conversation opens its own tab on the Chat page,
--- the Olympus window in front, kept while the matter is open, reopened from the matter's page.
+-- the ChillZone window in front, kept while the matter is open, reopened from the matter's page.
 -- Before it a claim opened nothing, and a tab removed from a finished deal never came back.)
--- (1.2.3: on the requester's side, only into the Olympus window he has open; both windows are open
+-- (1.2.3: on the requester's side, only into the ChillZone window he has open; both windows are open
 -- here, ChatHost's default. The test below closes the requester's.)
-test("1.2 craft requests: the claim won opens the deal's own tab on both parties' clients with the Olympus window in front; its page reopens it, a removed tab too; a fight holds it until the end", function()
+test("1.2 craft requests: the claim won opens the deal's own tab on both parties' clients with the ChillZone window in front; its page reopens it, a removed tab too; a fight holds it until the end", function()
 	local w = World.New()
 	local a, b = Cast(w)
 	local ha, hb = ChatHost(a), ChatHost(b)
@@ -1368,7 +1368,7 @@ test("1.2 craft requests: the claim won opens the deal's own tab on both parties
 	assert(a.Craft.OpenChat(r.id), "reopened from its page")
 	eq(Tabbed(a, room), true, "the removed tab is back")
 	eq(table.concat(ha.calls, ","), "open,select " .. room .. ",raise")
-	-- In a fight Olympus opens nothing by itself: the deal's tab comes when the fight ends, while the
+	-- In a fight ChillZone opens nothing by itself: the deal's tab comes when the fight ends, while the
 	-- deal is still open. One that ended meanwhile opens nothing.
 	w:Run(61)
 	ha.calls, hb.calls = {}, {}
@@ -1390,16 +1390,16 @@ test("1.2 craft requests: the claim won opens the deal's own tab on both parties
 	NoErrors(w)
 end)
 
--- (1.2.3, the King's stream: "the Olympus window opened by itself", a minute or two after his login.
+-- (1.2.3, the King's stream: "the ChillZone window opened by itself", a minute or two after his login.
 -- A request of his from the last three days, published again after the login, claimed by another
 -- member: his client showed the closed window on the deal's room, with no click or key of his.)
-test("1.2.3 craft requests: another member's claim never opens the requester's closed Olympus window, after an instance or a fight too: his line and the deal's tab tell him, its page opens it; the crafter who claimed still gets the room", function()
+test("1.2.3 craft requests: another member's claim never opens the requester's closed ChillZone window, after an instance or a fight too: his line and the deal's tab tell him, its page opens it; the crafter who claimed still gets the room", function()
 	local w = World.New()
 	local a, b = Cast(w)
 	local ha, hb = ChatHost(a), ChatHost(b)
 	local L = a.ns.L
 	local r = K.Request(w, a, ITEM, "Mooncloth", 1)
-	ha.shown = false -- (the requester closed the Olympus window)
+	ha.shown = false -- (the requester closed the ChillZone window)
 	assert(b.Craft.Accept(r.id)); w:Run(0)
 	eq(K.Rec(w, a, r.id).state, "accepted", "the claim is his crafter's")
 	eq(#ha.calls, 0, "the requester's window stays closed")
@@ -1437,8 +1437,8 @@ test("1.2.3 craft requests: another member's claim never opens the requester's c
 	NoErrors(w)
 end)
 
--- (Review of the door: Olympus's own opening of a deal's room skipped the held-alerts rule (in an
--- instance or Busy no window of Olympus's opens by itself, ns.Alert), and it kept one matter alone
+-- (Review of the door: ChillZone's own opening of a deal's room skipped the held-alerts rule (in an
+-- instance or Busy no window of ChillZone's opens by itself, ns.Alert), and it kept one matter alone
 -- for a fight's end, its own copy of ns.OutOfCombat in which the newest overwrote the others.)
 test("1.2 craft requests: a won claim's room waits as every window that opens by itself: in an instance with the held alerts, named on the Decrees tab, opened once he is out while the deal is open; two deals won in one fight both open at its end", function()
 	local w = World.New()
@@ -1743,7 +1743,7 @@ test("1.2 craft requests (mediated): the buyer's gold beyond the deal is his: th
 	K.Trade(w, a, t, { aGives = 2500 })
 	local st = rt.settlement
 	eq(st.state, "funds_reserved"); eq(st.extraCopper, 2500)
-	assert(Printed(t, "Olympus craft " .. r.id), "the custodian is told what to give back, with the subject")
+	assert(Printed(t, "ChillZone craft " .. r.id), "the custodian is told what to give back, with the subject")
 	local owedText = t.ns.L.CRAFT_EXTRA_LINE:match("^(.-)%%")
 	t.Craft.SetPage("duty"); t.Craft.Open(r.id)
 	assert(Find(t.Craft.BoardLines(), owedText), "his duty page shows it")
@@ -1761,7 +1761,7 @@ test("1.2 craft requests (mediated): gold that reaches the custodian after the d
 	local balance = t.Treasury.Balance()
 	local r, rt = MediatedDeal(w, a, b, t)
 	-- The buyer mails the gold, then cancels before the custodian opened his mail.
-	local i = w:Mail(a, t, 10000, "Olympus craft " .. r.id)
+	local i = w:Mail(a, t, 10000, "ChillZone craft " .. r.id)
 	assert(a.Craft.Cancel(r.id, "found one")); w:Run(0)
 	eq(rt.state, "cancelled")
 	w:Take(t, i)
@@ -1772,7 +1772,7 @@ test("1.2 craft requests (mediated): gold that reaches the custodian after the d
 	t.Craft.SetPage("duty"); t.Craft.Open(r.id)
 	local owedText = t.ns.L.CRAFT_EXTRA_LINE:match("^(.-)%%")
 	assert(Find(t.Craft.BoardLines(), owedText))
-	w:Mail(t, a, 10000, "Olympus craft " .. r.id)
+	w:Mail(t, a, 10000, "ChillZone craft " .. r.id)
 	eq(st.extraReturned, 10000)
 	eq(Find(t.Craft.BoardLines(), owedText), nil)
 	NoErrors(w)
@@ -1789,7 +1789,7 @@ test("1.2 craft requests (mediated): a seller offline when the payout was instru
 	K.Relog(w, b)
 	local rb = K.Rec(w, b, r.id)
 	assert(rb.settlement.state ~= "payout_pending", "the word was missed")
-	local i = w:Mail(t, b, 9400, "Olympus craft " .. r.id)
+	local i = w:Mail(t, b, 9400, "ChillZone craft " .. r.id)
 	w:Take(b, i)
 	eq(K.Rec(w, b, r.id).settlement.state, "settled"); eq(K.Rec(w, b, r.id).state, "completed")
 	eq(rt.settlement.state, "settled", "the seller's receipt reached the custodian"); eq(rt.state, "completed")
@@ -1825,14 +1825,14 @@ test("1.2 craft requests (mediated): a buyer offline when the refund was owed as
 	eq(K.Rec(w, a, r.id).settlement.state, "refund_pending", "the custodian's answer brought the copy up to date")
 	w:Run(61)
 	eq(Asks(), 1, "once, then only after a quiet while")
-	local i = w:Mail(t, a, 10000, "Olympus craft " .. r.id)
+	local i = w:Mail(t, a, 10000, "ChillZone craft " .. r.id)
 	w:Take(a, i)
 	eq(K.Rec(w, a, r.id).settlement.state, "refunded"); eq(K.Rec(w, a, r.id).state, "cancelled")
 	eq(rt.settlement.state, "refunded", "the buyer's receipt reached the custodian")
 	NoErrors(w)
 end)
 
-test("1.2 craft requests (mediated): the seller confirms a payout that landed where Olympus could not see it, the buyer his refund", function()
+test("1.2 craft requests (mediated): the seller confirms a payout that landed where ChillZone could not see it, the buyer his refund", function()
 	local w = World.New()
 	local a, b, t = Mediated(w)
 	local r, rt = MediatedDeal(w, a, b, t)
@@ -1966,7 +1966,7 @@ test("1.2 craft requests: Enter in the requests' dialogs answers as their first 
 		function dialog:Hide() self.hidden = true end
 		local box = { GetText = function() return "the buyer stopped answering" end, GetParent = function() return dialog end }
 		dialog.EditBox = box
-		b.popups.OLYMPUS_CRAFT_DISPUTE.EditBoxOnEnterPressed(box, rb)
+		b.popups.CHILLZONE_CRAFT_DISPUTE.EditBoxOnEnterPressed(box, rb)
 		eq(dialog.hidden, true, "answered, then closed")
 	end)
 	eq(rb.settlement.dispute and rb.settlement.dispute.reason, "the buyer stopped answering")
@@ -1995,7 +1995,7 @@ test("1.2 craft requests: a buyer who cancelled while the goods were in the mail
 	local r = DirectDeal(w, a, b, 1)
 	-- The crafter mails the goods (his client sees them go); the buyer has not opened his mail.
 	b.bags[ITEM] = 1
-	K.MailItems(w, b, a, { { id = ITEM, count = 1 } }, "Olympus craft " .. r.id)
+	K.MailItems(w, b, a, { { id = ITEM, count = 1 } }, "ChillZone craft " .. r.id)
 	local rb = K.Rec(w, b, r.id)
 	assert(#(rb.evidence or {}) > 0, "the crafter's client saw the goods go")
 	eq(a.Craft.Cancel(r.id, "found one elsewhere"), true, "the buyer's client saw nothing yet"); w:Run(0)
@@ -2057,21 +2057,21 @@ test("1.2 craft requests (mediated): a cash-on-delivery mail never moves a custo
 	eq(st.state, "funds_reserved")
 	-- The crafter mails the goods asking 94 g on delivery; the custodian takes them (the game's own
 	-- confirmation, then TakeInboxItem). Counted, the payout would pay the crafter a second time.
-	local m = K.MailItems(w, b, t, { { id = ITEM, count = 1 } }, "Olympus craft " .. r.id, 0, 9400)
+	local m = K.MailItems(w, b, t, { { id = ITEM, count = 1 } }, "ChillZone craft " .. r.id, 0, 9400)
 	K.TakeItem(w, t, m, 1)
 	eq(st.state, "funds_reserved", "goods taken cash on delivery are no part of the deal")
 	eq(st.itemQuantity or 0, 0)
-	assert(Audited(rt, "cod-ignored") and Printed(t, "Olympus craft " .. r.id), "the custodian is told")
+	assert(Audited(rt, "cod-ignored") and Printed(t, "ChillZone craft " .. r.id), "the custodian is told")
 	eq(t.Craft.PrepareCustodianForward(r.id, 30), false)
 	-- The same goods by trade: now they count, and the forward is prepared.
 	K.Trade(w, b, t, { aItems = { { id = ITEM, count = 1 } } })
 	eq(st.state, "custodian_received")
 	assert(t.Craft.PrepareCustodianForward(r.id, 30))
 	-- Mailed to the buyer cash on delivery: not the forward (he paid once already).
-	K.MailItems(w, t, a, { { id = ITEM, count = 1 } }, "Olympus craft " .. r.id, 0, 5000)
+	K.MailItems(w, t, a, { { id = ITEM, count = 1 } }, "ChillZone craft " .. r.id, 0, 5000)
 	eq(st.state, "outbound_prepared", "a forward the buyer must pay for again is no forward")
 	w:Run(1)
-	K.MailItems(w, t, a, { { id = ITEM, count = 1 } }, "Olympus craft " .. r.id)
+	K.MailItems(w, t, a, { { id = ITEM, count = 1 } }, "ChillZone craft " .. r.id)
 	eq(st.state, "outbound_sent")
 	NoErrors(w)
 end)

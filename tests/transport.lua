@@ -7,8 +7,8 @@ local function WithComm(fn)
 		"LeaveChannelByName", "HideChannelFromChat", "C_ChatInfo" }
 	local saved = {}
 	for _, name in ipairs(names) do saved[name] = _G[name] end
-	local w = { now = 1000, guild = "Olympus II", rank = 1, sharing = true,
-		channels = { OlympusNet = 5 }, sent = {}, errors = {}, timers = {}, events = {}, listeners = {} }
+	local w = { now = 1000, guild = "ChillZone II", rank = 1, sharing = true,
+		channels = { ChillZoneNet = 5 }, sent = {}, errors = {}, timers = {}, events = {}, listeners = {} }
 	local ok, err = pcall(function()
 		GetTime = function() return w.now end
 		GetGuildInfo = function() return w.guild, "Member", 3 end
@@ -46,7 +46,7 @@ local function WithComm(fn)
 		c.Layers = { Sharing = function() return w.sharing end }
 		c.Roster = { IsOfficer = function() return w.rank <= 1 end }
 		c.Keys = { HandOutMessage = function() return "K8~fixture" end }
-		assert(loadfile(ROOT .. "Olympus/Comm.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Comm.lua"))("ChillZone", c)
 		local C = c.Comm
 		C.JoinChannel()
 		function w.login()
@@ -221,7 +221,7 @@ test("transport: thirty fragments beat the old assembler deadline under sustaine
 		w.step() -- Start the transfer before filling both competing lanes.
 		local function Chat()
 			local queued = w.now
-			assert(C.SendChat("M1~A~Olympus II~1~~chat", function(sent)
+			assert(C.SendChat("M1~A~ChillZone II~1~~chat", function(sent)
 				assert(sent, "a full chat lane must not time out during the transfer")
 				chats, chatMax = chats + 1, math.max(chatMax, w.now - queued)
 				if not complete then Chat() end
@@ -267,7 +267,7 @@ test("transport: channel changes cancel started transfers and chat while unstart
 		assert(C.SendBatch("CHANNEL", Parts(5, "old"), nil, nil, nil, function(sent, why) first = { sent, why } end))
 		w.step()
 		assert(C.SendBatch("CHANNEL", Parts(3, "new"), nil, nil, nil, function(sent) second = sent end))
-		assert(C.SendChat("M1~A~Olympus II~1~~private audience", function(sent, why) chat = { sent, why } end))
+		assert(C.SendChat("M1~A~ChillZone II~1~~private audience", function(sent, why) chat = { sent, why } end))
 		w.moveChannel("secret", 9)
 		w.step(15)
 		eq(first[1], false); eq(first[2], "moved"); eq(second, true)
@@ -283,7 +283,7 @@ test("transport: a renumbered channel preserves an active transfer's original au
 		local completed
 		assert(C.SendBatch("CHANNEL", Parts(3, "number"), nil, nil, nil, function(sent) completed = sent end))
 		w.step()
-		w.channels.OlympusNet = 12
+		w.channels.ChillZoneNet = 12
 		w.step(5)
 		eq(completed, true); eq(#w.sent, 3); eq(w.sent[1].target, 5)
 		eq(w.sent[2].target, 12); eq(w.sent[3].target, 12)
@@ -319,7 +319,7 @@ test("transport: a guard can cancel its active owner and enqueue replacement wor
 	end)
 end)
 
-test("transport: guild transitions cancel work once and distinguish a new Olympus guild from leaving", function()
+test("transport: guild transitions cancel work once and distinguish a new ChillZone guild from leaving", function()
 	WithComm(function(w, C)
 		local calls, chat = {}, 0
 		local function Completed(label)
@@ -328,10 +328,10 @@ test("transport: guild transitions cancel work once and distinguish a new Olympu
 		assert(C.SendBatch("GUILD", Parts(4, "guild"), nil, nil, nil, Completed("active")))
 		w.step()
 		assert(C.Send("GUILD", "H1~old", nil, true, nil, Completed("queued")))
-		assert(C.SendChat("M1~A~Olympus II~1~~old guild", function(sent, why)
+		assert(C.SendChat("M1~A~ChillZone II~1~~old guild", function(sent, why)
 			eq(sent, false); eq(why, "left"); chat = chat + 1
 		end))
-		w.guild = "Olympus New"
+		w.guild = "ChillZone New"
 		w.step(5)
 		table.sort(calls)
 		eq(table.concat(calls, ","), "active:false:guild,queued:false:guild")
@@ -344,7 +344,7 @@ test("transport: guild transitions cancel work once and distinguish a new Olympu
 		end))
 		w.guild = "Ordinary Guild"
 		w.step()
-		eq(left, "false:left", "leaving Olympus keeps the established completion reason")
+		eq(left, "false:left", "leaving ChillZone keeps the established completion reason")
 		eq(#w.sent, 2); eq(C.QueueSize(), 0)
 	end)
 end)
@@ -395,7 +395,7 @@ test("transport: delayed guild key replies recheck guild and officer authority b
 				if phase == "queue" then
 					eq(w.runTimers("key answer"), 1); eq(C.QueueSize(), 1, "the current reply alone is queued (1.4.0: no plain K1)")
 				end
-				if change == "guild" then w.guild = "Olympus New" else w.rank = 3 end
+				if change == "guild" then w.guild = "ChillZone New" else w.rank = 3 end
 				if phase == "timer" then eq(w.runTimers("key answer"), 1) end
 				w.step(10)
 				eq(#w.messages("K1~"), 0, phase .. ": " .. change)
@@ -421,7 +421,7 @@ test("transport: guild assemblies and peer observations cannot cross a guild ses
 		w.message("H1~1.1.2~Realm~p~z", "GUILD", "Old-Realm")
 		eq(C.PeerCount(), 1); eq(C.PeerVersion("Old-Realm"), "1.1.2"); eq(C.SharesZone("Old-Realm"), true)
 		w.message(parts[1])
-		w.guild = "Olympus New"
+		w.guild = "ChillZone New"
 		for i = 2, #parts do w.message(parts[i]) end
 		eq(delivered, 0, "old first fragment cannot complete in the new guild")
 		eq(C.PeerCount(), 0); eq(C.PeerVersion("Old-Realm"), nil); eq(C.SharesZone("Old-Realm"), false)
@@ -445,7 +445,7 @@ test("transport (1.4.0): a chat lockdown holds the forty waiting jobs instead of
 		eq(#done, 0, "no job ends during the lockdown")
 		eq(#w.sent, 0, "nothing is handed to the game while it would refuse it")
 		eq(C.QueueSize(), 40)
-		eq(C.Stats().held, true, "/oly status says the queue is held")
+		eq(C.Stats().held, true, "/cz status says the queue is held")
 		w.locked = false
 		w.step(45)
 		eq(#done, 40)

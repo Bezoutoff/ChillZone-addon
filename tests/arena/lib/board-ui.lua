@@ -1,4 +1,4 @@
--- 1.2, the Bone Throw tables: a stand-in of the game's frames for Bone Throw's board (Olympus_Arena/FarkleBoard.lua),
+-- 1.2, the Bone Throw tables: a stand-in of the game's frames for Bone Throw's board (ChillZone_Arena/FarkleBoard.lua),
 -- added to a test world's client by composition (the design's rule for packages): regions with their
 -- anchors, sizes and shown state; textures, font strings, buttons, a Cooldown; animation groups
 -- whose Translation, Scale, Alpha and FlipBook really progress on the world's clock (so a test can
@@ -186,7 +186,7 @@ function UI.New(now, opts)
 	-- (the caller's own file: the core's card may set its OnUpdate inside a companion's click)
 	local function FromCompanion()
 		local info = debug.getinfo(3, "S")
-		return info ~= nil and tostring(info.source):find("Olympus_Arena[/\\]") ~= nil
+		return info ~= nil and tostring(info.source):find("ChillZone_Arena[/\\]") ~= nil
 	end
 	function F:SetScript(name, fn)
 		if not HANDLERS[name] and FromCompanion() then error(self.otype .. " has no script " .. tostring(name) .. " here (OnUpdate is refused: the companion uses none)", 2) end
@@ -281,7 +281,7 @@ function UI.New(now, opts)
 		return math.max(0, (self.scrollChild and self.scrollChild:GetHeight() or 0) - self:GetHeight())
 	end
 
-	-- Olympus's own chat input uses these standard EditBox methods (the exact existing main
+	-- ChillZone's own chat input uses these standard EditBox methods (the exact existing main
 	-- ChatWindow.lua box, and Forever's SimpleEditBoxAPI in fixtures/forever-api.lua).
 	local EB = setmetatable({}, { __index = F })
 	function EB:SetAutoFocus(on) self.autoFocus = on end

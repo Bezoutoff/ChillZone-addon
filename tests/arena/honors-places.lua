@@ -3,7 +3,7 @@
 -- (the Church's top 3 Apostles' cross, the last month's top 3 of Bone Throw's lucky charm, the signed
 -- Slayers top 3's skeletal horse, which respects the player's pick now), the King's letter comes the
 -- first time a member reaches each place of each list per cycle (a month's list: once a month; for
--- life: once), and every later move is a small notice of Olympus's own: a strip at the top of the
+-- life: once), and every later move is a small notice of ChillZone's own: a strip at the top of the
 -- screen and a line in chat, never a pop-up, never a burst. On the test world, the frames Honors.lua
 -- ships worn. Every name is invented.
 local H = ...
@@ -12,11 +12,11 @@ local World = H.World
 local W3 = assert(loadfile(H.ROOT .. "tests/arena/lib/fights-world.lua"))(H)
 local N = World.NAMES
 
-local MEDIA = "Interface\\AddOns\\Olympus\\media\\honors\\"
+local MEDIA = "Interface\\AddOns\\ChillZone\\media\\honors\\"
 -- The frames worn as Honors.lua ships them (the test world wears every family's: World's Load).
 local SHIPPED = (function()
 	local fresh = {}
-	assert(loadfile(H.ADDON_DIR .. "Honors.lua"))("Olympus", fresh)
+	assert(loadfile(H.ADDON_DIR .. "Honors.lua"))("ChillZone", fresh)
 	return fresh.Honors.FRAMES_SHIPPED
 end)()
 
@@ -33,8 +33,8 @@ local function LoadChurch(w, c)
 	local cns = setmetatable({ Comm = { Handle = function(kind, fn) handlers[kind] = fn end, Send = function() end, Whisper = function() end },
 		On = function() end, ChatRooms = false }, { __index = c.ns })
 	w:As(c, function()
-		assert(loadfile(H.ADDON_DIR .. "Church.lua"))("Olympus", cns)
-		assert(loadfile(H.ADDON_DIR .. "ChurchCount.lua"))("Olympus", cns)
+		assert(loadfile(H.ADDON_DIR .. "Church.lua"))("ChillZone", cns)
+		assert(loadfile(H.ADDON_DIR .. "ChurchCount.lua"))("ChillZone", cns)
 	end)
 	rawset(c.ns, "Church", cns.Church)
 	rawset(c.ns, "ChurchCount", cns.ChurchCount)
@@ -110,7 +110,7 @@ local function Frames(w, c)
 	g.UnitIsUnit = function(a, b) return a == b end
 	w:As(c, function()
 		rawset(c.ns, "Borders", nil)
-		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("ChillZone", c.ns)
 	end)
 	rec.B = W3.M(w, c, "Borders")
 	function rec.Shown(owner)
@@ -134,7 +134,7 @@ local function Strips(c)
 	local base = c.globals.CreateFrame
 	c.globals.CreateFrame = function(kind, name, parent, ...)
 		local f = base(kind, name, parent, ...)
-		if type(name) == "string" and name:find("^OlympusHonourNotice") then
+		if type(name) == "string" and name:find("^ChillZoneHonourNotice") then
 			f.made = { kind = kind, parent = parent }
 			rawset(f, "EnableMouse", function(self, on) self.mouse = on end)
 			rawset(f, "EnableKeyboard", function(self, on) self.keyboard = on end)
@@ -261,8 +261,8 @@ end)
 -- 1.2.4's first cut opened the King's letter by itself wherever the player stood: at the month's
 -- turn (the look at 00:01 UTC, 21:01 in Brazil: raid time) for the crook, the cross and the charm,
 -- or at a new Slayers word, over a dungeon or a raid between pulls (only combat lockdown and the
--- gamepad UI made it wait). Olympus's popups wait in an instance or Busy (ns.Alert): so does it now.
-test("1.2.4 the King's letter in an instance or Busy: one that would open by itself waits (his honour switched on all the same; a chat line; one line on the Decrees tab's held list for every letter waiting), opens by itself once he is out and not Busy, and at once on his own click (the Olympus window, the held line); the month's turn in a raid the same", function()
+-- gamepad UI made it wait). ChillZone's popups wait in an instance or Busy (ns.Alert): so does it now.
+test("1.2.4 the King's letter in an instance or Busy: one that would open by itself waits (his honour switched on all the same; a chat line; one line on the Decrees tab's held list for every letter waiting), opens by itself once he is out and not Busy, and at once on his own click (the ChillZone window, the held line); the month's turn in a raid the same", function()
 	local w, cast = W3.New()
 	-- (An hour before this month's end, the clock and every timer moved together.)
 	local Hs = cast.A.ns.Honors
@@ -297,7 +297,7 @@ test("1.2.4 the King's letter in an instance or Busy: one that would open by its
 	for _, c in ipairs(all) do Donors(w, c, w.clock, { A, B, C }, { A }) end
 	w:Run(3)
 	eq(#Letters(A), 2) eq(Shown(A), false) eq(Held(A), "a letter from the King", "one line for both")
-	-- B opens the Olympus window himself, in the instance: his letter at once. D, Busy nowhere, none.
+	-- B opens the ChillZone window himself, in the instance: his letter at once. D, Busy nowhere, none.
 	eq(w:As(B, B.ns.HonorsNet.WindowShown), true) eq(Shown(B), true, "his own click")
 	eq(Held(D), "", "no letter: nothing held")
 	-- Out of the instance, and C no longer Busy: each opens by itself within seconds, A's second after his first.
@@ -330,7 +330,7 @@ end)
 -- The owner (1.2.4): "... uns avisos menores ... menos intrusiva, tipo um aviso na tela, não um
 -- pop-up, falando que ele caiu de posição para segundo, que ele perdeu porque ele saiu da lista, que
 -- ele voltou para a lista, que ele recuperou".
-test("1.2.4 notices: after the King's first letter for a place, a drop, leaving the list, coming back and a place won back are each a strip of Olympus's own at the top of the screen (no button, no mouse, no keyboard, gone in seconds) and a line in chat, once the move held two minutes, one family's 15 minutes apart; a swap back within them says nothing; dropping to 2nd is no letter", function()
+test("1.2.4 notices: after the King's first letter for a place, a drop, leaving the list, coming back and a place won back are each a strip of ChillZone's own at the top of the screen (no button, no mouse, no keyboard, gone in seconds) and a line in chat, once the move held two minutes, one family's 15 minutes apart; a swap back within them says nothing; dropping to 2nd is no letter", function()
 	local w, cast = W3.New()
 	local A, B = Ready(w, cast.A), cast.B
 	Strips(A)
@@ -355,7 +355,7 @@ test("1.2.4 notices: after the King's first letter for a place, a drop, leaving 
 	assert(A.printed[#A.printed]:find("Top donors: you dropped to 2nd place.", 1, true), "its line in chat")
 	local f = HN.NoticeFrames()[1]
 	assert(f and f:IsShown(), "its strip on screen")
-	eq(f:GetName(), "OlympusHonourNotice1") eq(f.made.kind, "Frame") eq(f.made.parent, A.globals.UIParent, "a frame of Olympus's own on UIParent")
+	eq(f:GetName(), "ChillZoneHonourNotice1") eq(f.made.kind, "Frame") eq(f.made.parent, A.globals.UIParent, "a frame of ChillZone's own on UIParent")
 	eq(f.mouse, false, "no mouse") eq(f.keyboard, false, "no keyboard")
 	eq(f.text:GetText(), "Top donors: you dropped to 2nd place.") eq(f.icon.texture, MEDIA .. "cornucopia-silver-mark", "the honour's mark")
 	for _, x in ipairs(A.frames) do assert(x.frame.kind ~= "Button" or x.frame.parent ~= f, "no button on it") end
@@ -442,8 +442,8 @@ test("1.2.4 the Apostles' cross: the Church's top 3 Apostles (the same word as t
 	for _, c in ipairs(all) do Ready(w, c) end
 	Top(w, all, { a1, a2, a3 })
 	w:Run(3)
-	local want = { { a1, "apostle-1", "cross-gold", "Light of Olympus" }, { a2, "apostle-2", "cross-silver", "Voice of Olympus" },
-		{ a3, "apostle-3", "cross-bronze", "Herald of Olympus" } }
+	local want = { { a1, "apostle-1", "cross-gold", "Light of ChillZone" }, { a2, "apostle-2", "cross-silver", "Voice of ChillZone" },
+		{ a3, "apostle-3", "cross-bronze", "Herald of ChillZone" } }
 	for _, x in ipairs(want) do
 		local c, key, art, title = x[1], x[2], x[3], x[4]
 		local where = c.short .. " " .. key
@@ -553,25 +553,25 @@ local function Census(w, c, guild, leader, avg)
 	w:As(c, c.ns.Fire, "DATA_CHANGED")
 end
 
-test("1.2.4 the owl: the guild master of the Olympus guild with the highest average level holds it, worn (switched on with its letter); his client looks again when the census changes its first, so another guild going first is a notice, and his own first again another (no second letter)", function()
-	local w, cast = W3.New({ more = { { "gm", "Bryn Halloway", { guild = "Olympus Vale", rank = 0 } } } })
+test("1.2.4 the owl: the guild master of the ChillZone guild with the highest average level holds it, worn (switched on with its letter); his client looks again when the census changes its first, so another guild going first is a notice, and his own first again another (no second letter)", function()
+	local w, cast = W3.New({ more = { { "gm", "Bryn Halloway", { guild = "ChillZone Vale", rank = 0 } } } })
 	local gm = Ready(w, cast.gm)
 	Strips(gm)
 	local r = Frames(w, gm)
 	local HN = gm.ns.HonorsNet
-	Census(w, gm, "Olympus Vale", gm, 45)
+	Census(w, gm, "ChillZone Vale", gm, 45)
 	w:Run(HN.BEST_SOON + 5)
 	eq(Pick(gm).frame, "guild-top-leader", "the owl, worn now: switched on")
 	eq(r.Shown("player"), MEDIA .. "owl-gold")
 	eq(#Letters(gm), 1) eq(Letters(gm)[1].key, "guild-top-leader")
 	w:As(gm, HN.CloseLetter, false)
 	-- Another guild first: off the list, a notice.
-	Census(w, gm, "Olympus Ash", { short = "Corin Ash" }, 50)
+	Census(w, gm, "ChillZone Ash", { short = "Corin Ash" }, 50)
 	w:Run(HN.BEST_SOON + HN.NOTICE_SETTLE + 10)
 	eq(table.concat(Said(gm), " | "), "Best guild: your guild is no longer first, and the owl is no longer yours.")
 	eq(r.Shown("player") ~= MEDIA .. "owl-gold", true, "the owl gone")
 	-- His own first again: a notice, no second letter.
-	Census(w, gm, "Olympus Vale", gm, 55)
+	Census(w, gm, "ChillZone Vale", gm, 55)
 	w:Run(HN.BEST_SOON + HN.NOTICE_GAP + 10)
 	eq(Said(gm)[2], "Best guild: your guild is first again, and the owl is yours again.")
 	eq(#Letters(gm), 1, "no second letter")

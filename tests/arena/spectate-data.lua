@@ -1,5 +1,5 @@
 -- 1.2.6, Watch duel (Daniel's duel-view request, 2026-10-19): the duel view's data, ArenaSpectate.lua,
--- on the test world: who is watched (the menu line, /oly arena watch, the viewer's own duel), each
+-- on the test world: who is watched (the menu line, /cz arena watch, the viewer's own duel), each
 -- fighter's unit while in sight, the live values going from the game into the view's widgets and
 -- never into the model (Forever's secrets), Era's and TBC's plain values, the cast, the result
 -- line, the gear's stats and the talents from an inspection, the status line, the copyable text,
@@ -92,12 +92,12 @@ test("watch duel: the menu line shows on a player whose target is another player
 	eq(#shown, 1, "ArenaHome.Open(\"duel.watch\") reached the view")
 	eq(shown[1].A.name, cast.A.name); eq(shown[1].B.name, cast.B.name, "the pair taken at the right-click")
 	eq(shown[1].A.guid, cast.A.guid); eq(shown[1].B.gk, V.ns.Arena.GK(cast.B.guid))
-	eq(shown[1].olympus, false, "no Olympus fight this client knows of"); eq(shown[1].own, nil)
+	eq(shown[1].chillzone, false, "no ChillZone fight this client knows of"); eq(shown[1].own, nil)
 	eq(shown[1].B.unit, "targettarget", "the token it came from, looked at first for him")
 	W3.NoErrors(w)
 end)
 
-test("watch duel: /oly arena watch takes the viewer's own duel, else his target and its target, else his target and focus, else a named fighter in sight; it says why when there is none; off closes", function()
+test("watch duel: /cz arena watch takes the viewer's own duel, else his target and its target, else his target and focus, else a named fighter in sight; it says why when there is none; off closes", function()
 	local w, cast = Cast()
 	local V = cast.V
 	local o = Scene(w, V, { units = { target = cast.A, targettarget = cast.B } })
@@ -142,7 +142,7 @@ test("watch duel: a fighter's own duel (an agreed direct challenge) is his subje
 	StubInspect(A)
 	local own = S(w, A).OwnFight()
 	assert(own and own.fid, "his own fight")
-	eq(own.own, "A"); eq(own.olympus, true); eq(own.A.name, A.name); eq(own.B.name, B.name)
+	eq(own.own, "A"); eq(own.chillzone, true); eq(own.A.name, A.name); eq(own.B.name, B.name)
 	-- The menu line on his opponent, from a chat name too: his own duel.
 	local watch = S(w, A).Watchable({ name = B.name })
 	assert(watch, "Watch duel on his opponent"); eq(watch.fid, own.fid)
@@ -187,7 +187,7 @@ test("watch duel: Forever's secret health, power and percentages go from the gam
 	eq(m.sides.A.className, "Rogue"); eq(m.sides.A.raceName, "Undead"); eq(m.sides.A.powerToken, "ENERGY"); eq(m.sides.A.inSight, true)
 	local text = S(w, V).Text(m)
 	assert(type(text) == "string" and text:find("Torvin Hale", 1, true), text)
-	assert(text:find(V.ns.L.ARENA_WATCH_NOT_OLYMPUS, 1, true), "labelled: not an Olympus duel")
+	assert(text:find(V.ns.L.ARENA_WATCH_NOT_CHILLZONE, 1, true), "labelled: not an ChillZone duel")
 	W3.NoErrors(w)
 end)
 
@@ -594,7 +594,7 @@ test("watch duel: the weight rule: a member who never watches has no arena liste
 	W3.NoErrors(w)
 end)
 
-test("watch duel: in combat with the companion not loaded /oly arena watch is refused with the arena's combat line and starts nothing; an open session goes on updating in combat", function()
+test("watch duel: in combat with the companion not loaded /cz arena watch is refused with the arena's combat line and starts nothing; an open session goes on updating in combat", function()
 	local w, cast = Cast()
 	local V = cast.V
 	Scene(w, V, { units = { target = cast.A, targettarget = cast.B }, bodies = { [cast.A] = { hp = 500, hpMax = 1000 } } })
@@ -612,7 +612,7 @@ test("watch duel: in combat with the companion not loaded /oly arena watch is re
 	W3.NoErrors(w)
 end)
 
-test("watch duel: the copyable text holds names, numbers and the game's own words; a guild only an Olympus guild's (King.CleanGuild)", function()
+test("watch duel: the copyable text holds names, numbers and the game's own words; a guild only an ChillZone guild's (King.CleanGuild)", function()
 	local w, cast = Cast()
 	local V = cast.V
 	Scene(w, V, { units = { target = cast.A, targettarget = cast.B }, bodies = {
@@ -621,7 +621,7 @@ test("watch duel: the copyable text holds names, numbers and the game's own word
 	StubInspect(V)
 	assert(S(w, V).Start(assert(S(w, V).PairFromUnit("target"))))
 	local text = S(w, V).Text()
-	assert(text:find("Torvin Hale · Rogue · Undead · Level 30 · <Olympus Ember>", 1, true), text)
+	assert(text:find("Torvin Hale · Rogue · Undead · Level 30 · <ChillZone Ember>", 1, true), text)
 	assert(text:find("Selka Drummond · Hunter · Orc · Level 30", 1, true), text)
 	assert(not text:find("Bad", 1, true) and not text:find("|c", 1, true), "no guild another player named, no markup")
 	eq(S(w, V).Model().sides.B.guild, nil)

@@ -1,5 +1,5 @@
 -- The gamepad pass (1.1.5): whole sessions of the addon with Blizzard's gamepad UI simulated, from a
--- gamepad login and across switches both ways, failing when anything of Olympus's reaches the
+-- gamepad login and across switches both ways, failing when anything of ChillZone's reaches the
 -- game's UI there. No controller needed: run with the offline suite (tests/run.lua loads it), or
 -- alone (luajit tests/gamepad.lua).
 --
@@ -7,10 +7,10 @@
 -- model below. Its globals are only what Forever's client has (tests/fixtures/forever-api.lua,
 -- made by scripts/forever-api.lua from the client's own UI source): a global the client has that
 -- the model doesn't fails as "unmodelled", one it lacks reads as nil, as in the game. The game's
--- frames are strict objects whose every method call from Olympus's code is recorded, as is every
+-- frames are strict objects whose every method call from ChillZone's code is recorded, as is every
 -- call of a function the gamepad audit (scripts/gamepad-audit.lua) counts as a reach: that record
 -- is the ledger. Each record carries the gp: tag of the line that made it, so it says which
--- registry entry (Olympus/GamepadRegistry.lua) it belongs to; with the gamepad UI on, only
+-- registry entry (ChillZone/GamepadRegistry.lua) it belongs to; with the gamepad UI on, only
 -- entries allowed there ("own", "exempt", "click" inside a click) may appear in it.
 --
 -- Mock fidelity (the model may not offer what the client lacks; each part cites what it follows):
@@ -23,7 +23,7 @@
 --      the way the game does.
 --   3. A slash command is called directly by the chat box, which then closes itself
 --      (Blizzard_ChatFrameBase/Shared/ChatFrameEditBox.lua:265-269): with the gamepad UI on, any
---      Olympus code run that way is a taint event, a failure.
+--      ChillZone code run that way is a taint event, a failure.
 --   4. A restricted function (the fixture's restricted list, from the documentation's
 --      HasRestrictions and IsProtectedFunction) called outside a click on a button is refused, and
 --      the model sends ADDON_ACTION_BLOCKED as the client does.
@@ -34,7 +34,7 @@
 --      box) under it (Blizzard_GamepadSmartNavigation/Utility.lua:208-262, Utility.FindButtons).
 --   8. Popups and the chat box: StaticPopup_Show shows one of StaticPopup1..4 (Blizzard_StaticPopup),
 --      the chat box's functions set the last active edit box.
---   9. The map library is the real one (Olympus/libs), on a model of the world map.
+--   9. The map library is the real one (ChillZone/libs), on a model of the world map.
 -- A mock that differs from Forever's code is a bug in the model, not a reason to change an
 -- assertion.
 --
@@ -46,7 +46,7 @@ local H = ...
 local MODE = type(H) == "string" and H or nil
 if type(H) ~= "table" then H = nil end
 local ROOT = H and H.ROOT or ((arg and arg[0] or ""):match("^(.*)tests[/\\]gamepad%.lua$") or "./")
-local ADDON_DIR = ROOT .. "Olympus/"
+local ADDON_DIR = ROOT .. "ChillZone/"
 
 local passed, failed = 0, 0
 local test = H and H.test or function(name, fn)
@@ -90,20 +90,20 @@ local TEMPLATES = {}
 for name, t in pairs(FIX.templates) do TEMPLATES[name] = { type = t.type, keys = t.keys, methods = Set(t.methods), chain = Set(t.chain) } end
 
 ---------------------------------------------------------------------------
--- Which registry entry a runtime reach belongs to: the gp: tags of the Olympus line that made it
+-- Which registry entry a runtime reach belongs to: the gp: tags of the ChillZone line that made it
 -- (the audit's own reading of the source), else of its function's first line.
 ---------------------------------------------------------------------------
 
-local TAGS = {} -- [file under Olympus/] = { [line] = { ids } }
+local TAGS = {} -- [file under ChillZone/] = { [line] = { ids } }
 do
 	local root = (ROOT:gsub("[/\\]$", ""))
 	if root == "" then root = "." end
 	local vendor = {}
 	for id, e in pairs(REGISTRY) do for _, f in ipairs(type(e.vendor) == "table" and e.vendor or {}) do vendor[f] = id end end
-	local p = io.popen('cd "' .. root .. '" && find Olympus -name "*.lua"')
+	local p = io.popen('cd "' .. root .. '" && find ChillZone -name "*.lua"')
 	for rel in p:lines() do
 		local scan = AUDIT.ScanFile(root, rel)
-		local short = rel:gsub("^Olympus/", "")
+		local short = rel:gsub("^ChillZone/", "")
 		local t = {}
 		if scan then for line, tag in pairs(scan.tags) do t[line] = tag.ids end end
 		if vendor[short] then setmetatable(t, { __index = function() return { vendor[short] } end }) end
@@ -111,8 +111,8 @@ do
 	end
 	p:close()
 end
-local function OlympusFile(source)
-	return type(source) == "string" and source:match("[@/\\]Olympus[/\\](.+%.lua)$")
+local function ChillZoneFile(source)
+	return type(source) == "string" and source:match("[@/\\]ChillZone[/\\](.+%.lua)$")
 end
 -- The gate's own work at a switch (Gamepad.lua's Park, Leftovers and Switched, and the parks and
 -- leftover checks they run): what can be undone undone, what stays read. Its records are the
@@ -126,16 +126,16 @@ do
 		if fn == "Park" or fn == "Leftovers" or fn == "Switched" then GATE_WORK[n] = fn end
 	end
 end
--- The Olympus line that made a reach: the first Olympus function on the stack above the model,
+-- The ChillZone line that made a reach: the first ChillZone function on the stack above the model,
 -- with its tags (its line's, else its function's first line's); when it has none (a helper handed
--- one of the game's frames, ns.MakeRoundButton), the first tagged Olympus caller above it.
+-- one of the game's frames, ns.MakeRoundButton), the first tagged ChillZone caller above it.
 local function Caller(level)
 	level = (level or 2) + 1
 	local found, gateWork
 	while true do
 		local info = debug.getinfo(level, "Sl")
 		if not info then break end
-		local file = OlympusFile(info.source)
+		local file = ChillZoneFile(info.source)
 		if file then
 			file = file:gsub("\\", "/")
 			if file == "Gamepad.lua" and GATE_WORK[info.linedefined] then gateWork = GATE_WORK[info.linedefined] end
@@ -151,16 +151,16 @@ local function Caller(level)
 	if found then found.gateWork = gateWork end
 	return found
 end
--- Called directly from Olympus's code (the model's own calls don't count): FromOlympus(1) in a
+-- Called directly from ChillZone's code (the model's own calls don't count): FromChillZone(1) in a
 -- function of the model asks about that function's caller.
 -- (Through pcall and the like: C functions, and tests/run.lua's stand-ins for them, are skipped.)
-local function FromOlympus(level)
+local function FromChillZone(level)
 	level = (level or 1) + 2
 	while true do
 		local info = debug.getinfo(level, "S")
 		if not info then return false end
 		if info.what ~= "C" and not (info.source or ""):find("tests[/\\]run%.lua$") then
-			return OlympusFile(info.source) ~= nil
+			return ChillZoneFile(info.source) ~= nil
 		end
 		level = level + 1
 	end
@@ -184,7 +184,7 @@ local function NewClient(opts)
 	local E = {}
 	C.env = E
 
-	-- The ledger: a reach from Olympus's code, with the entry its line is tagged for.
+	-- The ledger: a reach from ChillZone's code, with the entry its line is tagged for.
 	function C.Record(sym, kind, level)
 		local who = Caller((level or 2) + 1)
 		local r = { sym = sym, kind = kind, gamepad = C.style == 1, click = C.clicking, file = who and who.file, line = who and who.line,
@@ -210,14 +210,14 @@ local function NewClient(opts)
 		"^Adjust", "^Flash", "^Update", "^Refresh", "^Mark", "^Insert", "^Scroll", "^Pause", "^Finish", "^Restart",
 		"^Hook", "^Release", "^Acquire", "^Copy", "^Narration" }
 	local function IsSetter(k) for _, p in ipairs(SETTER) do if k:find(p) then return true end end return false end
-	-- What the audit counts per file instead of tagging (its ratchet): Olympus's own tooltips (the
-	-- game's GameTooltip owned by one of Olympus's frames) and its lines in the chat windows
+	-- What the audit counts per file instead of tagging (its ratchet): ChillZone's own tooltips (the
+	-- game's GameTooltip owned by one of ChillZone's frames) and its lines in the chat windows
 	-- ("chat-output"). Anything else on the tooltip (a player's, the game's) is a reach.
 	local TOOLTIP_OWN = AUDIT.RATCHET.GameTooltip.methods
 	local function Own(w, k, ...)
 		if rawget(w, "kind") == "GameTooltip" and TOOLTIP_OWN[k] then
 			local owner = (k == "SetOwner") and (...) or rawget(w, "owner")
-			return type(owner) == "table" and rawget(owner, "olympus") == true
+			return type(owner) == "table" and rawget(owner, "chillzone") == true
 		end
 		return false
 	end
@@ -235,7 +235,7 @@ local function NewClient(opts)
 		if m and allowed then
 			if blizzard and not AUDIT.READS[k] then
 				return function(self, ...)
-					if FromOlympus(1) and not Own(w, k, ...) then RecordMethod(w, label, k) end
+					if FromChillZone(1) and not Own(w, k, ...) then RecordMethod(w, label, k) end
 					return m(self, ...)
 				end
 			end
@@ -243,7 +243,7 @@ local function NewClient(opts)
 		end
 		if allowed and type(k) == "string" then
 			return function(self, ...)
-				if blizzard and not AUDIT.READS[k] and FromOlympus(1) and not Own(w, k, ...) then RecordMethod(w, label, k) end
+				if blizzard and not AUDIT.READS[k] and FromChillZone(1) and not Own(w, k, ...) then RecordMethod(w, label, k) end
 				if IsSetter(k) then
 					self.set[k] = { ... }
 					return
@@ -254,7 +254,7 @@ local function NewClient(opts)
 		end
 		return nil
 	end
-	-- What a template's own scripts do, where Olympus relies on it (Blizzard_SharedXML).
+	-- What a template's own scripts do, where ChillZone relies on it (Blizzard_SharedXML).
 	C.TEMPLATE_SCRIPTS = {
 		-- UIPanelCloseButton_OnClick (Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.lua:150-162): the
 		-- parent's onCloseCallback first, then HideUIPanel unless it said no. HideUIPanel
@@ -275,7 +275,7 @@ local function NewClient(opts)
 		assert(methods, "the client has no widget type " .. tostring(kind))
 		local w = setmetatable({ kind = kind, name = name, parent = parent, children = {}, regions = {}, points = {},
 			shown = true, scripts = {}, hooks = {}, events = {}, set = {}, methods = methods, w = 0, h = 0, level = 1,
-			alpha = 1, scale = 1, blizzard = blizzard or false, olympus = not blizzard, enabled = true, seq = #C.created + 1,
+			alpha = 1, scale = 1, blizzard = blizzard or false, chillzone = not blizzard, enabled = true, seq = #C.created + 1,
 			templateMethods = false }, meta)
 		if parent then
 			local list = (kind == "Texture" or kind == "FontString" or kind == "MaskTexture" or kind == "Line") and parent.regions or parent.children
@@ -333,7 +333,7 @@ local function NewClient(opts)
 		end
 		self.parent = p
 		if p then table.insert((self.kind == "Texture" or self.kind == "FontString") and p.regions or p.children, self) end
-		if p and p.blizzard and p ~= E.UIParent and self.olympus and FromOlympus(1) then
+		if p and p.blizzard and p ~= E.UIParent and self.chillzone and FromChillZone(1) then
 			C.Record((rawget(p, "name") or rawget(p, "path") or "?") .. " <- " .. (self.name or self.kind), "parent", 1)
 		end
 	end
@@ -434,8 +434,8 @@ local function NewClient(opts)
 	function W:Disable() self.enabled = false end
 	function W:SetEnabled(on) self.enabled = on and true or false end
 	function W:IsEnabled() return self.enabled end
-	function W:CreateTexture(name, layer) local t = NewWidget("Texture", name, self, nil, self.blizzard and not FromOlympus(1)); t.layer = layer; return t end
-	function W:CreateFontString(name, layer, font) local f = NewWidget("FontString", name, self, nil, self.blizzard and not FromOlympus(1)); f.layer, f.font = layer, font; return f end
+	function W:CreateTexture(name, layer) local t = NewWidget("Texture", name, self, nil, self.blizzard and not FromChillZone(1)); t.layer = layer; return t end
+	function W:CreateFontString(name, layer, font) local f = NewWidget("FontString", name, self, nil, self.blizzard and not FromChillZone(1)); f.layer, f.font = layer, font; return f end
 	function W:CreateMaskTexture(name) return NewWidget("MaskTexture", name, self) end
 	function W:CreateLine(name) return NewWidget("Line", name, self) end
 	function W:CreateAnimationGroup(name)
@@ -503,7 +503,7 @@ local function NewClient(opts)
 	function W:LockHighlight() self.locked = true end
 	function W:UnlockHighlight() self.locked = false end
 	function W:GetButtonState() return "NORMAL" end
-	-- A click from Olympus's own code (not the player's): its script, no hardware event.
+	-- A click from ChillZone's own code (not the player's): its script, no hardware event.
 	function W:Click(button) C.RunScript(self, "OnClick", button or "LeftButton", false) end
 	-- Edit boxes.
 	function W:SetFocus() C.focus = self end
@@ -716,17 +716,17 @@ local function NewClient(opts)
 	-- Secret values (the client's issecretvalue): none in the pass.
 	E.issecretvalue = function() return false end
 	-- issecurevariable (the taint model, as far as the pass needs it): the game's own tables and
-	-- globals, as the model made them, are secure; a table Olympus's code made (its own, or the
-	-- map library's in Olympus/libs), or a global it wrote, is Olympus's: false, "Olympus".
+	-- globals, as the model made them, are secure; a table ChillZone's code made (its own, or the
+	-- map library's in ChillZone/libs), or a global it wrote, is ChillZone's: false, "ChillZone".
 	C.gameTables = setmetatable({}, { __mode = "k" })
 	C.gameValues = {}
 	E.issecurevariable = function(t, key)
 		if key == nil then
 			if rawget(E, t) == C.gameValues[t] then return true, nil end
-			return false, "Olympus"
+			return false, "ChillZone"
 		end
 		if type(t) == "table" and C.gameTables[t] then return true, nil end
-		return false, "Olympus"
+		return false, "ChillZone"
 	end
 	-- (After the world is made: everything in it is the game's.)
 	function C.SealGame()
@@ -746,7 +746,7 @@ local function NewClient(opts)
 	C.gameHandler = gameHandler
 	E.geterrorhandler = function() return C.handler end
 	E.seterrorhandler = function(fn)
-		if FromOlympus(1) then C.Record("seterrorhandler", "call", 1) end
+		if FromChillZone(1) then C.Record("seterrorhandler", "call", 1) end
 		C.handler = fn
 	end
 	E.securecallfunction = function(fn, ...) return fn(...) end
@@ -766,7 +766,7 @@ local function NewClient(opts)
 	E.GetRealmID = function() return 1 end
 	-- Units: the player, and whoever a flow puts under the cursor or targets (C.units).
 	-- (opts.surname: a Forever player, whose name has a surname where a realm would be.)
-	C.units = { player = { name = "Tester", realm = opts.surname or "Realm", guid = "Player-1-00000001", guild = "Olympus II", rank = "Hero", rankIndex = 2 } }
+	C.units = { player = { name = "Tester", realm = opts.surname or "Realm", guid = "Player-1-00000001", guild = "ChillZone II", rank = "Hero", rankIndex = 2 } }
 	local function U(unit) return C.units[unit] end
 	E.UnitFullName = function(unit) local u = U(unit); if u then return u.name, u.realm end end
 	E.UnitName = function(unit) local u = U(unit); if u then return u.name, u.realm ~= C.realmName and u.realm or nil end end
@@ -785,7 +785,7 @@ local function NewClient(opts)
 	E.PlaySound = function() end
 	E.GetMaxPlayerLevel = function() return 60 end
 	E.GetMoney = function() return C.money or 0 end
-	-- 1.2.5.1, the Olympus Accord's BattleTag (Accord.ReadTag): Battle.net connected (BNConnected, as
+	-- 1.2.5.1, the ChillZone Accord's BattleTag (Accord.ReadTag): Battle.net connected (BNConnected, as
 	-- Blizzard_FriendsFrame's FriendsFrame_CheckBattlenetStatus asks it) and the player's own tag,
 	-- BNGetInfo's second value (a test tag, nobody's). C.bnet = false: disconnected, no tag. (The
 	-- fixture says Forever's source never calls BNFeaturesEnabledAndConnected: nil here.)
@@ -836,9 +836,9 @@ local function NewClient(opts)
 	-- Frames.
 	E.CreateFrame = function(kind, name, parent, template)
 		local w = NewWidget(kind, name, parent, template, false)
-		w.olympus = FromOlympus(1) -- (else the model's own, a pool of the game's)
-		-- (Olympus's frames hang from UIParent, the screen's root: no reach. Inside another of the game's, one.)
-		if parent and parent.blizzard and parent ~= E.UIParent and FromOlympus(1) then
+		w.chillzone = FromChillZone(1) -- (else the model's own, a pool of the game's)
+		-- (ChillZone's frames hang from UIParent, the screen's root: no reach. Inside another of the game's, one.)
+		if parent and parent.blizzard and parent ~= E.UIParent and FromChillZone(1) then
 			C.Record((rawget(parent, "name") or rawget(parent, "path") or "?") .. " <- " .. (name or kind), "parent", 1)
 		end
 		return w
@@ -879,7 +879,7 @@ end
 
 ---------------------------------------------------------------------------
 -- The game's side: its frames, its functions, its tables. Each modelled from what Forever's UI
--- source shows (the fixture, the files cited), as far as Olympus uses it.
+-- source shows (the fixture, the files cited), as far as ChillZone uses it.
 ---------------------------------------------------------------------------
 
 local function World(C, opts)
@@ -907,23 +907,23 @@ local function World(C, opts)
 	C.Namespace = Namespace
 	E.C_Timer = Namespace("C_Timer", E.C_Timer)
 	E.C_InputInterfaceStyle = Namespace("C_InputInterfaceStyle", E.C_InputInterfaceStyle)
-	-- A function the audit counts as a reach: each call from Olympus's code goes in the ledger.
+	-- A function the audit counts as a reach: each call from ChillZone's code goes in the ledger.
 	local function Reach(name, fn)
 		return function(...)
-			if FromOlympus(1) then C.Record(name, "call", 1) end
+			if FromChillZone(1) then C.Record(name, "call", 1) end
 			return fn(...)
 		end
 	end
-	-- A restricted function (fidelity rule 4): from Olympus's code outside the player's click, the
+	-- A restricted function (fidelity rule 4): from ChillZone's code outside the player's click, the
 	-- game refuses it and sends ADDON_ACTION_BLOCKED; inside a click, it runs.
 	local function Restricted(name, fn)
 		return function(...)
-			if FromOlympus(1) then
+			if FromChillZone(1) then
 				local r = C.Record(name, "call", 1)
 				if not C.clicking then
 					r.kind = "blocked"
 					C.blocked[#C.blocked + 1] = name
-					C.After(0, function() C.Fire("ADDON_ACTION_BLOCKED", "Olympus", name .. "()") end)
+					C.After(0, function() C.Fire("ADDON_ACTION_BLOCKED", "ChillZone", name .. "()") end)
 					return nil
 				end
 			end
@@ -963,10 +963,10 @@ local function World(C, opts)
 	end
 	C.Blizz = Blizz
 	-- A method of the game's own Lua (a mixin's) on one of its frames: what it does here, and the
-	-- call from Olympus's code in the ledger.
+	-- call from ChillZone's code in the ledger.
 	local function Method(w, key, fn)
 		rawset(w, key, function(self, ...)
-			if FromOlympus(1) and not AUDIT.READS[key] then C.Record((w.name or "?") .. ":" .. key, "method", 1) end
+			if FromChillZone(1) and not AUDIT.READS[key] then C.Record((w.name or "?") .. ":" .. key, "method", 1) end
 			return fn(self, ...)
 		end)
 	end
@@ -1065,7 +1065,7 @@ local function World(C, opts)
 	E.SetChannelPassword = function() end
 	E.ChannelUnban = function() end
 
-	-- Addon messages (Olympus's comm): what it sends, kept.
+	-- Addon messages (ChillZone's comm): what it sends, kept.
 	C.sent = {}
 	local prefixes = {}
 	E.C_ChatInfo = Namespace("C_ChatInfo", {
@@ -1322,9 +1322,9 @@ local function World(C, opts)
 		Method(map, "GetMapID", function(self) return self.mapID end)
 		Method(map, "AddDataProvider", function(self, p) self.dataProviders[p] = true; p:OnAdded(self) end)
 		Method(map, "RemoveDataProvider", function(self, p) self.dataProviders[p] = nil end)
-		-- MapCanvasMixin:MarkCanvasDirty, from RemoveAllPinsByTemplate and AcquirePin: from Olympus's copy
+		-- MapCanvasMixin:MarkCanvasDirty, from RemoveAllPinsByTemplate and AcquirePin: from ChillZone's copy
 		-- of the library, in the ledger (the gamepad map runs in its taint after it).
-		local function Dirty() map.marks = map.marks + 1; if FromOlympus(2) then C.Record("WorldMapFrame:MarkCanvasDirty", "method", 2) end end
+		local function Dirty() map.marks = map.marks + 1; if FromChillZone(2) then C.Record("WorldMapFrame:MarkCanvasDirty", "method", 2) end end
 		Method(map, "RemoveAllPinsByTemplate", function(self, t) local p = self.pinPools[t]; if p then p:ReleaseAll() end Dirty() end)
 		Method(map, "AcquirePin", function(self, t, ...) local p = self.pinPools[t]; local pin = p:Acquire(); pin.owningMap = self; if pin.OnAcquired then pin:OnAcquired(...) end Dirty() return pin end)
 		Method(map, "RemovePin", function(self, pin) for _, p in pairs(self.pinPools) do p:Release(pin) end Dirty() end)
@@ -1372,7 +1372,7 @@ local function World(C, opts)
 	E.StaticPopup_FindVisible = Fn("StaticPopup_FindVisible", function(which, data) return FindPopup(which, data) end)
 	E.StaticPopup_Visible = Fn("StaticPopup_Visible", function(which) local p = FindPopup(which); return p and p:GetName() or nil end)
 
-	-- The game's tables Olympus may read or write: the escape list, the slash commands.
+	-- The game's tables ChillZone may read or write: the escape list, the slash commands.
 	E.UISpecialFrames = { "GameMenuFrame", "SettingsPanel", "CharacterFrame" }
 	E.SlashCmdList = {}
 
@@ -1477,7 +1477,7 @@ local function World(C, opts)
 	E.CompactUnitFrame_UpdateName = function() end
 	E.NamePlateSetupOptions = {}
 
-	-- Templates' helpers (Blizzard_SharedXML: PanelTemplates_*), on Olympus's own tabs.
+	-- Templates' helpers (Blizzard_SharedXML: PanelTemplates_*), on ChillZone's own tabs.
 	E.PanelTemplates_TabResize = function(tab, padding) tab:SetWidth((tab:GetFontString():GetStringWidth() or 0) + (padding or 20)) end
 	E.PanelTemplates_SelectTab = function(tab) tab.selectedTab = true end
 	E.PanelTemplates_DeselectTab = function(tab) tab.selectedTab = false end
@@ -1540,9 +1540,9 @@ end
 
 ---------------------------------------------------------------------------
 -- Tail calls. A function that ends in "return f(...)" leaves the stack when it calls f (LuaJIT,
--- like the client, reuses its frame), so a reach of the game's made that way would show no Olympus
+-- like the client, reuses its frame), so a reach of the game's made that way would show no ChillZone
 -- line on the stack. The pass loads the addon's files with each such return made an ordinary call,
--- on the same lines: "return OlympusTailCall__(f(...))" returns the same values, nothing else changes
+-- on the same lines: "return ChillZoneTailCall__(f(...))" returns the same values, nothing else changes
 -- but the depth of the stack.
 ---------------------------------------------------------------------------
 
@@ -1635,7 +1635,7 @@ local function NoTailCalls(src)
 					if m == k + 1 then isCall = false end -- "(expression)": not a call
 				end
 				if isCall then
-					inserts[#inserts + 1] = { first.s, "OlympusTailCall__(" }
+					inserts[#inserts + 1] = { first.s, "ChillZoneTailCall__(" }
 					inserts[#inserts + 1] = { tail.e + 1, ")" }
 				end
 			end
@@ -1651,13 +1651,13 @@ end
 ---------------------------------------------------------------------------
 
 local TOC = {}
-for line in assert(io.open(ADDON_DIR .. "Olympus.toc")):lines() do
+for line in assert(io.open(ADDON_DIR .. "ChillZone.toc")):lines() do
 	local f = line:match("^%s*([^#%s][^%s]*%.lua)%s*$")
 	if f then TOC[#TOC + 1] = (f:gsub("\\", "/")) end
 end
 
 -- A client with the addon loaded (opts.gamepad: the gamepad UI on from the start; opts.saved: the
--- saved variables, OlympusDB). Returns the client and the addon's namespace.
+-- saved variables, ChillZoneDB). Returns the client and the addon's namespace.
 local function Boot(opts)
 	opts = opts or {}
 	local C = NewClient(opts)
@@ -1666,8 +1666,8 @@ local function Boot(opts)
 	C.SealGame()
 	local ns = {}
 	C.ns = ns
-	if opts.saved then rawset(C.env, "OlympusDB", opts.saved) end
-	rawset(C.env, "OlympusTailCall__", function(...) return ... end)
+	if opts.saved then rawset(C.env, "ChillZoneDB", opts.saved) end
+	rawset(C.env, "ChillZoneTailCall__", function(...) return ... end)
 	for _, file in ipairs(TOC) do
 		local f = assert(io.open(ADDON_DIR .. file, "rb"))
 		local src = f:read("*a")
@@ -1675,12 +1675,13 @@ local function Boot(opts)
 		local chunk = assert(loadstring(NoTailCalls(src), "@" .. ADDON_DIR .. file))
 		setfenv(chunk, C.env)
 		-- (A file that fails as it loads: the client reports it and loads the next one.)
-		local ok, err = pcall(chunk, "Olympus", ns)
-		if not ok then C.loadErrors[#C.loadErrors + 1] = file .. ": " .. tostring(err); pcall(C.handler, err) end
+		local ok, err = pcall(chunk, "ChillZone", ns)
+		if not ok then C.loadErrors[#C.loadErrors + 1] = file .. ": " .. tostring(err); pcall(C.handler, err)
+		elseif ApplyTestIdentity and not file:find("[/\\]") then ApplyTestIdentity(file, ns) end
 	end
 	-- (opts.realmFrom(ns): a realm named by the addon itself, the Treasurer's group's for the dues.)
 	if opts.realmFrom then C.realmName = opts.realmFrom(ns) end
-	C.Fire("ADDON_LOADED", "Olympus")
+	C.Fire("ADDON_LOADED", "ChillZone")
 	return C, ns
 end
 
@@ -1707,7 +1708,7 @@ local function AllowedUnderPad(r)
 	return false
 end
 local function Describe(r)
-	return ("%s (%s) from Olympus/%s:%s, tagged %s%s%s"):format(r.sym, r.kind, tostring(r.file), tostring(r.line),
+	return ("%s (%s) from ChillZone/%s:%s, tagged %s%s%s"):format(r.sym, r.kind, tostring(r.file), tostring(r.line),
 		r.ids and table.concat(r.ids, ",") or "nothing", r.click and ", in a click" or "", r.gateWork and (", the gate's " .. r.gateWork) or "")
 end
 -- Every record must name its entry (the audit's tags at runtime); with the gamepad UI on, only an
@@ -1745,7 +1746,7 @@ end
 -- The frames the gamepad UI navigates with Smart Navigation (their visible buttons are targets).
 local MANAGED = { "CommunitiesFrame", "GuildFrame", "FriendsFrame", "WorldMapFrame", "PTR_IssueReporter", "GameMenuFrame" }
 -- (With every one of those frames shown, as the game would show them, then put back.)
-local function NavigableOlympus(C, show)
+local function NavigableChillZone(C, show)
 	local out = {}
 	local shown = {}
 	if show then
@@ -1756,7 +1757,7 @@ local function NavigableOlympus(C, show)
 	end
 	local function Walk(f)
 		for _, c in ipairs(f.children) do
-			if c.olympus and c:IsVisible() and (c:IsObjectType("Button") or c.kind == "EditBox" or c.scripts.OnMouseUp or c.scripts.OnMouseDown) then
+			if c.chillzone and c:IsVisible() and (c:IsObjectType("Button") or c.kind == "EditBox" or c.scripts.OnMouseUp or c.scripts.OnMouseDown) then
 				out[#out + 1] = c.name or c.kind
 			end
 			Walk(c)
@@ -1778,7 +1779,7 @@ local function Snapshot(C)
 	for k, v in pairs(E) do if type(k) == "string" and not AUDIT.Own(k) then s.globals[k] = v end end
 	for i, n in ipairs(rawget(E, "UISpecialFrames") or {}) do s.special[i] = n end
 	for k in pairs(rawget(E, "SlashCmdList") or {}) do s.slash[k] = true end
-	for k in pairs(rawget(E, "StaticPopupDialogs") or {}) do if not tostring(k):find("^OLYMPUS_") then s.dialogs[k] = true end end
+	for k in pairs(rawget(E, "StaticPopupDialogs") or {}) do if not tostring(k):find("^CHILLZONE_") then s.dialogs[k] = true end end
 	for i = 1, 4 do local p = rawget(E, "StaticPopup" .. i); s.popups[i] = p and p.shown end
 	s.chat = rawget(E, "LAST_ACTIVE_CHAT_EDIT_BOX")
 	s.handler = C.handler
@@ -1803,7 +1804,7 @@ end
 ---------------------------------------------------------------------------
 
 local function Main(C)
-	for _, n in ipairs({ "OlympusFrameHD", "OlympusFrame", "OlympusFrameHDBasic", "OlympusFrameBasic" }) do
+	for _, n in ipairs({ "ChillZoneFrameHD", "ChillZoneFrame", "ChillZoneFrameHDBasic", "ChillZoneFrameBasic" }) do
 		local f = rawget(C.env, n)
 		if f and f:IsShown() then return f end
 	end
@@ -1813,7 +1814,7 @@ local function WindowFlow(C)
 	-- (Open already, from another flow: its X first.)
 	local open = Main(C)
 	if open then C.Click(rawget(open, "CloseButton")); C.Advance(0.5) end
-	local b = rawget(C.env, "OlympusMinimapButton")
+	local b = rawget(C.env, "ChillZoneMinimapButton")
 	assert(b and b:IsVisible(), "the minimap button shows")
 	C.Click(b)
 	C.Advance(1)
@@ -1830,19 +1831,19 @@ local function WindowFlow(C)
 	return #tabs
 end
 
--- Every one of Olympus's dialogs, shown the addon's way (ns.ShowDialog). In Olympus's own window
+-- Every one of ChillZone's dialogs, shown the addon's way (ns.ShowDialog). In ChillZone's own window
 -- (the gamepad UI's), each of its buttons clicked by the player, the dialog shown again for each;
 -- the game's popup (mouse and keyboard) hidden again.
 local function DialogsFlow(C)
 	local ns, n, clicks = C.ns, 0, 0
 	local keys = {}
-	for k in pairs(C.env.StaticPopupDialogs) do if tostring(k):find("^OLYMPUS_") then keys[#keys + 1] = k end end
+	for k in pairs(C.env.StaticPopupDialogs) do if tostring(k):find("^CHILLZONE_") then keys[#keys + 1] = k end end
 	table.sort(keys)
 	for _, which in ipairs(keys) do
 		for b = 1, 3 do
 			local shown = ns.ShowDialog(which, "Someone", "Something", { name = "Someone-Realm" })
 			if shown and b == 1 then n = n + 1 end
-			local own = type(shown) == "table" and rawget(shown, "olympus") and rawget(shown, "buttons")
+			local own = type(shown) == "table" and rawget(shown, "chillzone") and rawget(shown, "buttons")
 			local button = own and own[b]
 			if button and button:IsVisible() then
 				C.Click(button)
@@ -1869,7 +1870,7 @@ local function KingViewFlow(C)
 	return tabs
 end
 
--- The game shows its guild windows, then hides them (their OnShow and OnHide, and Olympus's hooks).
+-- The game shows its guild windows, then hides them (their OnShow and OnHide, and ChillZone's hooks).
 local function GuildWindowsFlow(C)
 	for _, name in ipairs({ "CommunitiesFrame", "FriendsFrame" }) do
 		local f = rawget(C.env, name)
@@ -1894,9 +1895,9 @@ end
 -- A player's tooltip: the game's post-calls, isolated, with the tooltip and its data.
 local function TooltipFlow(C)
 	local tip = C.env.GameTooltip
-	-- (Inspected before: the tabard line Olympus adds to his tooltip, with mouse and keyboard.)
-	C.ns.Inspect.Record("Someone-Realm", "Olympus II", "WARRIOR", 60, nil, true)
-	C.units.mouseover = { name = "Someone", realm = "Realm", guid = "Player-1-00000002", guild = "Olympus II", rank = "Titan", rankIndex = 1 }
+	-- (Inspected before: the tabard line ChillZone adds to his tooltip, with mouse and keyboard.)
+	C.ns.Inspect.Record("Someone-Realm", "ChillZone II", "WARRIOR", 60, nil, true)
+	C.units.mouseover = { name = "Someone", realm = "Realm", guid = "Player-1-00000002", guild = "ChillZone II", rank = "Titan", rankIndex = 1 }
 	tip:SetOwner(C.env.UIParent, "ANCHOR_CURSOR")
 	tip:SetUnit("mouseover")
 	local unit = C.env.Enum.TooltipDataType.Unit
@@ -1923,7 +1924,7 @@ local function MenuFlow(C)
 	function root.CreateTitle() made = made + 1 return Element() end
 	function root.CreateButton() made = made + 1 return Element() end
 	function root.CreateDivider() return Element() end
-	C.units.target = { name = "Someone", realm = "Realm", guid = "Player-1-00000002", guild = "Olympus II", rank = "Titan", rankIndex = 1 }
+	C.units.target = { name = "Someone", realm = "Realm", guid = "Player-1-00000002", guild = "ChillZone II", rank = "Titan", rankIndex = 1 }
 	local ran = 0
 	for tag, list in pairs(C.menus) do
 		for _, fn in ipairs(list) do
@@ -1946,7 +1947,7 @@ local function ChatLineFlow(C)
 end
 
 -- A slash command typed in the game's chat box (fidelity rule 3: called directly, then the box
--- closes in the caller's taint): with the gamepad UI on, any Olympus code run that way is a taint event.
+-- closes in the caller's taint): with the gamepad UI on, any ChillZone code run that way is a taint event.
 local function TypeSlash(C, line)
 	local cmd, msg = line:match("^(/%S+)%s*(.-)$")
 	local E = C.env
@@ -1962,7 +1963,7 @@ local function TypeSlash(C, line)
 				local hook = debug.gethook()
 				debug.sethook(function()
 					local info = debug.getinfo(2, "S")
-					if info and OlympusFile(info.source) then ran = true end
+					if info and ChillZoneFile(info.source) then ran = true end
 				end, "c")
 				local ok, err = pcall(fn, msg, E.ChatFrame1EditBox)
 				debug.sethook(hook)
@@ -1977,7 +1978,7 @@ local function TypeSlash(C, line)
 end
 
 -- A player who answered the first-open page (Consent.lua) before: the window opens on its tabs.
--- (1.2.5.1: and the Olympus Accord accepted, as every account using Olympus has it; a fresh session,
+-- (1.2.5.1: and the ChillZone Accord accepted, as every account using ChillZone has it; a fresh session,
 -- opts.fresh, is asked it first.)
 local function Answered()
 	return { addonChat = true, royalInspection = true, rollCall = true, layerHelp = true, treasurerShares = true,
@@ -1997,7 +1998,7 @@ local function Session(gamepad, opts)
 	return C, ns
 end
 
--- The player's click on one of Olympus's buttons that runs fn (the hardware event).
+-- The player's click on one of ChillZone's buttons that runs fn (the hardware event).
 local function InClick(C, fn)
 	C.clicking = true
 	local ok, err = pcall(fn)
@@ -2086,7 +2087,7 @@ for _, initialPad in ipairs({ false, true }) do
 end
 
 -- 1.4.0: a Legate's "Invite online member to raid" (WarSquads.lua -> PartyGuard.InviteGuildmate):
--- the game's party invite inside the player's click on Olympus's own row, in both modes and across
+-- the game's party invite inside the player's click on ChillZone's own row, in both modes and across
 -- switches (the gate's "roster-actions", a "click" entry); never a /who, never outside a guildmate.
 for _, initialPad in ipairs({ false, true }) do
 	test("gamepad Legate raid invite: " .. (initialPad and "gamepad" or "mouse") .. " login, the click's invite in both modes, nothing else of the game's", function()
@@ -2187,13 +2188,13 @@ end
 -- A player's card (a row of the census), its Whisper, Invite and Who buttons clicked.
 local function PersonFlow(C)
 	local ns = C.ns
-	-- (1.2: UI.ShowPerson opens the player's profile in the Olympus window; the side card, its
+	-- (1.2: UI.ShowPerson opens the player's profile in the ChillZone window; the side card, its
 	-- Whisper, Invite and Who on the same functions, stays for a client without PlayerProfile.lua.)
 	local Show = ns.UI.ShowPersonCard or ns.UI.ShowPerson
-	Show({ name = "Someone", realm = "Realm", guild = "Olympus II", class = "WARRIOR", level = 60 })
+	Show({ name = "Someone", realm = "Realm", guild = "ChillZone II", class = "WARRIOR", level = 60 })
 	local card
 	-- (1.1.5's windows: ns.Window gives the metal frame its own name, the plain fallback "<name>Basic".)
-	for _, n in ipairs({ "OlympusPersonFrameHD", "OlympusPersonFrame", "OlympusPersonFrameHDBasic", "OlympusPersonFrameBasic" }) do
+	for _, n in ipairs({ "ChillZonePersonFrameHD", "ChillZonePersonFrame", "ChillZonePersonFrameHDBasic", "ChillZonePersonFrameBasic" }) do
 		local f = rawget(C.env, n)
 		if f and f:IsShown() then card = f end
 	end
@@ -2216,18 +2217,18 @@ local function QuietWhoFlow(C)
 	return C.ns.Who.IsPending()
 end
 
--- The Olympus window on its Chat tab (ChatWindow.lua), which takes the Open chat key.
+-- The ChillZone window on its Chat tab (ChatWindow.lua), which takes the Open chat key.
 local function ChatTabFlow(C)
 	C.ns.ChatWindow.Toggle("A")
 	C.Advance(1)
 end
 
--- The game's target: a player of an Olympus guild (the borders' and nameplates' events).
+-- The game's target: a player of an ChillZone guild (the borders' and nameplates' events).
 local function TargetFlow(C)
-	C.units.target = { name = "Someone", realm = "Realm", guid = "Player-1-00000002", guild = "Olympus II", rank = "Titan", rankIndex = 1 }
+	C.units.target = { name = "Someone", realm = "Realm", guid = "Player-1-00000002", guild = "ChillZone II", rank = "Titan", rankIndex = 1 }
 	C.Fire("PLAYER_TARGET_CHANGED")
 	C.Advance(1)
-	-- The game's own refresh of the target frame and of a name, which Olympus hooks.
+	-- The game's own refresh of the target frame and of a name, which ChillZone hooks.
 	C.env.TargetFrame:CheckClassification()
 	C.env.CompactUnitFrame_UpdateName({ unit = "target", name = C.NewWidget("FontString", nil, nil, nil, true) })
 	C.units.target = nil
@@ -2242,7 +2243,7 @@ local function CalendarFlow(C)
 	return opened
 end
 
--- The game's own /who: Olympus's hook on C_FriendList.SendWho (Who.lua) runs after it.
+-- The game's own /who: ChillZone's hook on C_FriendList.SendWho (Who.lua) runs after it.
 local function GameWhoFlow(C) C.env.C_FriendList.SendWho("n-Someone") end
 
 -- An alert (ns.Alert: the raid warning frame) and a line in the chat (ns.Print).
@@ -2251,7 +2252,7 @@ local function AlertFlow(C)
 	C.ns.Print("A test line")
 end
 
--- The world map's Olympus icons: what Olympus's copy of the library holds there.
+-- The world map's ChillZone icons: what ChillZone's copy of the library holds there.
 local function WorldPins(C)
 	local lib = C.env.LibStub("HereBeDragons-Pins-2.0", true)
 	local n = 0
@@ -2259,19 +2260,19 @@ local function WorldPins(C)
 	return n, lib and lib.worldmapPinsPool and lib.worldmapPinsPool:GetNumActive() or 0
 end
 
-local function OlympusEscapeNames(C)
+local function ChillZoneEscapeNames(C)
 	local out = {}
 	for _, n in ipairs(C.env.UISpecialFrames) do if AUDIT.Own(n) then out[#out + 1] = n end end
 	return out
 end
 
--- Olympus's textures and frames on the game's own frames, shown.
+-- ChillZone's textures and frames on the game's own frames, shown.
 local function ShownOnGameFrames(C)
 	local out = {}
 	for _, w in ipairs(C.created) do
-		if w.olympus and w:IsVisible() then
+		if w.chillzone and w:IsVisible() then
 			local p = w.parent
-			while p and p.olympus do p = p.parent end
+			while p and p.chillzone do p = p.parent end
 			if p and p ~= C.env.UIParent and p.blizzard and p ~= C.env.Minimap then out[#out + 1] = (w.name or w.kind) .. " on " .. (rawget(p, "name") or rawget(p, "path") or "?") end
 		end
 	end
@@ -2344,9 +2345,9 @@ test("gamepad pass 1: a whole session with the gamepad UI on from the login reac
 	OnlyAllowed(C.ledger, "the login")
 	NoErrors(C, "the login")
 	-- No slash command at a gamepad login (D1): typed, it is the game's unknown command.
-	eq(rawget(C.env, "SLASH_OLYMPUS1"), nil, "no /oly")
-	eq(TypeSlash(C, "/oly status"), false, "/oly typed: not Olympus's")
-	eq(#C.taint, 0, "no Olympus code from the chat box")
+	eq(rawget(C.env, "SLASH_CHILLZONE1"), nil, "no /cz")
+	eq(TypeSlash(C, "/cz status"), false, "/cz typed: not ChillZone's")
+	eq(#C.taint, 0, "no ChillZone code from the chat box")
 	GP.Covers("slash")
 	-- Its hidden channel joined all the same (the census), off the chat windows' lists.
 	assert(next(C.channels), "the census channel joined")
@@ -2354,7 +2355,7 @@ test("gamepad pass 1: a whole session with the gamepad UI on from the login reac
 	local mark = C.Mark()
 	WindowFlow(C)
 	local dialogs, all, clicks = DialogsFlow(C)
-	eq(dialogs, all, "every dialog shown, in Olympus's own window")
+	eq(dialogs, all, "every dialog shown, in ChillZone's own window")
 	assert(clicks >= all, "their buttons clicked: " .. clicks)
 	KingViewFlow(C)
 	GuildWindowsFlow(C)
@@ -2365,7 +2366,7 @@ test("gamepad pass 1: a whole session with the gamepad UI on from the login reac
 	C.Advance(30)
 	OnlyAllowed(C.Since(mark), "the flows")
 	NoErrors(C, "the flows")
-	eq(#NavigableOlympus(C, true), 0, "no Olympus button where the gamepad cursor goes")
+	eq(#NavigableChillZone(C, true), 0, "no ChillZone button where the gamepad cursor goes")
 	local diff = Diff(before, Snapshot(C))
 	eq(#diff, 0, "the game's state written: " .. table.concat(diff, ", "))
 	eq(C.handler, C.gameHandler, "the game's own error handler")
@@ -2405,45 +2406,45 @@ test("gamepad pass 2: mouse and keyboard, then a switch to the gamepad UI: the g
 	eq(CalendarFlow(C), true, "the calendar opens")
 	GameWhoFlow(C)
 	AlertFlow(C)
-	eq(TypeSlash(C, "/oly status"), true, "/oly typed with mouse and keyboard")
+	eq(TypeSlash(C, "/cz status"), true, "/cz typed with mouse and keyboard")
 	C.Advance(10)
 	Check(C.ledger, "with mouse and keyboard")
 	NoErrors(C, "with mouse and keyboard")
 	local used = Ids(C.ledger)
-	used.slash = E.SlashCmdList.OLYMPUS and 1 -- (a table write, not a call: the commands registered)
+	used.slash = E.SlashCmdList.CHILLZONE and 1 -- (a table write, not a call: the commands registered)
 	for _, id in ipairs({ "slash", "communities-button", "tooltip-unit", "error-handler", "map-overlay", "dialogs", "chat-box", "who",
 		"who-quiet", "map-library", "chat-key", "player-menu", "borders", "chat-marks", "nameplates", "minimap", "roster-actions",
 		"calendar", "raid-notice", "chat-channels", "mail-hooks" }) do
 		assert(used[id], "with mouse and keyboard, used: " .. id)
 	end
-	-- A game popup of Olympus's still up, its window on the escape list, the Communities window
-	-- open with Olympus's button in it, the map showing Olympus's icons: then the switch.
-	ns.ShowDialog("OLYMPUS_CRAFT_ASK")
+	-- A game popup of ChillZone's still up, its window on the escape list, the Communities window
+	-- open with ChillZone's button in it, the map showing ChillZone's icons: then the switch.
+	ns.ShowDialog("CHILLZONE_CRAFT_ASK")
 	ns.UI.Toggle()
-	-- (1.2.1: a guild window the player sees moves a question of Olympus's off the game's popups,
+	-- (1.2.1: a guild window the player sees moves a question of ChillZone's off the game's popups,
 	-- GuildFrame.lua, and none opens there while one is up: the Communities window here is open the
 	-- way ClassicUI Forever keeps it, unseen at alpha 0, which leaves the game's popup where it is.)
 	E.CommunitiesFrame:SetAlpha(0)
 	E.CommunitiesFrame:Show()
 	C.ShowMap()
-	-- (The author's preview of a border, on his own portrait: a texture of Olympus's on the game's
+	-- (The author's preview of a border, on his own portrait: a texture of ChillZone's on the game's
 	-- player frame, and his nameplate mark's.)
 	ns.devWorkshop = true
 	ns.Borders.SetPreview(ns.Borders.TIERS[1].name)
 	ns.Borders.RefreshAll(true)
 	eq(QuietWhoFlow(C), true, "a quiet /who waiting for its answer")
 	eq(E.LFGWhoListFrame:IsEventRegistered("WHO_LIST_UPDATE"), false, "the game's who list silenced meanwhile")
-	assert(#ShownOnGameFrames(C) > 0, "Olympus's border on the game's player frame, before the switch")
-	assert(#NavigableOlympus(C) > 0, "Olympus's button where the gamepad cursor goes, before the switch")
-	assert(#OlympusEscapeNames(C) > 0, "Olympus's windows on the escape list")
-	assert((WorldPins(C)) > 0, "Olympus's icons on the world map")
-	assert(E.ChatFrame1EditBox:IsShown(), "the game's chat box opened from Olympus (a whisper)")
+	assert(#ShownOnGameFrames(C) > 0, "ChillZone's border on the game's player frame, before the switch")
+	assert(#NavigableChillZone(C) > 0, "ChillZone's button where the gamepad cursor goes, before the switch")
+	assert(#ChillZoneEscapeNames(C) > 0, "ChillZone's windows on the escape list")
+	assert((WorldPins(C)) > 0, "ChillZone's icons on the world map")
+	assert(E.ChatFrame1EditBox:IsShown(), "the game's chat box opened from ChillZone (a whisper)")
 	assert(C.bindings and next(C.bindings), "the Chat tab's key")
-	assert(C.handler ~= C.gameHandler, "Olympus's error handler")
+	assert(C.handler ~= C.gameHandler, "ChillZone's error handler")
 	local escapeBefore = table.concat(E.UISpecialFrames, ",")
 
 	C.Switch(true)
-	-- In the switch's own event: only Olympus's borrowed keys given back.
+	-- In the switch's own event: only ChillZone's borrowed keys given back.
 	for _, r in ipairs(C.switchLedger) do
 		assert(r.ids and (r.ids[1] == "chat-key" or r.ids[1] == "main-key"), "in the switch's event: " .. Describe(r))
 	end
@@ -2452,21 +2453,21 @@ test("gamepad pass 2: mouse and keyboard, then a switch to the gamepad UI: the g
 	GP.Covers("main-key")
 	C.Advance(1)
 	-- The next frame: each park.
-	eq(#NavigableOlympus(C, true), 0, "no Olympus button where the gamepad cursor goes")
+	eq(#NavigableChillZone(C, true), 0, "no ChillZone button where the gamepad cursor goes")
 	GP.Covers("communities-button")
 	local shown = ShownOnGameFrames(C)
-	eq(#shown, 0, "Olympus's objects on the game's frames hidden: " .. table.concat(shown, ", "))
+	eq(#shown, 0, "ChillZone's objects on the game's frames hidden: " .. table.concat(shown, ", "))
 	GP.Covers("map-overlay"); GP.Covers("borders"); GP.Covers("nameplates")
 	eq(C.handler, C.gameHandler, "the game's error handler back")
 	GP.Covers("error-handler")
-	eq(#OlympusEscapeNames(C), 0, "Olympus's names off the end of the escape list (" .. escapeBefore .. ")")
+	eq(#ChillZoneEscapeNames(C), 0, "ChillZone's names off the end of the escape list (" .. escapeBefore .. ")")
 	GP.Covers("escape-list")
-	eq((WorldPins(C)), 0, "Olympus's icons off the world map")
+	eq((WorldPins(C)), 0, "ChillZone's icons off the world map")
 	GP.Covers("worldmap-icons")
 	eq(ns.Who.IsPending(), false, "the quiet /who given up at the switch")
 	eq(E.LFGWhoListFrame:IsEventRegistered("WHO_LIST_UPDATE"), true, "the game's who list hears its answers again at once")
 	GP.Covers("who-quiet")
-	-- What stays until a /reload, told once in Olympus's own window, whose Reload is the player's click.
+	-- What stays until a /reload, told once in ChillZone's own window, whose Reload is the player's click.
 	local left = table.concat(ns.Gate.leftovers, ",")
 	for _, id in ipairs({ "chat-box", "dialogs", "slash", "worldmap-icons" }) do
 		assert(left:find(id, 1, true), "until a /reload: " .. id .. " (" .. left .. ")")
@@ -2474,9 +2475,9 @@ test("gamepad pass 2: mouse and keyboard, then a switch to the gamepad UI: the g
 	GP.Covers("slash"); GP.Covers("dialogs"); GP.Covers("chat-box")
 	eq(ns.Gate.Noticed(), true, "told")
 	local notice
-	for _, w in ipairs(C.created) do if w.olympus and w.which == "OLYMPUS_GAMEPAD_RELOAD" and w:IsShown() then notice = w end end
-	assert(notice, "the notice, in Olympus's own window (Dialog.lua)")
-	eq(E.StaticPopup1.which == "OLYMPUS_GAMEPAD_RELOAD", false, "not the game's popup")
+	for _, w in ipairs(C.created) do if w.chillzone and w.which == "CHILLZONE_GAMEPAD_RELOAD" and w:IsShown() then notice = w end end
+	assert(notice, "the notice, in ChillZone's own window (Dialog.lua)")
+	eq(E.StaticPopup1.which == "CHILLZONE_GAMEPAD_RELOAD", false, "not the game's popup")
 	Check(C.Since(mark), "the switch")
 	-- The notice's Reload: the player's click.
 	local reload
@@ -2506,10 +2507,10 @@ test("gamepad pass 2: mouse and keyboard, then a switch to the gamepad UI: the g
 	PersonFlow(C)
 	GP.Covers("roster-actions"); GP.Covers("who")
 	DialogsFlow(C)
-	-- /oly typed now: registered before, the game's chat box still calls it (the leftover the
+	-- /cz typed now: registered before, the game's chat box still calls it (the leftover the
 	-- notice names); its first line refuses, nothing of the game's is touched.
-	eq(TypeSlash(C, "/oly status"), true, "the command the game keeps")
-	eq(#C.taint, 1, "the chat box ran Olympus's function: the /reload the notice asks for")
+	eq(TypeSlash(C, "/cz status"), true, "the command the game keeps")
+	eq(#C.taint, 1, "the chat box ran ChillZone's function: the /reload the notice asks for")
 	C.Advance(30)
 	Check(C.Since(after), "the gamepad UI after the switch")
 	NoErrors(C, "after the switch")
@@ -2526,15 +2527,15 @@ test("gamepad pass 3: the gamepad UI and mouse and keyboard, back and forth thre
 		WindowFlow(C)
 		ChatTabFlow(C)
 		E.CommunitiesFrame:Show(); C.Advance(0.5)
-		assert(#NavigableOlympus(C) > 0, "round " .. round .. ": Olympus's button back in the guild window")
+		assert(#NavigableChillZone(C) > 0, "round " .. round .. ": ChillZone's button back in the guild window")
 		E.CommunitiesFrame:Hide()
 		MapFlow(C)
 		eq(select(2, TooltipFlow(C)), 1, "round " .. round .. ": the tooltip's post-call, once")
-		eq(TypeSlash(C, "/oly status"), true, "round " .. round .. ": /oly back")
+		eq(TypeSlash(C, "/cz status"), true, "round " .. round .. ": /cz back")
 		C.Switch(true)
 		C.Advance(1)
 		E.CommunitiesFrame:Show(); C.Advance(0.5)
-		eq(#NavigableOlympus(C), 0, "round " .. round .. ": none with the gamepad UI")
+		eq(#NavigableChillZone(C), 0, "round " .. round .. ": none with the gamepad UI")
 		E.CommunitiesFrame:Hide()
 		WindowFlow(C)
 		eq(TooltipFlow(C), 0, "round " .. round .. ": no tooltip line")
@@ -2550,17 +2551,17 @@ test("gamepad pass 3: the gamepad UI and mouse and keyboard, back and forth thre
 	for key, n in pairs(count) do eq(n, 1, "registered once: " .. key) end
 	eq(#C.menus.MENU_UNIT_PLAYER, 1, "the player menu's callback, once")
 	local slash = 0
-	for k in pairs(E.SlashCmdList) do if k:find("^OLYMPUS") then slash = slash + 1 end end
-	eq(slash, 7, "/oly and /ol, /olc, /oll, /ola (1.2: a line in the fight room), /ogarmy and /olysite (1.3.3), once")
+	for k in pairs(E.SlashCmdList) do if k:find("^CHILLZONE") then slash = slash + 1 end end
+	eq(slash, 7, "/cz and /czn, /czc, /czl, /cza (1.2: a line in the fight room), /czarmy and /olysite (1.3.3), once")
 	GP.Covers("player-menu"); GP.Covers("slash"); GP.Covers("minimap")
-	assert(rawget(E, "OlympusMinimapButton"):IsVisible(), "the minimap button in both modes")
+	assert(rawget(E, "ChillZoneMinimapButton"):IsVisible(), "the minimap button in both modes")
 end)
 
 test("gamepad pass 4: blocked calls with the gamepad UI: counted, told once in a chat line, nothing of the game's touched; another addon's only logged", function()
 	local C, ns = Session(true)
 	local mark = C.Mark()
 	local printed = #C.printed
-	for i = 1, 500 do C.Fire("ADDON_ACTION_FORBIDDEN", "Olympus", "SetPreferredGamepadInteractTarget()") end
+	for i = 1, 500 do C.Fire("ADDON_ACTION_FORBIDDEN", "ChillZone", "SetPreferredGamepadInteractTarget()") end
 	C.Fire("ADDON_ACTION_BLOCKED", "SomeOtherAddon", "SetPreferredGamepadInteractTarget()")
 	eq(#C.Since(mark), 0, "the handler reaches nothing of the game's")
 	C.Advance(5)
@@ -2578,8 +2579,8 @@ test("gamepad pass 4: blocked calls with the gamepad UI: counted, told once in a
 	NoErrors(C, "blocked calls")
 end)
 
-test("gamepad pass 5: the rest of the list with the gamepad UI on: the Issue Reporter, the map library half-loaded or loaded on demand, the layer hop's group, focus in Olympus's own boxes, the game's look-ups", function()
-	-- A test client's Issue Reporter (Blizzard_PTRFeedback): Olympus's Hide button on it with
+test("gamepad pass 5: the rest of the list with the gamepad UI on: the Issue Reporter, the map library half-loaded or loaded on demand, the layer hop's group, focus in ChillZone's own boxes, the game's look-ups", function()
+	-- A test client's Issue Reporter (Blizzard_PTRFeedback): ChillZone's Hide button on it with
 	-- mouse and keyboard, a gamepad target no more after the switch; none at a gamepad login.
 	local function Reporter(C)
 		local E = C.env
@@ -2593,15 +2594,15 @@ test("gamepad pass 5: the rest of the list with the gamepad UI on: the Issue Rep
 	ns.db.hideIssueReporter = false
 	ns.UI.ApplyIssueReporter()
 	C.env.PTR_IssueReporter:Show()
-	assert(#NavigableOlympus(C) > 0, "Olympus's Hide button on the Issue Reporter")
+	assert(#NavigableChillZone(C) > 0, "ChillZone's Hide button on the Issue Reporter")
 	C.Switch(true); C.Advance(1)
-	eq(#NavigableOlympus(C), 0, "hidden at the switch")
+	eq(#NavigableChillZone(C), 0, "hidden at the switch")
 	GP.Covers("issue-reporter")
 	Check(C.ledger, "the Issue Reporter")
 	local P = Session(true, { setup = Reporter })
 	P.env.PTR_IssueReporter:Show()
 	P.ns.UI.ApplyIssueReporter()
-	eq(#NavigableOlympus(P), 0, "none at a gamepad login")
+	eq(#NavigableChillZone(P), 0, "none at a gamepad login")
 	Check(P.ledger, "the Issue Reporter, gamepad login")
 
 	-- The map library on a client that loads the world map on demand: Bootstrap.lua loads it first.
@@ -2650,20 +2651,20 @@ test("gamepad pass 5: the rest of the list with the gamepad UI on: the Issue Rep
 	-- Focus: a dialog's box takes the keyboard only through ns.Focus, never from the game's chat box.
 	local F = Session(true)
 	F.env.ChatFrame1EditBox:Show(); F.focus = F.env.ChatFrame1EditBox
-	F.ns.ShowDialog("OLYMPUS_CRAFT_ASK")
-	eq(F.focus, F.env.ChatFrame1EditBox, "the chat's box keeps the keyboard; the player clicks into Olympus's")
+	F.ns.ShowDialog("CHILLZONE_CRAFT_ASK")
+	eq(F.focus, F.env.ChatFrame1EditBox, "the chat's box keeps the keyboard; the player clicks into ChillZone's")
 	GP.Covers("popup-focus")
 	-- The game's look-ups (fonts, strings, the popups' places, the who windows): reads only.
 	assert(F.ns.Who.WindowOpen() == false)
 	GP.Covers("lookups")
-	-- Forever has no who-list column helper (the old guild window's): Olympus's HD headers size themselves.
+	-- Forever has no who-list column helper (the old guild window's): ChillZone's HD headers size themselves.
 	eq(F.env.WhoFrameColumn_SetWidth, nil, "the client has none")
 	GP.Covers("own-templates")
 	Check(F.ledger, "focus and look-ups")
 	NoErrors(F, "focus and look-ups")
 
 	-- Inspecting for the tabard patrol (NotifyInspect, not protected): with the gamepad UI too.
-	F.units.target = { name = "Someone", realm = "Realm", guid = "Player-1-00000002", guild = "Olympus II" }
+	F.units.target = { name = "Someone", realm = "Realm", guid = "Player-1-00000002", guild = "ChillZone II" }
 	F.env.CanInspect = function() return true end
 	F.env.CheckInteractDistance = function() return true end
 	local before = F.Mark()
@@ -2709,26 +2710,26 @@ end)
 if MODE == "--debug" then
 	return { Boot = Boot, Login = Login, Session = Session, WindowFlow = WindowFlow, Main = Main, Errors = Errors, DialogsFlow = DialogsFlow,
 		GuildWindowsFlow = GuildWindowsFlow, MapFlow = MapFlow, TooltipFlow = TooltipFlow, MenuFlow = MenuFlow, ChatLineFlow = ChatLineFlow,
-		TypeSlash = TypeSlash, Snapshot = Snapshot, Diff = Diff, Check = Check, NavigableOlympus = NavigableOlympus, Describe = Describe,
+		TypeSlash = TypeSlash, Snapshot = Snapshot, Diff = Diff, Check = Check, NavigableChillZone = NavigableChillZone, Describe = Describe,
 		AllowedUnderPad = AllowedUnderPad }
 end
 -- 1.2.4: the honours' notices (HonorsNet.Notice: a place dropped, the list left, back on it, a place
--- won back) are strips of Olympus's own, never the game's popups nor its raid warning: with the gamepad
+-- won back) are strips of ChillZone's own, never the game's popups nor its raid warning: with the gamepad
 -- UI on from the login, a strip shows and reaches nothing of the game's, takes neither the mouse nor
 -- the keyboard, has no button the gamepad's cursor could stop on, never goes on the escape list, and
 -- goes by itself.
-test("gamepad honour notices (1.2.4): with the gamepad UI on, a notice's strip is Olympus's own on UIParent, shown without the mouse or the keyboard, no button, off the escape list, reaching nothing of the game's; gone by itself", function()
+test("gamepad honour notices (1.2.4): with the gamepad UI on, a notice's strip is ChillZone's own on UIParent, shown without the mouse or the keyboard, no button, off the escape list, reaching nothing of the game's; gone by itself", function()
 	local C, ns = Session(true)
 	local mark = C.Mark()
 	local before = Snapshot(C)
 	eq(ns.HonorsNet.Notice("Top donors: you dropped to 2nd place.", "donor-top-2"), true, "a strip with the gamepad UI on")
 	local f = ns.HonorsNet.NoticeFrames()[1]
 	assert(f and f:IsShown(), "shown")
-	eq(f.olympus, true, "Olympus's own frame") eq(f.parent, C.env.UIParent, "on UIParent")
+	eq(f.chillzone, true, "ChillZone's own frame") eq(f.parent, C.env.UIParent, "on UIParent")
 	eq(f:IsMouseEnabled(), false, "no mouse") eq(f.keyboard, false, "no keyboard")
 	for _, ch in ipairs(f.children) do assert(not ch:IsObjectType("Button"), "no button on it") end
-	eq(#NavigableOlympus(C, true), 0, "nothing for the gamepad's cursor")
-	eq(#OlympusEscapeNames(C), 0, "never on the escape list")
+	eq(#NavigableChillZone(C, true), 0, "nothing for the gamepad's cursor")
+	eq(#ChillZoneEscapeNames(C), 0, "never on the escape list")
 	C.Advance(ns.HonorsNet.NOTICE_SHOW + 1)
 	eq(f:IsShown(), false, "gone by itself")
 	OnlyAllowed(C.Since(mark), "a notice")
@@ -2739,8 +2740,8 @@ end)
 
 -- 1.2 (the Blood Arena): its restricted calls only inside the player's click, the match's waypoint
 -- and the chat filters on the game's system lines never with the gamepad UI (the filter left from
--- mouse and keyboard doing nothing), its companion loaded as Olympus's own addon.
-test("gamepad pass 6: the Arena's integrations: restricted calls from a click alone, no waypoint and no chat filter with the gamepad UI, the companion loaded as Olympus's own", function()
+-- mouse and keyboard doing nothing), its companion loaded as ChillZone's own addon.
+test("gamepad pass 6: the Arena's integrations: restricted calls from a click alone, no waypoint and no chat filter with the gamepad UI, the companion loaded as ChillZone's own", function()
 	local A = Session(true)
 	local ns = A.ns
 	local before = A.Mark()
@@ -2758,7 +2759,7 @@ test("gamepad pass 6: the Arena's integrations: restricted calls from a click al
 	eq(#A.Since(before), 0, "nothing of the game's map")
 	GP.Covers("map-waypoint")
 	-- A Wanted last-seen row follows the same boundary: its text remains available, but a gamepad
-	-- session never opens or focuses the game's map from Olympus code.
+	-- session never opens or focuses the game's map from ChillZone code.
 	before = A.Mark()
 	eq(ns.Wanted.OpenSightingMap({ mapID = 1429 }), false, "no Wanted map focus with the gamepad UI")
 	eq(#A.Since(before), 0, "a Wanted row touches none of the game's map")
@@ -2789,18 +2790,18 @@ test("gamepad pass 6: the Arena's integrations: restricted calls from a click al
 	eq(filters[1].fn(nil, "CHAT_MSG_SYSTEM", "Someone rolls 3 (1-6)"), false, "inert with the gamepad UI")
 	FT.Opts().chatRolls = was
 	GP.Covers("system-filters")
-	-- The companion, Olympus_Arena: Olympus's own addon, loaded on demand with the gamepad UI too.
+	-- The companion, ChillZone_Arena: ChillZone's own addon, loaded on demand with the gamepad UI too.
 	before = A.Mark()
 	ns.Arena.LoadUI()
 	local loaded = false
 	for _, r in ipairs(A.Since(before)) do if r.sym == "C_AddOns.LoadAddOn" then loaded = true end end
 	assert(loaded, "the companion asked for, with the gamepad UI on")
-	eq(A.loadedAddOns.Olympus_Arena, true)
+	eq(A.loadedAddOns.ChillZone_Arena, true)
 	GP.Covers("load-companion")
 	Check(A.ledger, "the Arena")
 end)
 
--- 1.4.0: Olympus Link is its own load-on-demand addon, Olympus_Link, not in this package. Olympus
+-- 1.4.0: ChillZone Link is its own load-on-demand addon, ChillZone_Link, not in this package. ChillZone
 -- asks for it once, when its saved variables are read (LinkLoader.lua, at INIT), handing its
 -- namespace over for that one call; the model's LoadAddOn answers "MISSING" for a module not
 -- installed and runs a stand-in module's first file for one that is (C.addOnFiles).
@@ -2809,13 +2810,13 @@ local function LinkLoads(C)
 	for _, r in ipairs(C.ledger) do if r.sym == "C_AddOns.LoadAddOn" and r.ids and r.ids[1] == "load-link" then n = n + 1 end end
 	return n
 end
-test("gamepad pass: Olympus Link's own addon (1.4.0): asked for once at a gamepad login, the namespace handed over for that call alone; not installed, nothing of it runs; a switch each way asks nothing more", function()
+test("gamepad pass: ChillZone Link's own addon (1.4.0): asked for once at a gamepad login, the namespace handed over for that call alone; not installed, nothing of it runs; a switch each way asks nothing more", function()
 	-- Not installed: one ask at the login, the game's "MISSING", no namespace left in a global.
-	local C, ns = Session(true, { setup = function(c) c.missingAddOns = { Olympus_Link = true } end })
+	local C, ns = Session(true, { setup = function(c) c.missingAddOns = { ChillZone_Link = true } end })
 	eq(LinkLoads(C), 1, "asked once, at the gamepad login")
 	eq(ns.LinkLoader.Loaded(), false); eq(ns.LinkLoader.Why(), "MISSING")
 	eq(rawget(ns, "Link"), nil, "no Link without its addon")
-	eq(rawget(C.env, "OlympusLinkHandoff"), nil, "the handoff cleared after the call")
+	eq(rawget(C.env, "ChillZoneLinkHandoff"), nil, "the handoff cleared after the call")
 	local printed = #C.printed
 	ns.LinkLoader.Slash("OLC2.7K3M9QX2TB.someone.1799990000.a.ffffffff.sig")
 	eq(#C.printed, printed + 1, "one line")
@@ -2826,14 +2827,14 @@ test("gamepad pass: Olympus Link's own addon (1.4.0): asked for once at a gamepa
 	eq(LinkLoads(C), 1, "a switch either way asks nothing more")
 	eq(ns.LinkLoader.Load(), false, "and nor does a later ask: once a session")
 	eq(LinkLoads(C), 1)
-	Check(C.ledger, "Olympus Link not installed")
-	NoErrors(C, "Olympus Link not installed")
+	Check(C.ledger, "ChillZone Link not installed")
+	NoErrors(C, "ChillZone Link not installed")
 	-- Installed: its first file takes the namespace during the call (and only then), sets ns.Link.
 	local during
 	local M, mns = Session(true, { setup = function(c)
-		c.addOnFiles = { Olympus_Link = function(env)
-			local host = rawget(env, "OlympusLinkHandoff")
-			rawset(env, "OlympusLinkHandoff", nil)
+		c.addOnFiles = { ChillZone_Link = function(env)
+			local host = rawget(env, "ChillZoneLinkHandoff")
+			rawset(env, "ChillZoneLinkHandoff", nil)
 			during = host
 			if type(host) == "table" and type(host.LinkLoader) == "table" and host.LinkLoader.HOST_API == 1 then
 				host.Link = { Slash = function(rest) host.Print("module: " .. tostring(rest)) end, StatusLine = function() return "test module" end }
@@ -2842,15 +2843,15 @@ test("gamepad pass: Olympus Link's own addon (1.4.0): asked for once at a gamepa
 	end })
 	eq(LinkLoads(M), 1, "asked once, at the gamepad login")
 	assert(during == mns, "the namespace handed over during the call")
-	eq(rawget(M.env, "OlympusLinkHandoff"), nil, "and not after it")
+	eq(rawget(M.env, "ChillZoneLinkHandoff"), nil, "and not after it")
 	eq(mns.LinkLoader.Loaded(), true); eq(mns.LinkLoader.StatusLine(), "test module")
 	mns.LinkLoader.Slash("status")
-	assert(M.printed[#M.printed]:find("module: status", 1, true), "/oly discord goes to the module: " .. M.printed[#M.printed])
+	assert(M.printed[#M.printed]:find("module: status", 1, true), "/cz discord goes to the module: " .. M.printed[#M.printed])
 	M.Switch(false); M.Advance(1)
 	M.Switch(true); M.Advance(1)
 	eq(LinkLoads(M), 1, "loaded once: a switch changes nothing")
-	Check(M.ledger, "Olympus Link installed")
-	NoErrors(M, "Olympus Link installed")
+	Check(M.ledger, "ChillZone Link installed")
+	NoErrors(M, "ChillZone Link installed")
 	GP.Covers("load-link")
 end)
 
@@ -2891,7 +2892,7 @@ local function DuelScene(C)
 	E.CanInspect = function() return true end
 	E.CheckInteractDistance = function() return true end
 end
--- The player menu's callbacks the game's way, on his target: the lines Olympus adds (text, click).
+-- The player menu's callbacks the game's way, on his target: the lines ChillZone adds (text, click).
 local function MenuLines(C)
 	local lines = {}
 	local function Element()
@@ -2966,14 +2967,14 @@ test("gamepad duel view (1.2.6): Watch duel's line only through the player menu'
 	NoErrors(C, "a duel watch")
 end)
 
--- 1.2.1: [Olympus], [Captains] and [Lords] before a line in the game's chat, links where the player
+-- 1.2.1: [ChillZone], [Captains] and [Lords] before a line in the game's chat, links where the player
 -- may write there. A click on one the game's way: the chat window's OnHyperlinkClick calls SetItemRef
 -- (the hooks on it after).
 local function ClickTag(C, tier, button)
 	local E = C.env
 	C.chatBox = nil
 	local mark = C.Mark()
-	InClick(C, function() E.SetItemRef("addon:Olympus:chan:" .. tier, "[x]", button or "LeftButton", E.ChatFrame1) end)
+	InClick(C, function() E.SetItemRef("addon:ChillZone:chan:" .. tier, "[x]", button or "LeftButton", E.ChatFrame1) end)
 	return C.chatBox and C.chatBox.text or nil, C.Since(mark)
 end
 local function TagHooks(C)
@@ -2985,9 +2986,9 @@ test("gamepad pass 7: the chat's channel names as links: hooked once with mouse 
 	local C, ns = Session(false)
 	local Chan = ns.Channels
 	eq(TagHooks(C), 1, "the post-hook on SetItemRef, with mouse and keyboard")
-	eq(Chan.Tag("A"), "|Haddon:Olympus:chan:A|h[" .. ns.L.CHAN_ALL .. "]|h", "[Olympus] a link: the player writes there")
+	eq(Chan.Tag("A"), "|Haddon:ChillZone:chan:A|h[" .. ns.L.CHAN_ALL .. "]|h", "[ChillZone] a link: the player writes there")
 	local text, ledger = ClickTag(C, "A")
-	eq(text, "/ol ", "a left click: the chat box, /ol in it")
+	eq(text, "/czn ", "a left click: the chat box, /czn in it")
 	eq(Ids(ledger)["chat-box"], 1, "the chat box, the gate's chat-box")
 	Check(ledger, "the click")
 	eq(C.itemRefs[#C.itemRefs].handled, "AddOn", "the game's own handling first, as for any link")
@@ -3004,7 +3005,7 @@ test("gamepad pass 7: the chat's channel names as links: hooked once with mouse 
 	-- Back to mouse and keyboard: the same hook, not a second one.
 	C.Switch(false); C.Advance(1)
 	eq(TagHooks(C), 1, "registered once a session")
-	eq((ClickTag(C, "A")), "/ol ")
+	eq((ClickTag(C, "A")), "/czn ")
 	Check(C.ledger, "the whole session")
 	NoErrors(C, "the chat's channel links")
 	-- A gamepad login: nothing hooked, no link; the first switch to mouse and keyboard hooks it, once.
@@ -3014,7 +3015,7 @@ test("gamepad pass 7: the chat's channel names as links: hooked once with mouse 
 	eq((ClickTag(P, "A")), nil)
 	P.Switch(false); P.Advance(1)
 	eq(TagHooks(P), 1, "hooked at the switch to mouse and keyboard")
-	eq((ClickTag(P, "A")), "/ol ")
+	eq((ClickTag(P, "A")), "/czn ")
 	Check(P.ledger, "a gamepad login, then mouse and keyboard")
 	NoErrors(P, "a gamepad login, then mouse and keyboard")
 	GP.Covers("chat-links"); GP.Covers("chat-box")
@@ -3028,7 +3029,7 @@ local function CoverScene(ns)
 	ns.db.coverConsent = true
 end
 local function CoverFlow(C)
-	C.units.target = { name = "Someone", realm = "Realm", guid = "Player-1-00000002", guild = "Olympus II", rank = "Titan", rankIndex = 1 }
+	C.units.target = { name = "Someone", realm = "Realm", guid = "Player-1-00000002", guild = "ChillZone II", rank = "Titan", rankIndex = 1 }
 	local fs = C.NewWidget("FontString", nil, nil, nil, true)
 	fs:SetText("Someone")
 	local mark = C.Mark()
@@ -3062,19 +3063,19 @@ end)
 
 test("gamepad main shortcut (Shift + the guild key): no binding at gamepad login, both input-style switches and saved binding changes preserve the native owner", function()
 	local P, pad = Session(true)
-	eq(pad.MainKey.Held(), false); eq(P.env.OlympusMainKey, nil, "no key button at a gamepad login")
+	eq(pad.MainKey.Held(), false); eq(P.env.ChillZoneMainKey, nil, "no key button at a gamepad login")
 	P.Switch(false); P.Advance(1); eq(pad.MainKey.Held(), true)
 	P.Switch(true); eq(pad.MainKey.Held(), false, "release in the switch before native rebinding")
 	P.Advance(1); Check(P.ledger, "main key switches")
 	local C, ns = Session(false)
-	eq(ns.MainKey.Held(), true); eq(C.bindings["SHIFT-J"], "OlympusMainKey")
+	eq(ns.MainKey.Held(), true); eq(C.bindings["SHIFT-J"], "ChillZoneMainKey")
 	if ns.UI.IsShown() then ns.UI.Toggle() end
 	eq(ns.UI.IsShown() == true, false, "start with the main window closed")
-	C.Click(C.env.OlympusMainKey); eq(ns.UI.IsShown(), true)
-	C.Click(C.env.OlympusMainKey); eq(ns.UI.IsShown(), false)
+	C.Click(C.env.ChillZoneMainKey); eq(ns.UI.IsShown(), true)
+	C.Click(C.env.ChillZoneMainKey); eq(ns.UI.IsShown(), false)
 	C.baseBindings["SHIFT-J"] = "TOGGLEQUESTLOG"; C.Fire("UPDATE_BINDINGS")
 	eq(ns.MainKey.Held(), false); eq(C.bindings["SHIFT-J"], nil); eq(C.baseBindings["SHIFT-J"], "TOGGLEQUESTLOG")
-	C.Click(C.env.OlympusMainKey); eq(ns.UI.IsShown(), false, "a stale callback cannot steal the player's key")
+	C.Click(C.env.ChillZoneMainKey); eq(ns.UI.IsShown(), false, "a stale callback cannot steal the player's key")
 	C.baseBindings["SHIFT-J"] = nil; C.Fire("UPDATE_BINDINGS"); eq(ns.MainKey.Held(), true)
 	C.Switch(true); eq(ns.MainKey.Held(), false); C.Advance(1)
 	C.Switch(false); C.Advance(1); eq(ns.MainKey.Held(), true)
@@ -3082,12 +3083,12 @@ test("gamepad main shortcut (Shift + the guild key): no binding at gamepad login
 	GP.Covers("main-key")
 end)
 
--- 1.2.5.1: the Olympus Accord (Accord.lua) on a fresh account's first session, gamepad UI on from the
--- login: the Accord asks first, in Olympus's own window (no game popup, nothing of the game's UI
--- reached); the controller's click on I accept starts Olympus; the privacy page comes after it.
-test("gamepad: a fresh account's first session: the Olympus Accord first, in Olympus's own window; I accept by the controller's click, then the privacy page", function()
+-- 1.2.5.1: the ChillZone Accord (Accord.lua) on a fresh account's first session, gamepad UI on from the
+-- login: the Accord asks first, in ChillZone's own window (no game popup, nothing of the game's UI
+-- reached); the controller's click on I accept starts ChillZone; the privacy page comes after it.
+test("gamepad: a fresh account's first session: the ChillZone Accord first, in ChillZone's own window; I accept by the controller's click, then the privacy page", function()
 	local C, ns = Session(true, { fresh = true })
-	eq(ns.IsMember(), false, "nothing of Olympus before it is accepted")
+	eq(ns.IsMember(), false, "nothing of ChillZone before it is accepted")
 	local f = ns.Accord.Frame()
 	assert(f and f:IsShown(), "the letter, LOGIN_WAIT after login")
 	eq(f.acceptEnabled, true, "the test tag is read")
@@ -3100,9 +3101,9 @@ test("gamepad: a fresh account's first session: the Olympus Accord first, in Oly
 	C.Advance(5)
 	page = ns.Consent.Frame()
 	assert(page and page:IsShown(), "then the privacy page")
-	Check(C.ledger, "the Olympus Accord with the gamepad UI")
-	NoErrors(C, "the Olympus Accord with the gamepad UI")
-	-- Not now, on another fresh session: Olympus stays off, nothing of the game's reached either.
+	Check(C.ledger, "the ChillZone Accord with the gamepad UI")
+	NoErrors(C, "the ChillZone Accord with the gamepad UI")
+	-- Not now, on another fresh session: ChillZone stays off, nothing of the game's reached either.
 	local C2, ns2 = Session(true, { fresh = true })
 	InClick(C2, function() ns2.Accord.Frame().notNow:Click() end)
 	eq(ns2.IsMember(), false); eq(ns2.Accord.Frame():IsShown(), false)
@@ -3115,7 +3116,7 @@ end)
 -- 1.2.5.1's review: the server's no-such-player line for the BattleTag's whisper to a team member
 -- who just left (Accord.Quiet): no chat filter with the gamepad UI; registered once with mouse and
 -- keyboard; doing nothing from its first line after a switch back to the gamepad UI.
-test("gamepad: the Olympus Accord's quiet not-found line: no chat filter with the gamepad UI, one with mouse and keyboard, inert after the switch back", function()
+test("gamepad: the ChillZone Accord's quiet not-found line: no chat filter with the gamepad UI, one with mouse and keyboard, inert after the switch back", function()
 	local A = Session(true)
 	local ns = A.ns
 	local before = A.Mark()
@@ -3131,11 +3132,11 @@ test("gamepad: the Olympus Accord's quiet not-found line: no chat filter with th
 	A.Switch(true); A.Advance(1)
 	eq(filters[1].fn(nil, "CHAT_MSG_SYSTEM", "No player named 'Iron Warden' is currently playing."), false, "inert with the gamepad UI")
 	GP.Covers("system-filters")
-	Check(A.ledger, "the Olympus Accord's quiet line")
-	NoErrors(A, "the Olympus Accord's quiet line")
+	Check(A.ledger, "the ChillZone Accord's quiet line")
+	NoErrors(A, "the ChillZone Accord's quiet line")
 end)
 
--- 1.4.0, the Board's group listings (Groups.lua, the review of PR #62): its sections in Olympus's
+-- 1.4.0, the Board's group listings (Groups.lua, the review of PR #62): its sections in ChillZone's
 -- own window, drawn and clicked by the player, with the gamepad UI on from the login and across a
 -- switch each way. The quest log's functions (GetNumQuestLogEntries, GetQuestLogTitle, C_QuestLog)
 -- are not in tests/fixtures/forever-api.lua yet: Groups.lua is the first to read them, and the
@@ -3163,9 +3164,9 @@ local function BoardGroupsFlow(C, mode)
 		C.Click(row); C.Advance(0.2)
 	end
 	G.Reset()
-	-- Another Olympus guild's listings of each kind, how many are in one, a flag for several places.
+	-- Another ChillZone guild's listings of each kind, how many are in one, a flag for several places.
 	local function Listing(sender, id, kind, target, title, zone)
-		G.HandlePost("CHANNEL", sender, G.Encode({ id = id, guild = "Olympus Zeus", kind = kind, target = target, level = 40, class = "WA",
+		G.HandlePost("CHANNEL", sender, G.Encode({ id = id, guild = "ChillZone Zeus", kind = kind, target = target, level = 40, class = "WA",
 			need = "113", size = 2, every = 5, age = 0, title = title, zone = zone }))
 	end
 	Listing("Leader-Realm", "a1", "D", "DM")
@@ -3173,7 +3174,7 @@ local function BoardGroupsFlow(C, mode)
 	Listing("Fighter-Realm", "c1", "P", "WSG")
 	Listing("Quester-Realm", "d1", "Q", "176", "Kill Hogger", "Elwynn Forest")
 	G.HandleMembers("CHANNEL", "Leader-Realm", "GM~a1~MA-1")
-	B.HandlePost("CHANNEL", "Looker-Realm", B.Encode({ id = "f1", guild = "Olympus Zeus", flag = "D", level = 40, class = "PR", every = 10, age = 0,
+	B.HandlePost("CHANNEL", "Looker-Realm", B.Encode({ id = "f1", guild = "ChillZone Zeus", flag = "D", level = 40, class = "PR", every = 10, age = 0,
 		roles = "T", picks = "D:DM;P:*" }))
 	B.Open()
 	C.Advance(1)
@@ -3185,16 +3186,16 @@ local function BoardGroupsFlow(C, mode)
 		Click(who)
 		assert(BoardRow(C, "> " .. L.GROUPS_WHISPER:format(who)), "its card under it")
 	end
-	-- Quests: a name typed (its dialog, Olympus's own with the gamepad UI).
+	-- Quests: a name typed (its dialog, ChillZone's own with the gamepad UI).
 	Click(L.GROUPS_LIST:format(L.GROUPS_KIND_Q))
 	Click(L.GROUPS_TYPE_NAME)
-	ns.HideDialog("OLYMPUS_GROUPS_NAME")
+	ns.HideDialog("CHILLZONE_GROUPS_NAME")
 	Click("> " .. L.GROUPS_CANCEL)
 	-- Our own listing: a dungeon group, an applicant invited by the leader's click (the game's
 	-- invite, roster-actions), a flag's player invited the same way.
 	C.Click(rawget(assert(BoardStrip(C)), "nav")[2]); C.Advance(0.2)
 	assert(G.Post("D", "DM", nil, "113", ""))
-	G.HandleApply("WHISPER", "Applicant-Realm", G.EncodeApply(G.Mine().id, "Olympus Zeus", "T", 40, "WA", ""))
+	G.HandleApply("WHISPER", "Applicant-Realm", G.EncodeApply(G.Mine().id, "ChillZone Zeus", "T", 40, "WA", ""))
 	ns.UI.Refresh(); C.Advance(0.2)
 	Click("Applicant")
 	C.invited = nil
@@ -3229,9 +3230,9 @@ for _, initialPad in ipairs({ false, true }) do
 end
 
 -- 1.4.0, a companion addon's group panel on the Board (API.lua's RegisterGroupPanel, the registry's
--- board-panel): an Olympus-owned frame in Olympus's own window, in place of Your group while the
--- addon has the player's Yes; the player's switch on the Board brings Olympus's own back. With the
--- gamepad UI on from the login and across a switch each way it stays Olympus's own window's.
+-- board-panel): an ChillZone-owned frame in ChillZone's own window, in place of Your group while the
+-- addon has the player's Yes; the player's switch on the Board brings ChillZone's own back. With the
+-- gamepad UI on from the login and across a switch each way it stays ChillZone's own window's.
 for _, initialPad in ipairs({ false, true }) do
 	test("gamepad Board group panel (1.4.0): " .. (initialPad and "gamepad" or "mouse") .. " login, a companion's panel in place of Your group, the switch back and forth, a switch of input each way", function()
 		local C, ns = Session(initialPad)
@@ -3239,7 +3240,7 @@ for _, initialPad in ipairs({ false, true }) do
 		GP.Covers("board-panel")
 		ns.Groups.Reset()
 		C.loadedAddOns.GroupFinder, C.addOnTitles.GroupFinder = true, "Group Finder"
-		local api = assert(C.env.OlympusAPI.Register("GroupFinder"), "the companion's handle")
+		local api = assert(C.env.ChillZoneAPI.Register("GroupFinder"), "the companion's handle")
 		ns.Consent.Choose("api:groupfinder", true)
 		local builds, refreshes, button = 0, 0, nil
 		eq(api:RegisterGroupPanel({ label = "Group Finder",
@@ -3261,9 +3262,9 @@ for _, initialPad in ipairs({ false, true }) do
 			eq(builds, 1, "built once")
 			assert(refreshes >= 1, "refreshed as the Board redraws")
 			eq(api:IsGroupPanelShown(), true, "in place of Your group")
-			assert(button:IsVisible(), "the companion's own button, in Olympus's window")
-			eq(BoardRow(C, ns.L.GROUPS_LIST:format(ns.L.GROUPS_KIND_D)), nil, "Olympus's own lines give it their place")
-			-- The player's switch: Olympus's own, then the companion's again.
+			assert(button:IsVisible(), "the companion's own button, in ChillZone's window")
+			eq(BoardRow(C, ns.L.GROUPS_LIST:format(ns.L.GROUPS_KIND_D)), nil, "ChillZone's own lines give it their place")
+			-- The player's switch: ChillZone's own, then the companion's again.
 			local switch
 			for _, w in ipairs(C.created) do
 				local l = rawget(w, "line")
@@ -3272,8 +3273,8 @@ for _, initialPad in ipairs({ false, true }) do
 			assert(switch, "the switch on the Board")
 			C.Click(rawget(switch, "nav")[2]); C.Advance(0.2)
 			eq(api:IsGroupPanelShown(), false); assert(not button:IsVisible())
-			assert(BoardRow(C, ns.L.GROUPS_LIST:format(ns.L.GROUPS_KIND_D)), "Olympus's own Your group")
-			eq(ns.db.groupsPanel, "olympus", "kept for the account")
+			assert(BoardRow(C, ns.L.GROUPS_LIST:format(ns.L.GROUPS_KIND_D)), "ChillZone's own Your group")
+			eq(ns.db.groupsPanel, "chillzone", "kept for the account")
 			C.Click(rawget(switch, "nav")[1]); C.Advance(0.2)
 			eq(api:IsGroupPanelShown(), true)
 			Check(C.Since(mark), "the group panel, " .. (mode and "gamepad" or "mouse and keyboard"))

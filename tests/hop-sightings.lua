@@ -39,11 +39,11 @@ local function WithWorld(fn)
 
 		function w.client(name)
 			local c = {
-				me = name .. "-Realm", realm = "Realm", faction = "Alliance", guild = "Olympus II", map = 1453,
+				me = name .. "-Realm", realm = "Realm", faction = "Alliance", guild = "ChillZone II", map = 1453,
 				L = setmetatable({}, { __index = function(_, key) return key end }),
 				db = { layerHelp = true, shareLocation = true, blocked = {} }, rdb = { guilds = {} }, units = {}, jobs = {}, sent = {},
 				handlers = {}, events = {}, listeners = {}, members = {}, remoteGuilds = {}, unverified = {}, alts = {}, hidden = {}, ready = true,
-				channel = "OlympusNet", printed = {}, hopAsks = {}, fires = 0,
+				channel = "ChillZoneNet", printed = {}, hopAsks = {}, fires = 0,
 				mine = { mapID = 1453, zoneUID = 8, t = w.clock, confirmedAt = w.clock }, sharing = true,
 			}
 			c.Now = function() return w.clock end
@@ -51,7 +51,7 @@ local function WithWorld(fn)
 			c.ShortName = function(n) return type(n) == "string" and n:gsub("%-.*$", "") or nil end
 			c.IsMember = function() return c.member ~= false end
 			c.UnitFullName = function(unit) local u = c.units[unit]; return u and u.name or nil end
-			c.IsFederation = function(guild) return type(guild) == "string" and guild:lower():find("olympus", 1, true) ~= nil end
+			c.IsFederation = function(guild) return type(guild) == "string" and guild:lower():find("chillzone", 1, true) ~= nil end
 			c.IsKingCharacter = function(n) return type(n) == "string" and n:lower() == KING:lower() end
 			c.KingName = function() return "Asmon" end
 			c.Alts = { Linked = function(sender)
@@ -185,7 +185,7 @@ local function WithWorld(fn)
 				if event == "HOP_CHANGED" then c.fires = c.fires + 1 end
 				if c.listeners[event] then c.listeners[event](...) end
 			end
-			assert(loadfile(ROOT .. "Olympus/HopSightings.lua"))("Olympus", c)
+			assert(loadfile(ROOT .. "ChillZone/HopSightings.lua"))("ChillZone", c)
 			function c.flush(index, dist, target)
 				local job = table.remove(c.jobs, index or 1)
 				if not job then return false, "empty" end
@@ -368,15 +368,15 @@ test("hop sighting: stale local roster rows never admit received evidence after 
 			"an expired local roster grants no observer authority")
 
 		asker.Roster.snapshotAt = w.clock
-		asker.guild = "Olympus III"
+		asker.guild = "ChillZone III"
 		asker.members["oldguild-realm"] = true
 		eq(w.use(asker, asker.HopSightings.Receive, "WHISPER", "OldGuild-Realm", response), false,
 			"rows from the previous guild are not members of the new current guild")
 
-		asker.rdb.guilds["Olympus Zeus"] = {}
-		asker.remoteGuilds["external-realm"] = "Olympus Zeus"
+		asker.rdb.guilds["ChillZone Zeus"] = {}
+		asker.remoteGuilds["external-realm"] = "ChillZone Zeus"
 		eq(w.use(asker, asker.HopSightings.Receive, "WHISPER", "External-Realm", response), true,
-			"independent authority for another Olympus guild remains available")
+			"independent authority for another ChillZone guild remains available")
 	end)
 end)
 
@@ -447,7 +447,7 @@ test("hop sighting: requester authority is rechecked before a queued private ans
 		eq(w.use(observer, observer.HopSightings.Receive, "CHANNEL", asker.me, query.msg), true)
 		observer.db.blocked[asker.me:lower()] = true
 		local sent, why = w.use(observer, observer.flush)
-		eq(sent, false); eq(why, "requester", "/oly block is rechecked at the location send boundary")
+		eq(sent, false); eq(why, "requester", "/cz block is rechecked at the location send boundary")
 		eq(#observer.sent, 0)
 	end)
 end)
@@ -460,7 +460,7 @@ test("hop sighting: a queued answer rechecks roster identity and freshness at th
 		observer.members[asker.me:lower()] = true
 		eq(w.use(observer, observer.HopSightings.Receive, "CHANNEL", asker.me, query.msg), true)
 		eq(#observer.jobs, 1)
-		observer.guild = "Olympus III"
+		observer.guild = "ChillZone III"
 		local sent, why = w.use(observer, observer.flush)
 		eq(sent, false); eq(why, "requester", "the permit rejects an old-guild requester after transfer")
 		eq(#observer.sent, 0)
@@ -483,7 +483,7 @@ test("hop sighting: a queued answer rechecks roster identity and freshness at th
 		local query = Start(w, asker)
 		observer.members[asker.me:lower()] = true
 		eq(w.use(observer, observer.HopSightings.Receive, "CHANNEL", asker.me, query.msg), true)
-		observer.guild = "Olympus III"
+		observer.guild = "ChillZone III"
 		w.use(observer, observer.events.PLAYER_GUILD_UPDATE)
 		eq(#observer.jobs, 0, "a guild event promptly cancels the queued location answer")
 	end)
@@ -517,7 +517,7 @@ test("hop sighting: accepted evidence is pruned when observer authority disappea
 		eq(w.use(asker, asker.HopSightings.Receive, "WHISPER", "Two-Realm", response), true)
 		w.clock = w.clock + asker.HopSightings.SETTLE
 		w.use(asker, asker.HopSightings.Tick)
-		eq(#asker.hopAsks, 0, "/oly block revokes already accepted observer evidence before settle")
+		eq(#asker.hopAsks, 0, "/cz block revokes already accepted observer evidence before settle")
 	end)
 end)
 
@@ -653,7 +653,7 @@ test("hop sighting integration: validated local proof applies the existing no an
 			H.HandleAsk("CHANNEL", "Auto-Realm", "LQ~42~1453~7")
 			assert(w.whispered[#w.whispered]:match("^Auto%-Realm LO~42~"), tostring(w.whispered[#w.whispered]))
 			H.HandleRequest("WHISPER", "Auto-Realm", "LR~42")
-			eq(w.invited[1], "Auto", "For Olympus invites through the existing Hop machine")
+			eq(w.invited[1], "Auto", "For ChillZone invites through the existing Hop machine")
 			eq(#w.popups, 0)
 		end)
 		base.HopSightings.LocalKingLayer = saved
@@ -690,9 +690,9 @@ test("hop sighting moderation: LY queries/answers are held under net-off, withdr
 		eq(base.Moderation.Blocks("LY~X~1~1~77"), false)
 		eq(base.Moderation.Blocks("LY~X~1~1~77~1453"), true, "only the location-free withdrawal bypasses net-off")
 		eq(base.Moderation.Blocks("PS~Q~1~7~Target-Realm"), true)
-		eq(base.Moderation.Blocks("PS~R~1~7~Olympus~84~500~500~9~0~Target-Realm"), true)
+		eq(base.Moderation.Blocks("PS~R~1~7~ChillZone~84~500~500~9~0~Target-Realm"), true)
 		eq(base.Moderation.Blocks("PS~A~1~8~1453"), true, "an area query remains held")
-		eq(base.Moderation.Blocks("PS~B~1~8~Olympus~1453~500~500~9~0~Enemy-Realm~nearby"), true,
+		eq(base.Moderation.Blocks("PS~B~1~8~ChillZone~1453~500~500~9~0~Enemy-Realm~nearby"), true,
 			"an area answer remains held")
 		eq(base.Moderation.Blocks("PS~C~1~7~Target-Realm"), false, "a request can still be cancelled")
 		eq(base.Moderation.Blocks("PS~X~1~7~Target-Realm"), false, "an observation can still be withdrawn")
@@ -712,10 +712,10 @@ test("hop sighting integration: Hop never installs one sighting as King authorit
 		local h = {
 			L = setmetatable({}, { __index = function(_, key) return key end }), db = {}, me = "Asker-Realm", realm = "Realm",
 			CROWN_ICON = "Interface\\Icons\\INV_Misc_Coin_01",
-			rdb = { guilds = { Olympus = { leader = KING:match("^(.-)%-"), leaderOnline = true, realm = "Realm", t = w.clock } } },
+			rdb = { guilds = { ChillZone = { leader = KING:match("^(.-)%-"), leaderOnline = true, realm = "Realm", t = w.clock } } },
 		}
 		h.Now = function() return w.clock end
-		h.IsKingGuild = function(guild) return guild == "Olympus" end
+		h.IsKingGuild = function(guild) return guild == "ChillZone" end
 		h.FullName, h.ShortName = Full, function(n) return n and n:gsub("%-.*$", "") end
 		h.RealmOf = function(n) return n and n:match("%-(.+)$") end
 		h.KingCharacter = function() return KING:match("^(.-)%-") end
@@ -734,7 +734,7 @@ test("hop sighting integration: Hop never installs one sighting as King authorit
 			function() end, function() end, function() end, function() end
 		h.IsMember = function() return true end
 		h.GamepadUI = function() return false end
-		assert(loadfile(ROOT .. "Olympus/Hop.lua"))("Olympus", h)
+		assert(loadfile(ROOT .. "ChillZone/Hop.lua"))("ChillZone", h)
 		h.Hop.HeardKing(KING)
 		eq(h.Hop.King().zoneUID, nil, "no direct sighting is installed as authority")
 		w.use(h, h.Hop.AskKing)

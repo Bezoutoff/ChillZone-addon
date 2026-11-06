@@ -3,7 +3,7 @@ local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]justice%-
 -- Actual Comm queue/dispatch, native Roster.Scan/Fresh, Members manual removal and Watch UI.
 -- The simulated server supplies identity/appointment verdicts and its native roster rows.
 local function Client(name)
-	local w = { name = name, guild = "Olympus II", now = 1800000000, sent = {}, events = {}, listeners = {}, ranks = {},
+	local w = { name = name, guild = "ChillZone II", now = 1800000000, sent = {}, events = {}, listeners = {}, ranks = {},
 		justice = "Justice-Realm", council = { ["Council-Realm"] = true }, native = {}, dialogs = {} }
 	local n = setmetatable({ me = name, realm = "Realm", group = "Realm", faction = "Alliance", CAPTAIN_RANK = 1,
 		db = { blocked = {} }, rdb = { guilds = {} }, ViewAs = {}, WatchChat = {}, Nominees = {}, King = {}, Workshop = {}, UI = {},
@@ -15,7 +15,7 @@ local function Client(name)
 	n.ShortName = function(s) return s:match("^[^-]+") end; n.DisplayName = n.ShortName
 	n.Moderation.CharName = function(s) return type(s) == "string" and n.FullName(s) or nil end
 	n.RealmOf = function(s) return s:match("%-(.+)$") end; n.GroupOf = function(s) return s end
-	n.IsMember = function() return w.guild ~= nil end; n.IsFederation = function(g) return g == "Olympus II" or g == "Olympus III" end
+	n.IsMember = function() return w.guild ~= nil end; n.IsFederation = function(g) return g == "ChillZone II" or g == "ChillZone III" end
 	n.IsKingCharacter = function(s) return s == "Crown-Realm" end; n.IsHighCouncillor = function(s) return w.council[s] == true end
 	n.KingRealm = function() return "Realm" end; n.IsKingGuild = function() return false end
 	n.King.Preview = function() return w.preview == true end; n.King.IsKing = function() return n.IsKingCharacter(n.me) end
@@ -50,7 +50,7 @@ local function Client(name)
 			SendAddonMessage = function(_, text, dist, target) w.sent[#w.sent + 1] = { text = text, dist = dist, target = target, logged = false }; return 0 end,
 			SendAddonMessageLogged = function(_, text, dist, target) w.sent[#w.sent + 1] = { text = text, dist = dist, target = target, logged = true }; return 0 end } }, { __index = _G })
 	w.env = env
-	local function Load(file) local f = assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua")); setfenv(f, env); f("Olympus", n) end
+	local function Load(file) local f = assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua")); setfenv(f, env); f("ChillZone", n) end
 	Load("Comm"); for _, login in ipairs(w.listeners.LOGIN or {}) do login() end
 	Load("Roster"); Load("Members"); Load("Watch"); Load("JusticeTasks")
 	function w.scan()
@@ -83,7 +83,7 @@ local function Receive(a, b, key, text)
 end
 local function Attempt(a, b, key)
 	b.now = b.now + 30; b.scan(); assert(b.ns.JusticeTasks.AskRemoval(key))
-	local dialog = b.dialogs[#b.dialogs]; eq(dialog.which, "OLYMPUS_GUILD_REMOVE")
+	local dialog = b.dialogs[#b.dialogs]; eq(dialog.which, "CHILLZONE_GUILD_REMOVE")
 	assert(b.ns.Members.Remove(dialog.data)); b.pump(); a.now = b.now; a.scan(); a.receive(b.name, assert(Last(b, "R")))
 end
 local function Absent(a, b, key)
@@ -120,7 +120,7 @@ test("Justice tasks: spoofing, foreign guild/subject, preview, replay conflicts 
 	local a, b = Setup(); local key, text = Issue(a, b)
 	b.receive("Other-Realm", text); eq(#b.ns.JusticeTasks.Tasks(), 0)
 	b.receive(a.name, text:gsub("Subject%-Realm", "Justice-Realm")); eq(#b.ns.JusticeTasks.Tasks(), 0)
-	b.receive(a.name, text:gsub("Olympus II", "Olympus III")); eq(#b.ns.JusticeTasks.Tasks(), 0)
+	b.receive(a.name, text:gsub("ChillZone II", "ChillZone III")); eq(#b.ns.JusticeTasks.Tasks(), 0)
 	b.receive(a.name, text:gsub("~A~", "~H~")); eq(#b.ns.JusticeTasks.Tasks(), 0, "factions stay isolated")
 	b.receive("Crown-Elsewhere", text); eq(#b.ns.JusticeTasks.Tasks(), 0, "another realm group is not the pinned issuer")
 	b.receive(a.name, "JT~1~invalid"); eq(#b.ns.JusticeTasks.Tasks(), 0)
@@ -172,7 +172,7 @@ test("Justice tasks: task storage and worst-case private packets remain bounded;
 	eq(#a.ns.JusticeTasks.Tasks(), a.ns.JusticeTasks.MAX); eq(#a.native, 0)
 	local c = Client("Crown-Realm")
 	local assignee, subject = "J" .. string.rep("j", 65) .. "-Realm", "S" .. string.rep("s", 65) .. "-Realm"
-	c.guild = "Olympus " .. string.rep("g", 64); c.justice = assignee; c.ranks = { [c.name] = 0, [assignee] = 1, [subject] = 9 }
+	c.guild = "ChillZone " .. string.rep("g", 62); c.justice = assignee; c.ranks = { [c.name] = 0, [assignee] = 1, [subject] = 9 }
 	c.ns.IsFederation = function(guild) return guild == c.guild end; c.scan()
 	eq(#assignee, 72); eq(#subject, 72); eq(#c.guild, 72)
 	assert(c.ns.JusticeTasks.Issue(c.guild, assignee, subject)); c.pump()
@@ -184,8 +184,8 @@ test("Justice tasks: stale manual buttons and queued messages lose appointment, 
 	local a, b = Setup(); local key, text = Issue(a, b); Receive(a, b, key, text)
 	assert(b.ns.JusticeTasks.AskRemoval(key)); local m = b.dialogs[#b.dialogs].data
 	b.justice = "Other-Realm"; eq(b.ns.Members.Remove(m), false); eq(#b.native, 0)
-	b.justice = b.name; b.guild = "Olympus III"; b.scan(); eq(b.ns.Members.Remove(m), false); eq(#b.native, 0)
-	b.guild = "Olympus II"; b.scan(); b.ranks["Subject-Realm"] = 0; b.scan(); eq(b.ns.Members.Remove(m), false); eq(#b.native, 0)
+	b.justice = b.name; b.guild = "ChillZone III"; b.scan(); eq(b.ns.Members.Remove(m), false); eq(#b.native, 0)
+	b.guild = "ChillZone II"; b.scan(); b.ranks["Subject-Realm"] = 0; b.scan(); eq(b.ns.Members.Remove(m), false); eq(#b.native, 0)
 	local c, d = Setup(); local ok, queued = c.ns.JusticeTasks.Issue(c.guild, d.name, "Subject-Realm"); assert(ok)
 	c.preview = true; c.pump(); eq(Last(c, "I"), nil); eq(Row(c, queued), nil, "preview exposes no real activity")
 	local h = Client("Council-Realm"); h.ranks = a.ranks; h.scan(); local accepted, ownKey = h.ns.JusticeTasks.Issue(h.guild, "Justice-Realm", "Other-Realm"); assert(accepted)
@@ -224,7 +224,7 @@ end)
 
 test("Justice tasks: report counts are separate latest retained accepted pairs with partial coverage, not lifetime work", function()
 	local a, b = Setup()
-	local function Report(seq) a.receive(b.name, ("MR~1~C~%d~%d~Olympus II~Realm~Alliance~A~Subject-Realm~0~Report"):format(seq, a.now)) end
+	local function Report(seq) a.receive(b.name, ("MR~1~C~%d~%d~ChillZone II~Realm~Alliance~A~Subject-Realm~0~Report"):format(seq, a.now)) end
 	Report(1); local store = a.ns.Watch.CouncilStore(false); assert(store)
 	local m = a.ns.JusticeTasks.ReportMetric(); eq(m.retained, 1); eq(m.by[b.name], 1); eq(m.partial, true)
 	a.now = a.now + 60; a.scan(); Report(2); eq(a.ns.JusticeTasks.ReportMetric().retained, 1, "newest accepted pair replaces, not another lifetime report")

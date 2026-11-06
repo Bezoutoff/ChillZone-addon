@@ -23,7 +23,7 @@ local function Ranking(bodies)
 		After = function() end,
 		Every = function() end,
 	}, { __index = H.ns })
-	assert(loadfile(H.ADDON_DIR .. "CraftRanking.lua"))("Olympus", fake)
+	assert(loadfile(H.ADDON_DIR .. "CraftRanking.lua"))("ChillZone", fake)
 	return fake.CraftRanking, registered.c, events
 end
 
@@ -79,7 +79,7 @@ test("craft ranking: a crafter cannot farm beyond the documented daily cap throu
 end)
 
 -- The weight rule (the design: an idle client runs no arena-family timer, CraftRanking.lua among
--- them as Olympus.toc loads it after ArenaMath.lua). Its LOGIN made a 15-second and a 10-minute
+-- them as ChillZone.toc loads it after ArenaMath.lua). Its LOGIN made a 15-second and a 10-minute
 -- timer on every client; only a player whose own delivery waits for the other party's half has
 -- any resend to do, and his timer stops once both halves are there.
 test("craft ranking: the weight rule: no timer at login without a delivery waiting for its other half; one while it waits, gone once both halves are in", function()
@@ -105,7 +105,7 @@ test("craft ranking: the weight rule: no timer at login without a delivery waiti
 		After = function(sec, where, fn) return Timer("after", sec, where, fn) end,
 		Every = function(sec, where, fn) return Timer("every", sec, where, fn) end,
 	}, { __index = H.ns })
-	assert(loadfile(H.ADDON_DIR .. "CraftRanking.lua"))("Olympus", fake)
+	assert(loadfile(H.ADDON_DIR .. "CraftRanking.lua"))("ChillZone", fake)
 	local C = fake.CraftRanking
 	local function Live()
 		local n = 0

@@ -7,7 +7,7 @@ local function Pins(fn)
 	ns.TREASURER = "Test Coin"
 	ns.TREASURER_CHARACTERS = { "Test Coin", "Test Mail" }
 	ns.TREASURER_REALM = ns.realm
-	assert(loadfile(ROOT .. "Olympus/ChatMarks.lua"))("Olympus", ns)
+	assert(loadfile(ROOT .. "ChillZone/ChatMarks.lua"))("ChillZone", ns)
 	local ok, err = pcall(fn, "Test Coin-" .. ns.realm, "Test Mail-" .. ns.realm, ns.COIN:gsub(" $", ""))
 	ns.TREASURER, ns.TREASURER_CHARACTERS, ns.TREASURER_REALM = saved.primary, saved.names, saved.realm
 	ns.ChatMarks, ns.CouncilMasked, ns.IsHighCouncillor = saved.marks, saved.masked, saved.council
@@ -45,18 +45,18 @@ test("Chat role badge: formatted addon lines use identity rather than guild labe
 	Pins(function(primary, _, coin)
 		ns.CouncilMasked = function() return true end
 		ns.IsHighCouncillor = function() return true end
-		for _, guild in ipairs({ "Olympus", "Untrusted label", false }) do
+		for _, guild in ipairs({ "ChillZone", "Untrusted label", false }) do
 			local line = ns.Channels.FormatLine("A", primary, guild or nil, "MA", "safe", true)
 			eq(Count(line, coin), 1)
 			assert(not line:find(ns.HIGH_COUNCIL_COLOR, 1, true), "a coin does not reveal the masked council role")
 			assert(not line:find("nameplates-icon-elite", 1, true), "addon names still have no dragons")
 		end
-		local fake = ns.Channels.FormatLine("A", "Someone-" .. ns.realm, "Olympus", "MA", "Treasurer", true)
+		local fake = ns.Channels.FormatLine("A", "Someone-" .. ns.realm, "ChillZone", "MA", "Treasurer", true)
 		eq(Count(fake, coin), 0, "neither a guild nor the words can grant the role")
 	end)
 end)
 
-test("Chat role badge: actual Olympus, Guild and role bubbles share the coin even without a guild field", function()
+test("Chat role badge: actual ChillZone, Guild and role bubbles share the coin even without a guild field", function()
 	WithWindow(function(w)
 		Pins(function(primary, _, coin)
 			local R, C = ns.ChatRooms, ns.Channels
@@ -74,13 +74,13 @@ test("Chat role badge: actual Olympus, Guild and role bubbles share the coin eve
 					end
 					error("missing rendered sender bubble")
 				end
-				eq(Count(Header(), coin), 1, "Olympus")
+				eq(Count(Header(), coin), 1, "ChillZone")
 				-- (1.2.3: no race:1 or class:WA any more; Guild and the Council remain.)
 				for _, id in ipairs({ "guild", "council" }) do
 					assert(w.CW.SelectLogical(id), id .. " is selectable")
 					eq(Count(Header(), coin), 1, id)
 				end
-				entry.sender = "Someone-" .. ns.realm; entry.guild = "Olympus"; entry.role = "treasurer"
+				entry.sender = "Someone-" .. ns.realm; entry.guild = "ChillZone"; entry.role = "treasurer"
 				w.CW.Render(); eq(Count(Header(), coin), 0)
 			end)
 			R.History, C.History, ns.IsHighCouncillor = history, legacy, council
@@ -98,7 +98,7 @@ test("Chat role badge: the existing native sender filter adds one coin and keeps
 			c.Gate = setmetatable({ Hooks = function() end }, { __index = ns.Gate })
 			ChatFrameUtil = { AddSenderNameFilter = function() end }
 			local ok, err = pcall(function()
-				assert(loadfile(ROOT .. "Olympus/Borders.lua"))("Olympus", c)
+				assert(loadfile(ROOT .. "ChillZone/Borders.lua"))("ChillZone", c)
 				ns.db.chatMarks = true; assert(c.Borders.ChatRefresh())
 				for event in pairs(c.Borders.CHAT_EVENTS) do
 					local shown = assert(c.Borders.ChatFilter(event, "Test Coin", "hello", primary))
@@ -134,7 +134,7 @@ test("Chat role badge: the native sender filter works out a sender's coin once, 
 			c.Gate = setmetatable({ Hooks = function() end }, { __index = ns.Gate })
 			ChatFrameUtil = { AddSenderNameFilter = function() end }
 			local ok, err = pcall(function()
-				assert(loadfile(ROOT .. "Olympus/Borders.lua"))("Olympus", c)
+				assert(loadfile(ROOT .. "ChillZone/Borders.lua"))("ChillZone", c)
 				ns.db.chatMarks = true; assert(c.Borders.ChatRefresh())
 				-- 45 lines of his in Trade, each shown in three windows: one coin each, one working out.
 				for _ = 1, 45 do
@@ -145,7 +145,7 @@ test("Chat role badge: the native sender filter works out a sender's coin once, 
 				local other = "Someone-" .. ns.realm
 				for _ = 1, 3 do eq(Count(c.Borders.ChatFilter("CHAT_MSG_SAY", "Someone", "hi", other) or "Someone", coin), 0) end
 				eq(asked, 2)
-				-- Out of an Olympus guild: no coin at once, without working it out again.
+				-- Out of an ChillZone guild: no coin at once, without working it out again.
 				ns.IsMember = function() return false end
 				eq(c.Borders.ChatFilter("CHAT_MSG_CHANNEL", "Test Coin", "wts", primary), nil)
 				ns.IsMember = member

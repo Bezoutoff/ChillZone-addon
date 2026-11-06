@@ -1,13 +1,13 @@
--- The Companion's people sections (Olympus/BridgePeople.lua, and the ranking boards in
--- Olympus/BridgeSections.lua): realm, roster, rankings' boards, wanted, church, games and profile.
+-- The Companion's people sections (ChillZone/BridgePeople.lua, and the ranking boards in
+-- ChillZone/BridgeSections.lua): realm, roster, rankings' boards, wanted, church, games and profile.
 -- What each carries is what the page that shows it lists, within the registry's limits; nothing
--- before the Olympus Accord, nor for a non-member; a module's error leaves its own section empty and
+-- before the ChillZone Accord, nor for a non-member; a module's error leaves its own section empty and
 -- every other one whole; all of them together stay small for a guild of 1000 members and full
 -- boards. The modules a section reads are stand-ins here (the registry's own contract is in
 -- tests/run.lua); the roster's and the census's are the harness's own. Loaded by tests/run.lua.
 -- Run alone: luajit tests/run.lua "bridge people"
 local ns, test, eq = ...
-local B = OlympusBridge
+local B = ChillZoneBridge
 
 local NOW = 1800000000
 -- Keep this fixture independent from whichever character a preceding full-suite
@@ -128,7 +128,7 @@ local function Modules(o)
 		DetailView = function(person, window)
 			if person ~= ME then error("another person's detail") end
 			if window == "w" then return {} end
-			return { { "s", 4, 1.5, 0.5, 0 }, { "j", 6, 2, 5, 1 }, { "t", 1, 3, 12, 6 }, { "g", "Olympus II", 6, 5, 0 },
+			return { { "s", 4, 1.5, 0.5, 0 }, { "j", 6, 2, 5, 1 }, { "t", 1, 3, 12, 6 }, { "g", "ChillZone II", 6, 5, 0 },
 				{ "r", "Secret Recruit", NOW - 60, "open", 0 } }
 		end,
 		Local = function() return { invWeek = 7, invAll = 40, joins = 2, leaves = 1, members = 990 } end,
@@ -155,7 +155,7 @@ local function Modules(o)
 	}
 	m.API = {
 		Profile = function()
-			return { member = true, name = ME, guild = "Olympus II", rank = "Zeus", rankIndex = 0, role = "guildmaster", frame = "donor-top",
+			return { member = true, name = ME, guild = "ChillZone II", rank = "Zeus", rankIndex = 0, role = "guildmaster", frame = "donor-top",
 				title = "Title of donor-top" }
 		end,
 		Rankings = function()
@@ -188,15 +188,15 @@ local function Modules(o)
 	return m
 end
 
--- The census: n guilds (the King's <Olympus> first), each from its own roster's report; every
+-- The census: n guilds (the King's <ChillZone> first), each from its own roster's report; every
 -- 50th an old report (3 hours), its Lord online in it when staleLordOnline.
 local function Census(n, now, staleLordOnline)
 	local guilds = {}
-	guilds.Olympus = { guild = "Olympus", total = 1000, online = 400, t = now - 5, mine = true, avgLevel = 52.34, leader = "Kingly",
+	guilds.ChillZone = { guild = "ChillZone", total = 1000, online = 400, t = now - 5, mine = true, avgLevel = 52.34, leader = "Kingly",
 		leaderOnline = true, officers = Rows(30, function(i) return { name = Name("Captain", i), online = i % 2 == 0, days = 1 } end),
 		inactive7 = 40, inactive30 = 12, battleTag = "Secret#1234" }
 	for i = 2, n do
-		local name = ("Olympus Vanguard %s"):format(Name("", i))
+		local name = ("ChillZone Vanguard %s"):format(Name("", i))
 		guilds[name] = { guild = name, total = 1000 - i, online = 200, t = i % 50 == 0 and now - 3 * 3600 or now - 5, mine = true,
 			avgLevel = 40 + (i % 20), leader = Name("Lord", i), leaderOnline = i % 3 == 0 or (staleLordOnline == true and i % 50 == 0), leaderDays = 2.5,
 			officers = Rows(30, function(k) return { name = Name("Cap", i * 31 + k), online = false, days = 3 } end),
@@ -241,7 +241,7 @@ end
 
 ---------------------------------------------------------------------------
 
-test("bridge people: every section is registered at version 1, and none gives anything before the Olympus Accord, for an older Accord, or to a non-member", function()
+test("bridge people: every section is registered at version 1, and none gives anything before the ChillZone Accord, for an older Accord, or to a non-member", function()
 	local versions = {}
 	for _, s in ipairs(B.Sections()) do versions[s.name] = s.version end
 	for _, name in ipairs(NEW) do eq(versions[name], 1, name) end
@@ -256,7 +256,7 @@ test("bridge people: every section is registered at version 1, and none gives an
 		for _, name in ipairs(GATED) do eq(B.GetSection(name), nil, name .. ": the Accord declined") end
 		ns.db.accord = { v = ns.ACCORD_VERSION, yes = true, at = 0 }
 		GetGuildInfo = function() return "Horde Pals", "Member", 3 end
-		for _, name in ipairs(GATED) do eq(B.GetSection(name), nil, name .. ": not in an Olympus guild") end
+		for _, name in ipairs(GATED) do eq(B.GetSection(name), nil, name .. ": not in an ChillZone guild") end
 	end)
 end)
 
@@ -270,7 +270,7 @@ test("bridge people: realm lists the Realm's guilds as rows of their fields in t
 		eq(#first, Count(d.fields), "an empty lordSeenAt is a field all the same")
 		eq(first[1], "1000"); eq(first[2], "400"); eq(first[3], "52.3"); eq(first[4], "30"); eq(first[5], "40"); eq(first[6], "12")
 		eq(first[7], "1"); eq(first[8], "0"); eq(first[9], "", "no old report's time for a Lord online now")
-		eq(first[10], "1"); eq(first[11], "Olympus"); eq(first[12], "Kingly")
+		eq(first[10], "1"); eq(first[11], "ChillZone"); eq(first[12], "Kingly")
 		-- The census's own order (Data.Summary's, the Realm's by default), cut from its end.
 		local s = ns.Data.Summary()
 		eq(#s.guilds, 300)
@@ -318,10 +318,10 @@ test("bridge people: realm: a Lord an old report had online, nobody seeing him n
 end)
 
 test("bridge people: roster is our own guild's every member, online first, with level, class, rank and hours offline; nothing for a roster of another guild", function()
-	ns.Roster.Scan() -- (the harness's guild: 1000 members of <Olympus II>, 300 online)
+	ns.Roster.Scan() -- (the harness's guild: 1000 members of <ChillZone II>, 300 online)
 	With({}, function()
 		local d = Data("roster")
-		eq(d.guild, "Olympus II"); eq(d.total, 1000); eq(d.online, 300); eq(d.at, NOW)
+		eq(d.guild, "ChillZone II"); eq(d.total, 1000); eq(d.online, 300); eq(d.at, NOW)
 		eq(d.fields, "level~class~rankIndex~online~hoursOffline~name~rank")
 		eq(#d.members, 1000, "every member, none cut")
 		local top = Fields(d.members[1])
@@ -340,7 +340,7 @@ test("bridge people: roster is our own guild's every member, online first, with 
 		assert(seenOffline); eq(away, 100, "32 days offline: 768 hours")
 		-- A roster of the guild this character was in before: nothing, until the new one is read.
 		local real = GetGuildInfo
-		GetGuildInfo = function(unit) if unit == "player" then return "Olympus III", "Recruit", 3 end return real(unit) end
+		GetGuildInfo = function(unit) if unit == "player" then return "ChillZone III", "Recruit", 3 end return real(unit) end
 		eq(B.GetSection("roster"), nil, "another guild's roster")
 	end)
 end)
@@ -489,7 +489,7 @@ end)
 test("bridge people: profile is his own: name, guild, rank, role, level, class, race, frame, title, nickname and his honours with their titles, at most 40", function()
 	With({ honours = 55 }, function()
 		local d = Data("profile")
-		eq(d.name, ME); eq(d.guild, "Olympus II"); eq(d.rank, "Zeus"); eq(d.rankIndex, 0); eq(d.role, "guildmaster")
+		eq(d.name, ME); eq(d.guild, "ChillZone II"); eq(d.rank, "Zeus"); eq(d.rankIndex, 0); eq(d.role, "guildmaster")
 		eq(d.level, 60); eq(d.class, "MAGE"); eq(d.race, "Gnome"); eq(d.frame, "donor-top"); eq(d.title, "Title of donor-top")
 		eq(d.nickname, "the Grim Wolf")
 		eq(#d.honors, 40, "cut from the end")
@@ -583,7 +583,7 @@ test("bridge people: every section together, for a guild of 1000 members, 256 gu
 		return { name = Name("Membername", i) .. "-Argentdawnx", level = i % 60 + 1, class = "WL", rankIndex = i % 10, rank = "Veteran Centurion",
 			online = i <= 400, days = i > 400 and 33.5 or 0 }
 	end)
-	local roster = { guild = "Olympus II", members = members, lastStats = { numTotal = 1000 } }
+	local roster = { guild = "ChillZone II", members = members, lastStats = { numTotal = 1000 } }
 	setmetatable(roster, { __index = ns.Roster })
 	With({ guilds = 256, wanted = 200, honours = 60, modules = { Roster = roster } }, function()
 		local file, total, sizes = { sections = {} }, 0, {}
@@ -597,7 +597,7 @@ test("bridge people: every section together, for a guild of 1000 members, 256 gu
 		end
 		file.checkpoint = B.GetCensusCheckpoint()
 		sizes.checkpoint = #table.concat(Saved(file.checkpoint, "\t", {}))
-		local text = "OlympusCompanionDB = " .. table.concat(Saved(file, "", {})) .. "\n"
+		local text = "ChillZoneCompanionDB = " .. table.concat(Saved(file, "", {})) .. "\n"
 		total = #text
 		local parts = {}
 		for name, n in pairs(sizes) do parts[#parts + 1] = ("%s %d"):format(name, n) end

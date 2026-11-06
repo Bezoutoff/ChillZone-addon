@@ -98,7 +98,7 @@ local function WithGossip(fn, clientGlobals)
 	-- Install optional native globals before As snapshots the host for restoration.
 	for key, value in pairs(clientGlobals or {}) do a.globals[key] = value end
 	w:As(a, function()
-		assert(loadfile(H.ADDON_DIR .. "InnkeeperGossip.lua"))("Olympus", a.ns)
+		assert(loadfile(H.ADDON_DIR .. "InnkeeperGossip.lua"))("ChillZone", a.ns)
 		local g = a.ns.InnkeeperGossip
 		local ok, err = pcall(fn, g, { w = w, a = a, f = f, panel = panel, pending = pending,
 			starts = starts, closed = function() return closed end, goods = goods, home = home })
@@ -194,8 +194,8 @@ test("Innkeeper gossip: real input switches retain reload notice after native ge
 	local hostEnum, hostStyle = Enum, C_InputInterfaceStyle
 	local style, notices = 0, 0
 	WithGossip(function(g, t)
-		assert(loadfile(H.ADDON_DIR .. "GamepadRegistry.lua"))("Olympus", t.a.ns)
-		assert(loadfile(H.ADDON_DIR .. "Gamepad.lua"))("Olympus", t.a.ns)
+		assert(loadfile(H.ADDON_DIR .. "GamepadRegistry.lua"))("ChillZone", t.a.ns)
+		assert(loadfile(H.ADDON_DIR .. "Gamepad.lua"))("ChillZone", t.a.ns)
 		t.a.ns.Dialog = { Show = function() notices = notices + 1; return true end }
 		local gate = t.a.ns.Gate
 		eq(g.ShowRow(), true); g.Open(); g.Park()
@@ -364,7 +364,7 @@ end)
 -- (1.2.1, a player's report: "I don't wanna play bones every time I go to an inn." The fallback
 -- window opened by itself at every conversation with an innkeeper; it now waits for the player's
 -- ask on the Bones page, FarkleTable.WantKeeper, and that ask serves one conversation.)
-test("Innkeeper gossip: missing native capability keeps the Olympus offer for a player who asked for the innkeeper, never by itself at each visit", function()
+test("Innkeeper gossip: missing native capability keeps the ChillZone offer for a player who asked for the innkeeper, never by itself at each visit", function()
 	WithGossip(function(g, t)
 		GossipFrame = nil
 		local FT = t.a.ns.FarkleTable

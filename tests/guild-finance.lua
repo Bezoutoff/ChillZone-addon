@@ -1,16 +1,16 @@
 local ns, test, eq, H = ...
 local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]guild%-finance%.lua$") or "./"
-local FINANCE = os.getenv("OLYMPUS_FINANCE_MODULE_PREFIX") or ROOT .. "Olympus/GuildFinance.lua"
-local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "Olympus/", ns = ns })
+local FINANCE = os.getenv("CHILLZONE_FINANCE_MODULE_PREFIX") or ROOT .. "ChillZone/GuildFinance.lua"
+local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "ChillZone/", ns = ns })
 -- Actual RSA-2048/e=3 public fixture and HA1 signatures, made in memory with the existing
 -- council-sign.py algorithm. Its private half was discarded; no user key is read or changed.
 -- Every scenario runs the real verifier with this public key, never a true-returning mock.
 local AUTH = {
-	N = "a090122fd7db1b1a7605d1bfa33051bf175acec3e69a15d643022623065acdbb71fd2c45a373022f12762951ac796d61e536ef610207f5e347a015ab49abdd29b9ad570dd6103c208ab49e04cf9fd8474a1bddb9097c73c5a78373125c77bf40128fad0933e8d905bcd26481c3f812a46732ea8c8bc466ed8f2731ec3cc93ab2e4e9d3b99170c255c523a6eda722164819b71e60466987dd428672d63bec250eff21ee4b47b5cff5a2d1d2c221b640b2f3074163d6bd42578cdf058030387fbe8d7537ed43bf92e8781fa33e4d09ac5d6883cb05cee94d94b95cef7f5e4ef782e122f2b66a9833072b000935e6700f849c42f96f3487872e4f75e2de31623717",
-	MU = "1982a12241743cb767e1d256ada5ac726bc6b6c2a07bad1eceb001738d6701c0d906f948680f5a22930e8f4ae5deae1b5acaf16c96fdbb5a8441ef1e23af521b946aa5716abdd8109b7cf91c0a2c861ca20d460767a5f904b574f8e66f45d0f368645851ade01a70d6f9a6fbcac6fc669d60027350d41ff869e40bdf847c4cb9b2e7b897e5024d8a5ce19f7751d5b7b1496d8e404326a7016dc6de3aaec137baf448e7f09c005368aca14b02dec5bbee82739c3c10fbf9117d7be7c0d7c78b4057e12a35cca668ae0fb0a396bfc124258f7f3d855395150926556f2ee7bf4475eefd0a94b991214d21c80572cf0ea21a1ef499d031502475e3b6f5a8f19df52fa9376ccc0",
+	N = "97edd0123014843772270aab03c79f4145c58876f179fca569032c8bd92341443b1b81ec9b0b84f1ba91af41af04ebca8c2f54076cd306ecd120c0ab917e75ae380f0afb80898ef6a28e54b84ce1ba21a51e27b22e726cc2cd79666ce619506d1bbdd0e9c8442ce4447c2205e3ef8393097ede4f85c5482a662ad6ba6b81d57ac60757783866543eb62bb51575b60544144e04cc77c7bd0ed92984ec46bd7e7d7cea8eab7dff30d6edd3dee68efe8e7e36185c3251cb4aae7787f1bce6e54259bac0946a64df2a1a121378277b5790bf14e6bb3bdf87ddf30596a17ccb29148cc94ff78482dd17e3d9b85899cf5f6465f9403b473879541e280ac68f2966e78b",
+	MU = "1af5c08cf8b62230e73aacbe49194c9aa19d03fb35a3e069930469b6dd75d861461de1b91349a7431b90b6ad938cb0e95ba25e4b0b7aefdc9049ad8d7dc05956ee8576f9ae6276554d3c56eb156238cb1c9513a90f7f0bd3618d800de084d915b6c748c5ca19d75bb38163ded6e7763db5ab68610fd1d0211ca539b942d0dccef732fe15629e039d484fe1aa5b92ea3dceb0cc5a15caf48a407a83a6314b15fb8d40e94d1a94ff9e1233c5e7844de1ea5402b53cfa792f6fe9ea4d13c1399ef89519d0981adafabaa73ed6b89b4655fb71ec436fdb880afe4947eb73d1dd25989f7812fa9ca46537a65fc0e798c6429d8cec78dd03ef0da7effc6535850065a18c4839cb4",
 	K = 86,
-	INITIAL = "HA1~1800000000~Emberfall+Emberfall2~Alliance~enforce~1~1800000000~1800100000~719efef9470684bd5667ff7ccc8189164f1ff1bfac71df1a04a3d5c12e4cdc84~1~1~Olympus Ember=Torvin Hale-Emberfall!Olympus Willow=Selka Drummond-Emberfall~0c62b1cbdc44e928c15421a94668b3c82ffd5ed4a75baef70c9d4cb3a458123ce7be8f6fba71a543453cd27bd44df0d1633e5a2a0e8e606a3a59cf40c2b50ac8b436badba11b981fd641fbe398ad17f4538b0c66a347103875c5c604f48b803065105dc34fc41140cfde36791031f9d8bbb729027033dd2f0a1003e53cd5d1fb1e4c8272f792985d8570c4d288c3265b2047348ac939fd2fce037f9d880a9a33dd699ec33078bbd71ef4ae68bda1570b11ef1d4d3cb686feb5e0db2f652c592787df249187d56f1e3b8898ec929e0dc45615df3765f10ded4bb6e9d5a28ac182f28495ce2f99ee75aa0ee123ec8dbbbc48752ad8166f5d44674baaf882094cc2",
-	REVOKED = "HA1~1800000001~Emberfall+Emberfall2~Alliance~enforce~2~1800000000~1800100000~ee88405fe9cd0427166746a9c4b7a056204404dff1a693fb5a1c09ab8cb1212d~1~1~Olympus Willow=Selka Drummond-Emberfall~1804c05934eb85a125c6eaf554fde25136793b26369ded24f992b3e26fe2e55466e3cdb6ef0ffa2aa6c46d90dea70dfbee036609acce5a17347204e78839bb67ef805ec8717b696f95808fa136b59a94f3ea686ff893697e69b98f9e8a077f621e6fe2a1491411047877e7c1bcf95f9f7b506291e014452e988530fb94e7d54dfce8b2468ad828c05390a74d8d33222dac6a2349fd991f86ef54ce281946e88e35bbadc91e34dcc6077c27adbdd3c906191346a8c5416b48af00e9faf81ac33a73a82bd28362f3d8957fa5483b9ca76cfe8fae0297d2a92bc69f0820b4a35a5c059c9cda17b02ee5144b67ad669d7770194003d0c22cd7356d7b94701f912386",
+	INITIAL = "HA1~1800000000~Emberfall+Emberfall2~Alliance~enforce~1~1800000000~1800100000~5172db1a8d7605dda9042ade1ea728430b25b1d1335128f360f32e5535ef5ca5~1~1~ChillZone Ember=Torvin Hale-Emberfall!ChillZone Willow=Selka Drummond-Emberfall~0e3779e119ab77e3107adefaefa1911f244ede4ac04f643364c88c0e280bb079d36a207fc2cd387365225e18088e50a83f785739885f95adcf6cba8782eb16a73405bed1ea68785e4d63649f405b9f79fb07c65408eb835ace65eb007e51d71a8fabd2cfca1dd39c66c65a2af904f4e4137a54dbd8ae7ec336ef602c25fc21e90695ba0b7f393627a7102dd1651c83a5dda28b4bb7af566ad4a08432e583461a8d2d4cc6d4e5d047891dcb1ba5909dae68d3d29a226388e9fa2316f586aa353092286dac05e90a79e0d8858e2ae5f650d1db073a9af82999ee02c060c006690ef573fe6c0f1859d07dc8a7dade4027127ed57bd3906f70301b33767ec77f8b64",
+	REVOKED = "HA1~1800000001~Emberfall+Emberfall2~Alliance~enforce~2~1800000000~1800100000~810e6ccaa626d17f723d6ea79f93de0c989ccc640d3fff1f2e65f83d19b329b3~1~1~ChillZone Willow=Selka Drummond-Emberfall~7e7a5a9d4afab17d968389cba479c6e3f6bb6d67e5cc28c296f06ef9c78c20c6764cb270c8e6caac901781b35abb6cb25d5c02d3c9b0db9581a8b78a6b0668860d3a7a932e11b8ab51fd948517060a35a41eaa83231ba240a1ec5c4c13cb34285a9d03996283db44ebf8c956d9eef139fbb4313ce2b84282036d2bbb7e85be2bd5e0037538feefbe6e7a87c2ff94e3eae75730a4a7301ac3844527c70d4b4358c0ad4d4f26435e825296f7b3fe39b54cf35f460866ce541cbbb8b39008367f3bccd60b7e2df1ed84200852a4e6c6d7a205f646572a4b5222af00cc0957d252b896bf0cabcaf2006ea16fa81157950791d1c9565e7569c06d60897d29155e8db7",
 }
 local runTest = test
 test = function(name, fn) runTest(name, function() ns.Sign.WithKey(AUTH.N, AUTH.MU, AUTH.K, fn) end) end
@@ -19,20 +19,20 @@ local function Client(w, role, options)
 	w:As(c, function()
 		c.ns.L = setmetatable({}, { __index = ns.L })
 		c.ns.ViewAs = { Previewing = function() return false end }
-		local prefix = os.getenv("OLYMPUS_FINANCE_TREASURY_PREFIX")
+		local prefix = os.getenv("CHILLZONE_FINANCE_TREASURY_PREFIX")
 		if prefix then
 			-- Prefix proof uses the old complete Treasury source, including its real native
 			-- event registrations; it must not retain the world's newer expense callbacks.
 			local on, login = c.ns.On
 			c.ns.On = function(event, fn) if event == "LOGIN" then login = fn else on(event, fn) end end
-			assert(loadfile(prefix))("Olympus", c.ns)
+			assert(loadfile(prefix))("ChillZone", c.ns)
 			c.ns.On = on
 			for _, event in ipairs({ "TRADE_SHOW", "TRADE_MONEY_CHANGED", "TRADE_ACCEPT_UPDATE", "TRADE_PLAYER_ITEM_CHANGED", "TRADE_TARGET_ITEM_CHANGED",
 				"UI_INFO_MESSAGE", "TRADE_CLOSED", "MAIL_SEND_SUCCESS", "MAIL_FAILED", "PLAYER_MONEY" }) do c.events[event] = {} end
 			assert(login); login()
 		end
-		for _, file in ipairs({ "Roster", "Authority", "Data" }) do assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua"))("Olympus", c.ns) end
-		assert(loadfile(FINANCE))("Olympus", c.ns)
+		for _, file in ipairs({ "Roster", "Authority", "Data" }) do assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua"))("ChillZone", c.ns) end
+		assert(loadfile(FINANCE))("ChillZone", c.ns)
 		c.ns.Comm.Hash36 = ns.Comm.Hash36
 		c.ns.Comm.Cancel = function() end
 		-- The existing Treasury private-batch fixture: every piece still runs its real
@@ -79,7 +79,7 @@ end
 local function Setup(legacy)
 	local w = World.New({ clock = 1800000000, council = false, arenaFiles = {}, compliance = "shipped" })
 	local king, keeper = Client(w, "king"), Client(w, "treasurer")
-	local lord, other, member = Client(w, "fighterA", { rank = 0 }), Client(w, "fighterB", { guild = "Olympus Willow", rank = 0 }), Client(w, "bettor1")
+	local lord, other, member = Client(w, "fighterA", { rank = 0 }), Client(w, "fighterB", { guild = "ChillZone Willow", rank = 0 }), Client(w, "bettor1")
 	Scan(w); Reports(w)
 	if not legacy then for _, c in ipairs(w.clients) do w:As(c, function()
 		assert(c.ns.Authority.TakePart(AUTH.INITIAL, nil, "LOCAL"), "the actual signed HA1 fixture must be accepted")
@@ -172,7 +172,7 @@ test("Guild finance: correction and ambiguous returned mail zero attribution, st
 		t.ns.Treasury.Toggle(e); eq(F.LocalRows()[1].out, 0)
 		local b = t.ns.Treasury.Book(); b.lines = {}
 		t.ns.rdb = World.Copy(t.ns.rdb)
-		assert(loadfile(FINANCE))("Olympus", t.ns)
+		assert(loadfile(FINANCE))("ChillZone", t.ns)
 		eq(t.ns.GuildFinance.LocalRows()[1].out, 0, "eviction/reload cannot revive corrected attributed money")
 	end)
 end)
@@ -202,7 +202,7 @@ test("Guild finance: two census claims cannot grant a private financial audience
 	local event = Event(w, t, lord.guild)
 	eq(Allocate(w, t, Receipt(w, t, lord, 19000), event), true)
 	w:As(t, function()
-		local invented = "Olympus Phony"
+		local invented = "ChillZone Phony"
 		for _, witness in ipairs({ "False Witness-Emberfall", "Other Witness-Emberfall" }) do
 			assert(t.ns.Data.Receive({ guild = invented, leader = member.short, total = 20, online = 2, faction = "Alliance", officers = {}, zones = {} }, witness))
 		end
@@ -244,7 +244,7 @@ test("Guild finance: fresh requested snapshots survive offline/reload as stale p
 		eq(F.Handle("CHANNEL", t.name, msg), false); eq(F.Handle("WHISPER", lord.name, msg), false)
 		eq(F.Handle("WHISPER", t.name, msg), true); eq(F.Handle("WHISPER", t.name, msg), true)
 		local saved = World.Copy(king.ns.rdb); king.ns.rdb = saved
-		assert(loadfile(FINANCE))("Olympus", king.ns)
+		assert(loadfile(FINANCE))("ChillZone", king.ns)
 		eq(#king.ns.GuildFinance.Held("*"), 1, "old offline facts persist without pretending to be fresh")
 	end)
 	w:Run(901)

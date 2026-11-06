@@ -20,7 +20,7 @@ H.test("Bones result card: larger framed parchment, actual keeper and quiet vict
 			local card = board.ShowCard("Presult")
 			H.eq(type(card), "table")
 			H.eq(card:GetWidth(), 500); H.eq(card:GetHeight(), 310)
-			assert(card.NineSlice, "real Olympus window border")
+			assert(card.NineSlice, "real ChillZone window border")
 			H.eq(card.TitleText:GetText(), c.ns.L.FARKLE_NAME)
 			assert(card.line:GetText():find("Localized Keeper", 1, true), "the actual opponent, not The House")
 			H.eq(card.tagline:GetText(), c.ns.L.FARKLE_B_CARD_VICTORY_LINE)

@@ -2,14 +2,14 @@
 -- when try change Rank... it hasnt happened every time". The game's guild actions (promote, demote,
 -- a rank, Remove from Guild) are calls the game refuses from tainted code. They start from the
 -- member's card (its rank and its Remove) or from the roster's own right-click menu, and some ask
--- in the game's popups. The offline harness has no taint: these tests check that what Olympus's
--- code would put there is gone. No Olympus line is built into the game's guild roster menus (it was,
--- for an online member only: a failure that comes and goes), and an Olympus question still up as a
--- game popup moves into Olympus's own window as soon as a guild window opens, before any card.
+-- in the game's popups. The offline harness has no taint: these tests check that what ChillZone's
+-- code would put there is gone. No ChillZone line is built into the game's guild roster menus (it was,
+-- for an online member only: a failure that comes and goes), and an ChillZone question still up as a
+-- game popup moves into ChillZone's own window as soon as a guild window opens, before any card.
 local H = ...
 local test, eq, ns = H.test, H.eq, H.ns
 
-local WHICH = "OLYMPUS_TEST_RANK_QUESTION"
+local WHICH = "CHILLZONE_TEST_RANK_QUESTION"
 
 -- PlayerMenu.lua in a namespace of its own, a client with Menu.ModifyMenu recording each menu tag.
 local function WithMenus(fn)
@@ -24,7 +24,7 @@ local function WithMenus(fn)
 		pns.IsMember = function() return true end
 		pns.ChatLocked = function() return false end
 		pns.me = "Tester-Realm"
-		assert(loadfile(H.ADDON_DIR .. "PlayerMenu.lua"))("Olympus", pns)
+		assert(loadfile(H.ADDON_DIR .. "PlayerMenu.lua"))("ChillZone", pns)
 		local PM = pns.PlayerMenu
 		PM.Add("test-line", function(target, menu) menu.Button("Line for " .. target.name, function() end) end, 10)
 		fn(PM, hooks)
@@ -41,13 +41,13 @@ local function Root()
 	return r
 end
 
-test("guild rank (1.2.1): no Olympus line in the game's guild roster menus, where its promote, demote, rank and removal are; the other player menus keep theirs", function()
+test("guild rank (1.2.1): no ChillZone line in the game's guild roster menus, where its promote, demote, rank and removal are; the other player menus keep theirs", function()
 	WithMenus(function(PM, hooks)
 		eq(PM.Hook(), true)
 		eq(hooks.MENU_UNIT_COMMUNITIES_GUILD_MEMBER, nil, "Forever's Guild & Communities roster: not hooked")
 		eq(hooks.MENU_UNIT_GUILD, nil, "the old Guild window's roster: not hooked")
 		for _, which in ipairs({ "PLAYER", "PARTY", "RAID_PLAYER", "RAID", "FRIEND", "COMMUNITIES_WOW_MEMBER", "CHAT_ROSTER", "RECENT_ALLY" }) do
-			assert(hooks["MENU_UNIT_" .. which], which .. " keeps Olympus's lines")
+			assert(hooks["MENU_UNIT_" .. which], which .. " keeps ChillZone's lines")
 		end
 		-- A guildmate's name in chat: the lines are there, for the same player.
 		local r = Root()
@@ -82,7 +82,7 @@ local function WithArenaMenus(fn, before)
 		ans.IsMember = function() return true end
 		ans.ChatLocked = function() return false end
 		ans.me = "Tester-Realm"
-		assert(loadfile(H.ADDON_DIR .. "ArenaHome.lua"))("Olympus", ans)
+		assert(loadfile(H.ADDON_DIR .. "ArenaHome.lua"))("ChillZone", ans)
 		local AH = ans.ArenaHome
 		if before then before(AH) end
 		eq(AH.HookMenus(), "own", "Blizzard's menus, directly")
@@ -155,14 +155,14 @@ local function WithGuildWindow(fn)
 			local gns = setmetatable({}, { __index = ns })
 			gns.RegisterEvent = function() end
 			gns.After = function() end
-			assert(loadfile(H.ADDON_DIR .. "GamepadRegistry.lua"))("Olympus", gns)
-			assert(loadfile(H.ADDON_DIR .. "Gamepad.lua"))("Olympus", gns)
+			assert(loadfile(H.ADDON_DIR .. "GamepadRegistry.lua"))("ChillZone", gns)
+			assert(loadfile(H.ADDON_DIR .. "Gamepad.lua"))("ChillZone", gns)
 			gns.On = function(name, f) if name == "LOGIN" then login[#login + 1] = f end end
 			gns.UI = { CloseIfDocked = function() end, FollowHost = function() end, Undock = function() end }
 			gns.MakeRoundButton = function()
 				return setmetatable({ Show = function() end, Hide = function() end }, { __index = function() return function() end end })
 			end
-			assert(loadfile(H.ADDON_DIR .. "GuildFrame.lua"))("Olympus", gns)
+			assert(loadfile(H.ADDON_DIR .. "GuildFrame.lua"))("ChillZone", gns)
 			local ok, err = pcall(function()
 				for _, f in ipairs(login) do f() end
 				local caught
@@ -187,14 +187,14 @@ local function Shown(which)
 	return f ~= nil and f:IsShown() and f or nil
 end
 
--- Olympus's questions among the game's popups now (what the game goes through when it shows its own).
+-- ChillZone's questions among the game's popups now (what the game goes through when it shows its own).
 local function OursUp(w)
 	local n = 0
-	for which in pairs(w.popups) do if which:find("^OLYMPUS_") then n = n + 1 end end
+	for which in pairs(w.popups) do if which:find("^CHILLZONE_") then n = n + 1 end end
 	return n
 end
 
-test("guild rank (1.2.1): an Olympus question up as a game popup moves into Olympus's own window as the guild window opens, before any member's card", function()
+test("guild rank (1.2.1): an ChillZone question up as a game popup moves into ChillZone's own window as the guild window opens, before any member's card", function()
 	WithGuildWindow(function(w)
 		local data = { name = "Ada-Realm" }
 		ns.ShowDialog(WHICH, "kept", nil, data)
@@ -202,9 +202,9 @@ test("guild rank (1.2.1): an Olympus question up as a game popup moves into Olym
 		w.window:Show()
 		eq(OursUp(w), 0, "the guild window open (its roster's right-click menu, no card): none of ours among the game's popups")
 		eq(#w.answers, 0, "not answered by the move")
-		local f = assert(Shown(WHICH), "asked again in Olympus's own window")
+		local f = assert(Shown(WHICH), "asked again in ChillZone's own window")
 		assert(f.text:GetText():find("Question kept", 1, true), f.text:GetText())
-		-- A question asked now stays in Olympus's window; the card opening moves nothing more.
+		-- A question asked now stays in ChillZone's window; the card opening moves nothing more.
 		ns.ShowDialog(WHICH, "again", nil, "second")
 		eq(OursUp(w), 0)
 		w.card:Show()
@@ -227,7 +227,7 @@ test("guild rank (1.2.1): the 1.2.1 letter tells of it, in English and pt-BR", f
 	for _, locale in ipairs({ "enUS", "ptBR" }) do
 		local cns = setmetatable({ On = function() end, RegisterEvent = function() end }, { __index = ns })
 		GetLocale = function() return locale end
-		local ok, why = pcall(assert(loadfile(H.ADDON_DIR .. "Locales.lua")), "Olympus", cns)
+		local ok, why = pcall(assert(loadfile(H.ADDON_DIR .. "Locales.lua")), "ChillZone", cns)
 		GetLocale = saved
 		if not ok then error(why, 0) end
 		assert(cns.L.LETTER_1_2_2:find(locale == "enUS" and "no longer adds its lines to the game's guild roster right-click menu"

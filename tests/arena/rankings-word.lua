@@ -26,7 +26,7 @@ local function Say(w, c, body, dist)
 	w:As(c, function() c.ns.Arena.Send("AU", "L", body, { dist = dist or "CHANNEL" }) end)
 	w:Run(0)
 end
--- The member opens the Games tab (the Olympus window's), then long enough for the answers.
+-- The member opens the Games tab (the ChillZone window's), then long enough for the answers.
 local function Opens(w, c)
 	w:As(c, c.ns.ArenaHome.TabLines)
 	local R = c.ns.ArenaRoles
@@ -170,7 +170,7 @@ test("1.2.4 rankings word: a made-up copy naming another publisher, newer than t
 	NoErrors(w)
 end)
 
--- (The review) "About three holders whatever the army's size": the channel joins every Olympus guild,
+-- (The review) "About three holders whatever the army's size": the channel joins every ChillZone guild,
 -- so a holder's odds to answer an ask heard there are three in the army's addon users (the census's,
 -- King.AddonsOnline, as the signed authority's answers draw), not three in his own guild's (Comm's
 -- peers): with thirty guilds about ninety holders were drawn for each ask. Over the guild, his

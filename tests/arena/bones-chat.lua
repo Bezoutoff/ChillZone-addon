@@ -13,7 +13,7 @@ local function Roster(w, c)
 		if p then return p.name, p.rankName, p.rank, 60, "Mage", "Elwynn Forest", "", "", true, "", "MAGE" end
 	end
 	w:As(c, function()
-		assert(loadfile(H.ADDON_DIR .. "Roster.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Roster.lua"))("ChillZone", c.ns)
 		assert(c.ns.Roster.Scan()); assert(c.ns.Roster.Fresh())
 	end)
 end
@@ -35,7 +35,7 @@ local function Native(w, c)
 		end
 		return 0
 	end
-	c.globals.GetChannelName = function() return 7, "Olympus" end
+	c.globals.GetChannelName = function() return 7, "ChillZone" end
 	c.globals.C_ChatInfo = {
 		RegisterAddonMessagePrefix = function() return true end,
 		SendAddonMessage = function(...) return Deliver(false, ...) end,
@@ -44,7 +44,7 @@ local function Native(w, c)
 	w:As(c, function()
 		local on, after, every = c.ns.On, c.ns.After, c.ns.Every
 		c.ns.On = function(event, fn) if event == "LOGIN" then login = fn end end
-		assert(loadfile(H.ADDON_DIR .. "Comm.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Comm.lua"))("ChillZone", c.ns)
 		c.ns.On = on
 		for kind, fn in pairs(handlers) do c.ns.Comm.Handle(kind, fn) end
 		c.ns.After, c.ns.Every = function() end, function() end
@@ -87,9 +87,9 @@ end
 
 local function Watch(w, c, rooms)
 	w:As(c, function()
-		assert(loadfile(H.ADDON_DIR .. "Watch.lua"))("Olympus", c.ns)
-		assert(loadfile(H.ADDON_DIR .. "WatchChat.lua"))("Olympus", c.ns)
-		assert(loadfile(H.ADDON_DIR .. "ArenaChat.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Watch.lua"))("ChillZone", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "WatchChat.lua"))("ChillZone", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "ArenaChat.lua"))("ChillZone", c.ns)
 		assert(c.ns.ArenaChat.Open(rooms.players)); assert(c.ns.ArenaChat.Open(rooms.everyone))
 	end)
 end
@@ -397,7 +397,7 @@ end)
 test("Bones chat history: Games picker indexes actual live Bones and retained read only rooms with kind and live marker", function()
 	local w, a, _, s, id, rooms = Live(false)
 	s.ns.ArenaChat.Reset()
-	w:As(s, function() assert(loadfile(H.ADDON_DIR .. "ChatWindow.lua"))("Olympus", s.ns) end)
+	w:As(s, function() assert(loadfile(H.ADDON_DIR .. "ChatWindow.lua"))("ChillZone", s.ns) end)
 	local cw = s.ns.ChatWindow
 	local options = w:As(s, cw.ArenaOptions, false)
 	eq(#options, 1); eq(options[1].gameKind, "Bones"); eq(options[1].live, true)
@@ -415,7 +415,7 @@ test("Bones chat history: Games picker indexes actual live Bones and retained re
 	eq(w:As(s, s.ns.ArenaChat.Open, "Kpractice:all"), nil, "no fabricated or innkeeper peer chat")
 end)
 
--- The chat warnings (ChatStrikes.lua): a fight room's line (the Bones pane's, /ola, an arena action:
+-- The chat warnings (ChatStrikes.lua): a fight room's line (the Bones pane's, /cza, an arena action:
 -- all ArenaChat.Send) with a word of the list is refused before it leaves, a warning given; the
 -- pause after it closes his rooms (ArenaChat.MaySend: the Bones pane's composer, BonesChat's
 -- Writable) until it ends. A synthetic word, by its real digest.
@@ -426,7 +426,7 @@ test("watch: chat moderation: strikes: a fight room's line with a listed word is
 	w:As(a, function()
 		-- (This world has no game popups: the pop-ups' calls are kept, ns.ShowDialog's own routing has its tests.)
 		a.ns.ShowDialog = function(which, text) shown[#shown + 1] = { which = which, text = text } return true end
-		assert(loadfile(H.ADDON_DIR .. "ChatStrikes.lua"))("Olympus", a.ns)
+		assert(loadfile(H.ADDON_DIR .. "ChatStrikes.lua"))("ChillZone", a.ns)
 		local S = a.ns.ChatStrikes
 		local form = assert(S.Canon("plainword"))
 		S.LIST[S.Digest(form)] = #form
@@ -440,12 +440,12 @@ test("watch: chat moderation: strikes: a fight room's line with a listed word is
 	eq(#w:As(a, a.ns.ArenaChat.Lines, rooms.players), 0, "nor kept as said")
 	local e = a.ns.ChatStrikes.Store().mine[1]
 	eq(e.where, "F"); eq(e.n, 1); eq(e.text, "a plainword here")
-	eq(shown[1].which, "OLYMPUS_WATCHCHAT_DECISION"); eq(shown[1].text, a.ns.L.WATCHCHAT_STRIKE_1:format(a.ns.WatchChat.Span(300)))
+	eq(shown[1].which, "CHILLZONE_WATCHCHAT_DECISION"); eq(shown[1].text, a.ns.L.WATCHCHAT_STRIKE_1:format(a.ns.WatchChat.Span(300)))
 	eq(select(2, w:As(a, a.ns.ArenaChat.MaySend, rooms.players)), "paused", "the pane's composer closes")
 	eq(select(2, w:As(a, a.ns.ArenaChat.Send, rooms.everyone, "clean words")), "paused")
 	-- (The review: told why in the warnings' own pop-up, as a moderator's timeout is, not a bare line.)
 	eq(#shown, 2, "a pop-up says why")
-	eq(shown[2].which, "OLYMPUS_WATCHCHAT_DECISION")
+	eq(shown[2].which, "CHILLZONE_WATCHCHAT_DECISION")
 	eq(shown[2].text, a.ns.L.WATCHCHAT_STRIKE_PAUSED:format(date("%H:%M", e.untilAt)))
 	w.clock = e.untilAt + 1
 	eq(w:As(a, a.ns.ArenaChat.MaySend, rooms.players), true, "open again after the pause")

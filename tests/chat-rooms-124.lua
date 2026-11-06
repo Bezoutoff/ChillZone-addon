@@ -5,9 +5,9 @@
 -- a gente precisa também de uma só dos Guild Masters". Every name here is invented.
 local ns, test, eq, WithRooms, RoomMessage = ...
 
-local GUILD_B = "Olympus III"
+local GUILD_B = "ChillZone III"
 
--- Two guilds of the army as the room checks read them: ours (the fixture's "Olympus II", from our
+-- Two guilds of the army as the room checks read them: ours (the fixture's "ChillZone II", from our
 -- fresh roster) and GUILD_B (from the census, which the rooms never take, or from the author's
 -- signed leadership list once it counts: w.enforced). Each with its master, an officer, a named
 -- centurion and its Department of War correspondent. Returns the cast's names.
@@ -81,12 +81,12 @@ test("chat rooms (1.2.4): each guild has its master's room with his corresponden
 			assert(id:match("^[%w:_]+$") and #id <= 24, "a moderator's reference holds it: " .. id)
 		end
 		assert(aCorr ~= bCorr and aCent ~= bCent and aCorr:sub(7) == aCent:sub(7))
-		eq(R.GuildRoom("gcent", "OLYMPUS II"), aCent, "the guild's folded name")
+		eq(R.GuildRoom("gcent", "CHILLZONE II"), aCent, "the guild's folded name")
 		eq(R.Info(aCorr).label, "Master & Correspondents"); eq(R.Info(aCent).label, "Master & Legates")
 		eq(R.Info(aCent).guild, w.guild)
 		eq(R.Info(bCent).label, GUILD_B .. ": Master & Legates", "another guild's: its name")
 		eq(R.Info("gcent:000000000000"), nil, "a key of no guild this client lists")
-		eq(R.Info("gcent:" .. ("f"):rep(13)), nil); eq(R.Info("gcorr:Olympus II"), nil, "never by name")
+		eq(R.Info("gcent:" .. ("f"):rep(13)), nil); eq(R.Info("gcorr:ChillZone II"), nil, "never by name")
 		-- Who is in our guild's two rooms.
 		local function In(id, name) return R.CanAccess(id, name) end
 		eq(In(aCorr, cast.aMaster), true); eq(In(aCorr, cast.aWar), true)
@@ -142,7 +142,7 @@ end)
 test("chat rooms (1.2.4): the King's guild's centurions sit with the King in its room; it has no correspondents' room", function()
 	WithRooms(function(w, R, c)
 		local cast = Guilds(w, R, c)
-		local KG = "Olympus"
+		local KG = "ChillZone"
 		w.king = "Crown Rook-Realm"
 		w.council["sage rook-realm"] = true
 		w.lists[KG] = { by = "Sage Rook-Realm", entries = { { name = "Iris Rook-Realm", role = "centurion" } } }
@@ -160,7 +160,7 @@ end)
 test("chat rooms Legates: the King's guild needs an explicit appointment, not a council title; removal stops queued delivery", function()
 	WithRooms(function(w, R, c)
 		local cast = Guilds(w, R, c)
-		local KG, sage, peer = "Olympus", "Sage Rook-Realm", "Iris Rook-Realm"
+		local KG, sage, peer = "ChillZone", "Sage Rook-Realm", "Iris Rook-Realm"
 		w.guild, w.king = KG, "Crown Rook-Realm"
 		w.council[sage:lower()] = true
 		w.ranks[KG] = { [w.king] = 0, [sage] = 3, [peer] = 3 }
@@ -258,7 +258,7 @@ test("chat rooms (1.2.4): the author is in every room but the High Council's: li
 		c.ApprovedGuilds = function() return {} end
 		w.authorName = "Quill Wright-Realm"
 		local author = w.authorName
-		local kingCent = R.GuildRoom("gcent", "Olympus")
+		local kingCent = R.GuildRoom("gcent", "ChillZone")
 		-- His own menu: every room but the High Council's and the Secretariat's; each guild's rooms
 		-- (his own, the King's, then the others this client knows of).
 		c.me = author
@@ -312,7 +312,7 @@ test("chat rooms (1.2.4): forty rooms keep their lines: no room is let go, LINES
 		c.rdb.guilds = {}
 		local ranks, rooms, leads = {}, {}, {}
 		for i = 1, 20 do
-			local guild, lead = "Olympus " .. (i + 10), "Lead" .. string.char(64 + i) .. " Holt-Realm"
+			local guild, lead = "ChillZone " .. (i + 10), "Lead" .. string.char(64 + i) .. " Holt-Realm"
 			c.rdb.guilds[guild] = { leader = lead }
 			ranks[guild] = { [lead] = 0 }
 			for _, prefix in ipairs({ "gcorr", "gcent" }) do rooms[#rooms + 1], leads[#leads + 1] = R.GuildRoom(prefix, guild), lead end
@@ -473,8 +473,8 @@ end)
 -- 1.2.4: until the author's signed leadership list counts (Authority.Enforced), another guild's ranks
 -- come from the census alone, which the rooms never take: the rooms that reach other guilds reach
 -- this character's own guild and the signed people (the King, the High Council's, the author) alone,
--- and the page says so over their lines; /oly status says whether the list counts.
-test("chat rooms (1.2.4): without the signed leadership list each room reaches its own guild and the signed people, the page says so, and /oly status tells", function()
+-- and the page says so over their lines; /cz status says whether the list counts.
+test("chat rooms (1.2.4): without the signed leadership list each room reaches its own guild and the signed people, the page says so, and /cz status tells", function()
 	WithRooms(function(w, R, c)
 		local cast, aCorr, aCent, bCorr, bCent = Guilds(w, R, c)
 		c.ApprovedGuilds = function() return {} end
@@ -500,7 +500,7 @@ test("chat rooms (1.2.4): without the signed leadership list each room reaches i
 		-- The author's list: another guild's rooms greyed, their note in the tooltip; ours and the King's not.
 		c.me = w.authorName
 		eq(R.Info(bCent).dim, true); eq(R.Info(bCent).note, NOTE); eq(R.StatusText(bCent), NOTE)
-		eq(R.Info(aCent).dim, nil); eq(R.Info(R.GuildRoom("gcent", "Olympus")).dim, nil, "the King's guild: the pinned King and the signed list")
+		eq(R.Info(aCent).dim, nil); eq(R.Info(R.GuildRoom("gcent", "ChillZone")).dim, nil, "the King's guild: the pinned King and the signed list")
 		-- Once the list counts: every guild's people, no note.
 		w.enforced = true
 		c.me = me
@@ -511,13 +511,13 @@ test("chat rooms (1.2.4): without the signed leadership list each room reaches i
 		c.me = w.authorName
 		eq(R.Info(bCent).dim, nil); eq(R.StatusText(bCent), nil)
 	end)
-	-- /oly status: whether it counts here, and until when.
+	-- /cz status: whether it counts here, and until when.
 	local A = ns.Authority
 	local saved = { enforced = A.Enforced, manifest = A.Manifest }
 	local ok, err = pcall(function()
 		A.Enforced = function() return false end
 		eq(A.StatusLine(), "off")
-		assert(ns.StatusText():find("signed leadership: off", 1, true), "in /oly status")
+		assert(ns.StatusText():find("signed leadership: off", 1, true), "in /cz status")
 		A.Enforced = function() return true end
 		A.Manifest = function() return nil end
 		assert(A.StatusLine():find("^on, %a+, no current list"), A.StatusLine())
@@ -572,7 +572,7 @@ end)
 test("chat rooms (1.2.4): without the signed leadership list no room asks another guild's rank; with it, once a name and guild", function()
 	WithRooms(function(w, R, c)
 		local cast = Guilds(w, R, c)
-		for i = 1, 30 do c.rdb.guilds["Olympus " .. (i + 40)] = { leader = "Lead" .. i, officers = { { name = "Aide" .. i } } } end
+		for i = 1, 30 do c.rdb.guilds["ChillZone " .. (i + 40)] = { leader = "Lead" .. i, officers = { { name = "Aide" .. i } } } end
 		local isFederation = c.IsFederation
 		c.IsFederation = function(g) return c.rdb.guilds[g] ~= nil or isFederation(g) end
 		local asked, abroad = 0, 0
@@ -612,8 +612,8 @@ test("chat rooms (1.2.4): the role rooms' words in English and pt-BR, with the s
 	local ok, err = pcall(function()
 		for _, pair in ipairs({ { en, "enUS" }, { pt, "ptBR" } }) do
 			GetLocale = function() return pair[2] end
-			assert(loadfile(ROOT .. "Olympus/Locales.lua"))("Olympus", pair[1])
-			assert(loadfile(ROOT .. "Olympus/Locales/ChurchText.lua"))("Olympus", pair[1])
+			assert(loadfile(ROOT .. "ChillZone/Locales.lua"))("ChillZone", pair[1])
+			assert(loadfile(ROOT .. "ChillZone/Locales/ChurchText.lua"))("ChillZone", pair[1])
 		end
 	end)
 	GetLocale = oldLocale

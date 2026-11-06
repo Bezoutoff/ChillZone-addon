@@ -1,4 +1,4 @@
--- 1.2, the Bone Throw tables: Bone Throw's board (Olympus_Arena/FarkleBoard.lua), the companion's table over the core's
+-- 1.2, the Bone Throw tables: Bone Throw's board (ChillZone_Arena/FarkleBoard.lua), the companion's table over the core's
 -- FarkleTable: the practice setup and the create panel, the dice thrown along their lanes, picked,
 -- set aside to the tray and banked, BONES, hot dice, the hiccup's HIC!, the rows and the column,
 -- the result card, the invitation's pop-up, a watcher's table, combat, Escape, and the "How to play"
@@ -159,7 +159,7 @@ test("1.1.6 games presentation: Bones has a framed headerless window with the or
 	eq(p.shell.TitleContainer, nil); eq(p.win.title, nil)
 	check(p.shell:GetWidth() > 880, "a larger table")
 	check(p.win.table and #p.win.table == 2, "the original wooden table")
-	for _, half in ipairs(p.win.table) do eq(half.tex, "Interface\\AddOns\\Olympus_Arena\\media\\farkle\\table") end
+	for _, half in ipairs(p.win.table) do eq(half.tex, "Interface\\AddOns\\ChillZone_Arena\\media\\farkle\\table") end
 	check(p.setup.intro and p.setup.tips, "the setup explains training and offers its tips checkbox")
 	eq(p.setup.intro:GetText(), a.ns.L.FARKLE_B_SETUP_NOTE, "a trained player gets the innkeeper practice explanation")
 	eq(p.setup.find, nil); eq(p.setup.someone, nil); eq(p.setup.learn, nil)
@@ -171,7 +171,7 @@ test("1.1.6 games presentation: Bones has a framed headerless window with the or
 	NoErrors(w)
 end)
 
-test("1.2 the Bone Throw tables board: the companion loads with no frame of its own; /oly farkle practice opens the setup, and the guide shows first on first use", function()
+test("1.2 the Bone Throw tables board: the companion loads with no frame of its own; /cz farkle practice opens the setup, and the guide shows first on first use", function()
 	local w = FW.New()
 	local a = Seat(w, P1)
 	eq(w:As(a, function() return a.ns.Arena.LoadUI() end), true)
@@ -179,7 +179,7 @@ test("1.2 the Bone Throw tables board: the companion loads with no frame of its 
 	check(type(B) == "table" and type(a.ns.Arena.ui.Farkle) == "function" and type(a.ns.Arena.ui.FarkleCreate) == "function", "the board's way in")
 	eq(#a.K.frames, 2, "no frame of the board's before it opens (UIParent and the tooltip are the stand-in's)")
 	eq(w:As(a, function() return a.ns.FarkleTable.busy("x") end), false, "the House asks the board")
-	w:As(a, function() a.slashes.OLYMPUS("farkle practice") end)
+	w:As(a, function() a.slashes.CHILLZONE("farkle practice") end)
 	local p = P(a)
 	check(p.win:IsShown() and p.setup:IsShown() and not p.create:IsShown(), "the setup on the table")
 	eq(p.setup.title:GetText(), "Play to")
@@ -329,7 +329,7 @@ test("1.2 the Bone Throw tables board: a picked die lifts and lights on itself (
 	local _, y1 = Center(a, d1)
 	check(d1.lit and d1.f.lit:IsShown() and d1.f.lit.blend == "ADD", "lit on itself")
 	check(y1 < y0 - 3, "lifted (%.1f -> %.1f)", y0, y1)
-	for _, r in ipairs(d1.f.regions) do check(r.tex ~= "Interface\\AddOns\\Olympus_Arena\\media\\farkle\\glow", "no ring") end
+	for _, r in ipairs(d1.f.regions) do check(r.tex ~= "Interface\\AddOns\\ChillZone_Arena\\media\\farkle\\glow", "no ring") end
 	check(P(a).info:GetText():find("+100", 1, true), "the points: %s", P(a).info:GetText())
 	eq(P(a).primary:GetText(), "Keep & roll 5"); check(P(a).primary.enabled, "Keep & roll")
 	eq(P(a).bank:GetText(), "Bank 100"); check(P(a).bank.enabled, "Bank")
@@ -634,7 +634,7 @@ test("1.2 the Bone Throw tables board: the original wooden halves cover the play
 	local win = P(a).win
 	check(win.table and #win.table == 2, "the play canvas uses the original two wooden halves")
 	local top, bottom = win.table[1], win.table[2]
-	local wood = "Interface\\AddOns\\Olympus_Arena\\media\\farkle\\table"
+	local wood = "Interface\\AddOns\\ChillZone_Arena\\media\\farkle\\table"
 	eq(top.tex, wood); eq(bottom.tex, wood)
 	eq(table.concat(top.coords, ","), table.concat({ 0, 1, 0, 250 / 512 }, ","))
 	eq(table.concat(bottom.coords, ","), table.concat({ 0, 1, 260 / 512, 1 }, ","), "neither half samples the seam")
@@ -650,12 +650,12 @@ test("1.2 the Bone Throw tables board: the original wooden halves cover the play
 	eq(win:GetWidth(), 800); eq(win:GetHeight(), 456); eq(win:GetScale(), 1.1, "the 400px table and its scale stay; the shared games footer is 56px")
 	eq(P(a).help.bg.tex, "Interface\\QuestFrame\\QuestBG", "the rules remain parchment")
 	check(P(a).shell.border, "the game border stays"); eq(P(a).shell.TitleContainer, nil, "no header over the X")
-	for name in pairs(a.K.named) do check(name:find("^OlympusArena"), "a frame named %s", name) end
-	check(a.K.named.OlympusArenaBoneThrow == P(a).win, "the table")
+	for name in pairs(a.K.named) do check(name:find("^ChillZoneArena"), "a frame named %s", name) end
+	check(a.K.named.ChillZoneArenaBoneThrow == P(a).win, "the table")
 	-- the dice's art: the bone die's faces and its tumble, from the companion's media
 	local d = X(a).sides[1].dice[1]
-	eq(d.f.face.tex, "Interface\\AddOns\\Olympus_Arena\\media\\farkle\\faces")
-	eq(d.f.tumble.tex, "Interface\\AddOns\\Olympus_Arena\\media\\farkle\\tumble")
+	eq(d.f.face.tex, "Interface\\AddOns\\ChillZone_Arena\\media\\farkle\\faces")
+	eq(d.f.tumble.tex, "Interface\\AddOns\\ChillZone_Arena\\media\\farkle\\tumble")
 	check(d.f.flip and d.f.flip.anims[1].kind == "FlipBook" and d.f.flip.anims[1].FlipBookFrames == 16, "the tumble a 16-frame FlipBook")
 	NoErrors(w)
 end)
@@ -1221,7 +1221,7 @@ test("1.2 the Bone Throw tables board: Escape closes what is on top: the guide f
 	local w, a = Practice()
 	Click(w, a, P(a).win.helpButton)
 	check(P(a).help:IsShown() and P(a).win:IsShown(), "both open")
-	eq(#a.K.special, 1); eq(a.K.special[1], "OlympusArenaBoneThrowEscape")
+	eq(#a.K.special, 1); eq(a.K.special[1], "ChillZoneArenaBoneThrowEscape")
 	w:As(a, function() a.K.Escape() end)
 	check(not P(a).help:IsShown() and P(a).win:IsShown(), "the guide first")
 	w:As(a, function() a.K.Escape() end)
@@ -1314,7 +1314,7 @@ test("1.2 the Bone Throw tables board: the create panel: the prefill (a match's 
 	Click(w, a, cp.minus)
 	eq(cp.amount:GetText(), "none: for fun")
 	check(cp.send.enabled, "for fun it may go: %s", cp.why:GetText())
-	eq(cp.why:GetText(), "Matched by Olympus: the terms you both chose.")
+	eq(cp.why:GetText(), "Matched by ChillZone: the terms you both chose.")
 	Click(w, a, cp.sober)
 	Click(w, a, cp.send)
 	w:Run(0)
@@ -1522,7 +1522,7 @@ test("1.2 the Bone Throw tables board: Sit does the game's /sit (flavour, never 
 end)
 
 ---------------------------------------------------------------------------
--- The Bones window (Olympus_Arena/Games/Farkle.lua, a test build's Bones section), the owner on
+-- The Bones window (ChillZone_Arena/Games/Farkle.lua, a test build's Bones section), the owner on
 -- test 32: its introduction's words centred above Start Playing, and opponent search, the match
 -- and the table as components of that window, never another window.
 ---------------------------------------------------------------------------
@@ -1759,12 +1759,12 @@ local function InWindow(c, f, base, what)
 	check(x and x >= -0.01 and y >= -0.01 and x + wd <= base:GetWidth() + 0.01 and y + ht <= base:GetHeight() + 0.01,
 		"%s: inside the window (%s %s %s %s)", what, tostring(x), tostring(y), tostring(wd), tostring(ht))
 end
--- Olympus's windows on the screen now: its named frames of UIParent's that are drawn (not the
+-- ChillZone's windows on the screen now: its named frames of UIParent's that are drawn (not the
 -- table's 1 px Escape proxy, FarkleBoard.lua's Escape, kept off the screen).
 local function Windows(c)
 	local out = {}
 	for _, f in ipairs(c.K.frames) do
-		if f.parent == c.K.UIParent and type(f.name) == "string" and f.name:find("^Olympus") and f:IsVisible()
+		if f.parent == c.K.UIParent and type(f.name) == "string" and f.name:find("^ChillZone") and f:IsVisible()
 			and (f.w or 0) > 1 and (f.h or 0) > 1 then out[#out + 1] = f.name end
 	end
 	table.sort(out)
@@ -1820,11 +1820,11 @@ test("1.2 Bones window (test 32): Start Playing opens Find inside the window, wh
 	-- Escape (mouse and keyboard): the sheet first, the window stays; the next Escape closes it
 	Click(w, a, intro.start)
 	w:Run(0)
-	check(Named(a, "OlympusArenaFind") and not Named(a, "OlympusArenaGamesBoneThrow"), "on the Escape list: the sheet, not the window under it")
+	check(Named(a, "ChillZoneArenaFind") and not Named(a, "ChillZoneArenaGamesBoneThrow"), "on the Escape list: the sheet, not the window under it")
 	w:As(a, function() a.K.Escape() end)
 	check(not find:IsShown() and win:IsShown() and intro:IsVisible(), "Escape: the introduction again")
 	w:Run(0)
-	check(Named(a, "OlympusArenaGamesBoneThrow"), "the window back on the list")
+	check(Named(a, "ChillZoneArenaGamesBoneThrow"), "the window back on the list")
 	w:As(a, function() a.K.Escape() end)
 	check(not win:IsShown(), "a second Escape closes the window")
 	w:As(a, function() Lab(a).Open() end)
@@ -1845,7 +1845,7 @@ test("1.2 Bones window (test 32): Start Playing opens Find inside the window, wh
 	check(win:IsShown(), "the Bones window still open")
 	InWindow(a, card, win, "the match's card")
 	w:Run(0)
-	check(Named(a, "OlympusArenaMatchCard") and not Named(a, "OlympusArenaGamesBoneThrow"), "Escape: the card first")
+	check(Named(a, "ChillZoneArenaMatchCard") and not Named(a, "ChillZoneArenaGamesBoneThrow"), "Escape: the card first")
 	-- [Open the table]: the real table, pre-filled from the match, in the same window too
 	MW.Press(w, a, "table")
 	local B = UI.FarkleBoard
@@ -1861,7 +1861,7 @@ test("1.2 Bones window (test 32): Start Playing opens Find inside the window, wh
 	-- drawn at the top of the screen over the window)
 	eq(card:GetParent(), win, "the card still the window's")
 	check(not card:IsVisible(), "the card waits under the table")
-	eq(Windows(a), "OlympusArenaGamesBoneThrow", "one window on the screen")
+	eq(Windows(a), "ChillZoneArenaGamesBoneThrow", "one window on the screen")
 	-- its X gives the window back, the match's card in it again
 	Click(w, a, board.close)
 	check(not board:IsShown() and win:IsShown(), "the table closed, the window stays")
@@ -1883,13 +1883,13 @@ test("1.2 Bones window (test 32): with the gamepad UI nothing of ours goes on th
 		local p = LabParts(a)
 		w:Run(0)
 		local before = #a.K.special
-		check(not Named(a, "OlympusArenaGamesBoneThrow"), "the window alone: not on the Escape list")
+		check(not Named(a, "ChillZoneArenaGamesBoneThrow"), "the window alone: not on the Escape list")
 		Click(w, a, p.intro.start)
 		w:Run(0)
 		local find = a.ns.Arena.ui.FindFrame()
 		InWindow(a, find, p.win, "the Find sheet")
 		local function Off(what)
-			for _, name in ipairs({ "OlympusArenaFind", "OlympusArenaGamesBoneThrow", "OlympusArenaMatchCard" }) do
+			for _, name in ipairs({ "ChillZoneArenaFind", "ChillZoneArenaGamesBoneThrow", "ChillZoneArenaMatchCard" }) do
 				check(not Named(a, name), "%s: %s is not on the Escape list", what, name)
 			end
 			eq(#a.K.special, before, what .. ": nothing written to UISpecialFrames")
@@ -1931,7 +1931,7 @@ test("1.2 Bones window (test 32): no other way bounces between windows: an invit
 	if P(b).help:IsShown() then w:As(b, function() b.K.Escape() end) end
 	check(not P(b).help:IsShown() and P(b).win:IsShown(), "the guide first")
 	w:Run(0)
-	check(not Named(b, "OlympusArenaGamesBoneThrow"), "the window off the list while the table covers it")
+	check(not Named(b, "ChillZoneArenaGamesBoneThrow"), "the window off the list while the table covers it")
 	w:As(b, function() b.K.Escape() end)
 	check(not P(b).win:IsShown() and lb:IsShown() and LabParts(b).intro:IsVisible(), "Escape: the table, the window stays")
 	w:Run(0)
@@ -2085,11 +2085,11 @@ test("1.2 Bones window (test 32): a live search's card is never lost under the F
 	NoErrors(w)
 end)
 
--- (Review of the pending-conversation door, ChatRooms.OpenMatter: Raise orders the Olympus window
+-- (Review of the pending-conversation door, ChatRooms.OpenMatter: Raise orders the ChillZone window
 -- among the windows of its own strata alone. The Find sheet on its own place is a pop-up a strata
 -- above them, up while it searches, and it stayed over the window brought to the front on the
 -- match's tab.)
-test("1.2 Bones window (review): the Find sheet on its own place, up while it searches, goes once the match it found is on its own tab in the Olympus window; another matter's tab leaves it", function()
+test("1.2 Bones window (review): the Find sheet on its own place, up while it searches, goes once the match it found is on its own tab in the ChillZone window; another matter's tab leaves it", function()
 	local w, a, b = Finders()
 	CH.WithRooms(w, a)
 	local h = CH.Host(a)
@@ -2143,14 +2143,14 @@ test("1.2 Bones window (review): [Open the table] on a match leaves one window: 
 	local mid = assert(Matched(w, a, b), "the match's id")
 	local card = a.Match.Card()
 	InWindow(a, card, win, "the match's card")
-	eq(Windows(a), "OlympusArenaGamesBoneThrow", "one window: the card in it")
+	eq(Windows(a), "ChillZoneArenaGamesBoneThrow", "one window: the card in it")
 	local B = a.ns.Arena.ui.FarkleBoard
 	local function Table(what)
 		MW.Press(w, a, "table")
 		if B._.parts().help:IsShown() then Click(w, a, B._.parts().help.ok) end
 		InWindow(a, B.Window(), win, what)
 		check(not card:IsShown() and card:GetParent() == win, "%s: the card waits under it, the window's", what)
-		eq(Windows(a), "OlympusArenaGamesBoneThrow", what .. ": one window, no card above")
+		eq(Windows(a), "ChillZoneArenaGamesBoneThrow", what .. ": one window, no card above")
 		return B.Window()
 	end
 	local board = Table("the table")
@@ -2166,7 +2166,7 @@ test("1.2 Bones window (review): [Open the table] on a match leaves one window: 
 	check(w:As(a, function() return a.Match.RoomAction(mid, "details") end), "Details")
 	InWindow(a, card, win, "the card asked for")
 	check(card:GetFrameLevel() > board:GetFrameLevel(), "over the table")
-	eq(Windows(a), "OlympusArenaGamesBoneThrow", "one window still")
+	eq(Windows(a), "ChillZoneArenaGamesBoneThrow", "one window still")
 	Click(w, a, card.close)
 	check(board:IsVisible() and not card:IsShown(), "the card's X: the table")
 	Click(w, a, board.close)
@@ -2197,10 +2197,10 @@ test("1.2 Bones window (review): [Open the table] on a match leaves one window: 
 	w:As(a, function() Lab(a).Close() end)
 	check(not board:IsShown() and not win:IsShown(), "the window closed, the table with it")
 	check(card:IsVisible() and card:GetParent() ~= win, "the live card above, on its own")
-	eq(Windows(a), "OlympusArenaMatchCard", "one window: the card")
+	eq(Windows(a), "ChillZoneArenaMatchCard", "one window: the card")
 	w:As(a, function() Lab(a).Open() end)
 	InWindow(a, card, win, "opened again: the card in it")
-	eq(Windows(a), "OlympusArenaGamesBoneThrow", "one window again")
+	eq(Windows(a), "ChillZoneArenaGamesBoneThrow", "one window again")
 	-- the match ends while its card waits under the table: closing the table shows how it ended
 	Table("the table, a fourth time")
 	MW.Press(w, b, "cancel")
@@ -2210,7 +2210,7 @@ test("1.2 Bones window (review): [Open the table] on a match leaves one window: 
 	Click(w, a, board.close)
 	InWindow(a, card, win, "how it ended")
 	eq(card.title:GetText(), L.MATCH_CARD_OVER)
-	eq(Windows(a), "OlympusArenaGamesBoneThrow", "one window to the end")
+	eq(Windows(a), "ChillZoneArenaGamesBoneThrow", "one window to the end")
 	MW.NoErrors(w)
 	NoErrors(w)
 end)
@@ -2243,7 +2243,7 @@ test("1.2 Bones window (review): with the gamepad UI the window's X is drawn ove
 		check(not find:IsShown() and p.win:IsShown() and p.intro:IsVisible(), "Cancel: the introduction")
 		Free("after Cancel")
 		w:Run(0)
-		check(not Named(a, "OlympusArenaGamesBoneThrow"), "nothing of ours on the Escape list")
+		check(not Named(a, "ChillZoneArenaGamesBoneThrow"), "nothing of ours on the Escape list")
 		Click(w, a, x)
 		check(not p.win:IsShown(), "the X closes the window")
 		-- with the sheet open: the window's X closes the window and the sheet with it
@@ -2273,23 +2273,23 @@ test("1.2 Bones window (review): a Find sheet already shown that moves into the 
 	InWindow(a, find, p.win, "the sheet moved in")
 	eq(find.opts.game, "b", "a Bones search now")
 	w:Run(0)
-	check(Named(a, "OlympusArenaFind") and not Named(a, "OlympusArenaGamesBoneThrow"), "on the Escape list: the sheet, not the window under it")
+	check(Named(a, "ChillZoneArenaFind") and not Named(a, "ChillZoneArenaGamesBoneThrow"), "on the Escape list: the sheet, not the window under it")
 	IntroWords(a, false, "the sheet moved in")
 	w:As(a, function() a.K.Escape() end)
 	check(not find:IsShown() and p.win:IsShown(), "Escape: the sheet alone")
 	IntroWords(a, true, "the sheet gone")
 	w:Run(0)
-	check(Named(a, "OlympusArenaGamesBoneThrow"), "the window back on the list")
-	-- (b) the sheet in the window, then the duel Find (the arena window's, /oly arena find): the
+	check(Named(a, "ChillZoneArenaGamesBoneThrow"), "the window back on the list")
+	-- (b) the sheet in the window, then the duel Find (the arena window's, /cz arena find): the
 	-- sheet leaves the window; the window gets its Escape and its words back
 	Click(w, a, p.intro.start)
 	InWindow(a, find, p.win, "the Bones sheet")
 	w:Run(0)
-	check(not Named(a, "OlympusArenaGamesBoneThrow"), "the window off the list")
+	check(not Named(a, "ChillZoneArenaGamesBoneThrow"), "the window off the list")
 	w:As(a, function() UI.OpenFind("d") end)
 	check(find:IsShown() and find:GetParent() ~= p.win, "the duel sheet on its own again")
 	w:Run(0)
-	check(Named(a, "OlympusArenaGamesBoneThrow"), "the window back on the list")
+	check(Named(a, "ChillZoneArenaGamesBoneThrow"), "the window back on the list")
 	IntroWords(a, true, "the sheet left")
 	Click(w, a, find.close)
 	check(not find:IsShown() and p.win:IsShown(), "the duel sheet closed")
@@ -2382,7 +2382,7 @@ test("1.2 Bones window (review): combat with the table in the Bones window close
 		check(lab:IsShown(), "%s first: the Bones window back after combat", first)
 		InWindow(c, P(c).win, lab, first .. " first: the table back, in it")
 		eq(X(c).S.id, id, first .. " first: the same table")
-		eq(Windows(c), "OlympusArenaGamesBoneThrow", first .. " first: one window")
+		eq(Windows(c), "ChillZoneArenaGamesBoneThrow", first .. " first: one window")
 		NoErrors(w)
 	end
 end)

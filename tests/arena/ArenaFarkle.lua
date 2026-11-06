@@ -1,4 +1,4 @@
--- Farkle's rules (Olympus/ArenaFarkle.lua, 1.2): dice from the server's roll, scoring, the turn,
+-- Farkle's rules (ChillZone/ArenaFarkle.lua, 1.2): dice from the server's roll, scoring, the turn,
 -- the game, its event codes, chain and transcript, and the House. Run by tests/run.lua, which
 -- passes { test, eq, ADDON_DIR, ROOT }.
 local H = ...
@@ -6,8 +6,8 @@ local test, eq = H.test, H.eq
 
 -- Sign.lua loads before ArenaFarkle.lua in the TOC: the chain and the hash use its SHA-256.
 local ns = {}
-assert(loadfile(H.ADDON_DIR .. "Sign.lua"))("Olympus", ns)
-assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("Olympus", ns)
+assert(loadfile(H.ADDON_DIR .. "Sign.lua"))("ChillZone", ns)
+assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("ChillZone", ns)
 local F = ns.FarkleRules
 
 -- Invented players.
@@ -732,7 +732,7 @@ end)
 
 test("1.2 Farkle: without Sign.lua a game cannot start (its chain needs the SHA-256); the scoring still works", function()
 	local bare = {}
-	assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("Olympus", bare)
+	assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("ChillZone", bare)
 	local G = bare.FarkleRules
 	eq(err(G.New({ target = 2000 })), "sign")
 	eq(G.Score({ 1, 1, 1, 1 }), 2000, "four 1s (KCD2; the old table's 1,100)")
@@ -1440,7 +1440,7 @@ end)
 test("1.2 Farkle: ChainAt looks the chain up at any step: no hashing, the same links", function()
 	local calls = 0
 	local counted = { Sign = { SHA256 = function(text) calls = calls + 1; return ns.Sign.SHA256(text) end } }
-	assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("Olympus", counted)
+	assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("ChillZone", counted)
 	local C = counted.FarkleRules
 	local g = assert(C.New({ target = 10000, first = 1, id = "ca" }))
 	local roll = Server(424242)

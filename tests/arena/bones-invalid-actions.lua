@@ -1,7 +1,7 @@
 local H = ...
 local ns = {}
-assert(loadfile(H.ADDON_DIR .. "Sign.lua"))("Olympus", ns)
-assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("Olympus", ns)
+assert(loadfile(H.ADDON_DIR .. "Sign.lua"))("ChillZone", ns)
+assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("ChillZone", ns)
 local F, eq = ns.FarkleRules, H.eq
 local function Snapshot(value)
 	if type(value) ~= "table" then return type(value) .. ":" .. tostring(value) end

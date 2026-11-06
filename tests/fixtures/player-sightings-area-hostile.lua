@@ -1,7 +1,7 @@
--- Olympus/PlayerSightings.lua before the area-scope extension (PS~S), for tests/player-sightings.lua:
--- copied unchanged from `git show 4e469d0e:Olympus/PlayerSightings.lua`. Its observers answer an area
+-- ChillZone/PlayerSightings.lua before the area-scope extension (PS~S), for tests/player-sightings.lua:
+-- copied unchanged from `git show 4e469d0e:ChillZone/PlayerSightings.lua`. Its observers answer an area
 -- request with hostile rows only and drop a message type they do not know. Loaded like the addon
--- loads its files: loadfile("tests/fixtures/player-sightings-area-hostile.lua")("Olympus", ns).
+-- loads its files: loadfile("tests/fixtures/player-sightings-area-hostile.lua")("ChillZone", ns).
 local ADDON, ns = ...
 
 -- A request-bound, voluntary last-seen network. It is deliberately not continuous tracking.
@@ -23,7 +23,7 @@ local ADDON, ns = ...
 --   PS~W~1~<request>~<Name-Realm>                                  private area-row withdrawal
 --
 -- Q/C senders and R/X recipients are server-stamped by the addon channel. Q is accepted only
--- from Olympus's existing signed authority (Moderation.IsIssuer), or from the addon's pinned
+-- from ChillZone's existing signed authority (Moderation.IsIssuer), or from the addon's pinned
 -- author identity so the developer can exercise the same live path; a local guild roster never
 -- grants either role. R and X go only to the exact requester whose live Q this observer accepted.
 
@@ -202,7 +202,7 @@ local function OwnGuild()
 	return ok and Guild(guild) or nil
 end
 
--- Results may come from any verified Olympus member. The guild in R is only a lookup key: the
+-- Results may come from any verified ChillZone member. The guild in R is only a lookup key: the
 -- local signed/census authority must independently bind that server-stamped sender to it.
 local function VerifiedObserver(sender, guild, now)
 	sender, guild = Canonical(sender), Guild(guild)
@@ -308,7 +308,7 @@ local function ValidPoint(x, y)
 end
 
 -- Some supported clients expose a visible unit through UnitPosition even when their C_Map unit
--- method returns nil. Olympus already ships HereBeDragons for exactly this world-to-map conversion.
+-- method returns nil. ChillZone already ships HereBeDragons for exactly this world-to-map conversion.
 -- Use only the observer's current open zone/micro map and disallow out-of-bounds conversion, so a
 -- different instance or an unsupported token fails closed instead of becoming an invented point.
 local function WorldMapSpot(unit)

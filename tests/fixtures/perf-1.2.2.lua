@@ -1,6 +1,6 @@
 -- 1.2.3's equality test (tests/perf.lua): a session the 1.2.2 profiler measured, what it saved
 -- and the report it opened. Made by running F.Session in tests/perf.lua's world (its clock,
--- GetTime and heap; time() from GetTime, date() in UTC) under Olympus 1.2.2's Perf.lua and
+-- GetTime and heap; time() from GetTime, date() in UTC) under ChillZone 1.2.2's Perf.lua and
 -- PerfText.lua (e04dd4535f94); do not edit: the listeners' lines name this file's line numbers.
 -- The heap moves too: 1.2.2 read none of it, so its figures are what 1.2.3 must still give.
 local F = { version = "1.2.2", t0 = 1760000000 }
@@ -362,12 +362,12 @@ F.saved = {
 }
 
 F.report = {
-	[1] = "Olympus profiler - Olympus 1.2.2, game 1.15.8.99999 (11508)",
+	[1] = "ChillZone profiler - ChillZone 1.2.2, game 1.15.8.99999 (11508)",
 	[2] = "Input: mouse and keyboard.",
 	[3] = "Measuring: off, 1 min 05 s measured (since 2025-10-09 09:10).",
-	[4] = "Frames with 30 ms or more of Olympus's work: 6 of 8 drawn.",
+	[4] = "Frames with 30 ms or more of ChillZone's work: 6 of 8 drawn.",
 	[5] = "",
-	[6] = "Worst frames (Olympus's time in one frame, and its biggest call in it):",
+	[6] = "Worst frames (ChillZone's time in one frame, and its biggest call in it):",
 	[7] = "  240.0 ms at 09:10:05, mostly perf fixture outer (45.0 ms)",
 	[8] = "  72.0 ms at 09:10:05, mostly event PERF_FIXTURE_EVENT #1 perf-1.2.2.lua:13 (36.0 ms)",
 	[9] = "  65.0 ms at 09:10:04, mostly event PERF_FIXTURE_EVENT #1 perf-1.2.2.lua:13 (36.0 ms)",
@@ -434,8 +434,8 @@ F.report = {
 	[70] = "  event PERF_FIXTURE_EVENT  calls 5, total 180 ms, average 36.00 ms, slowest 36.0 ms",
 	[71] = "  callback PERF_FIXTURE  calls 10, total 170 ms, average 17.00 ms, slowest 31.0 ms",
 	[72] = "",
-	[73] = "/oly perf on starts measuring, /oly perf off stops, /oly perf reset clears; /oly perf alone opens this report.",
-	[74] = "Only Olympus's protected calls are measured: events, listeners, timers, commands and clicks. A call's time includes the calls made inside it. After a /reload it starts again once the loading is over. A listener is #n in the order it was registered, the same for everyone on one version: with its name where Olympus has one, and scripts/perf-listeners.lua in Olympus's source gives each #n its file and line.",
+	[73] = "/cz perf on starts measuring, /cz perf off stops, /cz perf reset clears; /cz perf alone opens this report.",
+	[74] = "Only ChillZone's protected calls are measured: events, listeners, timers, commands and clicks. A call's time includes the calls made inside it. After a /reload it starts again once the loading is over. A listener is #n in the order it was registered, the same for everyone on one version: with its name where ChillZone has one, and scripts/perf-listeners.lua in ChillZone's source gives each #n its file and line.",
 }
 
 return F

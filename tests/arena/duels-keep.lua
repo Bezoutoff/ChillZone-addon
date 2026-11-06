@@ -1,5 +1,5 @@
 -- 1.2.4, the author's ask (rankings kept, never lost, passed from client to client): what the duels'
--- rankings keep (Olympus/ArenaLedger.lua). Before: the ledger lived in the companion's saved data
+-- rankings keep (ChillZone/ArenaLedger.lua). Before: the ledger lived in the companion's saved data
 -- alone, and halves waiting for their other half in memory alone, so a fighter who never opened the
 -- Arena window never saw his own duel ranked, a member without the window kept nothing, a logout lost
 -- a half whose other half came later, and the clerk's carousel brought a later member the last two

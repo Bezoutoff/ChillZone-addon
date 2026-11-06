@@ -1,4 +1,4 @@
--- 1.1.6, the Missionary Church of Olympus: places, acts, the signed Apostles, the book's sync, the
+-- 1.1.6, the Missionary Church of ChillZone: places, acts, the signed Apostles, the book's sync, the
 -- room. Every test builds its own world of clients (tests/church-world.lua) over the real files.
 -- Run alone: luajit tests/run.lua "1.1.6 Church"
 local ns, test, eq, extra = ...
@@ -695,7 +695,7 @@ test("1.2.4 Church: past the cap, the namings that no longer hold go first, then
 	eq(w:As(obs, obs.Church.AskPages, c.a1.name), true)
 	w:Run(5)
 	local start = w.clock - 390
-	local function Guild(i) return ("Olympus Made %03d"):format(i) end
+	local function Guild(i) return ("ChillZone Made %03d"):format(i) end
 	for i = 1, MAX + 1 do
 		local boss = "Boss " .. Letters(i) .. "-Realm"
 		w.census[ns.Fold(Guild(i)) .. ":" .. Key(boss)] = 0 -- (a guild not heard before: no DATA_CHANGED needed)
@@ -898,7 +898,7 @@ test("1.1.6 Church: presence: the desk is the Head, then the Apostles by name, t
 	eq(w:As(c.member, c.member.Church.Desk), nil, "the King's client is never the desk")
 	-- A plain member's presence claiming "A" is heard, and grants nothing.
 	w:As(c.a1, c.a1.Church.Receive, "CHANNEL", c.member.name, "NB~1~x")
-	w:As(c.a1, c.a1.Church.ReceivePresence, "CHANNEL", c.member.name, "NK~1~p~A~abcd1234~Olympus Ember")
+	w:As(c.a1, c.a1.Church.ReceivePresence, "CHANNEL", c.member.name, "NK~1~p~A~abcd1234~ChillZone Ember")
 	eq(w:As(c.a1, c.a1.Church.Online, c.member.name), false)
 	eq(w:As(c.a1, c.a1.Church.InAudience, c.member.name), false)
 end)
@@ -932,7 +932,7 @@ test("1.1.6 Church: the room: the Church's audience only, one logged whisper to 
 	w:Flush()
 	eq(#w:As(m1, m1.c.ChatRooms.History, "church"), 1)
 	-- A line from outside the audience is dropped; so is a broadcast one.
-	local line = "M2~1~church~77~~Olympus Ember~sneaky"
+	local line = "M2~1~church~77~~ChillZone Ember~sneaky"
 	eq(select(2, w:As(m1, m1.c.ChatRooms.Receive, "WHISPER", c.member.name, line)), "audience")
 	eq(select(2, w:As(m1, m1.c.ChatRooms.Receive, "CHANNEL", c.a1.name, line)), "lane")
 	-- At most thirty recipients.
@@ -941,7 +941,7 @@ test("1.1.6 Church: the room: the Church's audience only, one logged whisper to 
 		local under = i <= 9 and APOSTLES[1] or (i <= 19 and APOSTLES[2] or (i <= 29 and APOSTLES[3] or "Mira Wells"))
 		w:Run(11)
 		eq(w:Act(c.king, c.king.Church.NameMissionary, n, under), true, n)
-		w:As(c.a1, c.a1.Church.TakePresence, "CHANNEL", n .. "-Realm", "NK~1~p~M~-~Olympus Ember")
+		w:As(c.a1, c.a1.Church.TakePresence, "CHANNEL", n .. "-Realm", "NK~1~p~M~-~ChillZone Ember")
 	end
 	eq(#w:As(c.a1, c.a1.Church.RoomRecipients), 30)
 	-- Losing the place: the room's history goes, the tab with it.
@@ -969,7 +969,7 @@ test("1.1.6 Church: old clients (1.1.4's Comm) drop every Church message unread;
 		cns.Now = function() return 100000 end
 		C_ChatInfo = { RegisterAddonMessagePrefix = function() end }
 		GetChannelName = function() return 5 end
-		assert(loadfile(ROOT .. "tests/fixtures/comm-1.1.4.lua"))("Olympus", cns)
+		assert(loadfile(ROOT .. "tests/fixtures/comm-1.1.4.lua"))("ChillZone", cns)
 		for _, fn in ipairs(login) do fn() end
 		local heard = {}
 		for _, kind in ipairs({ "M1", "T1", "S1", "L1", "W1", "O1", "HS", "HT" }) do
@@ -999,8 +999,8 @@ test("1.1.6 Church: old clients (1.1.4's Comm) drop every Church message unread;
 	plain.Comm = { Handle = function() end }
 	plain.On = function() end
 	plain.Consent = { Register = function() end }
-	assert(loadfile(ROOT .. "Olympus/ChatRooms.lua"))("Olympus", plain)
-	eq(select(2, plain.ChatRooms.Receive("WHISPER", "Aldric Vane-Realm", "M2~1~church~1~~Olympus Ember~hi")), "shape")
+	assert(loadfile(ROOT .. "ChillZone/ChatRooms.lua"))("ChillZone", plain)
+	eq(select(2, plain.ChatRooms.Receive("WHISPER", "Aldric Vane-Realm", "M2~1~church~1~~ChillZone Ember~hi")), "shape")
 	eq(#w:As(m1, m1.c.ChatRooms.Tabs) > 0, true)
 end)
 
@@ -1023,7 +1023,7 @@ end)
 
 test("1.1.6 Church: the TOC loads the Church after ChatRooms and ViewAs, its text with the locales; Comm's list has its types; the stand-in", function()
 	local function Read(p) local f = assert(io.open(p, "rb")) local s = f:read("*a") f:close() return s end
-	local toc = Read(ROOT .. "Olympus/Olympus.toc")
+	local toc = Read(ROOT .. "ChillZone/ChillZone.toc")
 	local at, n = {}, 0
 	for line in toc:gmatch("[^\r\n]+") do n = n + 1; at[line] = n end
 	for _, f in ipairs({ "Church.lua", "ChurchCount.lua", "ChurchView.lua", "Locales\\ChurchText.lua" }) do assert(at[f], f) end
@@ -1032,15 +1032,15 @@ test("1.1.6 Church: the TOC loads the Church after ChatRooms and ViewAs, its tex
 	assert(at["UI.lua"] < at["ChurchView.lua"] and at["Views.lua"] < at["ChurchView.lua"] and at["PlayerMenu.lua"] < at["ChurchView.lua"])
 	assert(at["ChurchView.lua"] < at["ArenaMath.lua"], "before every Arena file")
 	assert(at["Locales\\ChurchText.lua"] < at["Core.lua"])
-	local comm = Read(ROOT .. "Olympus/Comm.lua")
+	local comm = Read(ROOT .. "ChillZone/Comm.lua")
 	assert(comm:find("Church NB NK | ChurchCount NV NS NL NR", 1, true))
-	local core = Read(ROOT .. "Olympus/Core.lua")
+	local core = Read(ROOT .. "ChillZone/Core.lua")
 	assert(core:find('StandIn("Church", { "Slash" })', 1, true))
 	assert(core:find('cmd == "church" or cmd == "igreja"', 1, true))
 	-- The only event the Church registers, in a game the gamepad UI shares: GUILD_EVENT_LOG_UPDATE (no
 	-- HasRestrictions in Forever's GuildInfo documentation).
 	for _, file in ipairs({ "Church.lua", "ChurchCount.lua", "ChurchView.lua" }) do
-		local src = Read(ROOT .. "Olympus/" .. file)
+		local src = Read(ROOT .. "ChillZone/" .. file)
 		for code in src:gmatch("[^\n]+") do
 			code = code:gsub("%-%-.*$", "")
 			for ev in code:gmatch('RegisterEvent%("([%u_]+)"') do eq(ev, "GUILD_EVENT_LOG_UPDATE", file) end
@@ -1194,7 +1194,7 @@ test("1.1.6 Church: the room past thirty: the sender's own network and the Churc
 	for i = 1, 26 do
 		local n = "Sage " .. string.char(65 + math.floor(i / 26)) .. string.char(97 + i % 26) .. "x-Realm"
 		w.council[Key(n)] = true
-		w:As(m1, m1.Church.TakePresence, "CHANNEL", n, "NK~1~p~N~-~Olympus Ember")
+		w:As(m1, m1.Church.TakePresence, "CHANNEL", n, "NK~1~p~N~-~ChillZone Ember")
 	end
 	local list, left = w:As(m1, m1.Church.RoomRecipients)
 	eq(#list, 30)
@@ -1217,8 +1217,8 @@ test("1.2.0 chat rooms: an M2 line whose guild field carries a pipe is dropped a
 	plain.Comm = { Handle = function() end }
 	plain.On = function() end
 	plain.Consent = { Register = function() end }
-	assert(loadfile(ROOT .. "Olympus/ChatRooms.lua"))("Olympus", plain)
-	eq(select(2, plain.ChatRooms.Receive("WHISPER", "Aldric Vane-Realm", "M2~1~guild~1~~Olympus II|cffff0000~hi")), "shape")
+	assert(loadfile(ROOT .. "ChillZone/ChatRooms.lua"))("ChillZone", plain)
+	eq(select(2, plain.ChatRooms.Receive("WHISPER", "Aldric Vane-Realm", "M2~1~guild~1~~ChillZone II|cffff0000~hi")), "shape")
 end)
 
 test("1.2.1 Church: a keeper's page can't take a guild's correspondent away: its removal only from a root, the guild's master or the correspondent himself", function()
@@ -1335,7 +1335,7 @@ test("1.2.4 Church: picking the Church's room says nothing of those it would mis
 	for i = 1, 33 do
 		local n = "Sage " .. string.char(65 + math.floor(i / 26)) .. string.char(97 + i % 26) .. "y-Realm"
 		w.council[Key(n)] = true
-		w:As(m1, m1.Church.TakePresence, "CHANNEL", n, "NK~1~p~N~-~Olympus Ember")
+		w:As(m1, m1.Church.TakePresence, "CHANNEL", n, "NK~1~p~N~-~ChillZone Ember")
 	end
 	local before = #m1.printed
 	eq(w:As(m1, m1.c.ChatRooms.Select, "church"), true)

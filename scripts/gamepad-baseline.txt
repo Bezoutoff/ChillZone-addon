@@ -1,4 +1,4 @@
-# The gamepad audit's ratchet (scripts/gamepad-audit.lua): per file, Olympus's uses of the
+# The gamepad audit's ratchet (scripts/gamepad-audit.lua): per file, ChillZone's uses of the
 # game's GameTooltip (tooltip) and chat window (print) that need no gp: tag. A count may go down;
 # raising one is a change the review reads. Format: file kind count.
 Answers.lua tooltip 8
@@ -10,15 +10,15 @@ Decree.lua tooltip 6
 GuildFrame.lua tooltip 5
 King.lua tooltip 5
 Map.lua tooltip 12
-Olympus_Arena/BracketView.lua tooltip 5
-Olympus_Arena/Card.lua tooltip 4
-Olympus_Arena/FarkleBoard.lua tooltip 6
-Olympus_Arena/Games/Bicho.lua print 2
-Olympus_Arena/Games/Farkle.lua print 1
-Olympus_Arena/Games/Games.lua print 1
-Olympus_Arena/Games/Games.lua tooltip 5
-Olympus_Arena/Kit.lua tooltip 11
-Olympus_Arena/LotteryBoard.lua tooltip 5
+ChillZone_Arena/BracketView.lua tooltip 5
+ChillZone_Arena/Card.lua tooltip 4
+ChillZone_Arena/FarkleBoard.lua tooltip 6
+ChillZone_Arena/Games/Bicho.lua print 2
+ChillZone_Arena/Games/Farkle.lua print 1
+ChillZone_Arena/Games/Games.lua print 1
+ChillZone_Arena/Games/Games.lua tooltip 5
+ChillZone_Arena/Kit.lua tooltip 11
+ChillZone_Arena/LotteryBoard.lua tooltip 5
 Positions.lua tooltip 5
 UI.lua tooltip 54
 Views.lua tooltip 29

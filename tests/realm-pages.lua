@@ -1,4 +1,4 @@
--- The Realm tab's pages (ns.RealmPages) in the Olympus window: the page modules, Views.lua and
+-- The Realm tab's pages (ns.RealmPages) in the ChillZone window: the page modules, Views.lua and
 -- UI.lua (H.LoadUI) in a client of their own over the harness's namespace, drawn on the
 -- harness's stand-in frames (H.WithUI) and clicked row by row as the player clicks them.
 local ns, test, eq, H = ...
@@ -8,7 +8,7 @@ local ROOT = (debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]realm%-p
 -- the parchment pages ask for (line.font). The harness's toolkit has only the game's list fonts.
 local INK = { QuestFont = true, QuestTitleFont = true }
 
--- The client: every module with a Realm page, in Olympus.toc's order, its own registry, locale
+-- The client: every module with a Realm page, in ChillZone.toc's order, its own registry, locale
 -- words and saved data; the harness's census, roster and the rest under it. Nothing it loads
 -- registers with the harness (its events, comm handlers and dialogs are its own or put back).
 -- The author's Workshop is open (the King's letters' previews are his alone: HonorsNet.PreviewKeys).
@@ -31,15 +31,15 @@ local function Client()
 	for _, file in ipairs({ "Locales/WeeklyBriefText", "Locales/GuildCharterText", "Locales/OfficerMusterText", "Locales/ArenaFightsText",
 		"RankingRules", "Loot", "War", "GuildCharter", "Views", "WeeklyBrief", "Carry", "OfficerMuster", "Honors", "HonorsNet",
 		"Locales/RoleBriefingsText", "RoleBriefings" }) do
-		assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua"))("ChillZone", c)
 	end
 	for k in pairs(StaticPopupDialogs) do if not dialogs[k] then StaticPopupDialogs[k] = nil end end
 	for k, v in pairs(dialogs) do StaticPopupDialogs[k] = v end
 	return w, c
 end
 
--- The Olympus window over that client (UI.lua's own namespace, its Views the client's), opened on
--- the Realm tab as an ordinary member of an Olympus guild; fn(ui, frame, w, c). The quest fonts
+-- The ChillZone window over that client (UI.lua's own namespace, its Views the client's), opened on
+-- the Realm tab as an ordinary member of an ChillZone guild; fn(ui, frame, w, c). The quest fonts
 -- and the saved data the pages write are put back after.
 local function WithRealm(fn)
 	H.WithUI(function()
@@ -48,13 +48,13 @@ local function WithRealm(fn)
 		for k in pairs(ns.rdb) do rdb[k] = true end
 		QuestFont, QuestTitleFont = { font = "QuestFont" }, { font = "QuestTitleFont" }
 		local ok, err = pcall(function()
-			GetGuildInfo = function() return "Olympus II", "Member", 3 end
+			GetGuildInfo = function() return "ChillZone II", "Member", 3 end
 			local w, c = Client()
 			local ui, uns = H.LoadUI()
 			uns.Views, c.UI = c.Views, ui
 			ui.SelectTab("realm")
-			local frame = OlympusFrame or OlympusFrameHD or OlympusFrameBasic or OlympusFrameHDBasic
-			assert(frame and frame:IsShown(), "the Olympus window")
+			local frame = ChillZoneFrame or ChillZoneFrameHD or ChillZoneFrameBasic or ChillZoneFrameHDBasic
+			assert(frame and frame:IsShown(), "the ChillZone window")
 			fn(ui, frame, w, c)
 		end)
 		QuestFont, QuestTitleFont = nil, nil
@@ -173,7 +173,7 @@ test("Realm pages: every page of the Realm tab has a Back as its first row and i
 			for _, pair in ipairs({ { "Locales/ArenaFightsText", "HONOR_LETTER_PREVIEW_BACK" }, { "Locales/CarryText", "CARRY_BACK" } }) do
 				local pt, saved = {}, GetLocale
 				GetLocale = function() return "ptBR" end
-				local loaded, why = pcall(function() assert(loadfile(ROOT .. "Olympus/" .. pair[1] .. ".lua"))("Olympus", { L = pt }) end)
+				local loaded, why = pcall(function() assert(loadfile(ROOT .. "ChillZone/" .. pair[1] .. ".lua"))("ChillZone", { L = pt }) end)
 				GetLocale = saved
 				assert(loaded, why)
 				eq(pt[pair[2]], "< Voltar ao Reino", pair[2] .. " in pt-BR")

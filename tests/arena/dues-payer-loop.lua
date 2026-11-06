@@ -9,7 +9,7 @@ local function Setup()
 		c.ns.splitNames = true; c.ns.Comm.Hash36 = H.ns.Comm.Hash36
 		-- World has its own Locales table; fill that same table (Dues captured it at load),
 		-- as the actual TOC does before the runtime modules, without replacing its identity.
-		assert(loadfile(H.ADDON_DIR .. "Locales/WeeklyBriefText.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Locales/WeeklyBriefText.lua"))("ChillZone", c.ns)
 	end
 	return w, p, t, mail
 end
@@ -41,7 +41,7 @@ test("Dues payer loop: real manual mail success is sent, actual gold intake alon
 	facts[1].copper = 7; eq(select(2, Status(w, p)), 10000, "read-only facts are copies")
 	w:As(p, function()
 		p.ns.RealmPages = {}
-		assert(loadfile(H.ADDON_DIR .. "WeeklyBrief.lua"))("Olympus", p.ns)
+		assert(loadfile(H.ADDON_DIR .. "WeeklyBrief.lua"))("ChillZone", p.ns)
 		local lines = p.ns.WeeklyBrief.PersonalLines()
 		eq(lines[5], p.ns.L.BRIEF_PAYMENT:format(p.ns.Dues.PaymentText()), "personal brief reads the actual payer proof")
 	end)
@@ -58,7 +58,7 @@ test("Dues payer loop: wrong recipient, edited amount, note, guild, COD, failed 
 		else
 			p.mailOut = { copper = change == "amount" and 9999 or 10000, cod = change == "cod" and 10000 or 0 }
 			if change == "note" then note = "unrelated donation" end
-			if change == "guild" then note = note:gsub(p.guild, "Olympus Vale") end
+			if change == "guild" then note = note:gsub(p.guild, "ChillZone Vale") end
 			w:As(p, p.globals.SendMail, change == "recipient" and t.name or mail.name, note)
 			if change == "failed" then w:Fire(p, "MAIL_FAILED") end
 			w:Fire(p, "MAIL_SEND_SUCCESS")
@@ -118,7 +118,7 @@ test("Dues payer loop: role spoof, wrong lane, amount, guild, faction and replay
 	local seq = tonumber(wire:match("^FR~1~2~(%d+)"))
 	local new = wire:gsub("^FR~1~2~%d+", "FR~1~2~" .. (seq + 1))
 	eq(w:As(p, p.ns.Dues.HandlePayerReceipt, "WHISPER", mail.name, new:gsub("~10000~10000~", "~9000~10000~")), false, "wrong weekly amount")
-	eq(w:As(p, p.ns.Dues.HandlePayerReceipt, "WHISPER", mail.name, new:gsub(p.guild, "Olympus Vale")), false, "wrong guild")
+	eq(w:As(p, p.ns.Dues.HandlePayerReceipt, "WHISPER", mail.name, new:gsub(p.guild, "ChillZone Vale")), false, "wrong guild")
 	p.ns.faction = "Horde"
 	eq(w:As(p, p.ns.Dues.HandlePayerReceipt, "WHISPER", mail.name, new), false)
 end)

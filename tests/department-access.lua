@@ -5,15 +5,15 @@ local function World(fn)
 	local savedGuild, savedIn = GetGuildInfo, IsInGuild
 	local savedMap, savedPosition = C_Map.GetBestMapForUnit, C_Map.GetPlayerMapPosition
 	local dialogs = {}; for key, value in pairs(StaticPopupDialogs) do dialogs[key] = value end
-	local w = { now = 1800000000, guild = "Olympus II", rank = 3, packets = {}, selected = nil, handlers = {} }
+	local w = { now = 1800000000, guild = "ChillZone II", rank = 3, packets = {}, selected = nil, handlers = {} }
 	local c = setmetatable({ me = "Envoy-Realm", realm = "Realm", group = "RealmGroup", faction = "Alliance", db = {}, rdb = {} }, { __index = ns })
 	local ok, err = pcall(function()
 		GetGuildInfo = function() return w.guild, "Member", w.rank end
 		IsInGuild = function() return true end
 		c.Now = function() return w.now end
 		c.IsMember = function() return c.IsFederation(w.guild) end
-		c.IsKingGuild = function(g) return g == "Olympus" end
-		c.KingGuildName = function() return "Olympus" end
+		c.IsKingGuild = function(g) return g == "ChillZone" end
+		c.KingGuildName = function() return "ChillZone" end
 		c.IsHighCouncillor, c.IsKingCharacter = function() return false end, function() return false end
 		c.FullName = function(n) if not n then return nil end return n:find("-", 1, true) and n or n .. "-Realm" end
 		c.ShortName = function(n) return n and n:match("^[^-]+") end
@@ -37,7 +37,7 @@ local function World(fn)
 		c.Comm = { Handle = function(kind, fn) w.handlers[kind] = fn end, Send = function(dist, msg, _, _, _, _, options)
 			w.packets[#w.packets + 1] = { dist = dist, msg = msg, options = options }; return true end }
 		c.Borders = { Changed = function() end }
-		assert(loadfile(ROOT .. "Olympus/Nominees.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Nominees.lua"))("ChillZone", c)
 		function w.name(dept, sender, name)
 			w.now = w.now + 1; c.Roster.snapshotAt = w.now
 			c.Nominees.Handle("CHANNEL", sender or "Guildmaster-Realm",
@@ -54,8 +54,8 @@ local function World(fn)
 			c.Alert = function() end
 			c.ShowDialog = function(which, _, _, data) w.dialog = { which = which, data = data } end
 			c.Comm.SendChunked = function(msg, _, dist, _, options) return c.Comm.Send(dist or "CHANNEL", msg, nil, nil, nil, nil, options) end
-			assert(loadfile(ROOT .. "Olympus/King.lua"))("Olympus", c)
-			assert(loadfile(ROOT .. "Olympus/Week.lua"))("Olympus", c)
+			assert(loadfile(ROOT .. "ChillZone/King.lua"))("ChillZone", c)
+			assert(loadfile(ROOT .. "ChillZone/Week.lua"))("ChillZone", c)
 		end
 		function w.decrees()
 			w.agenda()
@@ -65,7 +65,7 @@ local function World(fn)
 			c.Roster.MyRank = function() return w.rank end
 			C_Map.GetBestMapForUnit = function() return 1411 end
 			C_Map.GetPlayerMapPosition = function() return { GetXY = function() return 0.42, 0.51 end } end
-			assert(loadfile(ROOT .. "Olympus/Decree.lua"))("Olympus", c)
+			assert(loadfile(ROOT .. "ChillZone/Decree.lua"))("ChillZone", c)
 		end
 		fn(w, c)
 	end)
@@ -151,7 +151,7 @@ test("1.2.4 Heraldry Agenda: the own guild's master and verified correspondent s
 		eq(guarded(), true)
 		W.HandleSignup("WHISPER", "Peer-Realm", ("Y2~%d~D~%s"):format(e.id, w.guild))
 		eq(W.Counts(e).D, 1, "our roster member can sign")
-		W.HandleSignup("WHISPER", "Outsider-Realm", ("Y2~%d~H~Olympus Elsewhere"):format(e.id))
+		W.HandleSignup("WHISPER", "Outsider-Realm", ("Y2~%d~H~ChillZone Elsewhere"):format(e.id))
 		W.HandleSignup("WHISPER", "Outsider-Realm", ("Y2~%d~H~%s"):format(e.id, w.guild))
 		eq(W.Counts(e).H, 0); eq(W.Counts(e).others, 0, "outside signups never enter a guild sheet")
 		eq(W.SendSheet(true), true); eq(w.packets[#w.packets].dist, "GUILD")
@@ -176,7 +176,7 @@ test("1.2.4 Heraldry Agenda: the own guild's master and verified correspondent s
 		w.now = w.now + 11
 		eq(W.SetEntry("tomorrow 20:00 Guild raid", "guild"), true)
 		eq(c.rdb.week[c.me][1].guildOnly, true, "saved entries keep the audience")
-		w.guild = "Olympus Elsewhere"
+		w.guild = "ChillZone Elsewhere"
 		eq(#W.Entries(), 0); eq(K.CanAgenda("guild"), false)
 		count = #w.packets; W.Tick(w.now + 3600)
 		eq(#w.packets, count, "a changed guild never broadcasts a saved event")
@@ -207,13 +207,13 @@ test("1.2.4 Heraldry Agenda: guild ingress cannot become army data or cancel an 
 		assert(c.rdb.weekHeard and c.rdb.weekHeard[1], "loading the roster never erases a saved guild event")
 		c.Roster.complete = true
 		eq(W.Entry(812).guildOnly, true, "same-guild reload preserves the audience")
-		K.HandleCommand("CHANNEL", "Royal Dev-Realm", "T1~D~813~Olympus~3600~1~~Army event")
+		K.HandleCommand("CHANNEL", "Royal Dev-Realm", "T1~D~813~ChillZone~3600~1~~Army event")
 		assert(W.Entry(813) and not W.Entry(813).guildOnly)
 		K.HandleCommand("GUILD", "Guildmaster-Realm", ("T1~D~813~%s~0~0~~"):format(w.guild))
 		assert(W.Entry(813), "a guild cancel cannot touch an army entry")
-		K.HandleCommand("GUILD", "Guildmaster-Realm", "T1~D~814~Olympus Other~3600~1~~Other guild")
+		K.HandleCommand("GUILD", "Guildmaster-Realm", "T1~D~814~ChillZone Other~3600~1~~Other guild")
 		eq(W.Entry(814), nil, "a payload cannot claim another guild")
-		w.guild = "Olympus Other"
+		w.guild = "ChillZone Other"
 		W.Reset(); c.rdb.weekHeard = saved; W.Restore()
 		eq(W.Entry(812), nil, "a different guild never restores the old guild's entry")
 	end)
@@ -230,11 +230,11 @@ test("1.2.4 Heraldry Agenda reminders: a saved guild signup cannot nudge another
 		c.Print = function(line) lines[#lines + 1] = line end
 		c.PlayAlert = function() sounds = sounds + 1 end
 		w.now = e.at - 240; c.Roster.snapshotAt = w.now
-		w.guild = "Olympus Other"
+		w.guild = "ChillZone Other"
 		W.Remind(w.now)
 		eq(#lines, 0, "a former guild's saved signup stays private")
 		eq(sounds, 0)
-		w.guild = "Olympus II"; c.Roster.byName["Guildmaster-Realm"] = 1
+		w.guild = "ChillZone II"; c.Roster.byName["Guildmaster-Realm"] = 1
 		W.Remind(w.now)
 		eq(#lines, 0, "a revoked appointment cannot give a hidden event's reminder")
 		c.Roster.byName["Guildmaster-Realm"] = 0
@@ -284,7 +284,7 @@ test("1.2.4 Heraldry decrees: receivers verify the current own-guild appointment
 		local msg = Message()
 		w.handlers.D1("CHANNEL", c.me, msg); eq(#D.Active(), 0, "Heraldry nomination grants no army decree")
 		w.handlers.D1("GUILD", "Peer-Realm", msg); eq(#D.Active(), 0, "a member cannot claim rank zero on the wire")
-		w.handlers.D1("GUILD", c.me, Message("ROYAL", "Olympus Other")); eq(#D.Active(), 0, "another guild grants no authority")
+		w.handlers.D1("GUILD", c.me, Message("ROYAL", "ChillZone Other")); eq(#D.Active(), 0, "another guild grants no authority")
 		for i, kind in ipairs({ "ROYAL", "MUSTER", "HERALDRY", "ARMS" }) do
 			w.now = w.now + 61; c.Roster.snapshotAt = w.now
 			w.handlers.D1("GUILD", c.me, Message(kind))
@@ -310,7 +310,7 @@ test("1.2.4 Heraldry nomination hovers: every department explains its actual dut
 		local N = c.Nominees
 		local duties = { ["Federal Treasury"] = "bank sharing", ["Department of War"] = "raids and PvP",
 			["Council of Justice"] = "moderation", ["Association of Artisanry"] = "crafters",
-			["Department of Heraldry"] = "Decrees, Agenda and musters", ["The Missionary Church of Olympus"] = "guild full" }
+			["Department of Heraldry"] = "Decrees, Agenda and musters", ["The Missionary Church of ChillZone"] = "guild full" }
 		w.rank, c.me = 0, "Guildmaster-Realm"
 		eq(N.Name("correspondent", "Peer-Realm", "Department of War"), true)
 		local found = {}
@@ -337,7 +337,7 @@ test("1.2.4 Heraldry locales: both final locales describe scoped scheduling and 
 		for _, locale in ipairs({ "enUS", "ptBR" }) do
 			GetLocale = function() return locale end
 			local c = {}
-			assert(loadfile(ROOT .. "Olympus/Locales.lua"))("Olympus", c)
+			assert(loadfile(ROOT .. "ChillZone/Locales.lua"))("ChillZone", c)
 			for _, suffix in ipairs({ "TREASURY", "WAR", "JUSTICE", "ARTISANRY", "HERALDRY", "CHURCH" }) do
 				local key = "NOMINEES_DUTY_" .. suffix
 				assert(c.L[key] ~= key and #c.L[key] > 30, locale .. " has an actual duty, not a missing-key fallback")
@@ -345,7 +345,7 @@ test("1.2.4 Heraldry locales: both final locales describe scoped scheduling and 
 			local own = locale == "ptBR" and "própria guilda" or "own guild"
 			assert(c.L.NOMINEES_DUTY_HERALDRY:find(own, 1, true), locale .. " makes the audience explicit")
 			assert(c.L.WEEK_GUILD_PROMPT:find("30", 1, true), locale .. " has the guild entry's actual input format")
-			eq(c.L.YOU_ARE_GUILD_HERALDRY:format("Olympus II"):find("Olympus II", 1, true) ~= nil, true)
+			eq(c.L.YOU_ARE_GUILD_HERALDRY:format("ChillZone II"):find("ChillZone II", 1, true) ~= nil, true)
 		end
 	end)
 	GetLocale = savedLocale
@@ -360,7 +360,7 @@ test("guild departments: exact own-guild correspondent authority comes from a fr
 		w.name(dept)
 		eq(N.IsCorrespondent(c.me, w.guild, dept), true)
 		eq(N.OwnDepartment(), dept); eq(N.Correspondent(w.guild, dept), c.me)
-		eq(N.IsCorrespondent(c.me, "Olympus of Ash", dept), false)
+		eq(N.IsCorrespondent(c.me, "ChillZone of Ash", dept), false)
 		eq(N.IsCorrespondent(c.me, w.guild, "Federal Treasury"), false)
 		c.Roster.byName["Guildmaster-Realm"] = 1
 		eq(N.IsCorrespondent(c.me, w.guild, dept), false, "deposed before pruning")
@@ -393,7 +393,7 @@ test("guild departments (1.2.4): a correspondent keeps his department while the 
 		w.now = w.now + 9 * 3600; c.Roster.snapshotAt = w.now
 		eq(c.Nominees.IsCorrespondent(c.me, w.guild, dept), true, "kept past the old six hours")
 		-- A /reload: Nominees.lua loads again, its memory empty; the saved list comes back.
-		assert(loadfile(ROOT .. "Olympus/Nominees.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Nominees.lua"))("ChillZone", c)
 		local N = c.Nominees
 		eq(N.IsCorrespondent(c.me, w.guild, dept), true, "kept across a reload")
 		eq(N.OwnDepartment(), dept); eq((N.GuildAccess()), true)
@@ -407,7 +407,7 @@ test("guild departments (1.2.4): a correspondent keeps his department while the 
 		w.now = heardAt + N.FRESH + 1; c.Roster.snapshotAt = w.now
 		eq(N.IsCorrespondent(c.me, w.guild, dept), true, "kept past thirty days")
 		eq((N.GuildAccess()), true)
-		assert(loadfile(ROOT .. "Olympus/Nominees.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Nominees.lua"))("ChillZone", c)
 		N = c.Nominees
 		eq(N.IsCorrespondent(c.me, w.guild, dept), true, "old accepted list restored")
 		c.Roster.complete = false
@@ -481,14 +481,14 @@ end)
 
 test("guild departments: Justice duties use the verified nomination but Church authority still needs its canonical appointment", function()
 	World(function(w, c)
-		assert(loadfile(ROOT .. "Olympus/Watch.lua"))("Olympus", c)
-		assert(loadfile(ROOT .. "Olympus/WatchChat.lua"))("Olympus", c)
-		assert(loadfile(ROOT .. "Olympus/Church.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Watch.lua"))("ChillZone", c)
+		assert(loadfile(ROOT .. "ChillZone/WatchChat.lua"))("ChillZone", c)
+		assert(loadfile(ROOT .. "ChillZone/Church.lua"))("ChillZone", c)
 		w.name("Council of Justice")
 		eq(c.WatchChat.Justice(), c.me); eq(c.WatchChat.IsNamedWatcher(c.me), true)
 		eq(c.Watch.CanManage(), true, "same own-guild Watch duty as an appointed Justice correspondent")
 		eq(c.WatchChat.CouncilSide(), false, "no federal authority")
-		w.name("The Missionary Church of Olympus")
+		w.name("The Missionary Church of ChillZone")
 		eq(c.WatchChat.IsNamedWatcher(c.me), false, "prior department removed")
 		eq(c.Church.Role(c.me), nil); eq(c.Church.IsPerson(c.me), false, "a contact nomination cannot silently grant Church duties")
 		eq(c.Church.MayNameApostle(c.me), false)
@@ -499,7 +499,7 @@ end)
 
 test("guild departments: a War correspondent may write only in their own guild and queued writes lose authority on revocation", function()
 	World(function(w, c)
-		assert(loadfile(ROOT .. "Olympus/War.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/War.lua"))("ChillZone", c)
 		local W = c.War
 		w.name("Federal Treasury"); eq(W.IsOfficer(), false, "other department grants no War duty")
 		w.name("Department of War"); eq(W.IsOfficer(), true)
@@ -512,7 +512,7 @@ test("guild departments: a War correspondent may write only in their own guild a
 		assert(packet.options and packet.options.permit)
 		eq(packet.options.permit(W, packet.options.key, "GUILD", nil, packet.msg), false, "queued write revoked")
 		c.Roster.byName["Guildmaster-Realm"] = 0
-		w.guild = "Olympus of Ash"
+		w.guild = "ChillZone of Ash"
 		eq(W.IsOfficer(), false, "guild transfer cannot reuse the old roster")
 	end)
 end)
