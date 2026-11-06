@@ -2298,7 +2298,7 @@ test("watch: chat moderation: strikes: the first warning: not sent (nothing queu
 		eq(e.words, WORD); eq(e.text, "well this is a " .. WORD .. " for you"); eq(e.where, "A"); eq(e.char, B.name)
 		local d = w.Dialog(B, "CHILLZONE_WATCHCHAT_DECISION")
 		eq(d.a, B.ns.L.WATCHCHAT_STRIKE_1:format(B.WC.Span(300)))
-		for _, part in ipairs({ "5 minutes", "verify anyone's age", "Blizzard's Terms of Service", "screenshots", "Asmongold's team" }) do
+		for _, part in ipairs({ "5 minutes", "verify anyone's age", "Blizzard's Terms of Service", "screenshots", "the King's moderators" }) do
 			assert(d.a:find(part, 1, true), "the first pop-up says: " .. part)
 		end
 		assert(w.Printed(B, B.ns.L.WATCHCHAT_SEVERE_REFUSED), "the red line too")
