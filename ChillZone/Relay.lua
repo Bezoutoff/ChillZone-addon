@@ -14,7 +14,8 @@ ns.Relay = Relay
 --   hop 2  relay -> reporters   RM~<f>~<origin>~<text>   by whisper, one per guild (its reporter)
 --   hop 3  reporter -> guild    RG~<f>~<origin>~<text>   over GUILD, once, to everyone there
 --
--- The relays are the signed High Council's characters, the author's, the King and the Treasurer:
+-- The relays are the network's pinned relay characters (the guild master and an officer, by the
+-- owner's choice) and the signed High Council's characters:
 -- names every client holds from the signed list, so a guild that just arrived knows whom to
 -- whisper. A client picks one relay (its guild's name decides which, changing every PICK_WINDOW so
 -- the load spreads), pings it once (RP) and expects an answer (RA): a relay that does not answer
@@ -29,7 +30,7 @@ ns.Relay = Relay
 -- whisper travels in Codec's pieces (the assemblers put RL, RM and RG together like any other).
 --
 -- Trust: the server stamps every hop's sender. A relay is believed about the origin because it is
--- a signed councillor's, the author's, the King's or the Treasurer's character (RM from anyone else
+-- a signed councillor's or a pinned relay character (RM from anyone else
 -- is dropped); a reporter is believed by its guild because it is a guildmate (GUILD). Nothing here
 -- lets a stranger speak as the King: his words still reach the guilds only through those clients.
 -- Off Forever (the beta, Era, Anniversary) nothing here runs and the channel works as before.
@@ -52,9 +53,9 @@ Relay.REPORTER_FOR = 600     -- a relay keeps a reporter this long past its last
 Relay.SEEN_FOR = 300         -- a message taken is remembered this long (a second copy counts once)
 Relay.SEEN_MAX = 2000
 Relay.MAX_RELAYS = 40
--- ChillZone's relays, by the owner's choice (2026-11-06): the guild master and an officer, in both
--- families until the realm's ruleset is known.
-Relay.LAUNCH_PINS = { ForeverPvE = { "Вован Дубан", "Татарин Уфимский" }, ForeverPvP = { "Вован Дубан", "Татарин Уфимский" } }
+-- ChillZone's relays, by the owner's choice (2026-11-06): the guild master and an officer. The
+-- owner's guilds play in the PvP family (owner, 2026-11-06), so they are pinned there alone.
+Relay.LAUNCH_PINS = { ForeverPvP = { "Вован Дубан", "Татарин Уфимский" } }
 -- (1.5.0) Words every client says on the channel on its own clock (the channel's hello H3, the
 -- census ask Q1, the lists' ask HQ, positions P1, the Wanted list's ask W4, verification asks GV)
 -- are heard by the relay and answered from there, but never fanned out: with 46 guilds registered
@@ -131,7 +132,8 @@ function Relay.Names(withSelf)
 	if ns.AuthorCharacters then for _, n in ipairs((ns.AuthorCharacters())) do Add(n) end end
 	if ns.KingCharacter then Add(ns.KingCharacter()) end
 	-- (1.4.6) A client with no signed list yet (a guild nobody handed it to) must still find a
-	-- relay to get it from: the launch's author and King, by code, on their Forever family alone.
+	-- relay to get it from: the network's pinned relay characters (the guild master and an officer,
+	-- by the owner's choice), by code, on their Forever family alone.
 	local family = ns.ForeverFamily and ns.ForeverFamily(ns.realm)
 	if family then for _, p in ipairs(Relay.LAUNCH_PINS[family] or {}) do Add(p) end end
 	if ns.TreasurerPins then for _, n in ipairs((ns.TreasurerPins())) do Add(n) end end

@@ -46,7 +46,7 @@ test("ChillZone release: the network is <Чиллзон> and <Чиллзон Н�
 	eq(r.IsKingGuild("Чиллзон"), false, "no King's guild on the Horde")
 end)
 
-test("ChillZone release: no person is named in the code (the author's signed list names them)", function()
+test("ChillZone release: only the network's relay characters are named in the code (the signed list names the rest)", function()
 	local r = Release()
 	eq(next(r.KING_CHARACTER), nil); eq(r.KING_NAME, nil)
 	eq(r.TREASURER, nil); eq(#r.TREASURER_CHARACTERS, 0); eq(r.AUTHOR, nil)
@@ -57,23 +57,23 @@ test("ChillZone release: no person is named in the code (the author's signed lis
 	eq(r.KingName("Lead Chill-Realm"), "Lead Chill", "the King by his character's name")
 	local rel = ReleaseRelay()
 	local want = { "Вован Дубан", "Татарин Уфимский" }
-	for _, fam in ipairs({ "ForeverPvE", "ForeverPvP" }) do
-		eq(#rel.Relay.LAUNCH_PINS[fam], 2, fam)
-		eq(rel.Relay.LAUNCH_PINS[fam][1], want[1], fam); eq(rel.Relay.LAUNCH_PINS[fam][2], want[2], fam)
-	end
+	eq(#rel.Relay.LAUNCH_PINS.ForeverPvP, 2)
+	eq(rel.Relay.LAUNCH_PINS.ForeverPvP[1], want[1]); eq(rel.Relay.LAUNCH_PINS.ForeverPvP[2], want[2])
+	eq(rel.Relay.LAUNCH_PINS.ForeverPvE, nil, "the owner's guilds play in the PvP family only")
 	assert(ReadFile(h.ADDON_DIR .. "API.lua"):find("API.AUTHORIZED = {}", 1, true), "no partner addon trusted")
 end)
 
-test("ChillZone release: the pinned relays are in Relay.Names on a Forever realm (either family)", function()
+test("ChillZone release: the pinned relays are in Relay.Names on a PvP Forever realm only", function()
 	local rel = ReleaseRelay()
 	rel.ShortName, rel.ForeverFamily = ns.ShortName, ns.ForeverFamily
 	rel.splitNames, rel.rdb, rel.me = true, {}, "Someone Else-Realm"
 	rel.KingCharacter, rel.TreasurerPins, rel.AuthorCharacters = function() end, function() return {} end, function() return {} end
-	for _, realm in ipairs({ "CAMWOWEU1Realm3PvP", "CAMWOWEU1Realm3PvE" }) do
-		rel.realm = realm
-		eq(rel.Relay.On(), true)
-		eq(table.concat(rel.Relay.Names(), "|"), "Вован Дубан|Татарин Уфимский", realm)
-	end
+	rel.realm = "CAMWOWEU1Realm3PvP"
+	eq(rel.Relay.On(), true)
+	eq(table.concat(rel.Relay.Names(), "|"), "Вован Дубан|Татарин Уфимский", rel.realm)
+	rel.realm = "CAMWOWEU1Realm3PvE"
+	eq(rel.Relay.On(), true)
+	eq(#rel.Relay.Names(), 0, "neither pinned relay on a PvE realm")
 	rel.realm = "Realm"
 	eq(#rel.Relay.Names(), 0, "no pins off Forever")
 end)
