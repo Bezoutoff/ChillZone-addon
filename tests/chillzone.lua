@@ -106,3 +106,21 @@ test("ChillZone: the officers' names, Cyrillic and Latin, pass the addon's name 
 		eq(ns.Workshop.NameLike(name), true, name)
 	end
 end)
+
+test("ChillZone release: the addon speaks Russian on any client (ns.TEXT_LOCALE), the tests the client's language", function()
+	eq(ns.TEXT_LOCALE, nil, "the tests' identity: the client's language")
+	local savedLocale = GetLocale
+	GetLocale = function() return "enUS" end
+	local r = {}
+	local ok, err = pcall(function()
+		assert(loadfile(h.ADDON_DIR .. "Bootstrap.lua"))("ChillZone", r)
+		assert(RAW_LOADFILE(h.ADDON_DIR .. "Locales.lua"))("ChillZone", r)
+		assert(RAW_LOADFILE(h.ADDON_DIR .. "Locales/AccordText.lua"))("ChillZone", r) -- (the English line ruRU.lua overrides)
+		assert(RAW_LOADFILE(h.ADDON_DIR .. "Locales/ruRU.lua"))("ChillZone", r)
+	end)
+	GetLocale = savedLocale
+	if not ok then error(err, 0) end
+	eq(r.TEXT_LOCALE, "ruRU")
+	eq(r.TextLocale(), "ruRU")
+	eq(r.L.ACCORD_ACCEPT, "Принимаю", "Russian on an English client")
+end)

@@ -6,7 +6,8 @@ local ADDON, ns = ...
 -- English. Made from translation tables (one key per line, sorted); a later English line needs its
 -- own translation here.
 -- (Another language's client stops at the next line: its table is never built.)
-local code = GetLocale and GetLocale()
+-- (ChillZone: ns.TEXT_LOCALE, Locales.lua, makes it Russian on any client.)
+local code = ns.TextLocale and ns.TextLocale()
 if code ~= "ruRU" then return end
 ns.Locale("ruRU", {
 	ACCORD_ACCEPT = "Принимаю",

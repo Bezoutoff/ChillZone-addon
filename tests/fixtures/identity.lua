@@ -22,6 +22,7 @@ local AFTER = {
 		ns.APPROVED_BUILTIN = { Alliance = { "CHILLZONER", "CHILLZONERS" } }
 		ns.REMOVED_BUILTIN = { Alliance = { realm = "ClassicBetaPvP", "ChillZone Defense Force" } }
 	end,
+	["Locales.lua"] = function(ns) ns.TEXT_LOCALE = nil end, -- (the tests: the client's language, as they set GetLocale)
 	["Relay.lua"] = function(ns)
 		ns.Relay.LAUNCH_PINS = { ForeverPvE = { "Developus Olympicus", "Asmongold Thereal" }, ForeverPvP = { "Twalin Firebraid" } }
 	end,

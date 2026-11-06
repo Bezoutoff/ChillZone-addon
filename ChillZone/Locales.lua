@@ -4660,9 +4660,18 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.CONSENT_WANTED_SIGHTINGS_TEXT = "Quando o seu cliente vê um jogador da Horda que está na sua lista de Mais Procurados (uma placa de nome, o seu alvo, o mouse), ele anota o nome e o GUID dele como o jogo mostra, a sua própria posição no mapa (arredondada) e o seu layer naquele momento, a hora, o seu nome e a sua guilda. Isso aparece no seu próprio mapa por 15 minutos. Também vai por sussurro a um revisor: aquele que você escolhe em Avistamentos para, na página dos Mais Procurados (o Rei, um Alto Conselheiro ou o autor), enquanto ele está online e recebe avistamentos, três por minuto no máximo; até você escolher um, ninguém recebe. Ele recebe um marcador onde você estava, marcado como visto por perto, com o seu nome, por 15 minutos. Nada sai enquanto você mantém a sua zona e o seu layer privados, e os do Rei só enquanto a coroa dele aparece no mapa. Nunca quem não está na lista, nunca no canal ChillZone, nunca numa instância. Nada guardado além da hora em que o seu cliente viu cada um por último, na sua própria lista de Mais Procurados (nunca o lugar, nunca enviada). Desligado até você dizer Sim nesta linha ou escolher Autorizar tudo enquanto ela está pendente: o Não para na hora, esquece essas horas, descarta o que ainda não saiu e pede ao cliente do revisor que tire os seus marcadores do mapa dele; o que chegou a ele antes de você sair do jogo fica lá até completar os 15 minutos. (/cz sightings on|off)"
 end
 
+-- ChillZone: the language of the addon's own texts, whatever the game client's: Russian, for a
+-- Russian-speaking community that may play an English client. nil: the client's (GetLocale).
+-- A constant, not a setting: the texts are chosen as the files load, before the game restores
+-- the saved variables.
+ns.TEXT_LOCALE = "ruRU"
+function ns.TextLocale()
+	return ns.TEXT_LOCALE or (GetLocale and GetLocale())
+end
+
 local localeReport -- { code, taken, skipped = { key, ... }, lines } for the language taken
 function ns.Locale(codes, strings)
-	local current = GetLocale and GetLocale()
+	local current = ns.TextLocale()
 	if type(codes) == "string" then codes = { codes } end
 	local mine = false
 	for _, code in ipairs(type(codes) == "table" and codes or {}) do
@@ -4688,7 +4697,7 @@ end
 -- For /cz status: the language taken, how many of its lines, and any left out.
 function ns.LocaleReport()
 	local r = localeReport
-	if not r then return tostring(GetLocale and GetLocale() or "?") .. (GetLocale and GetLocale() == "ptBR" and ", in full" or ", English") end
+	if not r then return tostring(ns.TextLocale() or "?") .. (ns.TextLocale() == "ptBR" and ", in full" or ", English") end
 	return ("%s, %d of %d lines%s"):format(r.code, r.taken, r.lines,
 		#r.skipped > 0 and (", left out: " .. table.concat(r.skipped, ",", 1, math.min(5, #r.skipped)) .. (#r.skipped > 5 and ",..." or "")) or "")
 end

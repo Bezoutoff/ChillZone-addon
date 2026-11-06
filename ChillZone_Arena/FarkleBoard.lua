@@ -164,7 +164,7 @@ end
 -- own font for it, or the text would show empty boxes.
 local function FontFor(text)
 	if type(text) == "string" and text:find("[\198-\255]") then
-		if text:find("[\208\209]") and GetLocale and GetLocale() == "ruRU" then return "Fonts\\MORPHEUS_CYR.TTF" end
+		if text:find("[\208\209]") and ns.TextLocale and ns.TextLocale() == "ruRU" then return "Fonts\\MORPHEUS_CYR.TTF" end
 		return STANDARD_TEXT_FONT
 	end
 	return MORPHEUS
