@@ -14,10 +14,10 @@ ns.Relay = Relay
 --   hop 2  relay -> reporters   RM~<f>~<origin>~<text>   by whisper, one per guild (its reporter)
 --   hop 3  reporter -> guild    RG~<f>~<origin>~<text>   over GUILD, once, to everyone there
 --
--- The relays are the network's pinned relay characters (the guild master and an officer, by the
--- owner's choice) and the signed High Council's characters:
--- names every client holds from the signed list, so a guild that just arrived knows whom to
--- whisper. A client picks one relay (its guild's name decides which, changing every PICK_WINDOW so
+-- The relays are the network's pinned relay characters (the guild master and the officers, by the
+-- owner's choice) and the characters of the signed High Council, the author, the King and the
+-- Treasurer: names every client holds from the signed list or the code, so a guild that just
+-- arrived knows whom to whisper. A client picks one relay (its guild's name decides which, changing every PICK_WINDOW so
 -- the load spreads), pings it once (RP) and expects an answer (RA): a relay that does not answer
 -- (offline, or an older version that cannot; the answer is RY: RA is the Records' ask) is left out for DEAD_FOR and the next one is picked;
 -- the server's "No player named X" names an offline one at once. The relays know each guild's
@@ -30,8 +30,8 @@ ns.Relay = Relay
 -- whisper travels in Codec's pieces (the assemblers put RL, RM and RG together like any other).
 --
 -- Trust: the server stamps every hop's sender. A relay is believed about the origin because it is
--- a signed councillor's or a pinned relay character (RM from anyone else
--- is dropped); a reporter is believed by its guild because it is a guildmate (GUILD). Nothing here
+-- a signed councillor's, author's, King's or Treasurer's character, or one of the pinned relay
+-- characters (RM from anyone else is dropped); a reporter is believed by its guild because it is a guildmate (GUILD). Nothing here
 -- lets a stranger speak as the King: his words still reach the guilds only through those clients.
 -- Off Forever (the beta, Era, Anniversary) nothing here runs and the channel works as before.
 
@@ -53,9 +53,21 @@ Relay.REPORTER_FOR = 600     -- a relay keeps a reporter this long past its last
 Relay.SEEN_FOR = 300         -- a message taken is remembered this long (a second copy counts once)
 Relay.SEEN_MAX = 2000
 Relay.MAX_RELAYS = 40
--- ChillZone's relays, by the owner's choice (2026-11-06): the guild master and an officer. The
+-- ChillZone's relays, by the owner's choice (2026-11-06): the guild master and the officers. The
 -- owner's guilds play in the PvP family (owner, 2026-11-06), so they are pinned there alone.
-Relay.LAUNCH_PINS = { ForeverPvP = { "Вован Дубан", "Татарин Уфимский" } }
+Relay.LAUNCH_PINS = { ForeverPvP = {
+	"Вован Дубан",
+	"Wipe Copium",
+	"Татарин Уфимский",
+	"Peepo Ingore",
+	"Vladimir Goyda",
+	"Гулдан Казмодан",
+	"Сундук Открою",
+	"Yara Pimaru",
+	"Джейн Джинджер",
+	"Наруто Узумаки",
+	"Метал Чел",
+} }
 -- (1.5.0) Words every client says on the channel on its own clock (the channel's hello H3, the
 -- census ask Q1, the lists' ask HQ, positions P1, the Wanted list's ask W4, verification asks GV)
 -- are heard by the relay and answered from there, but never fanned out: with 46 guilds registered
@@ -132,7 +144,7 @@ function Relay.Names(withSelf)
 	if ns.AuthorCharacters then for _, n in ipairs((ns.AuthorCharacters())) do Add(n) end end
 	if ns.KingCharacter then Add(ns.KingCharacter()) end
 	-- (1.4.6) A client with no signed list yet (a guild nobody handed it to) must still find a
-	-- relay to get it from: the network's pinned relay characters (the guild master and an officer,
+	-- relay to get it from: the network's pinned relay characters (the guild master and the officers,
 	-- by the owner's choice), by code, on their Forever family alone.
 	local family = ns.ForeverFamily and ns.ForeverFamily(ns.realm)
 	if family then for _, p in ipairs(Relay.LAUNCH_PINS[family] or {}) do Add(p) end end
