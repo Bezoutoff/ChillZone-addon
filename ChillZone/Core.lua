@@ -395,6 +395,64 @@ end
 -- and the copy merged first would be kept whole).
 local MERGED_BY = { chatStrikes = "ChatStrikes" }
 
+-- Verification tables have no table-wide timestamp. A same-scope store merge
+-- must combine their original words, not pick one whole table and discard the
+-- other. Match Verify.Take's ordering: newer word, revocation on a tie, then the
+-- canonical GM name; an unchanged kind/GM keeps the existing word. This only
+-- merges saved state already admitted in that scope, never creates an approval.
+local function MergeVerification(dst, src)
+	dst = type(dst) == "table" and dst or {}
+	local function Word(e)
+		return type(e) == "table" and (e.k == "A" or e.k == "R") and type(e.at) == "number" and e.at >= 1767225600
+			and type(e.guild) == "string" and type(e.gm) == "string" and type(e.by) == "string"
+	end
+	local function Same(a, b)
+		a, b = ns.FullName(a), ns.FullName(b)
+		return ns.Fold(ns.ShortName(a)) == ns.Fold(ns.ShortName(b))
+			and ns.GroupOf(ns.RealmOf(a) or ns.realm) == ns.GroupOf(ns.RealmOf(b) or ns.realm)
+	end
+	local function LaterWord(e, old)
+		if not Word(e) then return false end
+		if not Word(old) then return true end
+		if e.at ~= old.at then return e.at > old.at end
+		if e.k == old.k and Same(e.gm, old.gm) then return false end
+		if e.k ~= old.k then return e.k == "R" end
+		return ns.Fold(e.gm) < ns.Fold(old.gm)
+	end
+	for field, entries in pairs(src) do
+		if (field == "list" or field == "start" or field == "seen" or field == "requests" or field == "told") and type(entries) == "table" then
+			dst[field] = type(dst[field]) == "table" and dst[field] or {}
+			for key, e in pairs(entries) do
+				local old, take = dst[field][key], false
+				if field == "list" then take = LaterWord(e, old)
+				elseif type(e) == "table" then
+					local at = tonumber(field == "told" and (e.last or e.new) or e.at)
+					local before = type(old) == "table" and tonumber(field == "told" and (old.last or old.new) or old.at)
+					if field == "start" and (type(e.at) ~= "number" or e.at < 1767225600 or type(e.guild) ~= "string") then at = nil end
+					if field == "start" and type(old) == "table" and (type(old.at) ~= "number" or old.at < 1767225600 or type(old.guild) ~= "string") then before = nil end
+					if field == "seen" then
+						if type(e.at) ~= "number" then at = nil end
+						if type(old) == "table" and type(old.at) ~= "number" then before = nil end
+					end
+					if at then
+						if field == "start" or field == "seen" then
+							take = not before or at < before
+							-- Keep the earliest start and the latest EXISTING sighting.
+							-- Otherwise selecting an old start can immediately expire a
+							-- clock that the other saved store still observed recently.
+							local last = math.max(tonumber(e.last) or at, (type(old) == "table" and (tonumber(old.last) or before)) or 0)
+							local kept = take and e or old
+							if type(kept) == "table" and last > (tonumber(kept.last) or tonumber(kept.at) or 0) then kept.last = last end
+						else take = not before or at > before end
+					end
+				end
+				if take then dst[field][key] = e end -- original at/by/heard, without a new receipt time
+			end
+		elseif dst[field] == nil then dst[field] = entries end
+	end
+	return dst
+end
+
 -- Moves one store into another, losing nothing that is newer. Our own guild's report (`mine`)
 -- is kept like any other: an alt's own guild is a report nobody else may be sending. The
 -- realm key is settled by OpenStore, which sees every store at once.
@@ -423,7 +481,9 @@ local function MergeStore(dst, src)
 			local old = dst[k]
 			local file = MERGED_BY[k] and rawget(ns, MERGED_BY[k])
 			local merge = type(file) == "table" and not file.missing and rawget(file, "Merge")
-			if old ~= nil and type(merge) == "function" then
+			if k == "verify" and type(v) == "table" then
+				dst[k] = MergeVerification(old, v)
+			elseif old ~= nil and type(merge) == "function" then
 				local ok, merged = pcall(merge, old, v)
 				if ok and merged ~= nil then dst[k] = merged end
 			elseif old == nil or (type(v) == "table" and type(old) == "table" and (tonumber(v.t) or 0) > (tonumber(old.t) or 0)) then dst[k] = v end

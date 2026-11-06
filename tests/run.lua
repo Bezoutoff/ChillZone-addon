@@ -7568,6 +7568,87 @@ end)
 -- 1.5.2 (the dev, 2026-11-05: "deve ficar circulando esses dados... não deve parar enquanto eu
 -- estou fora": the PvP family's only relays are his own characters). Fails before: nothing of a
 -- report leaves while no relay answers but the pings.
+test("verification migration: same-scope legacy stores preserve every decision and earliest clock without importing other rulesets or factions", function()
+	local saved = { db = ns.db, rdb = ns.rdb, realm = ns.realm, group = ns.group, faction = ns.faction, factionAPI = UnitFactionGroup }
+	local ok, err = pcall(function()
+		local vns = setmetatable({ On = function() end, RegisterEvent = function() end, Comm = { Handle = function() end } }, { __index = ns })
+		assert(loadfile(ADDON_DIR .. "Verify.lua"))("ChillZone", vns)
+		local at = vns.Verify.EPOCH + 10000
+		for _, faction in ipairs({ "Alliance", "Horde" }) do
+			for _, rules in ipairs({ "PvP", "PvE", "RP" }) do
+				local realm, group = "CAMWOWUS1Realm8" .. rules, "Forever" .. rules
+				local oldRealm = "CAMWOWUS2Realm2" .. rules
+				local function Word(kind, time, guild, gm)
+					return { k = kind, at = time, guild = guild, gm = (gm or "Original Master") .. "-" .. oldRealm,
+						by = "Original Verifier-" .. oldRealm, heard = time + 9 }
+				end
+				local only = Word("A", at, "ChillZone Migration One")
+				local newer = Word("R", at + 20, "ChillZone Migration Two")
+				local revoked = Word("R", at + 30, "ChillZone Migration Three")
+				local tie = Word("R", at + 40, "ChillZone Migration Four")
+				local leader = Word("A", at + 50, "ChillZone Migration Five", "A Master")
+				local first = { at = at - 100, guild = only.guild, by = only.by, last = at + 1 }
+				local seen = { at = at - 200, guild = only.guild, last = at + 5 }
+				local current = { guilds = {}, seen = {}, verify = { list = {
+					[ns.Fold(newer.guild)] = Word("A", at, newer.guild), [ns.Fold(revoked.guild)] = revoked,
+					[ns.Fold(tie.guild)] = Word("A", tie.at, tie.guild),
+					[ns.Fold(leader.guild)] = Word("A", leader.at, leader.guild, "Z Master") },
+					start = { [ns.Fold(only.guild)] = { at = at, guild = only.guild, by = only.by, last = at + vns.Verify.START_KEEP + 1 } },
+					seen = { [ns.Fold(only.guild)] = { at = at, guild = only.guild, last = at + vns.Verify.START_KEEP + 1 } },
+					requests = { [ns.Fold(only.guild)] = { at = at + 1 } } } }
+				local legacy = { guilds = {}, seen = {}, verify = { list = {
+					[ns.Fold(only.guild)] = only, [ns.Fold(newer.guild)] = newer,
+					[ns.Fold(revoked.guild)] = Word("A", at, revoked.guild), [ns.Fold(tie.guild)] = tie,
+					[ns.Fold(leader.guild)] = leader }, start = { [ns.Fold(only.guild)] = first },
+					seen = { [ns.Fold(only.guild)] = seen }, requests = { [ns.Fold(only.guild)] = { at = at + 7 } } } }
+				local repaired = { at = at - 300, guild = "ChillZone Migration Repair", by = only.by, last = at }
+				local protected = { at = at - 400, guild = "ChillZone Migration Protected", by = only.by, last = at }
+				current.verify.start[ns.Fold(repaired.guild)] = { at = 0, guild = repaired.guild }
+				current.verify.start[ns.Fold(protected.guild)] = protected
+				legacy.verify.start[ns.Fold(repaired.guild)] = repaired
+				legacy.verify.start[ns.Fold(protected.guild)] = { at = 0, guild = protected.guild }
+				legacy.verify.list["chillzone unproven"] = { guild = "ChillZone Unproven", at = at }
+				local foreign = { guilds = {}, verify = { list = { foreign = Word("A", at, "ChillZone Foreign") } } }
+				local otherFaction = { guilds = {}, verify = { list = { outsider = Word("A", at, "ChillZone Other Faction") } } }
+				local foreignRules = rules == "PvP" and "PvE" or "PvP"
+				local foreignGroup, foreignRealm = "Forever" .. foreignRules, "CAMWOWUS1Realm1" .. foreignRules
+				local realms = { [group] = current, [oldRealm] = legacy, [foreignGroup] = foreign, [foreignRealm] = foreign }
+				local opposite = { [group] = otherFaction }
+				ns.db = { log = {}, links = {}, realms = faction == "Alliance" and realms or opposite,
+					horde = { realms = faction == "Horde" and realms or opposite } }
+				ns.realm, ns.group = realm, group
+				UnitFactionGroup = function() return faction end
+				ns.faction = faction == "Alliance" and "Horde" or "Alliance"
+				assert(ns.CheckFaction())
+				local v = ns.rdb.verify
+				vns.rdb = ns.rdb
+				eq(v.list[ns.Fold(only.guild)], only, "a legacy approval is retained, including its original author and dates")
+				eq(v.list[ns.Fold(newer.guild)], newer); eq(v.list[ns.Fold(revoked.guild)], revoked)
+				eq(v.list[ns.Fold(tie.guild)], tie, "revocation wins an equal-time conflict")
+				eq(v.list[ns.Fold(leader.guild)], leader, "the existing canonical GM ordering breaks a same-kind tie")
+				eq(v.start[ns.Fold(only.guild)], first); eq(v.seen[ns.Fold(only.guild)], seen)
+				eq(v.start[ns.Fold(repaired.guild)], repaired); eq(v.start[ns.Fold(protected.guild)], protected)
+				eq(v.list["chillzone unproven"], nil, "a saved guild name without a valid decision never becomes an approval")
+				eq(v.requests[ns.Fold(only.guild)].at, at + 7, "merging cannot shorten a live resend cooldown")
+				eq(vns.Verify.Status(only.guild, at + 100), "verified", "missing census rows do not erase a saved approval")
+				eq(vns.Verify.Start(only.guild, at + 100), first.at)
+				eq(first.last, at + vns.Verify.START_KEEP + 1, "retention uses the newest saved sighting, never migration time")
+				eq(seen.last, first.last)
+				eq(v.list.foreign, nil); eq(v.list.outsider, nil)
+				eq(realms[foreignGroup], foreign); eq(realms[foreignRealm], foreign); eq(opposite[group], otherFaction)
+				eq(realms[oldRealm], nil, "the source is retired only after its verification state is merged")
+				ns.faction = faction == "Alliance" and "Horde" or "Alliance"
+				assert(ns.CheckFaction())
+				eq(ns.rdb.verify.list[ns.Fold(only.guild)], only, "reopening the migrated store is idempotent")
+				vns.Verify.Prune(first.last)
+				eq(ns.rdb.verify.start[ns.Fold(only.guild)].at, at - 100, "normal pruning cannot erase a recently observed original deadline")
+			end
+		end
+	end)
+	ns.db, ns.rdb, ns.realm, ns.group, ns.faction, UnitFactionGroup = saved.db, saved.rdb, saved.realm, saved.group, saved.faction, saved.factionAPI
+	if not ok then error(err, 0) end
+end)
+
 test("1.5.2 the relay: while no relay answers, a word's pieces are handed to the chat hall to go as the reporter's own text in the joined channel; once one answered, the relay alone carries them", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
 	local ok, err = pcall(function()
