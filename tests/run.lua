@@ -44279,6 +44279,7 @@ local function WithCraft(fn)
 	ns.Views.ClearFilters()
 	if not ok then error(err, 0) end
 end
+ns.WithCraftForTests = WithCraft -- (tests/chillzone.lua: this file is at the local limit)
 
 test("1.1 crafters (#24): opening a profession reads its skill and the recipes known (Forever's API, no specialization tree) and asks once; nothing goes out without a yes", function()
 	WithCraft(function(w, Cr)
@@ -63856,7 +63857,7 @@ assert(loadfile(ROOT .. "tests/launch-identity.lua"))(ns, test, eq, { ADDON_DIR 
 
 -- ChillZone (tests/chillzone.lua): what a release holds, and the fork's own changes.
 print("tests/chillzone.lua")
-assert(loadfile(ROOT .. "tests/chillzone.lua"))(ns, test, eq, { ADDON_DIR = ADDON_DIR, ROOT = ROOT, WithCraft = WithCraft })
+assert(loadfile(ROOT .. "tests/chillzone.lua"))(ns, test, eq, { ADDON_DIR = ADDON_DIR, ROOT = ROOT, WithCraft = ns.WithCraftForTests })
 print(("\n%d passed, %d failed"):format(passed, failed))
 if passed + failed == 0 then
 	io.stderr:write("No tests matched or were selected. Check the test filter or selection.\n")

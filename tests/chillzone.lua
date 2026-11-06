@@ -78,3 +78,31 @@ test("ChillZone release: a King named only by the signed list shows by his chara
 	GetGuildInfo, ns.me, T.Role, T.mode = saved.gi, saved.me, saved.role, saved.mode
 	assert(ok, err)
 end)
+
+test("ChillZone: crafters: a Russian client's profession names (two bytes a letter) are listed whole", function()
+	h.WithCraft(function(w, Cr)
+		Cr.HandleListing("CHANNEL", "Kuznec-Realm",
+			"W1~ChillZone Zeus~164:Кузнечное дело:150:300:12,Инженерное дело:Инженерное дело:120:300:8")
+		local b = Cr.Board()
+		eq(#b, 1)
+		eq(#b[1].profs, 2, "27 and 29 bytes, 14 and 15 letters: both kept")
+		eq(b[1].profs[1].name, "Кузнечное дело")
+		Cr.HandleListing("CHANNEL", "Long-Realm", "W1~ChillZone Zeus~164:" .. ("Ж"):rep(25) .. ":150:300:12")
+		eq(#Cr.Board(), 1, "more than 24 letters: still refused")
+	end)
+end)
+
+-- The guilds' officers who take recruits (the owner's list, 2026-11-06): Forever's "First Surname",
+-- Latin and Cyrillic (up to 31 bytes, 42 with "-ForeverPvP").
+local OFFICERS = { "Wipe Copium", "Татарин Уфимский", "Peepo Ingore", "Vladimir Goyda", "Гулдан Казмодан",
+	"Сундук Открою", "Yara Pimaru", "Джейн Джинджер", "Наруто Узумаки", "Метал Чел" }
+
+test("ChillZone: the officers' names, Cyrillic and Latin, pass the addon's name checks whole", function()
+	for _, name in ipairs(OFFICERS) do
+		local full = ns.FullName(name, "ForeverPvP")
+		eq(full, name .. "-ForeverPvP", name)
+		eq(ns.ShortName(full), name, name)
+		eq(ns.Workshop.NameLike(full), true, name)
+		eq(ns.Workshop.NameLike(name), true, name)
+	end
+end)

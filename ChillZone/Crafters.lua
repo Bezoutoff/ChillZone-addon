@@ -382,6 +382,12 @@ end
 -- The board: everyone's listings (this session, from the channel)
 ---------------------------------------------------------------------------
 
+-- A name's letters, not its bytes (a Cyrillic letter is two in UTF-8), at most 72 bytes in all.
+local function Letters(s)
+	if #s > 72 then return math.huge end
+	return select(2, s:gsub("[^\128-\191]", ""))
+end
+
 function Crafters.HandleListing(dist, sender, text)
 	if dist ~= "CHANNEL" or type(text) ~= "string" or #text > 255 then return end
 	sender = ns.FullName(sender)
@@ -408,7 +414,7 @@ function Crafters.HandleListing(dist, sender, text)
 	for entry in list:gmatch("[^,]+") do
 		local key, name, rank, max, n = entry:match("^([^:]+):([^:]+):(%d+):(%d+):(%d+)$")
 		rank, max, n = Num(rank, 9999), Num(max, 9999), Num(n, 9999)
-		if key and #key <= 24 and #name <= 24 and rank and max and n and #profs < Crafters.PROFS_MAX then
+		if key and Letters(key) <= 24 and Letters(name) <= 24 and rank and max and n and #profs < Crafters.PROFS_MAX then
 			profs[#profs + 1] = { key = key, name = name, rank = rank, max = max, n = n }
 		end
 	end
