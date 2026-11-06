@@ -24191,7 +24191,7 @@ test("1.0.1 borders: each tier's art (the game's atlases, Max's files) at its si
 		local want = {
 			-- tier, art, size (nil: the atlas's own), target: coords, x y; your own: coords, x y
 			{ "gold-elite", "atlas UI-HUD-UnitFrame-Target-PortraitOn-Boss-Gold-Winged", nil, nil, "11 -4", "1 0 0 1", "-13 -4" },
-			{ "queen-dragon", "file " .. MEDIA .. "queen-dragon", "100 95", "0 0.78125 0 0.7421875", "0 1", "0.78125 0 0 0.7421875", "-2 1" },
+			{ "queen-dragon", "file " .. MEDIA .. "queen-dragon", "175 166.25", "0 0.78125 0 0.7421875", "38 34", "0.78125 0 0 0.7421875", "-40 34" },
 			{ "treasurer-dragon", "file " .. MEDIA .. "treasurer-dragon", "100 95", "0 0.78125 0 0.7421875", "0 1", "0.78125 0 0 0.7421875", "-2 1" },
 			{ "silver-elite", "atlas UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Silver-Winged", nil, nil, "8 -7", "1 0 0 1", "-10 -7" },
 			{ "bronze-elite", "file " .. MEDIA .. "bronze-winged", "110 90", "0 0.859375 0 0.703125", "11 -4", "0.859375 0 0 0.703125", "-13 -4" },
@@ -24818,7 +24818,7 @@ do
 			-- its point from the right.
 			local want = {
 				{ "gold-elite", "atlas UI-HUD-UnitFrame-Target-PortraitOn-Boss-Gold-Winged", nil, "1 0 0 1", "-13 -4", "11 -4" },
-				{ "queen-dragon", "file " .. MEDIA .. "queen-dragon", "100 95", "0.78125 0 0 0.7421875", "-2 1", "0 1" },
+				{ "queen-dragon", "file " .. MEDIA .. "queen-dragon", "175 166.25", "0.78125 0 0 0.7421875", "-40 34", "38 34" },
 				{ "silver-elite", "atlas UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Silver-Winged", nil, "1 0 0 1", "-10 -7", "8 -7" },
 				{ "silver", "atlas ui-hud-unitframe-target-portraiton-boss-rare-silver", nil, "1 0 0 1", "-2 1", "0 1" },
 				{ "bronze-elite", "file " .. MEDIA .. "bronze-winged", "110 90", "0.859375 0 0 0.703125", "-13 -4", "11 -4" },
@@ -26977,8 +26977,15 @@ test("1.0.1 borders: the custom frames ship as 256 x 256 32-bit TGAs with alpha,
 				local left, right, top, bottom = unpack(t.coords)
 				eq(left, 0, path); eq(top, 0, path .. ": the art at the top left")
 				local artW, artH = right * 256, bottom * 256
-				eq(artW, t.width * 2, path .. ": the art twice as wide as on screen")
-				eq(artH, t.height * 2, path .. ": the art twice as tall as on screen")
+				if t.name == "queen-dragon" then
+					-- The unchanged authored pixels have transparent padding; runtime fits the
+					-- actual alpha opening, tested against the portrait in treasurer-dragon.lua.
+					eq(artW, 200, path .. ": the original complete authored texture area")
+					eq(artH, 190, path .. ": the original complete authored texture area")
+				else
+					eq(artW, t.width * 2, path .. ": the art twice as wide as on screen")
+					eq(artH, t.height * 2, path .. ": the art twice as tall as on screen")
+				end
 				local topDown = math.floor(descriptor / 32) % 2 == 1
 				local outside, opaque, partial, clear, alpha = 0, 0, 0, 0, 0
 				for row = 0, height - 1 do

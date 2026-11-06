@@ -152,8 +152,11 @@ local MEDIA = "Interface\\AddOns\\ChillZone\\media\\borders\\"
 -- (metal, 1.2: the plain metal under the tier's art, UNDERLAY below.)
 Borders.TIERS = {
 	{ name = "gold-elite", atlas = WINGED, metal = "gold", x = 11, y = -4, king = true },
-	{ name = "queen-dragon", file = MEDIA .. "queen-dragon", coords = { 0, 200 / 256, 0, 190 / 256 }, width = 100, height = 95,
-		x = 0, y = 1, fallback = PLAIN, queen = true, metal = "none", party = { x = -2, y = -1 } }, -- (Kaise's art, foot down as authored)
+	-- Kaise's source has wider transparent margins: at 100x95 its opening was only 33 px.
+	-- The shipped alpha's inner circle is (93.26,94.71), radius 33.10: scale it to the
+	-- native 58 px portrait and centre it there, preserving the whole authored art.
+	{ name = "queen-dragon", file = MEDIA .. "queen-dragon", coords = { 0, 200 / 256, 0, 190 / 256 }, width = 175, height = 166.25,
+		x = 38, y = 34, fallback = PLAIN, fallbackAt = { x = 0, y = 1 }, queen = true, metal = "none" },
 	{ name = "treasurer-dragon", file = MEDIA .. "treasurer-dragon", coords = { 0, 200 / 256, 0, 190 / 256 }, width = 100, height = 95,
 		x = 0, y = 1, fallback = PLAIN, treasurer = true, metal = "none", party = { x = 0, y = -2 } }, -- (its own art whole: no plain dragon under it; party: see PartyRig)
 	{ name = "silver-elite", atlas = "UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Silver-Winged", x = 8, y = -7,
@@ -624,7 +627,7 @@ local function Dress(tex, t, mirror, scale)
 		if t.file then tex:SetDesaturated(true) end
 	end
 	if mirror then tex:SetTexCoord(right, left, top, bottom) end
-	return true
+	return true, ok and loaded ~= false
 end
 
 local function DressUnderlay(tex, tier, mirror)
@@ -679,8 +682,10 @@ local function MakeRig(owner, mirror, scale, Place, sublevel)
 		if t.file or AtlasExists(t.atlas) then
 			local tex = owner:CreateTexture(nil, "ARTWORK", nil, sublevel or 3)
 			tex:Hide()
-			if Dress(tex, t, mirror, scale) then
-				Place(tex, t)
+			local dressed, fileLoaded = Dress(tex, t, mirror, scale)
+			if dressed then
+				-- A supplied file's fitted offsets do not belong to its native fallback atlas.
+				Place(tex, not fileLoaded and t.fallbackAt or t)
 				rig.tex[t.name] = tex
 			end
 		end
