@@ -9,6 +9,8 @@ local L = ns.L
 -- revision as it repeats it (RENEW), so a card lasts LIFE after its master last played, not after
 -- his last edit; and an edit keeps the card's other fields whatever its age.
 local Charter = {}
+-- (ChillZone: the language of the addon's texts, the client's where none is set)
+local function TextLocale() return ns.TextLocale and ns.TextLocale() or GetLocale() end
 ns.GuildCharter = Charter
 Charter.LIFE = 7 * 86400
 Charter.RENEW = 86400
@@ -178,7 +180,7 @@ function Charter.SetField(field, input, expectedGuild)
 	-- empty before, Ours() being nil then)
 	local old = OwnSaved()
 	local c = { guild = guild, by = ns.me, faction = Faction(), rev = math.max(Clock(), (old and old.rev or 0) + 1),
-		language = old and old.language or (LANGUAGES[GetLocale()] and GetLocale() or "enUS"),
+		language = old and old.language or (LANGUAGES[TextLocale()] and TextLocale() or "enUS"),
 		wanted = old and old.wanted or "", nights = old and old.nights or "", purpose = old and old.purpose or "" }
 	if field == "purpose" then c.purpose = Clean(input, Charter.PURPOSE_MAX)
 	elseif field == "nights" then c.nights = Clean(input, Charter.NIGHTS_MAX)
@@ -281,7 +283,7 @@ function Charter.Affinity(guild, found)
 	for _, p in ipairs(found or {}) do
 		if friend and p.guild == guild and Key(p.name) == friend then friendFit = true; break end
 	end
-	return { c.language:sub(1, 2) == GetLocale():sub(1, 2) and 1 or 0, classFit and 1 or 0, friendFit and 1 or 0 }, c
+	return { c.language:sub(1, 2) == TextLocale():sub(1, 2) and 1 or 0, classFit and 1 or 0, friendFit and 1 or 0 }, c
 end
 function Charter.SetFriend(input)
 	local friend = Clean(input, 64)

@@ -369,3 +369,15 @@ test("Guild charter (1.2.4): an edit of a card past seven days keeps its other f
 		eq(got and got.purpose, "Friendly dungeon groups", "kept across a /reload")
 	end)
 end)
+
+test("Guild charter: the default language and the recruit match follow the text locale, not the client's", function()
+	local w, c = Client()
+	w:As(function()
+		w.locale = "enUS" -- (a Russian guild on an English client)
+		c.TextLocale = function() return "ruRU" end
+		eq(c.GuildCharter.SetField("purpose", "Рейды по вечерам"), true)
+		eq(c.GuildCharter.Ours().language, "ruRU", "the card's default language is the texts'")
+		local score = c.GuildCharter.Affinity("ChillZone Ember", {})
+		eq(score[1], 1, "a Russian card matches a Russian-text recruit on an English client")
+	end)
+end)
