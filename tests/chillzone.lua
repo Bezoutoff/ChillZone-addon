@@ -54,3 +54,27 @@ test("ChillZone release: the signed lists are checked with ChillZone's key, not 
 	assert(not text:find("84a62410ffd1872739d169af98d461de", 1, true), "Olympus's key is gone")
 	assert(text:find('Sign.N = FromHex("' .. CHILLZONE_N_PREFIX, 1, true), "ChillZone's key")
 end)
+
+test("ChillZone release: a King named only by the signed list shows by his character's name in the Treasury", function()
+	local T = ns.Treasury
+	local saved = { name = ns.KING_NAME, is = ns.IsKingCharacter, faction = ns.faction, kc = ns.KingCharacter, me = ns.me, gi = GetGuildInfo, role = T.Role, mode = T.mode }
+	local ok, err = pcall(function()
+		ns.KING_NAME, ns.faction = nil, "Alliance" -- (as the release has it: no name in the code)
+		ns.IsKingCharacter = function(name) return name == "Вован Дубан-Realm" end
+		local text = T.DonationText("Вован Дубан-Realm", nil)
+		assert(text:find("Вован Дубан", 1, true), "the donation line names the King: " .. tostring(text))
+		assert(not text:find("?", 1, true), "not an unknown: " .. text)
+		eq(ns.KingName("Вован Дубан-Realm"), "Вован Дубан")
+		-- The keepers tab builds (it formats the King's line) and names him.
+		ns.KingCharacter = function() return "Вован Дубан" end
+		GetGuildInfo, ns.me = function() return "Чиллзон", "King", 0 end, "Вован Дубан-Realm"
+		T.Role = function() return "king" end -- (the signed list makes him the King)
+		T.Show("keepers")
+		local page = {}
+		for _, l in ipairs(T.Build()) do page[#page + 1] = tostring(l.text) end
+		assert(table.concat(page, "\n"):find(ns.L.TREASURY_KEEPER_KING:format("Вован Дубан"), 1, true), "the keepers tab names the King: " .. table.concat(page, "|"))
+	end)
+	ns.KING_NAME, ns.IsKingCharacter, ns.faction, ns.KingCharacter = saved.name, saved.is, saved.faction, saved.kc
+	GetGuildInfo, ns.me, T.Role, T.mode = saved.gi, saved.me, saved.role, saved.mode
+	assert(ok, err)
+end)

@@ -3617,7 +3617,7 @@ ns.Comm.Handle("TD", function(...) Treasury.HandleDonations(...) end)
 
 -- "Pyralis Ashandar is taking donations (in Stormwind City)": the King by the army's name for him.
 function Treasury.DonationText(name, d)
-	local who = (ns.faction ~= "Horde" and ns.IsKingCharacter(name)) and ns.KING_NAME or (ns.DisplayName(name) or "?")
+	local who = (ns.faction ~= "Horde" and ns.IsKingCharacter(name)) and ns.KingName(name) or (ns.DisplayName(name) or "?")
 	local info = d and d.mapID and C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(d.mapID)
 	local zone = type(info) == "table" and type(info.name) == "string" and info.name ~= "" and info.name or nil
 	return zone and L.DONATIONS_LINE_ZONE:format(who, zone) or L.DONATIONS_LINE:format(who)
@@ -3732,7 +3732,7 @@ local function KeeperCount() return #(ns.TreasurerPins()) + 1 + #Treasury.Keeper
 
 -- A keeper's name as the tab shows it (the army's name for the King).
 local function KeeperLabel(name)
-	if ns.faction ~= "Horde" and ns.IsKingCharacter(name) then return ns.KING_NAME end
+	if ns.faction ~= "Horde" and ns.IsKingCharacter(name) then return ns.KingName(name) end
 	return ns.DisplayName(name) or tostring(name)
 end
 
@@ -3922,7 +3922,7 @@ local function KeeperLines()
 	end
 	local king = ns.KingCharacter and ns.KingCharacter()
 	if king then
-		Row(ns.FullName(king, ns.KingRealm and ns.KingRealm()), L.TREASURY_KEEPER_KING:format(ns.KING_NAME), {
+		Row(ns.FullName(king, ns.KingRealm and ns.KingRealm()), L.TREASURY_KEEPER_KING:format(ns.KingName(king)), {
 			tooltip = function(tt) tt:AddLine(L.TREASURY_KEEPER_PINNED, 1, 1, 1, true) end })
 	end
 	local mine = IsKingView()
@@ -4255,7 +4255,7 @@ end
 -- the guild master or an officer who said yes; at home, a keeper).
 local function DirWho(b)
 	local name = ns.DisplayName(b.by) or "?"
-	if b.home and ns.IsKingCharacter(b.by) and ns.faction ~= "Horde" then name = ns.KING_NAME end
+	if b.home and ns.IsKingCharacter(b.by) and ns.faction ~= "Horde" then name = ns.KingName(b.by) end
 	local rank = ns.Data and ns.Data.AuthorizedRank and type(b.by) == "string" and ns.Data.AuthorizedRank(ns.FullName(b.by), b.guild)
 	local what = rank == 0 and L.TREASURY_DIR_GM or (rank and rank <= ns.CAPTAIN_RANK) and L.TREASURY_DIR_OFFICER
 		or b.home and L.TREASURY_DIR_KEEPER or nil
