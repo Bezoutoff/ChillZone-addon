@@ -243,7 +243,8 @@ function ns.GuildSanctioned(guild)
 end
 
 -- Whether an overdue guild's master's own powers wait (ns.VERIFY_HOLD, Core.lua): Data.AuthorizedRank,
--- GuildCharter, Nominees, Decree and Bank ask it. Never the King's guild. Asked often: kept a second.
+-- GuildCharter, Nominees, Decree and Bank ask it. Never the King's guild or an approved one (Verify.Exempt).
+-- Asked often: kept a second.
 function ns.MasterHeld(guild)
 	if ns.VERIFY_HOLD ~= true or type(guild) ~= "string" or guild == "" then return false end
 	local now = Verify.Clock()
