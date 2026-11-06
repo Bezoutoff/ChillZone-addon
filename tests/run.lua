@@ -31859,14 +31859,14 @@ do
 			-- (1.2.3, the author's yes) The whole army's Calls to Arms and Musters are the King's, his
 			-- Steward's, his Hands', the High Council's, and <ChillZone>'s officers' for its members.
 			for _, key in ipairs({ "ARMS_BTN_TIP", "MUSTER_BTN_TIP" }) do
-				assert(L[key]:find("the King, his Steward, his Hands, the High Council, and the officers of <ChillZone> for its members", 1, true), key)
-				assert(rawget(pt.L, key):find("o Rei, o Senescal, as Mãos, o Alto Conselho, e os oficiais da <ChillZone> para os membros dela", 1, true), key .. " in pt-BR")
+				assert(L[key]:find("the King, his Steward, his Hands, the High Council, and the officers of <Чиллзон> for its members", 1, true), key)
+				assert(rawget(pt.L, key):find("o Rei, o Senescal, as Mãos, o Alto Conselho, e os oficiais da <Чиллзон> para os membros dela", 1, true), key .. " in pt-BR")
 			end
 			-- (1.2.3) The Crown's whole-army Royal decrees are the King's, his Steward's and the officers of
 			-- <ChillZone>'s: the Hands are no group of their own there, and the other guilds hear the
 			-- officers named Hands.
 			for _, key in ipairs({ "CROWN_ONLY" }) do
-				assert(not L[key]:find("Steward and Hands", 1, true) and L[key]:find("the King, his Steward and the officers of <ChillZone>; the other guilds hear those named Hands", 1, true), key)
+				assert(not L[key]:find("Steward and Hands", 1, true) and L[key]:find("the King, his Steward and the officers of <Чиллзон>; the other guilds hear those named Hands", 1, true), key)
 				local v = rawget(pt.L, key)
 				assert(not v:find("as Mãos dele", 1, true) and v:find("o Senescal e os o", 1, true) and v:find("as outras guildas ouvem os que forem nomeados Mãos", 1, true), key .. " in pt-BR")
 			end
