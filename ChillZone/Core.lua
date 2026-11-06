@@ -916,13 +916,13 @@ ns.CAPTAIN_RANK = 1
 
 -- What the army calls the King on the lines and the crown made for him (Hop.lua, King.lua),
 -- whatever his character's name in the census.
-ns.KING_NAME = "Asmon"
+ns.KING_NAME = nil -- (ChillZone: none; the King goes by his character's name, ns.KingName)
 -- The addon's author (Workshop.lua): his character on Forever. Names there are a first name
 -- and a surname, unique across the realm group; no Classic realm allows a space in a name.
 -- (1.3.4: the beta's, as the King's and the Treasurer's pins below. On any other realm group the
 -- author's signed titles list names them: ns.SignedPins, ns.AuthorCharacters.)
-ns.AUTHOR = "Faladoriel Skylance"
-ns.AUTHOR_REALM = "ClassicBetaPvP" -- his realm group, where only he carries that name
+ns.AUTHOR = nil -- (ChillZone: the author's signed titles list names his characters)
+ns.AUTHOR_REALM = nil
 -- A name of the realm group of `realm` (a name without a realm is ours). Forever's names are
 -- one across a realm group only: the same name on another group is someone else.
 local function OfGroup(name, realm)
@@ -986,8 +986,8 @@ end
 -- The Treasurer of ChillZone, chosen by Asmongold's chat on September 23, 2026: exactly this
 -- character, in the guild named ChillZone. Look-alikes in other guilds exist: both must match,
 -- and his realm group (Forever's PvP realms), where only he carries that name.
-ns.TREASURER = "Pyralis Ashandar"
-ns.TREASURER_REALM = "ClassicBetaPvP"
+ns.TREASURER = nil -- (ChillZone: the signed titles list names the Treasurer)
+ns.TREASURER_REALM = nil
 ns.COIN = "|TInterface\\MoneyFrame\\UI-GoldIcon:0|t "
 -- (1.3.4) Who the Treasurer is here: the signed titles list's ^treasurer^ entry for our side where
 -- it names one (the Treasurer first, then his mail characters, each with his realm), else the
@@ -1034,7 +1034,7 @@ end
 -- addon message and of a mail (nobody can write another's name there), and a Forever name is
 -- one across its realm group, so this full name on his realm group (ns.TREASURER_REALM's) can
 -- only be his. The same name on another realm group is someone else.
-ns.TREASURER_CHARACTERS = { "Pyralis Ashandar", "Pyralis Andarai" }
+ns.TREASURER_CHARACTERS = {}
 -- One of the Treasurer's pinned characters other than the Treasurer himself (his mail's): by
 -- its exact name on his realm group, in any guild or none.
 function ns.IsTreasurerMail(name)
@@ -1061,7 +1061,7 @@ end
 -- The King's name on the lines and the crown: the army's name for him on the Alliance side,
 -- his character's on the Horde (whose <ChillZone> has a guild master of its own).
 function ns.KingName(leader)
-	if ns.faction == "Horde" then return leader and ns.ShortName(leader) or "?" end
+	if ns.faction == "Horde" or not ns.KING_NAME then return leader and ns.ShortName(leader) or "?" end
 	return ns.KING_NAME
 end
 ns.CROWN_ICON = "Interface\\GroupFrame\\UI-Group-LeaderIcon"
@@ -1069,7 +1069,7 @@ ns.CROWN_ICON = "Interface\\GroupFrame\\UI-Group-LeaderIcon"
 -- The King's guild on each side: the guild master of this exact name is the King, its officers
 -- are of the Crown. The Alliance's is <ChillZone>; the Horde's is set here once Asmongold founds
 -- it (a guild name is one per realm, so it can't be "ChillZone" there).
-ns.KING_GUILD = { Alliance = "ChillZone", Horde = "Mudhutters" } -- (the Horde's: <Mudhutters>, 0.9.4)
+ns.KING_GUILD = { Alliance = "Чиллзон" } -- (ChillZone: the Alliance alone)
 -- (ChillZone: each name as the game writes it, matched folded, ns.Fold. Lua's lower() leaves
 -- Cyrillic letters alone, so a name is never kept lowercased here.)
 -- (Asked of every guild on every rebuild of a list: ns.Fold is not run again for a name it has met.)
@@ -1095,7 +1095,7 @@ function ns.IsMainGuildName(guild)
 	return type(guild) == "string" and type(main) == "string" and KingFold(guild) == KingFold(main)
 end
 -- The /who search for the network's players (Who.QUERY): a part of every guild's name.
-ns.WHO_WORD = "ChillZone"
+ns.WHO_WORD = "Чиллзон"
 
 -- The King himself, by his character's name, like the Treasurer: sender names are set by the
 -- server, so nobody else can speak as him, and no census vote (anyone on the channel can
@@ -1109,8 +1109,8 @@ ns.WHO_WORD = "ChillZone"
 -- The Horde's (0.9.4): Duskmonkey Boneback, guild master of <Mudhutters>. His realm is not known
 -- yet: until it is (ns.KING_REALM_HORDE), his name alone counts on the Horde, anywhere (Forever
 -- names are one per region; a namesake can only exist on another client or region).
-ns.KING_CHARACTER = { Alliance = "Asmongold Asmongler", Horde = "Duskmonkey Boneback" }
-ns.KING_REALM = "ClassicBetaPvP"
+ns.KING_CHARACTER = {} -- (ChillZone: the signed titles list names the King)
+ns.KING_REALM = nil
 ns.KING_REALM_HORDE = nil
 -- (1.3.4) Where the author's signed titles list names our side's King (^king^, his name with his
 -- realm), he alone is the King, on his realm group, whatever the code says. Where it names none,
@@ -1548,7 +1548,7 @@ ns.APPROVED_MAX = 20
 -- can hand the signed text counts as soon as its members update, with nothing to paste. Each
 -- faction's, any case; the signed list adds to them, and only a new release takes one off.
 -- <CHILLZONERS> beside <CHILLZONER> since 1.1.5 (the author's call: both are Asmon's ChillZone).
-ns.APPROVED_BUILTIN = { Alliance = { "CHILLZONER", "CHILLZONERS" } }
+ns.APPROVED_BUILTIN = { Alliance = { "Чиллзон Навсегда" } }
 -- 1.1.5 (the High Council's call): guilds the council removed from ChillZone outright, whatever
 -- their name says, per faction. On 1.1.5 and newer they are no ChillZone guild: no census, no
 -- ChillZone chats, no marks, and their own members' addon shows the Join ChillZone screen. Their way
@@ -1559,7 +1559,7 @@ ns.APPROVED_BUILTIN = { Alliance = { "CHILLZONER", "CHILLZONERS" } }
 -- One faction's list, on its realm group alone (realm: a realm of it; none: anywhere), like the
 -- King: a guild of that name on another realm group is another guild.
 -- (1.3.4: the code's King's realm as the file loads, the beta's: never the signed King's realm group.)
-ns.REMOVED_BUILTIN = { Alliance = { realm = ns.KING_REALM, "ChillZone Defense Force" } }
+ns.REMOVED_BUILTIN = {}
 -- Asked with every IsFederation, like the approved list: each name's answer is kept while the
 -- faction's list, our realm group and our realm are the same (a faction with none answers at once).
 local removedMemo
@@ -1813,7 +1813,7 @@ end
 -- the addon ships with (ns.APPROVED_BUILTIN) and the author's signed list. A word of a guild's name
 -- makes it ours only where ns.NAME_WORD is set (folded, a whole word): the offline tests' made-up
 -- guilds (tests/fixtures/identity.lua). A release leaves it nil.
-ns.NAME_WORD = "chillzone"
+ns.NAME_WORD = nil
 local federation, federationSize = {}, 0 -- [name] = true|false, asked often: kept
 local function Federation(guild)
 	local want = ns.NAME_WORD

@@ -52,7 +52,7 @@ Relay.REPORTER_FOR = 600     -- a relay keeps a reporter this long past its last
 Relay.SEEN_FOR = 300         -- a message taken is remembered this long (a second copy counts once)
 Relay.SEEN_MAX = 2000
 Relay.MAX_RELAYS = 40
-Relay.LAUNCH_PINS = { ForeverPvE = { "Developus Olympicus", "Asmongold Thereal" }, ForeverPvP = { "Twalin Firebraid" } }
+Relay.LAUNCH_PINS = {}
 -- (1.5.0) Words every client says on the channel on its own clock (the channel's hello H3, the
 -- census ask Q1, the lists' ask HQ, positions P1, the Wanted list's ask W4, verification asks GV)
 -- are heard by the relay and answered from there, but never fanned out: with 46 guilds registered

@@ -55970,9 +55970,9 @@ do
 		-- 1.4.0, the languages: the Russian file loads on a ruRU client alone (its first line returns on any
 		-- other), whose game fonts are the Cyrillic ones; and the Agenda's Russian day words (Week.DAYS,
 		-- Week.SOON) are keys a typed line is matched against, never drawn. Cyrillic letters there alone:
-		-- every other mark in them keeps to the Western range, as everywhere else.
-		ALLOWED["ChillZone/Locales/ruRU.lua"], ALLOWED["ChillZone/Week.lua"] = {}, {}
-		for cp = 0x0400, 0x04FF do ALLOWED["ChillZone/Locales/ruRU.lua"][cp], ALLOWED["ChillZone/Week.lua"][cp] = true, true end
+		-- every other mark in them keeps to the Western range, as everywhere else. Core.lua too: the release's guild names (<Чиллзон>, <Чиллзон Навсегда>) are keys matched against, never drawn.
+		ALLOWED["ChillZone/Locales/ruRU.lua"], ALLOWED["ChillZone/Week.lua"], ALLOWED["ChillZone/Core.lua"] = {}, {}, {}
+		for cp = 0x0400, 0x04FF do ALLOWED["ChillZone/Locales/ruRU.lua"][cp], ALLOWED["ChillZone/Week.lua"][cp], ALLOWED["ChillZone/Core.lua"][cp] = true, true, true end
 		local ESC = { n = "\n", t = "\t", r = "\r", a = "\a", b = "\b", f = "\f", v = "\v" }
 		-- The string literals of a Lua source, escapes read, each with its line.
 		local function Literals(src)
@@ -63854,6 +63854,9 @@ end
 print("tests/launch-identity.lua")
 assert(loadfile(ROOT .. "tests/launch-identity.lua"))(ns, test, eq, { ADDON_DIR = ADDON_DIR, WithThrone = WithThrone, Vouched = Vouched })
 
+-- ChillZone (tests/chillzone.lua): what a release holds, and the fork's own changes.
+print("tests/chillzone.lua")
+assert(loadfile(ROOT .. "tests/chillzone.lua"))(ns, test, eq, { ADDON_DIR = ADDON_DIR, ROOT = ROOT, WithCraft = WithCraft })
 print(("\n%d passed, %d failed"):format(passed, failed))
 if passed + failed == 0 then
 	io.stderr:write("No tests matched or were selected. Check the test filter or selection.\n")

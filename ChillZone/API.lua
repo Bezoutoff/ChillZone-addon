@@ -143,9 +143,7 @@ API.RESERVED_METHODS = {
 }
 API.RESERVED_EVENTS = { LEADER_CHANGED = true, SIGHTING_CHANGED = true, QUIET_PRESENCE_CHANGED = true, PROFILE_EFFECT_SESSION_CHANGED = true }
 -- The authorized addons, each as API.AuthorizedKey(its name) gives it.
-API.AUTHORIZED = {
-	["2def22f6a5e0801fa6e2de4a41ff7be28858d142b209b6c180ebb930ce2cd7dc94aebbc21f452ab7d36e8cc0b2ad61285561c4bd29089f30dfd48e78a77ea072"] = true,
-}
+API.AUTHORIZED = {}
 
 local IS_EVENT = {}
 for _, e in ipairs(API.EVENTS) do IS_EVENT[e] = true end

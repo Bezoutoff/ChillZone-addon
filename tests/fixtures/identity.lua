@@ -24,6 +24,13 @@ local AFTER = {
 	end,
 }
 
+-- For a harness that reads a file itself (tests/gamepad.lua's Boot): the identity right after the
+-- file's chunk ran, on the namespace it ran on.
+function ApplyTestIdentity(path, ns)
+	local after = AFTER[tostring(path):match("([%w]+%.lua)$") or ""]
+	if after then after(ns) end
+end
+
 local raw = loadfile
 RAW_LOADFILE = raw
 function loadfile(path, ...)

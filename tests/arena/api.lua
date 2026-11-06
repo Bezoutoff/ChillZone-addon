@@ -1754,7 +1754,7 @@ test("1.2.5.1 the API reserved features: the list as it ships names nobody (one 
 		eq(on, true)
 		assert(type(key) == "string" and #key == 128 and not key:find("[^0-9a-f]"), "a SHA-512 digest in hex: " .. tostring(key))
 	end
-	eq(n, 1, "one authorized addon ships")
+	eq(n, 0, "no partner addon ships trusted")
 	local key = w:As(viewer, API.AuthorizedKey, "MapPins")
 	eq(API.AUTHORIZED[key], nil, "an invented name is not on the shipped list")
 	eq(w:As(viewer, API.AuthorizedKey, "mappins"), key, "the name folds as Register folds it")

@@ -1676,7 +1676,8 @@ local function Boot(opts)
 		setfenv(chunk, C.env)
 		-- (A file that fails as it loads: the client reports it and loads the next one.)
 		local ok, err = pcall(chunk, "ChillZone", ns)
-		if not ok then C.loadErrors[#C.loadErrors + 1] = file .. ": " .. tostring(err); pcall(C.handler, err) end
+		if not ok then C.loadErrors[#C.loadErrors + 1] = file .. ": " .. tostring(err); pcall(C.handler, err)
+		elseif ApplyTestIdentity and not file:find("[/\\]") then ApplyTestIdentity(file, ns) end
 	end
 	-- (opts.realmFrom(ns): a realm named by the addon itself, the Treasurer's group's for the dues.)
 	if opts.realmFrom then C.realmName = opts.realmFrom(ns) end
