@@ -135,3 +135,46 @@ test("ChillZone help page: the guild master's Twitch is linked and the download 
 	eq(has("  " .. L.HELP_DOWNLOAD .. ": " .. UI.LINKS.curseforge), true, "the download line")
 	eq(has("CurseForge: "), false, "no CurseForge label for a GitHub releases link")
 end)
+
+test("ChillZone release: KingName() with no argument names the signed King, else the word for the King, never '?'", function()
+	local r = Release()
+	-- (as the release has it: no name in the code, the King from the signed list)
+	local savedKC = r.KingCharacter
+	r.KingCharacter = function() return "Вован Дубан" end
+	eq(r.KingName(), "Вован Дубан", "the signed King's character")
+	eq(r.KingName("Lead Chill-Realm"), "Lead Chill", "the leader named, as before")
+	r.KingCharacter = function() return nil end
+	eq(r.KingName(), r.L.KING, "no King at all: the word")
+	r.KingCharacter = savedKC
+	r.faction = "Horde"
+	eq(r.KingName(), "?", "the Horde's is unchanged")
+end)
+
+test("ChillZone release: the answer bank follows the text language (Russian texts on an English client)", function()
+	local savedLocale, savedText = GetLocale, ns.TextLocale
+	GetLocale, ns.TextLocale = function() return "enUS" end, function() return "ruRU" end
+	local ok, err = pcall(function() eq(ns.Answers.English(), false) end)
+	GetLocale, ns.TextLocale = savedLocale, savedText
+	assert(ok, err)
+	ns.TextLocale = function() return "enUS" end
+	local ok2, err2 = pcall(function() eq(ns.Answers.English(), true) end)
+	ns.TextLocale = savedText
+	assert(ok2, err2)
+end)
+
+-- A ported upstream patch must not bring Olympus's people, guild or contact back into a text.
+test("ChillZone release: no Olympus name or contact is left in a locale file's strings", function()
+	local files = { h.ADDON_DIR .. "Locales.lua" }
+	local p = assert(io.popen('ls "' .. h.ADDON_DIR .. 'Locales/"*.lua "' .. h.ADDON_DIR .. '../ChillZone_Arena/Locales/"*.lua 2>/dev/null'))
+	for path in p:lines() do files[#files + 1] = path end
+	p:close()
+	assert(#files > 5, "the locale files were found: " .. #files)
+	local banned = { "Asmon", "олимпи", "Олимпи", "Developus", "roachcouncil", "olympus-guild" }
+	for _, path in ipairs(files) do
+		-- (comments may mention them: whole `--` lines are left out)
+		local text = ReadFile(path):gsub("\n[ \t]*%-%-[^\n]*", "\n")
+		for _, word in ipairs(banned) do
+			assert(not text:find(word, 1, true), path .. " holds '" .. word .. "'")
+		end
+	end
+end)
