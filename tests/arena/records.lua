@@ -1181,7 +1181,7 @@ test("records: a late client that opens a ranking view asks once for the holders
 	eq(Timers(w, late, "records discovery"), 1, "one retry armed")
 	w:Run(2)
 	eq(#RHs(w, late), 1, "one ask")
-	eq(RHs(w, late)[1].msg, "RH~L1~1~bcd", "for every type it heard no digest of")
+	assert(RHs(w, late)[1].msg:match("^RH~L1~1~bcd~[0-9a-z]+%.1$"), "every unheard type and the first bounded attempt")
 	eq(Do(w, late, "Discover"), false, "a second view asks nothing")
 	local bound = DiscoveryBound(R, w:As(c, c.ns.Records.DigestWindow))
 	local heldAt = RunUntil(w, bound, function() return Do(w, late, "Count", "b") == 1 end, 1)
@@ -1208,7 +1208,7 @@ test("records: a ranking view asks only for the types this session heard no dige
 	w:Run(2)
 	eq(Do(w, late, "Discover"), true)
 	w:Run(2)
-	eq(RHs(w, late)[1].msg, "RH~L1~1~cd", "Bones heard: not asked")
+	assert(RHs(w, late)[1].msg:match("^RH~L1~1~cd~[0-9a-z]+%.1$"), "Bones heard: not asked")
 	-- A King whose quiet presence is on asks nothing (an ask says he is online); once it is off, he does.
 	eq(w:As(king, king.ns.SetQuietPresence, true, "records-test"), true)
 	eq(Do(w, king, "Discover"), false)
@@ -1427,5 +1427,48 @@ test("1.5.2 records: a temporarily refused discovery send does not consume the f
 	eq(Do(w, c, "Discover"), true, "reopening can try once transport recovers")
 	w:Run(2)
 	eq(#RHs(w, c), 1)
+	Errors(w)
+end)
+
+test("1.5.2 records: the bounded retry reaches a holder through the real relay while duplicate copies count once", function()
+	local w, _, _, asker = Quiet()
+	eq(Do(w, asker, "Discover"), true)
+	w:Run(asker.ns.Records.DISCOVERY_RETRY + 2)
+	local asks = RHs(w, asker)
+	eq(#asks, 2, "only the initial request and one retry")
+	local holder = w:Player(N.bettor1)
+	local C = holder.ns.Comm
+	-- The world normally models Comm directly. Use the production Relay's receiver and
+	-- dedupe here; only Comm's delivery boundary/fragment registration are stand-ins.
+	C.RelayPieces = function() end
+	C.Inject = function(dist, sender, text)
+		local handler = holder.comm.handlers[text:sub(1, 2)]
+		if handler then handler(dist, sender, text) end
+	end
+	w:As(holder, function()
+		holder.ns.splitNames = true
+		holder.ns.rdb.council = { names = { relay = N.king } }
+		assert(loadfile(H.ADDON_DIR .. "Relay.lua"))("ChillZone", holder.ns)
+		holder.ns.Relay.HandleRelayed("WHISPER", N.king, "RM~P~" .. asker.name .. "~" .. asks[1].msg)
+	end)
+	eq(Do(w, holder, "Stats").discoveryHeard, 1)
+	w:Run(asker.ns.Records.DISCOVERY_RETRY)
+	w:As(holder, holder.ns.Relay.HandleRelayed, "WHISPER", N.king, "RM~P~" .. asker.name .. "~" .. asks[2].msg)
+	eq(Do(w, holder, "Stats").discoveryHeard, 2, "the retry is not swallowed by Relay.SEEN_FOR")
+	w:As(holder, holder.ns.Relay.HandleGuild, "GUILD", N.fighterA, "RG~P~" .. asker.name .. "~" .. asks[2].msg)
+	eq(Do(w, holder, "Stats").discoveryHeard, 2, "another hop's copy stays deduplicated")
+	Errors(w)
+end)
+
+test("1.5.2 records: discovery accepts legacy asks and bounded attempt tags, rejecting malformed tags", function()
+	local w, asker, _, holder = Quiet()
+	local receive = holder.comm.handlers.RH
+	for _, tag in ipairs({ "", "1.0", "1.3", "1.1~extra", string.rep("a", 13) .. ".1" }) do
+		w:As(holder, receive, "CHANNEL", asker.name, "RH~L1~1~b~" .. tag)
+	end
+	eq(Do(w, holder, "Stats").discoveryHeard or 0, 0)
+	w:As(holder, receive, "CHANNEL", asker.name, "RH~L1~1~b")
+	w:As(holder, receive, "CHANNEL", asker.name, "RH~L1~1~b~t123.2")
+	eq(Do(w, holder, "Stats").discoveryHeard, 2, "old and tagged requests use the same reply budgets")
 	Errors(w)
 end)

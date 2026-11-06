@@ -1371,7 +1371,7 @@ ns.Comm.Handle("RD", ns.Arena.Handle("RD", OnDigest))
 -- 1.5.2, discovery (RH). A client that holds nothing sends nothing at its login (the weight rule):
 -- it learns what the holders hold from their rounds, a round and its window later. When the player
 -- first opens a ranking view in a session (the Games tab's rankings, the crafting ranking), it asks
--- for the digests of the types it heard none of this session ("RH~L1~1~<letters>"), once; and once
+-- for the digests of the types it heard none of this session ("RH~L1~1~<letters>~<request>"), once; and once
 -- more DISCOVERY_RETRY later if still none came: DISCOVERY_MAX a session. Not while its quiet
 -- presence is on (an ask would say it is online). A client that heard a digest of a type asks for
 -- none of it: a holder that logged in more than a round ago asks for nothing.
@@ -1389,7 +1389,10 @@ local function SendDiscovery()
 	for letter in pairs(R.TYPES) do if not digestHeard[letter] then list[#list + 1] = letter end end
 	if not list[1] then return false end
 	table.sort(list)
-	if A().Send("RH", "L", "1~" .. table.concat(list), { dist = "CHANNEL", key = "records discovery", low = true }) ~= true then return false end
+	-- Relay remembers origin+body for five minutes. A bounded per-attempt tag keeps the
+	-- ninety-second retry distinct while copies of that same request still deduplicate.
+	local request = A().B36(Now()) .. "." .. tostring(discoverySent + 1)
+	if A().Send("RH", "L", "1~" .. table.concat(list) .. "~" .. request, { dist = "CHANNEL", key = "records discovery", low = true }) ~= true then return false end
 	discoverySent = discoverySent + 1
 	stats.discovery = discoverySent
 	if discoverySent < R.DISCOVERY_MAX then ns.After(R.DISCOVERY_RETRY, "records discovery", SendDiscovery) end
@@ -1431,7 +1434,9 @@ end
 local function OnDiscovery(dist, sender, mode, body)
 	if mode ~= "L" or dist ~= "CHANNEL" then return Count("lane") end
 	if type(body) ~= "string" or #body > 64 then return Count("shape") end
-	local version, letters = A().Fields(body, 2)
+	local version, letters, request = A().Fields(body, 3)
+	if not version then version, letters = A().Fields(body, 2) end -- older two-field asks
+	if request and (#request > 14 or not request:match("^[0-9a-z]+%.[12]$")) then return Count("shape") end
 	if version ~= "1" or type(letters) ~= "string" or letters == "" or #letters > 32 or letters:find("[^%w]") then return Count("shape") end
 	stats.discoveryHeard = (stats.discoveryHeard or 0) + 1
 	if Barred() then return end

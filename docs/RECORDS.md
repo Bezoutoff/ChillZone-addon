@@ -45,6 +45,9 @@ The first visible games or crafting ranking opened in a session requests the rec
 inventory this client has not heard yet (`RH`). It retries once after 90 seconds if inventories
 are still missing. A refused transport send does not consume the first attempt. Quiet presence
 suppresses these requests. Opening a tab without a visible ranking sends none.
+Each attempt carries a bounded time/attempt tag so the relay's five-minute duplicate window
+does not swallow the ninety-second retry. Copies of the same attempt still count once;
+receivers also accept older two-field requests, with the same reply budgets.
 
 Holders schedule replies using the existing spaced digest rounds and low-priority queue. Each
 holder begins at most one reply round per type per minute, even if many players ask; equivalent
