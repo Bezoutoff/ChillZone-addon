@@ -12,13 +12,13 @@ ChillZone is a fork of [Olympus](https://github.com/dnl-gentile/olympus-addon) (
 this manual is Olympus's with the names changed. Where it differs: the guilds are those the code
 names («Чиллзон», the King's, and «Чиллзон Навсегда») and those the author's signed list adds, never
 a guild for a word in its name; the King, the Treasurer and the author are named by that signed
-list alone; the logo is ChillZone's. See UPSTREAM.md for the commits taken from Olympus since.
+list alone (until the owner's signed list arrives, the guild master of «Чиллзон» stands in as the King); the logo is ChillZone's. See UPSTREAM.md for the commits taken from Olympus since.
 
 > **Status:** a fork in progress, not released yet.
 
 ---
 
-**Horde too.** ChillZone guilds on the Horde side use the same addon. The factions can't see
+**Horde too.** ChillZone's release has no Horde King's guild, so the Horde side of the network is inactive. ChillZone guilds on the Horde side use the same addon. The factions can't see
 each other's guilds, so each one gets its own census, channels, decrees and untabarded list: the
 addon picks yours from your character. On the Horde, the Crown is every Horde ChillZone guild
 master and the officers of the Horde guild named exactly "ChillZone", if there is one.
