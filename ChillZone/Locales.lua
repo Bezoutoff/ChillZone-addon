@@ -180,7 +180,7 @@ What works now, in version 1.5.0:
 - {watch} Every sub-realm of your ruleset counts as one realm, so every guild sees the same census.
 - {star} Update, then close and reopen the game.
 
-I am still fixing things, so expect a few more updates in the coming days. If something is off, send me a message on CurseForge or here in the game: a whisper to Developus Olympicus reaches me.
+I am still fixing things, so expect a few more updates in the coming days. If something is off, report a bug with /cz bug or on GitHub (https://github.com/Bezoutoff/ChillZone-addon/issues).
 
 Again, sorry for the delay. I hope you have fun.
 
@@ -285,7 +285,7 @@ O que funciona agora, na versão 1.5.0:
 - {watch} Todo sub-reino do seu conjunto de regras conta como um reino só, então toda guilda vê o mesmo censo.
 - {star} Atualize, feche e abra o jogo.
 
-Ainda estou arrumando algumas coisas, então esperem mais algumas atualizações nos próximos dias. Se algo estiver errado, me mandem mensagem pelo CurseForge ou aqui pelo jogo: um sussurro para Developus Olympicus chega até mim.
+Ainda estou arrumando algumas coisas, então esperem mais algumas atualizações nos próximos dias. Se algo estiver errado, relatem o erro com /cz bug ou no GitHub (https://github.com/Bezoutoff/ChillZone-addon/issues).
 
 Mais uma vez, desculpem pela demora. Espero que se divirtam.
 
