@@ -136,6 +136,17 @@ if [ -f scripts/make-borders.py ]; then
 	fi
 fi
 
+# ChillZone's logo (ChillZone/media/logo*.tga, emblem128.tga): what scripts/make-logo.py builds from
+# media/logo/src/chillzone.png (the script changes nothing with --check).
+if [ -f scripts/make-logo.py ]; then
+	printf 'Checking the logo textures against their source...\n'
+	if command -v python3 >/dev/null 2>&1 && python3 -c 'import PIL' >/dev/null 2>&1; then
+		PYTHONDONTWRITEBYTECODE=1 python3 scripts/make-logo.py --check
+	else
+		printf 'python3 with Pillow not found: the logo textures check skipped.\n'
+	fi
+fi
+
 # Bone Throw's textures (ChillZone_Arena/media/farkle, 1.2): what scripts/make-farkle-art.py builds
 # from the PNGs in media/farkle/src (the script changes nothing with --check).
 if [ -f scripts/make-farkle-art.py ]; then
