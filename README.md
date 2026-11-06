@@ -87,6 +87,13 @@ status. Switches in `Core.lua`: `ns.VERIFY_HOLD` (the guild master's hold, on) a
 `ns.VERIFY_GATE` (whole-guild features through `ns.GuildSanctioned`, off: no feature is gated); the
 exemptions are one predicate, `Verify.Exempt`.
 
+Verification catch-up crosses signed relays to an available verifier without sending requests to
+every guild. It compares the contents of saved decisions as well as their counts, and recovers an
+approval with its original verifier and date; rebuilding census rows does not erase that decision.
+A missing local record still needs a valid verifier's copy. A member's claimed approver name, an
+old census total or a guild-start clock cannot create an approval, and an older approval cannot
+replace a retained revocation.
+
 ### Not in ChillZone yet?
 First it asks the obvious question: *"<Your Guild>? Disband immediately. What are you
 doing?"* Then it helps you get in. The **Join ChillZone** screen uses the game's own `/who` to
@@ -162,13 +169,26 @@ channels; the same charter and Join controls work for each side.
 - **Total soldiers** and **online now** across the whole realm. The current server's soldiers stay prominent; the smaller **all servers** total includes accepted observations
   from the other supported realm groups. People estimates remain inside the details page. Stored
   observations retain their original time and are shown while the current census rebuilds.
+  Scoped snapshots restore a new client's count immediately; complete, newer coverage may raise
+  or lower it. Legacy caches that lost their PvE/PvP origin are preserved separately and labelled
+  as excluded, without clearing guild verification or its deadline. A complete set of correctly
+  scoped direct reports can substantiate an existing saved view.
 - **The census in numbers**: a click on the header's count (from any tab) opens a page of its own
   in the Census tab: characters, people, linked alts, online now, the guilds counted (and how many
   report right now), the army's average level (each guild's, weighted by its size), every server
   (1.4.0: the characters and people of all of them, by ruleset, by region and by faction, then each
   server, yours first; another server's numbers arrive through players who also play there, counted
   when it is what you saw yourself, when two players agree or when a moderator says it, and listed
-  grey otherwise; the beta's realms never count) and the levels online. Two small graphs show how the
+  grey otherwise; the beta's realms never count) and the levels online. Forwarded observations
+  preserve the original observer and date across normal members and reloads. Repeating the same
+  original through several holders never creates independent witnesses. Without authenticated
+  original evidence, these foreign counts are visible as reports, outside the accepted total;
+  this transport does not provide portable identity certificates. A family shared across regions
+  has an unknown aggregate region; the relay's location is not assigned to all its members.
+  An ordinary carrier sends the complete aggregate in one logical chunk, with only the whole
+  guild-detail rows that fit beside it. The local scoped snapshot sends at most 180 guild rows
+  per packet; a larger local census needs subsequent reconciliation for the remaining rows.
+  Two small graphs show how the
   counts moved: the characters over the last 30 days (each day's highest) and who was online over
   the last 24 hours (each hour's most); hover a day or an hour for its numbers. Your own addon
   writes the census down every 15 minutes while you play, about 3 minutes after login once the

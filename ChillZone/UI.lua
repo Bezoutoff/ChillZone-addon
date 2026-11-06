@@ -1084,12 +1084,16 @@ function UI.CensusHeader(s, now)
 		header.sub = L.CENSUS_HEADER_SAVED:format(observed, s.live and s.live.guilds or 0)
 		header.note = L.CENSUS_HEADER_SAVED_TIP:format(observed)
 	elseif s.history then
-		header.sub = L.CENSUS_HEADER_HISTORY:format(F(s.history.characters), date("%m/%d %H:%M", s.history.observed))
+		local label = s.history.unscoped and L.CENSUS_HEADER_UNSCOPED or L.CENSUS_HEADER_HISTORY
+		header.sub = label:format(F(s.history.characters), date("%m/%d %H:%M", s.history.observed))
 	elseif heard then
 		header.sub = L.REBUILDING_SUB:format(heard)
 	else
 		header.sub = L.ARMY_SUB:format(F(s.online), #s.guilds, ns.Ago(s.newest))
 	end
+	local kind = ns.Data.GroupInfo and ns.Data.GroupInfo(ns.group)
+	local label = kind and L["CENSUS_STATS_KIND_" .. kind:upper()]
+	if label then header.sub = label .. " · " .. header.sub end
 	return header
 end
 

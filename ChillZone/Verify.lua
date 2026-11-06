@@ -40,7 +40,7 @@ local L = ns.L
 -- How it travels (GV, Comm.lua's list), on the ChillZone channel:
 --   GV~1~A~<server time>~<Guild>~<Guild master Name-Realm>   a verifier's approval (logged)
 --   GV~1~R~<server time>~<Guild>~<Guild master Name-Realm>   a verifier's revocation (logged)
---   GV~1~Q~<count>~<newest>~<starts>                          any member's ask (after login, then
+--   GV~1~Q~<count>~<newest>~<starts>~<digest>                 any member's ask (after login, then
 --                                                             every half hour): what it holds
 --   GV~1~S~<made>~<row>;<row>;...                             a verifier's client's answer, rows
 --     A|R,<at>,<Guild>,<master>,<by>   every word it holds, the newest first
@@ -50,7 +50,7 @@ local L = ns.L
 -- Each client keeps, per guild, the newest word by its time (the approver's server time, which a
 -- relay carries unchanged: an old approval relayed is as old as it was). On the same second a
 -- revocation stands over an approval. A relay is taken only from a verifier's client, which only
--- answers an ask from a client that holds less. Kept in the realm group's saved data: approvals
+-- answers an ask from a client with different contents. Kept in the realm group's saved data: approvals
 -- until revoked (MAX words at most), revocations REVOKE_KEEP, starts START_KEEP and first sightings
 -- SEEN_KEEP after the guild was last seen.
 
@@ -390,21 +390,30 @@ local function TellOurs(kind, guild, by)
 	ns.Print((kind == "A" and L.VERIFY_HEARD_OURS or L.VERIFY_HEARD_REVOKED):format(guild, Shown(by)))
 end
 
--- What this client holds: its words and shared starts, the newest word's time, and its starts'
--- sum (a client with the same count but earlier starts holds something the asker lacks).
+-- Counts alone cannot distinguish two different sets of approvals made on the same second.
+-- The optional content digest excludes receipt times; it is a convergence hint, never proof
+-- of authority. Older clients still understand the first three fields.
 function Verify.Digest()
 	local n, newest, sum = 0, 0, 0
 	local s = Store()
+	local rows = {}
 	for _, e in pairs(s and s.list or {}) do
 		if Valid(e) then
 			n = n + 1
 			if e.at > newest then newest = e.at end
+			rows[#rows + 1] = table.concat({ e.k, e.at, Key(e.guild), Key(ns.FullName(e.gm)), Key(ns.FullName(e.by)) }, "|")
 		end
 	end
 	for _, e in pairs(s and s.start or {}) do
-		if ValidStart(e) then n, sum = n + 1, (sum + e.at) % 2147483648 end
+		if ValidStart(e) then
+			n, sum = n + 1, (sum + e.at) % 2147483648
+			rows[#rows + 1] = table.concat({ "T", e.at, Key(e.guild) }, "|")
+		end
 	end
-	return n, newest, sum
+	table.sort(rows)
+	local hash = ns.Sign and ns.Sign.SHA256 and ns.Sign.SHA256(table.concat(rows, "\n"))
+	if type(hash) == "string" then hash = hash:gsub(".", function(c) return ("%02x"):format(c:byte()) end) end
+	return n, newest, sum, hash
 end
 
 -- A name as a relay writes it: without the realm when it is ours (the receiver puts the sender's back).
@@ -474,16 +483,21 @@ function Verify.SendSnapshot()
 	return ok
 end
 
--- An ask heard: a verifier's client that holds more answers after 2-9 s, unless another verifier's
+-- An ask heard: a verifier's client with different contents answers after 2-9 s, unless another verifier's
 -- answer came meanwhile.
 local function AnswerAsk(body, now)
 	if Quiet() or not ns.IsMember() or not Verify.Trusted(ns.me) then return true end
 	if pending or now - lastSent < Verify.ANSWER_GAP then return true end
-	local mine, newest, sum = Verify.Digest()
+	local mine, _, _, fingerprint = Verify.Digest()
 	if mine == 0 then return true end
-	local n, theirs, theirSum = tostring(body or ""):match("^(%d+)~(%d+)~(%d+)$")
+	local n, theirs, theirSum, theirFingerprint = tostring(body or ""):match("^(%d+)~(%d+)~(%d+)~(%x+)$")
+	if not n then n, theirs, theirSum = tostring(body or ""):match("^(%d+)~(%d+)~(%d+)$") end
 	n, theirs, theirSum = tonumber(n), tonumber(theirs), tonumber(theirSum)
-	if n and not (mine > n or newest > theirs or (mine == n and sum < theirSum)) then return true end
+	if not n or n > Verify.MAX + Verify.MAX_STARTS or theirs > now + Verify.AHEAD
+		or theirSum >= 2147483648 or (theirFingerprint and #theirFingerprint ~= 64) then return false end
+	if fingerprint and fingerprint == theirFingerprint then return true end
+	-- A legacy ask cannot prove that it holds our words, even with equal counts.
+	-- ANSWER_GAP and the delayed/coalesced answer still bound recovery traffic.
 	pending = true
 	local heardAt = heardRelay
 	ns.After(Verify.random(2, 9), "verify answer", function()
@@ -496,9 +510,11 @@ end
 
 function Verify.Ask()
 	if not ns.IsMember() or Quiet() then return false end
-	local n, newest, sum = Verify.Digest()
+	local n, newest, sum, fingerprint = Verify.Digest()
 	stats.asked = stats.asked + 1
-	return ns.Comm.Send("CHANNEL", ("GV~%d~Q~%d~%d~%d"):format(Verify.PROTOCOL, n, newest, sum), "verify-ask")
+	local body = ("GV~%d~Q~%d~%d~%d"):format(Verify.PROTOCOL, n, newest, sum)
+	if fingerprint then body = body .. "~" .. fingerprint end
+	return ns.Comm.Send("CHANNEL", body, "verify-ask")
 end
 
 function Verify.Handle(dist, sender, text)

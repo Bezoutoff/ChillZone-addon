@@ -6905,6 +6905,8 @@ local function RelayWorld(me, guild)
 	return cns, Deliver, sent, heard, Pump, Sent, hooks
 end
 
+assert(loadfile(ROOT .. "tests/census-relay.lua"))(ns, test, eq, { RelayWorld = RelayWorld, addon = ADDON_DIR })
+
 test("1.4.3 the relay: where names split, a channel message goes to the picked signed relay by whisper (RL), pinged once; a chat line goes logged; the relay registers reporters (RR), forwards to each guild's reporter (RM) and hears it itself; a reporter takes it once and hands it to its guild (RG); a guildmate takes it once; a stranger's RM is dropped", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
 	local ok, err = pcall(function()
@@ -7540,6 +7542,8 @@ test("1.5.1 opening a Forever family's store takes a plain realm's of its own fa
 			censusGlobal = { ["chillzone prime"] = { name = "CHILLZONE PRIME", total = 900, online = 1, avg10 = 100, observed = 10, by = "Someone-CAMWOWUS2Realm1PvE" },
 				["chillzone x"] = { name = "CHILLZONE X", total = 300, online = 1, avg10 = 100, observed = 10, by = "Other-CAMWOWUS1Realm2PvP" } } }
 		local old = { guilds = { ["chillzone ii"] = { guild = "CHILLZONE II", total = 50, t = 8, heardOn = "CAMWOWUS1Realm2PvP" } }, seen = {} }
+		old.guilds["chillzone leaked"] = { guild = "ChillZone Leaked", total = 900, t = 10,
+			from = "CAMWOWUS1Realm1PvE", vouch = { original = { t = 10, leader = "Original" } } }
 		ns.db.realms, ns.db.links = { ForeverPvE = pve, ForeverPvP = pvp, CAMWOWUS1Realm2PvP = old, Whitemane = { guilds = {}, seen = {} } }, {}
 		ns.realm, ns.group = "CAMWOWUS1Realm8PvP", "ForeverPvP"
 		ns.faction = "Horde" -- (not what ns.Faction() says: CheckFaction reopens the group's store)
@@ -7550,7 +7554,11 @@ test("1.5.1 opening a Forever family's store takes a plain realm's of its own fa
 		eq(ns.rdb.guilds["chillzone v"], nil, "a PvE report merged before 1.5.1 is dropped")
 		eq(ns.rdb.guilds["chillzone dads"].total, 40, "our own stay")
 		eq(ns.rdb.guilds["chillzone ii"].total, 50, "a plain PvP realm's store (before 1.4.6) comes in"); eq(ns.db.realms.CAMWOWUS1Realm2PvP, nil)
-		eq(ns.rdb.censusGlobal["chillzone prime"], nil, "a counts-only row said from a PvE realm is dropped"); eq(ns.rdb.censusGlobal["chillzone x"].total, 300, "one said from a PvP realm stays")
+		eq(ns.rdb.guilds["chillzone leaked"], nil, "a merged row cannot hide opposite origin behind a newly stamped heardOn")
+		assert(ns.rdb.censusForeign["chillzone leaked"].vouch.original, "quarantine preserves the complete original report")
+		eq(ns.rdb.censusForeign["chillzone v"].total, 700, "foreign reports are preserved outside local authority")
+		eq(ns.rdb.censusGlobal["chillzone prime"].total, 900, "unscoped cache remains available for Data INIT quarantine")
+		eq(ns.rdb.censusGlobal["chillzone x"].total, 300, "a forwarder realm is not proof of census origin")
 		assert(ns.db.realms.Whitemane, "an unrelated realm's store stays")
 	end)
 	ns.db.realms, ns.db.links, ns.rdb, ns.realm, ns.group, ns.faction = saved.realms, saved.links, saved.rdb, saved.realm, saved.group, saved.faction
@@ -7726,7 +7734,7 @@ end)
 
 -- 1.5.0 (the dev's log: every client's channel hello, census ask, lists' ask, positions became 46
 -- whispers each). Fails before: the hello is forwarded to every reporter and across.
-test("1.5.0 the relay: a client's own-clock words (H3, Q1, HQ, P1, W4, GV) are heard by the relay and fanned out to nobody, not across either; a census report, a chat line and the lists go on", function()
+test("1.5.0 the relay: a client's own-clock words (H3, Q1, HQ, P1, W4) are heard by the relay and fanned out to nobody, not across either; a census report, a chat line and the lists go on", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
 	local ok, err = pcall(function()
 		GetChannelName = function() return 0 end
@@ -7736,12 +7744,12 @@ test("1.5.0 the relay: a client's own-clock words (H3, Q1, HQ, P1, W4, GV) are h
 		local R, rdeliver, rsent, rheard, rpump, rsentOf = RelayWorld("Hildryn Payne-Realm", "ChillZone II")
 		rdeliver("WHISPER", "Max Ran-Realm", "RY~")
 		rdeliver("WHISPER", "Zed Far-Realm", "RL~P~RR~ChillZone Zeus")
-		for _, kind in ipairs({ "H3~hello", "Q1~ask", "HQ~lists", "P1~pos", "W4~wanted", "GV~1~Q~0~0~0" }) do
+		for _, kind in ipairs({ "H3~hello", "Q1~ask", "HQ~lists", "P1~pos", "W4~wanted" }) do
 			rdeliver("WHISPER", "Some One-Realm", "RL~P~" .. kind)
 		end
 		rpump()
 		eq(#rsentOf("RM~"), 0, "fanned out to nobody"); eq(#rsentOf("RX~"), 0, "not across")
-		eq(R.Relay.Stats().delivered, 6, "heard here, every one")
+		eq(R.Relay.Stats().delivered, 5, "heard here, every one")
 		rdeliver("WHISPER", "Some One-Realm", "RL~P~C1~census")
 		rdeliver("WHISPER", "Some One-Realm", "RL~L~M1~A~ChillZone II~1~~hi")
 		rdeliver("WHISPER", "Some One-Realm", "RL~P~HS~lists")
@@ -7755,7 +7763,7 @@ end)
 
 -- Decisions must use the same verified-origin transport as every other authorizing word.
 -- The old prefix-wide GV suppression delivered them only to the relay, never the guild.
-test("1.5.2 verification relay: approvals, revocations and snapshots reach guild reporters with the original sender; only asks stay local", function()
+test("1.5.2 verification relay: approvals, revocations and snapshots reach guild reporters with the original sender; asks only cross relays", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
 	local ok, err = pcall(function()
 		GetChannelName = function() return 0 end
@@ -7777,7 +7785,8 @@ test("1.5.2 verification relay: approvals, revocations and snapshots reach guild
 		local forwarded = sentOf("RM~L~" .. origin .. "~GV~1~")
 		eq(#forwarded, 3, "the guild reporter receives each decision and recovery snapshot")
 		eq(#sentOf("RX~L~" .. origin .. "~GV~1~"), 3, "other signed relays receive them too")
-		eq(#sentOf("RM~P~" .. origin .. "~GV~1~Q~"), 0, "periodic asks remain local")
+		eq(#sentOf("RM~P~" .. origin .. "~GV~1~Q~"), 0, "periodic asks stay off guild reporters")
+		eq(#sentOf("RX~P~" .. origin .. "~GV~1~Q~"), 1, "a bounded ask reaches the other signed relay")
 		local receiver, receive = RelayWorld("Zed Far-Realm", "ChillZone Zeus")
 		local heard = {}
 		receiver.Comm.Handle("GV", function(dist, sender, text) heard[#heard + 1] = { dist = dist, sender = sender, text = text } end)
@@ -7792,6 +7801,8 @@ test("1.5.2 verification relay: approvals, revocations and snapshots reach guild
 	C_ChatInfo = nil
 	if not ok then error(err, 0) end
 end)
+
+assert(loadfile(ROOT .. "tests/verify-relay.lua"))(ns, test, eq, RelayWorld, ADDON_DIR)
 
 -- 1.5.0 (the dev's relay: 51 reporters, every guild's three-piece report to each, 2,700 pieces a
 -- minute against 200 sent). Fails before: every word to every reporter, no snapshot of the relay's.

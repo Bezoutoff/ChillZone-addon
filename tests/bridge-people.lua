@@ -232,6 +232,30 @@ end
 
 local function Data(name) return assert(B.GetSection(name), name .. ": the section").data end
 
+test("bridge origin metadata: preserves source scope and validation without assigning the carrier's region", function()
+	With({ modules = { Data = { Groups = function() return {
+		characters = 640, people = 600, rows = {
+			{ group = "Foreign", canonicalGroup = "Population-A", faction = "Alliance", characters = 640,
+				people = 600, guilds = 1, observed = NOW - 600, src = "witnessed", w = 2,
+				counted = true, fresh = true, kind = "pvp", region = "EU", product = "forever", era = "launch", validation = "accepted" },
+			{ group = "Unclassified", faction = "Alliance", characters = 100, people = 100, guilds = 1,
+				observed = NOW - 700, src = "heard", counted = false, fresh = true, validation = "reported" },
+		},
+	} end, GroupGuilds = function(group)
+		return group == "Unclassified" and { { name = "ChillZone Reported", characters = 100, online = 0,
+			observed = NOW - 700, source = "heard", counted = false, fresh = true } } or {}
+	end } } }, function()
+		local origins = Data("censusOrigins").origins
+		local first, unknown = origins[1], origins[2]
+		eq(first.canonicalGroup, "Population-A"); eq(first.region, "EU")
+		eq(first.product, "forever"); eq(first.era, "launch"); eq(first.validation, "accepted")
+		eq(first.observed, NOW - 600); eq(first.counted, true)
+		eq(unknown.region, nil); eq(unknown.product, nil); eq(unknown.era, nil)
+		eq(unknown.canonicalGroup, nil); eq(unknown.validation, "reported"); eq(unknown.counted, false)
+		eq(unknown.source, "relay"); eq(unknown.guilds[1].source, "relay"); eq(unknown.guilds[1].counted, false)
+	end)
+end)
+
 test("census continuity: companion exports distinct origins and dated retained counts without authority or private fields", function()
 	local oldGroups, oldDetails, login = ns.db.groupCensus, ns.db.groupDetails, ns.Comm.loginAt
 	local ok, err = pcall(function()

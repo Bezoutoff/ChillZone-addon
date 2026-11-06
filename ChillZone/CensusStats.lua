@@ -481,7 +481,8 @@ function CS.ServerLines(lines, s, now)
 						tt:AddLine(guild.name, 1, 0.82, 0)
 						tt:AddDoubleLine(L.CENSUS_STATS_CHARACTERS, F(guild.characters), 1, 0.82, 0, 1, 1, 1)
 						tt:AddLine(L.CENSUS_STATS_SEEN:format(ns.Ago and ns.Ago(guild.observed) or ""), 0.75, 0.75, 0.75)
-						local src = ({ own = L.CENSUS_STATS_SRC_OWN, relay = L.CENSUS_STATS_SRC_RELAY, witnessed = L.CENSUS_STATS_SRC_WITNESSED })[guild.source]
+						local src = ({ own = L.CENSUS_STATS_SRC_OWN, relay = L.CENSUS_STATS_SRC_RELAY,
+							witnessed = L.CENSUS_STATS_SRC_WITNESSED, heard = L.CENSUS_STATS_SRC_HEARD })[guild.source]
 						if src then tt:AddLine(src, 0.75, 0.75, 0.75, true) end
 					end }
 			end

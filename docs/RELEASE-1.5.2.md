@@ -6,6 +6,9 @@
 - Show this server's soldiers prominently and a smaller accepted total across servers. Details
   retain ruleset, faction, freshness and the separate estimate of individual people.
 - Relay bounded counts and guild summaries across realm groups without transferring role authority.
+- Isolate legacy counts whose PvE/PvP origin was lost, preserving the original cache outside the
+  accepted totals. Scoped snapshots restore empty clients immediately. Forwarded observations
+  retain their original observer and date; repeat holders never become extra witnesses.
 - Let a pending guild's GM resend a verification request without resetting the original deadline.
   A five-minute cooldown is separate from that deadline and survives reloads.
 - Relay verification decisions to their intended recipients.
@@ -31,6 +34,9 @@ Before publication, run these checks in the installed candidate:
    breakdown, stale/unavailable states and separate people estimates.
 2. Log into characters in two realm groups. Historical counts should appear under their own
    group and faction, not become guild members or council authority in the current realm.
+   Check both PvE → PvP and PvP → PvE with a recipient that never visited the source ruleset.
+   Unknown original evidence must remain labelled as reported, not accepted merely because
+   several ordinary clients forwarded it. Compare the current ruleset label with the guild list.
 3. As a pending guild's GM, open `/cz verify`, resend, and reload. Original time remaining must
    not restart. An immediate repeat must respect the cooldown; a refused send must not consume it.
 4. With a verifier and GM on different participating guilds, approve and confirm the decision

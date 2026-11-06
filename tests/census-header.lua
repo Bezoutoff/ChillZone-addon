@@ -1,6 +1,26 @@
 -- Header presentation uses the same Data.Groups totals as the detailed census.
 local ns, test, eq, extra = ...
 
+test("census scope: header names the current ruleset and labels a quarantined snapshot without counting it", function()
+	extra.WithUI(function()
+		local UI = extra.LoadUI()
+		local oldGroup, oldGroups = ns.group, ns.Data.Groups
+		local ok, err = pcall(function()
+			ns.group = "ForeverPvP"
+			ns.Data.Groups = function() return { characters = 7149 } end
+			local at = 1793966400
+			local s = { characters = 182, total = 182, online = 8, newest = at, guilds = {},
+				history = { characters = 13614, observed = at, unscoped = true } }
+			local h = UI.CensusHeader(s, at + 60)
+			eq(h.characters, 182)
+			eq(h.secondary, ns.L.CENSUS_HEADER_ALL:format(ns.FormatNumber(7149)))
+			eq(h.sub, ns.L.CENSUS_STATS_KIND_PVP .. " · " .. ns.L.CENSUS_HEADER_UNSCOPED:format(ns.FormatNumber(13614), date("%m/%d %H:%M", at)))
+		end)
+		ns.group, ns.Data.Groups = oldGroup, oldGroups
+		if not ok then error(err, 0) end
+	end)
+end)
+
 test("census header 1.5.2: current-server soldiers stay prominent, all-server total is secondary, people stay inside", function()
 	extra.WithUI(function()
 		local UI = extra.LoadUI()

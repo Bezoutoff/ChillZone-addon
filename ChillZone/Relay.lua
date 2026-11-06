@@ -54,6 +54,8 @@ Relay.REPORTER_FOR = 600     -- a relay keeps a reporter this long past its last
 Relay.SEEN_FOR = 300         -- a message taken is remembered this long (a second copy counts once)
 Relay.SEEN_MAX = 2000
 Relay.MAX_RELAYS = 40
+Relay.VERIFY_ASK_EVERY = 180 -- one recovery ask across the signed relays, never per reporter
+Relay.SNAPSHOT_WINDOW = 60  -- at most one bounded snapshot transfer per signed origin in this window
 Relay.PEERS_EVERY = 300      -- a relay's client pings the other relays this often (so its words go across, RX)
 -- ChillZone's relays, by the owner's choice (2026-11-06): the guild master and the officers. The
 -- owner's guilds play in the PvP family (owner, 2026-11-06), so they are pinned there alone.
@@ -75,7 +77,8 @@ Relay.LAUNCH_PINS = { ForeverPvP = {
 -- are heard by the relay and answered from there, but never fanned out: with 46 guilds registered
 -- (the dev's log, 2026-11-05) each such word became 46 whispers, and the reports and the lists
 -- waited behind them. A guild's census reports, the chats, the signed lists and every other word
--- go on to every reporter.
+-- go on to every reporter. Verification asks additionally cross signed relays at a bounded
+-- cadence, without reaching reporters: the selected relay may not be the verifier holding a word.
 Relay.NO_FORWARD = { H3 = true, Q1 = true, HQ = true, P1 = true, W4 = true, GV = true, CG = true }
 -- (1.5.0) What one reporter can be sent of other clients' words that are not chat lines: pieces
 -- a minute (REPORTER_RATE). 51 guilds reporting every three minutes, three pieces each, to 51
@@ -100,6 +103,8 @@ local verified = {}  -- relay name (lower) -> when its RA last came
 local pinged = {}    -- relay name (lower) -> when we pinged it, while an answer is due
 local reporters = {} -- (on a relay) guild name (lower) -> { name = "First Surname-Realm", t = when }
 local seen = {}      -- origin .. "|" .. text -> when
+local lastVerifyAsk = -math.huge
+local snapshotTransfers = {}
 local seenCount = 0
 local fanned, fannedCount = {}, 0 -- (on a relay) origin .. "|" .. text -> when it went to our reporters and across
 local pending = {}   -- (1.4.4) what waits for the first relay to answer: { parts, logged, done, key, urgent, options }
@@ -285,6 +290,17 @@ Relay.Flush = Flush
 -- Hop 1: what a module said "on the channel" goes to our relay. parts: the message's pieces as the
 -- channel would carry them (each one whisper). Returns true when handed to the queue.
 local ToGuild -- (below: hop 3)
+local function PermitParts(parts, options)
+	for _, p in ipairs(parts) do
+		local ok, valid, why = true, true
+		if options and options.guard then ok, valid = pcall(options.guard) end
+		if ok and valid == true and options and options.permit then
+			ok, valid, why = pcall(options.permit, options.owner, options.guardKey, "CHANNEL", nil, p)
+		end
+		if not ok or valid ~= true then return false, why or "guard" end
+	end
+	return true
+end
 function Relay.Out(parts, logged, done, key, urgent, options, anyway)
 	local relay, sure = Relay.Pick()
 	if not relay then return false end
@@ -293,9 +309,21 @@ function Relay.Out(parts, logged, done, key, urgent, options, anyway)
 	-- the relay's copy that comes back later counts once too. The relay still carries it to the
 	-- other guilds. The flush of a held line sends to the guild no second time.
 	if logged and not anyway and IsInGuild() then
+		local valid, why = PermitParts(parts, options)
+		if not valid then
+			if done then ns.SafeCall("relay done", done, false, why) end
+			return true
+		end
 		for _, p in ipairs(parts) do ToGuild("L", ns.me, p) end
 	end
 	if not sure and not anyway then
+		-- Carry can leave through the native channel immediately, before a physical
+		-- whisper queue exists. It must obey the same capability as that queue.
+		local valid, why = PermitParts(parts, options)
+		if not valid then
+			if done then ns.SafeCall("relay done", done, false, why) end
+			return true
+		end
 		-- (1.4.4) No relay answered yet: all pinged at once, the message held for the first answer.
 		-- (1.5.2) And the guild's census report goes as the reporter's own text in the joined channel
 		-- meanwhile (ChatHall.Carry: a family with no relay online, the PvP one while the dev is away),
@@ -316,20 +344,45 @@ function Relay.Out(parts, logged, done, key, urgent, options, anyway)
 	local flag = logged and "L" or "P"
 	-- Our own client the relay: handed to it here, whole (a whisper to oneself is never delivered).
 	if relay:lower() == ns.ShortName(ns.me or ""):lower() then
+		-- No physical queue exists on this route. Apply the same logical-channel
+		-- guards before handing off any part, including a transfer held for a ping.
+		local valid, why = PermitParts(parts, options)
+		if not valid then
+			if done then ns.SafeCall("relay done", done, false, why) end
+			return true -- handled refusal; never fall back to an unguarded channel send
+		end
 		stats.out = stats.out + 1
 		for _, p in ipairs(parts) do Relay.HandleIn("WHISPER", ns.me, "RL~" .. flag .. "~" .. p) end
 		if done then ns.SafeCall("relay done", done, true) end
 		return true
 	end
-	local pieces = {}
+	local pieces, originals = {}, {}
 	for _, p in ipairs(parts) do
-		for _, e in ipairs(Envelope("RL", "RL~" .. flag .. "~" .. p)) do pieces[#pieces + 1] = e end
+		for _, e in ipairs(Envelope("RL", "RL~" .. flag .. "~" .. p)) do
+			pieces[#pieces + 1], originals[e] = e, p
+		end
 	end
 	if #pieces == 0 or #pieces > ns.Codec.MAX_CHUNKS then return false end
 	Ping(relay)
 	Quiet(relay)
 	stats.out = stats.out + 1
-	local pass = options and { owner = options.owner, guard = options.guard, guardKey = options.guardKey, permit = options.permit } or nil
+	local pass
+	if options then
+		pass = { owner = options.owner, guard = options.guard, guardKey = options.guardKey }
+		if options.permit then
+			-- Comm normalized key -> guardKey on the logical CHANNEL job. Restore
+			-- the public capability shape when creating its physical WHISPER job.
+			-- Only these exact envelopes to this still-signed relay may spend it;
+			-- the owner's permit continues to see its original lane and payload.
+			pass.key = options.guardKey
+			pass.permit = function(owner, guardKey, dist, target, message)
+				local original = originals[message]
+				if owner ~= options.owner or guardKey ~= options.guardKey or dist ~= "WHISPER"
+					or target ~= relay or not Relay.IsRelay(target) or not original then return false, "lane" end
+				return options.permit(owner, guardKey, "CHANNEL", nil, original)
+			end
+		end
+	end
 	if #pieces == 1 then
 		return ns.Comm.Whisper(relay, pieces[1], key, urgent, logged, done, pass) ~= false
 	end
@@ -397,18 +450,49 @@ ToGuild = function(flag, origin, text)
 	return ns.Comm.SendBatch("GUILD", pieces, nil, nil, false) ~= false
 end
 
--- What a forward's queue key names of its word: its kind (a newer word of that kind takes a waiting
--- one's place), or for one piece of a longer word its whole header, C<id>:<i>:<n> (no piece takes
--- another's place: keyed by their first letters, a word's pieces left as its last piece alone).
-local function KeyPart(body)
-	return body:match("^(C%w+:%d+:%d+):") or body:sub(1, 2)
-end
-
 -- A word to every guild's reporter we hold (ours included: delivered here and handed to our
 -- guild), and heard here (a relay in a guild whose reporter is elsewhere, or none).
+local function QueueWord(body)
+	-- Fragment i and fragment i+1 are both required. Coalescing them by the first
+	-- two bytes (C1, etc.) discarded all but the last before the queue could send.
+	return body:match("^(C[^:]+:%d+):%d+:") or body:sub(1, 2)
+end
+
+local function SnapshotPart(origin, body, now)
+	if not Relay.IsRelay(origin) then return false end
+	local id, index, total, part = body:match("^C(%w+):(%d+):(%d+):(.*)$")
+	index, total = tonumber(index), tonumber(total)
+	if not id or #id > 16 or total < 1 or total > ns.Codec.MAX_CHUNKS
+		or index < 1 or index > total or #part > ns.Codec.CHUNK
+		or (index < total and #part ~= ns.Codec.CHUNK) then return false end
+	local key = Lower(ns.FullName(origin))
+	local transfer = snapshotTransfers[key]
+	if transfer and now - transfer.at >= Relay.SNAPSHOT_WINDOW then transfer = nil; snapshotTransfers[key] = nil end
+	if not transfer then
+		if index ~= 1 or not (part:match("^GV~1~S~%d+~")
+			or part:match("^CG~[12]~S~%d+~") or part:match("^CX~[123]~S~")) then return false end
+		local count = 0
+		for who, entry in pairs(snapshotTransfers) do
+			if now - entry.at >= Relay.SNAPSHOT_WINDOW then snapshotTransfers[who] = nil
+			else count = count + 1 end
+		end
+		if count >= Relay.MAX_RELAYS then return false end
+		transfer = { id = id, total = total, at = now, bytes = 0, parts = {} }
+		snapshotTransfers[key] = transfer
+	end
+	if transfer.id ~= id or transfer.total ~= total or transfer.parts[index] then return false end
+	if transfer.bytes + #part > ns.Codec.CHUNK * ns.Codec.MAX_CHUNKS then return false end
+	transfer.parts[index], transfer.bytes = true, transfer.bytes + #part
+	return true
+end
 local function ToReporters(flag, origin, body, sender)
 	local now = Now()
 	local own = ns.FullName(origin) == ns.me
+	-- Reserve a complete, bounded snapshot from a signed origin. Charging each
+	-- fragment against the four-piece ordinary trickle stranded every larger
+	-- snapshot mid-transfer. This admits no new authority and does not bypass
+	-- Comm's queue/throughput limits; malformed or unreserved parts use the trickle.
+	local snapshot = SnapshotPart(origin, body, now)
 	local pieces
 	for g, r in pairs(reporters) do
 		if now - r.t > Relay.REPORTER_FOR then
@@ -419,13 +503,13 @@ local function ToReporters(flag, origin, body, sender)
 			pieces = pieces or Envelope("RM", "RM~" .. flag .. "~" .. origin .. "~" .. body)
 			-- (1.5.0) Another client's word that is not a chat line: within the reporter's trickle
 			-- (REPORTER_RATE) or not sent to him; the relay's own words and chat lines always.
-			if flag == "L" or own or Afford(r.name, #pieces, now) then
+			if flag == "L" or own or snapshot or Afford(r.name, #pieces, now) then
 				stats.forwarded = stats.forwarded + 1
 				Quiet(r.name) -- (a reporter gone offline since: the server's line out of the chat)
 				-- A word that is not a chat line is keyed by its origin, kind and reporter: a newer
 				-- census of the same guild takes the waiting one's place in the queue (Comm's keyed
 				-- jobs), so a busy relay sends the latest, never a backlog.
-				local key = flag ~= "L" and ("relay " .. r.name .. " " .. Lower(origin) .. " " .. KeyPart(body)) or nil
+				local key = flag ~= "L" and ("relay " .. r.name .. " " .. Lower(origin) .. " " .. QueueWord(body)) or nil
 				if #pieces == 1 then ns.Comm.Whisper(r.name, pieces[1], key, false, false)
 				else ns.Comm.SendBatch("WHISPER", pieces, key, r.name, false) end
 			else
@@ -452,11 +536,19 @@ local function Across(flag, origin, body)
 			pieces = pieces or Envelope("RX", "RX~" .. flag .. "~" .. origin .. "~" .. body)
 			stats.across = (stats.across or 0) + 1
 			Quiet(name)
-			local key = flag ~= "L" and ("across " .. name .. " " .. from .. " " .. KeyPart(body)) or nil
+			local key = flag ~= "L" and ("across " .. name .. " " .. from .. " " .. QueueWord(body)) or nil
 			if #pieces == 1 then ns.Comm.Whisper(name, pieces[1], key, false, false)
 			else ns.Comm.SendBatch("WHISPER", pieces, key, name, false) end
 		end
 	end
+end
+
+-- A verifier may be on another relay. Only the small, validated query crosses;
+-- it never becomes one whisper per guild and never authorizes a cached decision.
+local function VerificationAsk(body)
+	if type(body) ~= "string" or #body > 128 then return false end
+	return body:match("^GV~1~Q~%d+~%d+~%d+$") ~= nil
+		or body:match("^GV~1~Q~%d+~%d+~%d+~%x+$") ~= nil
 end
 
 -- Hop 1 heard (we are a relay): a ping is answered, a registration kept, anything else forwarded
@@ -487,9 +579,13 @@ function Relay.HandleIn(dist, sender, text)
 	-- approvals and revocations on Forever's relay-only route. Verify still checks the original
 	-- sender against this origin group's signed authority at the destination.
 	if body:match("^GV~1~[ARS]~") then localOnly = false end
-	if localOnly and origin ~= ns.me then
+	if localOnly and (origin ~= ns.me or VerificationAsk(body)) then
 		stats.kept = (stats.kept or 0) + 1
 		Deliver(origin, body, flag == "L") -- (heard and answered here, fanned out to nobody)
+		if fresh and VerificationAsk(body) and now - lastVerifyAsk >= Relay.VERIFY_ASK_EVERY then
+			lastVerifyAsk = now
+			Across("P", origin, body)
+		end
 		return true
 	end
 	ToReporters(flag, origin, body, sender)
@@ -510,6 +606,7 @@ function Relay.HandleAcross(dist, sender, text)
 	if not Relay.IsRelay(sender) or not Relay.IsRelay(ns.me) then stats.dropped = stats.dropped + 1 return false end
 	verified[ns.ShortName(sender):lower()] = Now()
 	if Fanned(origin, body) then return true end
+	if VerificationAsk(body) then Deliver(origin, body, false); return true end
 	ToReporters(flag, origin, body, sender)
 	return true
 end
@@ -632,5 +729,7 @@ end)
 function Relay.Reset()
 	wipe(offline); wipe(verified); wipe(pinged); wipe(reporters); wipe(seen); wipe(pending); wipe(budget); wipe(fanned)
 	seenCount, fannedCount, lastRegister, holding, flushing, lastGlobal = 0, 0, -math.huge, false, false, -math.huge
+	lastVerifyAsk = -math.huge
+	wipe(snapshotTransfers)
 	for k in pairs(stats) do stats[k] = 0 end
 end

@@ -104,6 +104,29 @@ local function World(fn)
 	if not ok then error(err, 0) end
 end
 
+test("verify: verification recovery distinguishes different words with the same counts and clock", function()
+	World(function(w)
+		local hc = w.Client(HC, HEARTH, 3)
+		local member = w.Client(MEMBER, GUILD, 3)
+		w.Census(GUILD, "Bram Hollow", 120)
+		w.Census(OTHER, "Corin Ash", 80)
+		-- Each holds a genuine but different approval, made on the same second.
+		member.online = false
+		w.As(hc, hc.Verify.Approve, GUILD, GM)
+		hc.online, member.online = false, true
+		w.As(member, member.Verify.Handle, "CHANNEL", HC, ("GV~1~A~%d~%s~%s"):format(w.now, OTHER, GM2))
+		hc.online = true
+		local n, newest, starts = w.As(hc, hc.Verify.Digest)
+		local n2, newest2, starts2 = w.As(member, member.Verify.Digest)
+		eq(n, n2); eq(newest, newest2); eq(starts, starts2)
+		w.As(member, member.Verify.Ask)
+		w.now = w.now + 9; w.Run()
+		eq(w.Status(member, GUILD), "verified", "equal counts do not prove equal approvals")
+		local _, info = w.Status(member, GUILD)
+		eq(info.entry.at, T0); eq(info.entry.by, HC, "recovered, not approved again")
+	end)
+end)
+
 ---------------------------------------------------------------------------
 -- Who approves
 ---------------------------------------------------------------------------
@@ -221,7 +244,8 @@ test("verify: the earliest start a verifier gave wins, in any order, and a reins
 		-- Its ask (it holds less): a verifier's client answers after a few seconds.
 		w.As(member, member.Verify.Ask)
 		local ask = w.sent[#w.sent].msg
-		assert(ask:match("^GV~1~Q~0~0~0$"), ask)
+		local digest = ask:match("^GV~1~Q~0~0~0~(%x+)$")
+		assert(digest and #digest == 64, ask) -- content digest supplements the legacy counts
 		w.now = w.now + 9
 		w.Run()
 		_, info = w.Status(member, GUILD)

@@ -357,9 +357,15 @@ ChillZoneBridge.RegisterSection("censusOrigins", 1, function()
 	for _, r in ipairs(groups.rows or {}) do
 		if #out.origins >= (D.GROUP_MAX or 64) * 2 then break end
 		local entry = { group = r.group, faction = r.faction, characters = r.characters, people = r.people,
-			guildCount = r.guilds, observed = r.observed, source = r.src, witnesses = r.w,
-			counted = r.counted, fresh = r.fresh, kind = r.kind, region = r.region }
-		if not r.ours and D.GroupGuilds then entry.guilds = D.GroupGuilds(r.group, r.faction) end
+			guildCount = r.guilds, observed = r.observed, source = r.src == "heard" and "relay" or r.src, witnesses = r.w,
+			counted = r.counted, fresh = r.fresh, kind = r.kind, region = r.region,
+			canonicalGroup = r.canonicalGroup, product = r.product, era = r.era, validation = r.validation }
+		if not r.ours and D.GroupGuilds then
+			entry.guilds = D.GroupGuilds(r.group, r.faction)
+			for _, guild in ipairs(entry.guilds) do
+				if guild.source == "heard" then guild.source, guild.counted = "relay", false end
+			end
+		end
 		out.origins[#out.origins + 1] = entry
 	end
 	return out

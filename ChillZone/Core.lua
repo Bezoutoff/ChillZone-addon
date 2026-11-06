@@ -321,6 +321,20 @@ function ns.InGroup(realm)
 	return false
 end
 
+-- A report's observation and guild home must agree with its store. The last
+-- forwarder's realm is not the origin; never overwrite contrary evidence.
+function ns.ReportInGroup(report, group)
+	if type(report) ~= "table" then return false end
+	group = group or ns.group
+	local family = type(group) == "string" and (ForeverFamily(group) or group:match("^Forever%a+$"))
+	if not family then return true end
+	for _, field in ipairs({ "from", "home", "heardOn", "realm" }) do
+		local origin = ForeverFamily(report[field])
+		if origin and origin ~= family then return false end
+	end
+	return true
+end
+
 -- Newest `t` wins, per key; on a tie the entry already there stays.
 local function MergeNewest(dst, src)
 	if type(src) ~= "table" then return end
@@ -451,22 +465,15 @@ local function OpenStore(db, group)
 	for key in pairs(db.realms) do
 		if key ~= group and type(key) == "string" and Inside(key) then merge[#merge + 1] = key end
 	end
-	-- A family's store holding another family's reports (merged so before 1.5.1): those go.
-	if family and type(R.guilds) == "table" then
-		local dropped = 0
-		for k, g in pairs(R.guilds) do
-			local on = type(g) == "table" and ForeverFamily(g.heardOn) or nil
-			if on and on ~= family then R.guilds[k] = nil; dropped = dropped + 1 end
+	local function Isolate()
+		for k, g in pairs(type(R.guilds) == "table" and R.guilds or {}) do
+			if not ns.ReportInGroup(g, group) then
+				R.censusForeign = type(R.censusForeign) == "table" and R.censusForeign or {}
+				R.censusForeign[k], R.guilds[k] = g, nil
+			end
 		end
-		-- The counts-only rows too (censusGlobal, Data.lua), by the realm of whoever said them.
-		for k, e in pairs(type(R.censusGlobal) == "table" and R.censusGlobal or {}) do
-			local by = type(e) == "table" and type(e.by) == "string" and e.by:match("%-(.+)$") or nil
-			local on = by and ForeverFamily(by) or nil
-			if on and on ~= family then R.censusGlobal[k] = nil; dropped = dropped + 1 end
-		end
-		if dropped > 0 then ns.Log("census of %s: %d reports of another family dropped", group, dropped) end
 	end
-	if #merge == 0 then return R end
+	if #merge == 0 then Isolate(); return R end
 	table.sort(merge)
 	local keys, distinct = {}, 0
 	local function Key(k)
@@ -496,6 +503,7 @@ local function OpenStore(db, group)
 		R.realmKey = nil
 	end
 	ns.Log("census of %s merged into %s%s", table.concat(merge, ", "), group, distinct > 1 and " (different realm keys dropped)" or "")
+	Isolate() -- includes reports just merged from a legacy realm-keyed store
 	return R
 end
 
