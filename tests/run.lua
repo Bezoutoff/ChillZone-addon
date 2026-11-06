@@ -225,6 +225,18 @@ local passed, failed = 0, 0
 Harness.authorityOnly = os.getenv("OLYMPUS_TEST_AUTHORITY_ONLY") == "1"
 Harness.watchOnly = os.getenv("OLYMPUS_TEST_WATCH_ONLY") == "1"
 Harness.testFilter = os.getenv("OLYMPUS_TEST_FILTER")
+-- ChillZone: OLYMPUS_TEST_SHARD=k/N runs alone the tests whose name hashes to k of N (k from 0);
+-- scripts/test-shards.sh runs the N shards at once. A hash of the name, not the order, so adding or
+-- removing a test moves no other test to another shard.
+do
+	local k, n = (os.getenv("OLYMPUS_TEST_SHARD") or ""):match("^(%d+)/(%d+)$")
+	if k then Harness.shard = { tonumber(k), tonumber(n) } end
+end
+function Harness.ShardOf(name)
+	local h = 0
+	for i = 1, #name do h = (h * 31 + name:byte(i)) % 2147483647 end
+	return h % Harness.shard[2]
+end
 Harness.performance = assert(loadfile(ROOT .. "tests/performance.lua"))().New({
 	profile = os.getenv("OLYMPUS_TEST_PROFILE") == "1",
 	gcMB = tonumber(os.getenv("OLYMPUS_TEST_GC_MB")) or 128,
@@ -238,6 +250,7 @@ local function test(name, fn)
 	if Harness.watchOnly and name:sub(1, 6) ~= "watch:" then return end
 	if Harness.testFilter and Harness.testFilter ~= "" and not name:find(Harness.testFilter, 1, true) then return end
 	if arg and arg[1] and not name:lower():find(arg[1]:lower(), 1, true) then return end
+	if Harness.shard and Harness.ShardOf(name) ~= Harness.shard[1] then return end
 	local measurement = Harness.performance:Start(name)
 	local before = #Harness.violations
 	local ok, err = pcall(fn)

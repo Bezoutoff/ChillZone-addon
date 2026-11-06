@@ -99,7 +99,11 @@ if [ -f scripts/gamepad-audit.lua ]; then
 fi
 
 printf 'Running offline tests...\n'
-luajit tests/run.lua
+if [ -n "${OLYMPUS_TEST_SHARDS:-}" ]; then
+	bash scripts/test-shards.sh # (ChillZone: the fast check; see the script)
+else
+	luajit tests/run.lua
+fi
 
 # The affected-run policy must cover the actual regression inventory, not only a stale list.
 if [ -f tests/check-affected-selector.lua ]; then
