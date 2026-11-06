@@ -46,14 +46,14 @@ end)
 -- The owner's ask (1.2, test build 33): the Arena's portraits looked nothing like the player's own
 -- on his unit frame (a crop of the classic UI-TargetingFrame and a rank ring 1.55 times the
 -- portrait, centred). They are Borders.NewPortrait's now: the same copy of his frame's portrait,
--- mask and ring, and the very rig of Olympus art Borders puts round his own portrait.
+-- mask and ring, and the very rig of ChillZone art Borders puts round his own portrait.
 test("1.2 profile polish: an arena portrait is the player's own portrait again (Borders.NewPortrait): his frame's rig, a name's tier or verified honour on it, his own picture square from SetPortraitTexture", function()
 	local w = World.New()
 	local a = w:Client("Lida Fenn")
 	-- Borders.lua as the game loads it (the test world keeps Core.lua's stand-in otherwise).
 	w:As(a, function()
 		rawset(a.ns, "Borders", nil)
-		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("Olympus", a.ns)
+		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("ChillZone", a.ns)
 	end)
 	local own = w:As(a, function() return H.LoadCompanion(a.ns) end)
 	local UI, Kit, Data, Card, B = own.ArenaUI, own.ArenaUI.Kit, own.ArenaUI.Data, own.ArenaUI.Card, a.ns.Borders
@@ -67,48 +67,48 @@ test("1.2 profile polish: an arena portrait is the player's own portrait again (
 		-- A guild master (the trust rules of the marks by his name): 1.1.5's bronze wings, alone, over its metal.
 		Data.Verified = function() return { frame = "rank" } end
 		B.MarkOfName = function(name, guild)
-			eq(name, "Parric Stowe"); eq(guild, "Olympus Ember")
-			return "silver", { who = name, guild = guild, olympus = true, leader = true }
+			eq(name, "Parric Stowe"); eq(guild, "ChillZone Ember")
+			return "silver", { who = name, guild = guild, chillzone = true, leader = true }
 		end
-		local framed = Kit.SetPortraitFrame(rig, "Parric Stowe", "Olympus Ember")
+		local framed = Kit.SetPortraitFrame(rig, "Parric Stowe", "ChillZone Ember")
 		eq(framed.kind, "rank"); eq(framed.key, "bronze-elite")
 		eq(rig.shown, "bronze-elite"); eq(rig.shownTex, rig.tex["bronze-elite"]); eq(rig.tex["bronze-elite"].shown, true); eq(rig.underlay.shown, true)
 		for name, tex in pairs(rig.tex) do if name ~= "bronze-elite" then eq(tex.shown, false, name .. " hidden") end end
 		-- His verified honour: its frame on the rig's own texture for its shape.
 		Data.Verified = function() return { frame = "arena-champion" } end
-		framed = Kit.SetPortraitFrame(rig, "Parric Stowe", "Olympus Ember")
+		framed = Kit.SetPortraitFrame(rig, "Parric Stowe", "ChillZone Ember")
 		eq(framed.kind, "honour"); eq(framed.key, "arena-champion"); eq(rig.shown, "arena-champion")
-		eq(rig.honor.winged.texture, "Interface\\AddOns\\Olympus\\media\\honors\\gryphon-gold"); eq(rig.honor.winged.shown, true)
+		eq(rig.honor.winged.texture, "Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-gold"); eq(rig.honor.winged.shown, true)
 		eq(rig.tex["bronze-elite"].shown, false)
 		-- The podium's spelling of a first place ("arena-champion-1"): the same honour.
 		Data.Verified = function() return { frame = "rank" } end
-		framed = Kit.SetPortraitFrame(rig, "Parric Stowe", "Olympus Ember", "arena-champion-1")
+		framed = Kit.SetPortraitFrame(rig, "Parric Stowe", "ChillZone Ember", "arena-champion-1")
 		eq(framed.kind, "honour"); eq(framed.key, "arena-champion")
 		-- A verified honour this client has no art for: his rank's tier, as on a unit frame.
 		Data.Verified = function() return { frame = "no-such-honour" } end
-		framed = Kit.SetPortraitFrame(rig, "Parric Stowe", "Olympus Ember")
+		framed = Kit.SetPortraitFrame(rig, "Parric Stowe", "ChillZone Ember")
 		eq(framed.kind, "rank"); eq(framed.key, "bronze-elite"); eq(rig.shown, "bronze-elite"); eq(rig.honor.winged.shown, false)
 		-- "none": no frame at all.
 		Data.Verified = function() return { frame = "none" } end
-		framed = Kit.SetPortraitFrame(rig, "Parric Stowe", "Olympus Ember")
+		framed = Kit.SetPortraitFrame(rig, "Parric Stowe", "ChillZone Ember")
 		eq(framed.kind, nil); eq(rig.shown, nil); eq(rig.tex["bronze-elite"].shown, false); eq(rig.underlay.shown, false)
-		-- The author's border preview (/oly borders test) on his own, as round his own portrait.
+		-- The author's border preview (/cz borders test) on his own, as round his own portrait.
 		Data.Verified = function() return { frame = "rank" } end
 		local W = a.ns.Workshop
 		local visible = W.Visible
 		W.Visible = function() return true end
 		B.SetPreview("gold-elite")
-		framed = Kit.SetPortraitFrame(rig, "Lida Fenn", "Olympus Ember")
+		framed = Kit.SetPortraitFrame(rig, "Lida Fenn", "ChillZone Ember")
 		eq(framed.kind, "rank"); eq(framed.key, "gold-elite"); eq(rig.shown, "gold-elite")
-		framed = Kit.SetPortraitFrame(rig, "Parric Stowe", "Olympus Ember")
+		framed = Kit.SetPortraitFrame(rig, "Parric Stowe", "ChillZone Ember")
 		eq(framed.key, "bronze-elite", "anyone else's: his own")
 		-- ...but never as others see him (his preview is his screen's alone): "Preview as others see
 		-- me" shows his own frame (none: he holds no rank).
 		local lord = B.MarkOfName
 		B.MarkOfName = function(name, guild) return nil, { who = name, guild = guild } end
-		framed = Kit.SetPortraitFrame(rig, "Lida Fenn", "Olympus Ember", nil, true)
+		framed = Kit.SetPortraitFrame(rig, "Lida Fenn", "ChillZone Ember", nil, true)
 		eq(framed.key, nil, "as others see him: no preview"); eq(rig.shown, nil)
-		-- (1.2.4: "as others see me" is My profile's detail box, in the Olympus window: HonorsNet's
+		-- (1.2.4: "as others see me" is My profile's detail box, in the ChillZone window: HonorsNet's
 		-- portrait dressed by ProfileEdit.DressPortrait with the frame others verify. The same rule.)
 		local seen = a.ns.HonorsNet.NewPortrait(CreateFrame("Frame"), 42)
 		assert(seen.container and not seen.plain, "My profile's portrait is Borders'")
@@ -160,7 +160,7 @@ test("1.2 profile polish: 'Preview as others see me' (1.2.4: My profile's detail
 	local a = w:Client("Lida Fenn")
 	w:As(a, function()
 		rawset(a.ns, "Borders", nil)
-		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("Olympus", a.ns)
+		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("ChillZone", a.ns)
 	end)
 	local own = w:As(a, function() return H.LoadCompanion(a.ns) end)
 	local UI, Kit, Data, B, W = own.ArenaUI, own.ArenaUI.Kit, own.ArenaUI.Data, a.ns.Borders, a.ns.Workshop
@@ -171,7 +171,7 @@ test("1.2 profile polish: 'Preview as others see me' (1.2.4: My profile's detail
 		Data.Verified = function() return { frame = "rank" } end
 		-- (he holds no rank; Parric Stowe is a Lord: the gold tier)
 		B.MarkOfName = function(name, guild)
-			if name == "Parric Stowe" then return "silver", { who = name, guild = guild, olympus = true, leader = true } end
+			if name == "Parric Stowe" then return "silver", { who = name, guild = guild, chillzone = true, leader = true } end
 			return nil, { who = name, guild = guild }
 		end
 		-- His emblem picked in his profile: the preview shows it, as a viewer without him as a unit of
@@ -188,9 +188,9 @@ test("1.2 profile polish: 'Preview as others see me' (1.2.4: My profile's detail
 		eq(pictures[#pictures].tex, live.portrait); eq(pictures[#pictures].unit, "player")
 		-- His own portraits elsewhere stay live, as on his unit frame.
 		local rig, other = Kit.NewPortrait(CreateFrame("Frame"), 64), Kit.NewPortrait(CreateFrame("Frame"), 64)
-		eq(Kit.DrawPortrait(rig, "Lida Fenn", { class = "MAGE", guild = "Olympus Ember" }), "live")
+		eq(Kit.DrawPortrait(rig, "Lida Fenn", { class = "MAGE", guild = "ChillZone Ember" }), "live")
 		eq(pictures[#pictures].tex, rig.portrait); eq(pictures[#pictures].unit, "player")
-		Kit.DrawPortrait(other, "Parric Stowe", { class = "WARRIOR", guild = "Olympus Ember" })
+		Kit.DrawPortrait(other, "Parric Stowe", { class = "WARRIOR", guild = "ChillZone Ember" })
 		eq(rig.shown, nil, "his own frame: none"); eq(other.shown, "bronze-elite")
 		-- His border preview: on his portraits already drawn at once, as round his unit frame's (the
 		-- Borders tests), nothing redrawn by the screen; never on anyone else's, nor "as others see me".
@@ -370,7 +370,7 @@ test("1.2 profile polish: Arena and normal profiles keep canonical independent r
 	eq(UI.state.pane.arena, "arena.profile")
 	eq(UI.Selected("arena.profile"), "Parric Stowe-Emberfall", "Arena stores a canonical full identity")
 
-	-- The normal Olympus page delegates only to its own full-window router and does not alter the
+	-- The normal ChillZone page delegates only to its own full-window router and does not alter the
 	-- Arena route or consume its Back destination.
 	local oldNormalUI, normalCalls = a.ns.UI, 0
 	a.ns.UI = { OpenPlayerProfile = function(person)
@@ -626,7 +626,7 @@ local function LotteryClient(w, name, locale)
 	local a = w:Client(name)
 	if locale then
 		a.globals.GetLocale = function() return locale end
-		w:As(a, function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaLotteryText.lua"))("Olympus", a.ns) end)
+		w:As(a, function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaLotteryText.lua"))("ChillZone", a.ns) end)
 	end
 	a.K = BoardUI.New(function() return w.clock end, { screen = { 1280, 960 } })
 	a.K.Install(a.globals)
@@ -673,7 +673,7 @@ test("Page header: Arena destinations reuse the shared tabs above the dark list"
 	local a, own = LotteryClient(w, "Lida Fenn")
 	BonesReady(w, a)
 	w:As(a, function()
-		assert(loadfile(H.ADDON_DIR .. "Views.lua"))("Olympus", a.ns)
+		assert(loadfile(H.ADDON_DIR .. "Views.lua"))("ChillZone", a.ns)
 		local UI = own.ArenaUI
 		UI.Open("bone")
 		local f = UI.Frame()
@@ -931,7 +931,7 @@ test("1.2 UI: the Lottery's How to play is the lab's three pages on the games' p
 		UI.Open("lottery")
 		local guide = UI.LotteryGuide()
 		assert(guide and guide:IsShown(), "the first open shows How to play by itself")
-		eq(guide:GetName(), "OlympusArenaLotteryGuide")
+		eq(guide:GetName(), "ChillZoneArenaLotteryGuide")
 		eq(guide:GetFrameStrata(), "FULLSCREEN_DIALOG", "the games' pop-up, a strata above the windows")
 		eq(a.ns.db.lotteryIntro, Lt.INTRO)
 		eq(#guide.tabs, 3)
@@ -971,7 +971,7 @@ end)
 test("1.2 UI: the Lottery's How to play and result card open by themselves and, with the gamepad UI on, write nothing to UISpecialFrames; with mouse and keyboard Escape closes them", function()
 	local function Ours(list)
 		local out = {}
-		for _, name in ipairs(list or {}) do if tostring(name):find("^OlympusArenaLottery") then out[#out + 1] = name end end
+		for _, name in ipairs(list or {}) do if tostring(name):find("^ChillZoneArenaLottery") then out[#out + 1] = name end end
 		table.sort(out)
 		return table.concat(out, ",")
 	end
@@ -999,7 +999,7 @@ test("1.2 UI: the Lottery's How to play and result card open by themselves and, 
 						assert(a.K.UserClick(guide.ok)); eq(guide:IsShown(), false, "its own button closes it")
 						assert(a.K.UserClick(card.buttons[3])); eq(card:IsShown(), false)
 					else
-						eq(Ours(a.globals.UISpecialFrames), "OlympusArenaLotteryGuide,OlympusArenaLotteryResult")
+						eq(Ours(a.globals.UISpecialFrames), "ChillZoneArenaLotteryGuide,ChillZoneArenaLotteryResult")
 						a.K.Escape()
 						eq(guide:IsShown(), false, "Escape closes How to play"); eq(card:IsShown(), false, "and the card")
 					end
@@ -1011,10 +1011,10 @@ test("1.2 UI: the Lottery's How to play and result card open by themselves and, 
 	end
 end)
 
--- (Reviewer, the 1.1.6 base: the gamepad audit scanned Olympus/ alone, and two of the companion's
+-- (Reviewer, the 1.1.6 base: the gamepad audit scanned ChillZone/ alone, and two of the companion's
 -- reaches got through: Games.Popup put its name in UISpecialFrames as it was built, whatever the
 -- input style, and ArenaUI.Menu opened Blizzard's context menu with the gamepad UI on.)
-test("1.2 UI: with the gamepad UI on, the Arena's How to play writes nothing to UISpecialFrames and its button menus are Olympus's own (no Blizzard menu); with mouse and keyboard, Escape and the client's menu as before", function()
+test("1.2 UI: with the gamepad UI on, the Arena's How to play writes nothing to UISpecialFrames and its button menus are ChillZone's own (no Blizzard menu); with mouse and keyboard, Escape and the client's menu as before", function()
 	for _, gamepad in ipairs({ true, false }) do
 		local w = World.New()
 		local a, own = LotteryClient(w, gamepad and "Orrin Vale" or "Mira Thorne")
@@ -1036,14 +1036,14 @@ test("1.2 UI: with the gamepad UI on, the Arena's How to play writes nothing to 
 				UI.Open("arena")
 				local howto = UI.HowToPlay(1)
 				assert(howto and howto:IsShown(), "How to play")
-				eq(Listed("OlympusArenaHowTo"), not gamepad, "on the escape list with mouse and keyboard only")
+				eq(Listed("ChillZoneArenaHowTo"), not gamepad, "on the escape list with mouse and keyboard only")
 				if gamepad then
 					assert(a.K.UserClick(howto.ok)); eq(howto:IsShown(), false, "its own button closes it")
 				else
 					a.K.Escape(); eq(howto:IsShown(), false, "Escape closes it")
 					UI.Open("arena") -- (the client's Escape closes every window on the list at once)
 				end
-				-- New fight: its two lines, in the client's menu or, with the gamepad UI, in Olympus's.
+				-- New fight: its two lines, in the client's menu or, with the gamepad UI, in ChillZone's.
 				local found, opened
 				for _, b in ipairs(UI.frame.buttons or {}) do if b:IsShown() and b:GetText() == L.ARENA_NEW_FIGHT then found = b end end
 				assert(found, "the New fight button")
@@ -1053,8 +1053,8 @@ test("1.2 UI: with the gamepad UI on, the Arena's How to play writes nothing to 
 				if gamepad then
 					eq(#menus, 0, "no Blizzard menu with the gamepad UI")
 					local menu = UI.OwnMenu()
-					assert(menu and menu:IsShown(), "Olympus's own menu")
-					eq(Listed("OlympusArenaMenu"), false, "nothing on the escape list")
+					assert(menu and menu:IsShown(), "ChillZone's own menu")
+					eq(Listed("ChillZoneArenaMenu"), false, "nothing on the escape list")
 					local texts = {}
 					for _, b in ipairs(menu.buttons) do if b:IsShown() then texts[#texts + 1] = b:GetText() end end
 					eq(table.concat(texts, ","), L.ARENA_FIND_OPPONENT .. "," .. L.ARENA_CHALLENGE_SOMEONE)
@@ -1062,7 +1062,7 @@ test("1.2 UI: with the gamepad UI on, the Arena's How to play writes nothing to 
 					eq(menu:IsShown(), false, "a pick closes it")
 				else
 					eq(#menus, 1, "the client's own context menu")
-					eq(UI.OwnMenu(), nil, "none of Olympus's")
+					eq(UI.OwnMenu(), nil, "none of ChillZone's")
 					eq(menus[1].lines[2][1], L.ARENA_CHALLENGE_SOMEONE)
 					menus[1].lines[2][2]()
 				end
@@ -1079,7 +1079,7 @@ test("1.2 UI: the Lottery's new words are in English and pt-BR, with the same fo
 	local function Words(locale)
 		local saved, host = GetLocale, { L = {} }
 		GetLocale = function() return locale end
-		local ok, err = pcall(function() assert(loadfile(H.ARENA_DIR .. "Locales/LotteryText.lua"))("Olympus_Arena", { host = host }) end)
+		local ok, err = pcall(function() assert(loadfile(H.ARENA_DIR .. "Locales/LotteryText.lua"))("ChillZone_Arena", { host = host }) end)
 		GetLocale = saved
 		if not ok then error(err, 0) end
 		return host.L
@@ -1184,7 +1184,7 @@ test("1.2 UI: the Lottery's result card: tickets, staked, refunded, won or lost 
 					UI.Open("lottery")
 					local card = UI.LotteryCard()
 					assert(card and card:IsShown(), "the settled day's card")
-					eq(card:GetName(), "OlympusArenaLotteryResult"); eq(card:GetFrameStrata(), "FULLSCREEN_DIALOG")
+					eq(card:GetName(), "ChillZoneArenaLotteryResult"); eq(card:GetFrameStrata(), "FULLSCREEN_DIALOG")
 					eq(card.verdict:GetText(), L.LOTTERY_CARD_WON_TITLE)
 					eq(card.rows[4].r:GetText(), "+" .. Lt.Money(240000, "g"))
 					eq(card.rows[6].l:GetText(), L.LOTTERY_CARD_BALANCE); eq(card.rows[6].r:GetText(), Lt.Money(1234500, "g"))

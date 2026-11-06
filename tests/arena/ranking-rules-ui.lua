@@ -80,7 +80,7 @@ test("1.2.4 ranking rules: private guild-treasury rules preserve Back and revali
 	local king = w:Role("king")
 	local T, inherited = king.ns.Treasury, king.ns.Bank
 	local visible = true
-	local snapshot = { guild = "Olympus Ash", by = "Aster Keeper-Emberfall", t = w.clock, money = 25000,
+	local snapshot = { guild = "ChillZone Ash", by = "Aster Keeper-Emberfall", t = w.clock, money = 25000,
 		tabs = { { i = 1, name = "Tab 1", items = {} } } }
 	local fake = setmetatable({
 		SISTER_OLD = 7 * 86400, SLOTS = 98,
@@ -122,7 +122,7 @@ test("1.2.4 ranking rules: Craft fee rules share the page, preserve Back, and fa
 	local w = World.New()
 	local king = w:Role("king")
 	rawset(king.ns, "UI", false)
-	w:As(king, function() assert(loadfile(H.ADDON_DIR .. "CraftRequests.lua"))("Olympus", king.ns) end)
+	w:As(king, function() assert(loadfile(H.ADDON_DIR .. "CraftRequests.lua"))("ChillZone", king.ns) end)
 	local R, L, C = king.ns.CraftRequests, king.ns.L, king.ns.Compliance
 	w:As(king, R.Reset)
 	local lines = w:As(king, R.BoardLines)

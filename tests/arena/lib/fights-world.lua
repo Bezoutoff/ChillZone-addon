@@ -195,7 +195,7 @@ function W3.Money(w, c, opts)
 	return calls
 end
 
--- 1.2.4: the Olympus window as "My profile" (ProfileEdit.lua) uses it, stood in on client c (the
+-- 1.2.4: the ChillZone window as "My profile" (ProfileEdit.lua) uses it, stood in on client c (the
 -- world's clients load no UI.lua; UI.lua's own wiring has its tests in tests/run.lua): the person
 -- page it opens (OpenPlayerProfile, members only, his own or another's), whether his own shows,
 -- Back (here to the list), its redraws counted, its close (Toggle); PLAYER_PROFILE_LEFT, with

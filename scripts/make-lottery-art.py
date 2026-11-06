@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Builds the Menagerie Lottery's beast images (Olympus_Arena/media/lottery/<beast>.tga).
+"""Builds the Menagerie Lottery's beast images (ChillZone_Arena/media/lottery/<beast>.tga).
 
-The lottery's table (Olympus_Arena/LotteryBoard.lua) shows 25 beasts. Nineteen wear the gold marks the
-owner's playable preview chose (the lab's OlympusFrameLab/Bicho.lua): the honours' 32 x 32 nameplate
+The lottery's table (ChillZone_Arena/LotteryBoard.lua) shows 25 beasts. Nineteen wear the gold marks the
+owner's playable preview chose (the lab's ChillZoneFrameLab/Bicho.lua): the honours' 32 x 32 nameplate
 marks (the Sheep is the mage's, the Cobra the rogue's, the Horse the paladin's, the Felhunter the
 warlock's, the Tentacle the priest's, the Cheetah the hunter's, the Stag the druid's, the Wolf the
 orc's), and the Dragon the mark made from the game's gold elite frame. The other six use the game's
@@ -18,7 +18,7 @@ Usage, from anywhere (needs Pillow: python3 -m pip install pillow):
   python3 scripts/make-lottery-art.py                  build the .tga files from the PNG sources
   python3 scripts/make-lottery-art.py --check          fail unless the .tga files are what it would build
   python3 scripts/make-lottery-art.py --import DIR     write the PNG sources from the lab's marks in DIR
-                                                       (OlympusFrameLab/media), then build
+                                                       (ChillZoneFrameLab/media), then build
 """
 
 import os
@@ -29,7 +29,7 @@ from PIL import Image
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 SOURCES = os.path.join(ROOT, "media", "lottery", "src")
-OUTPUT = os.path.join(ROOT, "Olympus_Arena", "media", "lottery")
+OUTPUT = os.path.join(ROOT, "ChillZone_Arena", "media", "lottery")
 SIZE = 32
 
 # Each beast with a file, and the lab's mark it comes from.

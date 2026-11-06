@@ -41,7 +41,7 @@ local function World(roster, fn)
 	local saved = { GetGuildInfo, GetNumGuildMembers, GetGuildRosterInfo, GetGuildRosterLastOnline, GetPlayerInfoByGUID,
 		GuildControlGetNumRanks, GuildControlGetRankName }
 	local w = { roster = roster, clock = T0, last = 0, asked = {} }
-	GetGuildInfo = function() return "Olympus II", "Captain", 1 end
+	GetGuildInfo = function() return "ChillZone II", "Captain", 1 end
 	GetNumGuildMembers = function()
 		local on = 0
 		for _, m in ipairs(w.roster) do if m.online then on = on + 1 end end
@@ -82,7 +82,7 @@ end
 local function Load(file, w)
 	local c = setmetatable({ RegisterEvent = function() end, On = function() end }, { __index = ns })
 	c.Now = function() return w.clock end
-	assert(loadfile(ROOT .. file))("Olympus", c)
+	assert(loadfile(ROOT .. file))("ChillZone", c)
 	return c
 end
 
@@ -120,7 +120,7 @@ end
 
 test("1.2.3 roster: each scan gives what 1.2.2's gave: unchanged, the hours of one who logged in and out between two scans, a rank, a logout and a login, a zone, a level, one leaving and one joining, a few and many at once, a row not loaded yet, a new server order, a row read twice, one name with and without its realm", function()
 	World(Guild(120), function(w)
-		local old, new = Load("tests/fixtures/roster-1.2.2.lua", w), Load("Olympus/Roster.lua", w)
+		local old, new = Load("tests/fixtures/roster-1.2.2.lua", w), Load("ChillZone/Roster.lua", w)
 		local R = w.roster
 		local function Both(what)
 			w.clock = w.clock + 60
@@ -192,7 +192,7 @@ end)
 
 test("1.2.3 roster: an unchanged roster makes nothing new (the same rows, order and byName); who changed gets a new row and the others keep theirs; byName is new only when a name or rank changed; a table a reader holds is never written again", function()
 	World(Guild(40), function(w)
-		local c = Load("Olympus/Roster.lua", w)
+		local c = Load("ChillZone/Roster.lua", w)
 		local R = c.Roster
 		R.Scan()
 		local members, byName, online = R.members, R.byName, R.online
@@ -261,7 +261,7 @@ end)
 
 test("1.2.3 roster: GetGuildRosterLastOnline is read for every member offline at every scan, as 1.2.2: one offline at two scans who logged in and out between them has his new hours at the next (his row, the inactive counts, the Lord's leaderDays); one whose hours are the same keeps his row", function()
 	World(Guild(20), function(w)
-		local c = Load("Olympus/Roster.lua", w)
+		local c = Load("ChillZone/Roster.lua", w)
 		local R = c.Roster
 		local lord = w.roster[1]
 		lord.online, lord.last = false, { 0, 1, 15, 0 }
@@ -310,7 +310,7 @@ end)
 
 test("1.2.3 roster: a GUID the client gives no race for is asked again at the next scan, then after a wait that doubles up to RACE_RETRY; an answer is kept while he stays (a row not loaded yet included) and asked anew once a complete scan no longer has him", function()
 	World(Guild(12), function(w)
-		local c = Load("Olympus/Roster.lua", w)
+		local c = Load("ChillZone/Roster.lua", w)
 		local R = c.Roster
 		eq(R.RACE_RETRY, 600)
 		local silent, late, known = w.roster[5], w.roster[6], w.roster[7]
@@ -357,15 +357,15 @@ end)
 
 test("roster: a moderator under a cover name (Cover.lua) is offline in the census we make of our roster: the online count, the officers' and the Lord's online, their zone", function()
 	if not ns.Cover then
-		assert(loadfile(ROOT .. "Olympus/Locales/CoverText.lua"))("Olympus", ns)
-		assert(loadfile(ROOT .. "Olympus/Cover.lua"))("Olympus", ns)
+		assert(loadfile(ROOT .. "ChillZone/Locales/CoverText.lua"))("ChillZone", ns)
+		assert(loadfile(ROOT .. "ChillZone/Cover.lua"))("ChillZone", ns)
 	end
 	local saved = { covers = ns.rdb.covers, council = ns.rdb.council }
 	local ok, err = pcall(function()
 		local roster = Guild(10)
 		roster[1].online, roster[2].online = true, true -- the Lord and an officer, online
 		World(roster, function(w)
-			local c = Load("Olympus/Roster.lua", w)
+			local c = Load("ChillZone/Roster.lua", w)
 			local before = c.Roster.Scan()
 			eq(before.leaderOnline, true)
 			local online = before.online

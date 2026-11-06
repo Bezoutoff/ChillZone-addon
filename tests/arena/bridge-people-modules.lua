@@ -1,5 +1,5 @@
--- The Companion's people sections (Olympus/BridgePeople.lua, and the rankings' boards of
--- Olympus/BridgeSections.lua) on the real modules: the review of 2026-10-20 found every module in
+-- The Companion's people sections (ChillZone/BridgePeople.lua, and the rankings' boards of
+-- ChillZone/BridgeSections.lua) on the real modules: the review of 2026-10-20 found every module in
 -- tests/bridge-people.lua a stand-in, so a field a module gives in another type (ArenaLedger.History's
 -- `title`, a boolean, beside the events' text in the games' `title`) was never seen. Here the bridge's
 -- three files are loaded, as the TOC orders them, into a client of the test world with the Arena's
@@ -46,25 +46,25 @@ end
 ---------------------------------------------------------------------------
 
 -- The bridge's files (and, first, the Wanted board and the API) into client c: its own
--- OlympusBridge and OlympusAPI (Bridge.lua's `OlympusBridge or {}` would take the harness's
+-- ChillZoneBridge and ChillZoneAPI (Bridge.lua's `ChillZoneBridge or {}` would take the harness's
 -- registry), kept as that client's globals; the harness's never touched.
 local function LoadBridge(w, c)
-	c.globals.OlympusBridge, c.globals.OlympusAPI = false, false
+	c.globals.ChillZoneBridge, c.globals.ChillZoneAPI = false, false
 	w:As(c, function()
 		local ui = rawget(c.ns, "UI")
 		rawset(c.ns, "UI", { AddTab = function() end })
-		assert(loadfile(H.ADDON_DIR .. "Wanted.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Wanted.lua"))("ChillZone", c.ns)
 		rawset(c.ns, "UI", ui)
-		assert(loadfile(H.ADDON_DIR .. "Locales/APIText.lua"))("Olympus", c.ns)
-		assert(loadfile(H.ADDON_DIR .. "API.lua"))("Olympus", c.ns)
-		for _, f in ipairs(BRIDGE) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("Olympus", c.ns) end
-		c.globals.OlympusBridge, c.globals.OlympusAPI = rawget(_G, "OlympusBridge"), rawget(_G, "OlympusAPI")
+		assert(loadfile(H.ADDON_DIR .. "Locales/APIText.lua"))("ChillZone", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "API.lua"))("ChillZone", c.ns)
+		for _, f in ipairs(BRIDGE) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("ChillZone", c.ns) end
+		c.globals.ChillZoneBridge, c.globals.ChillZoneAPI = rawget(_G, "ChillZoneBridge"), rawget(_G, "ChillZoneAPI")
 	end)
-	assert(type(c.globals.OlympusBridge) == "table" and c.globals.OlympusBridge ~= rawget(_G, "OlympusBridge"), "the client's own bridge")
+	assert(type(c.globals.ChillZoneBridge) == "table" and c.globals.ChillZoneBridge ~= rawget(_G, "ChillZoneBridge"), "the client's own bridge")
 end
 local function Section(w, c, name)
 	return w:As(c, function()
-		local s = OlympusBridge.GetSection(name)
+		local s = ChillZoneBridge.GetSection(name)
 		return s and s.data
 	end)
 end
@@ -174,24 +174,24 @@ end)
 local CW = assert(loadfile(H.ROOT .. "tests/church-world.lua"))(H.ns, H.ROOT)
 
 -- The bridge's files into a Church client (its namespace over the harness's): its own registry,
--- the harness's OlympusBridge put back after; GetSection runs as that client with its registry.
+-- the harness's ChillZoneBridge put back after; GetSection runs as that client with its registry.
 local function ChurchBridge(w, cl)
-	local was = rawget(_G, "OlympusBridge")
-	rawset(_G, "OlympusBridge", nil)
+	local was = rawget(_G, "ChillZoneBridge")
+	rawset(_G, "ChillZoneBridge", nil)
 	local ok, err = pcall(function()
 		w:As(cl, function()
-			for _, f in ipairs(BRIDGE) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("Olympus", cl.c) end
+			for _, f in ipairs(BRIDGE) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("ChillZone", cl.c) end
 		end)
 	end)
-	local own = rawget(_G, "OlympusBridge")
-	rawset(_G, "OlympusBridge", was)
+	local own = rawget(_G, "ChillZoneBridge")
+	rawset(_G, "ChillZoneBridge", was)
 	if not ok then error(err, 0) end
 	assert(type(own) == "table" and own ~= was, "the client's own bridge")
 	return function(name)
-		local before = rawget(_G, "OlympusBridge")
-		rawset(_G, "OlympusBridge", own)
+		local before = rawget(_G, "ChillZoneBridge")
+		rawset(_G, "ChillZoneBridge", own)
 		local okGet, s = pcall(w.As, w, cl, own.GetSection, name)
-		rawset(_G, "OlympusBridge", before)
+		rawset(_G, "ChillZoneBridge", before)
 		if not okGet then error(s, 0) end
 		return s and s.data
 	end

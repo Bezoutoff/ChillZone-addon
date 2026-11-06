@@ -1005,8 +1005,8 @@ test("1.2 Arena chat rooms: a fight's stable identity opens through the main Cha
 end)
 
 -- (The owner's decision, 2026-10-04: every pending conversation opens its own tab on the Chat page,
--- the Olympus window in front, pinned while the matter is open, reopened from the matter's page.
--- Before it a fight's room opened from its page unpinned, under any window in front of Olympus's.)
+-- the ChillZone window in front, pinned while the matter is open, reopened from the matter's page.
+-- Before it a fight's room opened from its page unpinned, under any window in front of ChillZone's.)
 test("1.2 Arena chat rooms: a fight's room opens through the one pending-conversation door: the window in front; pinned while the fight lives for its fighters and arbiter, unpinned at its end; a spectator's tab is not pinned", function()
 	local w, cast = W3.New()
 	local hosts = {}

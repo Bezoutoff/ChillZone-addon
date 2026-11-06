@@ -9,11 +9,11 @@ trap 'rm -rf "$scratch_root"' EXIT
 fixture() {
 	case_root="$scratch_root/$1"
 	case_path="$PATH"
-	mkdir -p "$case_root/scripts" "$case_root/tests" "$case_root/Olympus/nested folder"
+	mkdir -p "$case_root/scripts" "$case_root/tests" "$case_root/ChillZone/nested folder"
 	cp "$repo_root/scripts/check.sh" "$repo_root/scripts/lint-globals.sh" "$case_root/scripts/"
-	printf 'return {}\n' > "$case_root/Olympus/Main.lua"
-	printf 'error("syntax checks must not execute addon code")\n' > "$case_root/Olympus/nested folder/Extra.lua"
-	printf '## Interface: 16001\r\n\r\nMain.lua\r\nnested folder\\Extra.lua\r\n' > "$case_root/Olympus/Olympus.toc"
+	printf 'return {}\n' > "$case_root/ChillZone/Main.lua"
+	printf 'error("syntax checks must not execute addon code")\n' > "$case_root/ChillZone/nested folder/Extra.lua"
+	printf '## Interface: 16001\r\n\r\nMain.lua\r\nnested folder\\Extra.lua\r\n' > "$case_root/ChillZone/ChillZone.toc"
 	printf 'print("fixture suite ran")\n' > "$case_root/tests/run.lua"
 	printf 'printf "fixture round trip ran\\n"\n' > "$case_root/tests/sign-roundtrip.sh"
 	printf 'printf "fixture records seal round trip ran\\n"\n' > "$case_root/tests/records-seal-roundtrip.sh"
@@ -51,40 +51,40 @@ case_path="$case_root/bin"
 expect_failure 'missing LuaJIT' 'LuaJIT is required'
 
 fixture 'syntax error'
-printf 'local =\n' > "$case_root/Olympus/nested folder/Unlisted.lua"
+printf 'local =\n' > "$case_root/ChillZone/nested folder/Unlisted.lua"
 expect_failure 'syntax error in an unlisted nested Lua file' 'Unlisted.lua'
 
 fixture 'missing TOC entry'
-printf 'Missing.lua\n' >> "$case_root/Olympus/Olympus.toc"
-expect_failure 'missing TOC file' 'Cannot read TOC entry: Olympus/Missing.lua'
+printf 'Missing.lua\n' >> "$case_root/ChillZone/ChillZone.toc"
+expect_failure 'missing TOC file' 'Cannot read TOC entry: ChillZone/Missing.lua'
 
-# 1.2: the Olympus Arena module folder is checked too: its syntax, its TOC's files, its lint.
-fixture 'Olympus Arena module checks'
-mkdir -p "$case_root/Olympus_Arena"
-printf 'return {}\n' > "$case_root/Olympus_Arena/Handoff.lua"
-printf '## Interface: 16001\r\n\r\nHandoff.lua\r\nMissing.lua\r\n' > "$case_root/Olympus_Arena/Olympus_Arena.toc"
-expect_failure 'missing Olympus Arena module TOC file' 'Cannot read TOC entry: Olympus_Arena/Missing.lua'
-printf '## Interface: 16001\r\n\r\nHandoff.lua\r\n' > "$case_root/Olympus_Arena/Olympus_Arena.toc"
-printf 'local =\n' > "$case_root/Olympus_Arena/Broken.lua"
-expect_failure 'syntax error in the Olympus Arena module' 'Broken.lua'
-printf 'local function readValue() return laterValue end\nlocal laterValue = 1\n' > "$case_root/Olympus_Arena/Broken.lua"
-expect_failure 'local/global lint failure in the Olympus Arena module' "Olympus_Arena/Broken.lua: 'laterValue' is read as a global"
+# 1.2: the ChillZone Arena module folder is checked too: its syntax, its TOC's files, its lint.
+fixture 'ChillZone Arena module checks'
+mkdir -p "$case_root/ChillZone_Arena"
+printf 'return {}\n' > "$case_root/ChillZone_Arena/Handoff.lua"
+printf '## Interface: 16001\r\n\r\nHandoff.lua\r\nMissing.lua\r\n' > "$case_root/ChillZone_Arena/ChillZone_Arena.toc"
+expect_failure 'missing ChillZone Arena module TOC file' 'Cannot read TOC entry: ChillZone_Arena/Missing.lua'
+printf '## Interface: 16001\r\n\r\nHandoff.lua\r\n' > "$case_root/ChillZone_Arena/ChillZone_Arena.toc"
+printf 'local =\n' > "$case_root/ChillZone_Arena/Broken.lua"
+expect_failure 'syntax error in the ChillZone Arena module' 'Broken.lua'
+printf 'local function readValue() return laterValue end\nlocal laterValue = 1\n' > "$case_root/ChillZone_Arena/Broken.lua"
+expect_failure 'local/global lint failure in the ChillZone Arena module' "ChillZone_Arena/Broken.lua: 'laterValue' is read as a global"
 
 # The bundled site reporter is an addon of its own, so its unlisted syntax, TOC and globals are
 # held to the same gates rather than trusted because the main two folders passed.
-fixture 'Olympus site aggregate checks'
-mkdir -p "$case_root/OlympusSiteAggregate"
-printf 'return {}\n' > "$case_root/OlympusSiteAggregate/SiteAggregate.lua"
-printf '## Interface: 16001\r\n\r\nSiteAggregate.lua\r\nMissing.lua\r\n' > "$case_root/OlympusSiteAggregate/OlympusSiteAggregate.toc"
-expect_failure 'missing Olympus site aggregate TOC file' 'Cannot read TOC entry: OlympusSiteAggregate/Missing.lua'
-printf '## Interface: 16001\r\n\r\nSiteAggregate.lua\r\n' > "$case_root/OlympusSiteAggregate/OlympusSiteAggregate.toc"
-printf 'local =\n' > "$case_root/OlympusSiteAggregate/Broken.lua"
-expect_failure 'syntax error in the Olympus site aggregate' 'OlympusSiteAggregate/Broken.lua'
-printf 'local function readValue() return laterValue end\nlocal laterValue = 1\n' > "$case_root/OlympusSiteAggregate/Broken.lua"
-expect_failure 'local/global lint failure in the Olympus site aggregate' "OlympusSiteAggregate/Broken.lua: 'laterValue' is read as a global"
+fixture 'ChillZone site aggregate checks'
+mkdir -p "$case_root/ChillZoneSiteAggregate"
+printf 'return {}\n' > "$case_root/ChillZoneSiteAggregate/SiteAggregate.lua"
+printf '## Interface: 16001\r\n\r\nSiteAggregate.lua\r\nMissing.lua\r\n' > "$case_root/ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc"
+expect_failure 'missing ChillZone site aggregate TOC file' 'Cannot read TOC entry: ChillZoneSiteAggregate/Missing.lua'
+printf '## Interface: 16001\r\n\r\nSiteAggregate.lua\r\n' > "$case_root/ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc"
+printf 'local =\n' > "$case_root/ChillZoneSiteAggregate/Broken.lua"
+expect_failure 'syntax error in the ChillZone site aggregate' 'ChillZoneSiteAggregate/Broken.lua'
+printf 'local function readValue() return laterValue end\nlocal laterValue = 1\n' > "$case_root/ChillZoneSiteAggregate/Broken.lua"
+expect_failure 'local/global lint failure in the ChillZone site aggregate' "ChillZoneSiteAggregate/Broken.lua: 'laterValue' is read as a global"
 
 fixture 'lint error'
-printf 'local function readValue() return laterValue end\nlocal laterValue = 1\n' > "$case_root/Olympus/Main.lua"
+printf 'local function readValue() return laterValue end\nlocal laterValue = 1\n' > "$case_root/ChillZone/Main.lua"
 expect_failure 'local/global lint failure' "'laterValue' is read as a global"
 
 fixture 'test failure'
@@ -95,8 +95,8 @@ fixture 'stale answer bank'
 mkdir -p "$case_root/docs"
 cp "$repo_root/scripts/answers.lua" "$case_root/scripts/"
 cp "$repo_root/docs/answers.json" "$case_root/docs/"
-printf 'return {}\n' > "$case_root/Olympus/AnswerBank.lua"
-expect_failure 'answer bank out of date with docs/answers.json' 'Olympus/AnswerBank.lua is not what docs/answers.json makes'
+printf 'return {}\n' > "$case_root/ChillZone/AnswerBank.lua"
+expect_failure 'answer bank out of date with docs/answers.json' 'ChillZone/AnswerBank.lua is not what docs/answers.json makes'
 
 # The CurseForge store page and what it is made from (the TOC's version, for its recent versions).
 store_fixture() {
@@ -105,7 +105,7 @@ store_fixture() {
 	cp "$repo_root/scripts/curseforge-page.lua" "$repo_root/scripts/curseforge-size.lua" "$case_root/scripts/"
 	cp "$repo_root/docs/CURSEFORGE.md" "$case_root/docs/"
 	cp "$repo_root/README.md" "$repo_root/ROADMAP.md" "$case_root/"
-	grep '^## Version:' "$repo_root/Olympus/Olympus.toc" >> "$case_root/Olympus/Olympus.toc"
+	grep '^## Version:' "$repo_root/ChillZone/ChillZone.toc" >> "$case_root/ChillZone/ChillZone.toc"
 }
 
 store_fixture 'store page up to date'
@@ -132,12 +132,12 @@ if ! grep -Fq 'bytes over the budget' "$case_root/result.txt"; then
 fi
 
 # The gamepad gate's audit (1.1.5) on a project of one integration: a post-hook on a function of
-# the game's, behind the gate and tagged, an Olympus tooltip counted in the ratchet, and the
+# the game's, behind the gate and tagged, an ChillZone tooltip counted in the ratchet, and the
 # gamepad pass naming the entry. Each failure below breaks one rule.
 gamepad_fixture() {
 	fixture "$1"
 	cp "$repo_root/scripts/gamepad-audit.lua" "$case_root/scripts/"
-	cat > "$case_root/Olympus/GamepadRegistry.lua" <<'LUA'
+	cat > "$case_root/ChillZone/GamepadRegistry.lua" <<'LUA'
 local _, ns = ...
 ns.GAMEPAD = {
 	{ id = "fixture-hook", kind = "hook", files = { "Main.lua" },
@@ -145,7 +145,7 @@ ns.GAMEPAD = {
 		why = "A fixture's post-hook on a function of the game's." },
 }
 LUA
-	cat > "$case_root/Olympus/Main.lua" <<'LUA'
+	cat > "$case_root/ChillZone/Main.lua" <<'LUA'
 local ns = {}
 function ns.Hook()
 	if not ns.Gate.Allowed("fixture-hook") then return end
@@ -167,16 +167,16 @@ grep -Fq 'All repository checks passed.' "$case_root/result.txt"
 printf 'ok: the gamepad audit passes a registered, tagged and gated integration\n'
 
 gamepad_fixture 'gamepad gate: untagged reach'
-printf 'hooksecurefunc("OtherFunction", function() end)\n' >> "$case_root/Olympus/nested folder/Extra.lua"
-expect_failure 'gamepad audit: an untagged hooksecurefunc' "Olympus/nested folder/Extra.lua:2: hooksecurefunc reaches the game's UI without a gp: tag"
+printf 'hooksecurefunc("OtherFunction", function() end)\n' >> "$case_root/ChillZone/nested folder/Extra.lua"
+expect_failure 'gamepad audit: an untagged hooksecurefunc' "ChillZone/nested folder/Extra.lua:2: hooksecurefunc reaches the game's UI without a gp: tag"
 
 gamepad_fixture 'gamepad gate: unknown tag'
-sed -i.bak 's/-- gp:fixture-hook/-- gp:fixture-hook,no-such-entry/' "$case_root/Olympus/Main.lua"
-expect_failure 'gamepad audit: a tag with no entry' 'the tag gp:no-such-entry names no entry of Olympus/GamepadRegistry.lua'
+sed -i.bak 's/-- gp:fixture-hook/-- gp:fixture-hook,no-such-entry/' "$case_root/ChillZone/Main.lua"
+expect_failure 'gamepad audit: a tag with no entry' 'the tag gp:no-such-entry names no entry of ChillZone/GamepadRegistry.lua'
 
 gamepad_fixture 'gamepad gate: foreign global'
-printf 'FixtureGlobal = true\n' >> "$case_root/Olympus/nested folder/Extra.lua"
-expect_failure 'gamepad audit: a global write that is not Olympus'"'"'s' 'writes the global FixtureGlobal, which is not Olympus'"'"'s'
+printf 'FixtureGlobal = true\n' >> "$case_root/ChillZone/nested folder/Extra.lua"
+expect_failure 'gamepad audit: a global write that is not ChillZone'"'"'s' 'writes the global FixtureGlobal, which is not ChillZone'"'"'s'
 
 gamepad_fixture 'gamepad gate: no test'
 printf 'local GP = {}\n' > "$case_root/tests/gamepad.lua"
@@ -184,10 +184,10 @@ expect_failure 'gamepad audit: an entry no test covers' 'no test covers fixture-
 
 gamepad_fixture 'gamepad gate: ratchet'
 printf 'Main.lua tooltip 0\n' > "$case_root/scripts/gamepad-baseline.txt"
-expect_failure 'gamepad audit: the tooltip ratchet raised' 'Olympus/Main.lua: 1 tooltip uses of the game'"'"'s GameTooltip, more than the 0 of scripts/gamepad-baseline.txt'
+expect_failure 'gamepad audit: the tooltip ratchet raised' 'ChillZone/Main.lua: 1 tooltip uses of the game'"'"'s GameTooltip, more than the 0 of scripts/gamepad-baseline.txt'
 
 gamepad_fixture 'gamepad gate: no gate check'
-sed -i.bak '/ns.Gate.Allowed("fixture-hook")/d' "$case_root/Olympus/Main.lua"
+sed -i.bak '/ns.Gate.Allowed("fixture-hook")/d' "$case_root/ChillZone/Main.lua"
 expect_failure 'gamepad audit: a gate entry'"'"'s site with no gate check' 'hooksecurefunc is gp:fixture-hook, a "gate" entry, with no gate check before it in its function'
 
 fixture 'signing round trip failure'
@@ -205,11 +205,11 @@ fi
 # Deploy is an atomic three-folder operation too. A partial OLY_TREE must be refused before the
 # first SSH command, otherwise the remote delete would remove a component the source cannot put
 # back in the same run.
-for missing in Olympus_Arena OlympusSiteAggregate; do
+for missing in ChillZone_Arena ChillZoneSiteAggregate; do
 	deploy_root="$scratch_root/deploy-missing-$missing"
 	mkdir -p "$deploy_root/scripts" "$deploy_root/bin"
 	cp "$repo_root/scripts/deploy.sh" "$deploy_root/scripts/"
-	for folder in Olympus Olympus_Arena OlympusSiteAggregate; do
+	for folder in ChillZone ChillZone_Arena ChillZoneSiteAggregate; do
 		mkdir -p "$deploy_root/$folder"
 		printf '## Interface: 16001\n' > "$deploy_root/$folder/$folder.toc"
 	done
@@ -232,11 +232,11 @@ for missing in Olympus_Arena OlympusSiteAggregate; do
 	printf 'ok: deploy.sh refuses missing %s before remote mutation\n' "$missing"
 done
 
-# scripts/package.sh in a temporary copy. The release zip holds Olympus, Olympus_Arena and the
+# scripts/package.sh in a temporary copy. The release zip holds ChillZone, ChillZone_Arena and the
 # deliberate site reporter, and no test build; --test N writes TestBuild.lua after Core.lua and the
-# -test.N version in its copy of Olympus.toc alone (the repository's untouched), the Olympus Arena
+# -test.N version in its copy of ChillZone.toc alone (the repository's untouched), the ChillZone Arena
 # module keeping the base version, which its handoff accepts; a release is refused while
-# Olympus/TestBuild.lua exists.
+# ChillZone/TestBuild.lua exists.
 package_fail() {
 	printf 'FAIL: package.sh: %s\n' "$1" >&2
 	exit 1
@@ -272,7 +272,7 @@ package_has_no_wager_modules() {
 		[ -f "$pkg/$path" ] || package_fail "the repository copy lost $path"
 	done < "$repo_root/scripts/bets-only.txt"
 	[ "$left_out" -ge 1 ] || package_fail 'bets-only.txt names no file'
-	for folder in Olympus Olympus_Arena OlympusSiteAggregate; do
+	for folder in ChillZone ChillZone_Arena ChillZoneSiteAggregate; do
 		unzip -p "$zip" "$folder/$folder.toc" | tr -d '\r' | while IFS= read -r entry; do
 			case "$entry" in ''|'#'*) continue ;; esac
 			grep -qxF "$folder/${entry//\\//}" "$listing" || { printf 'FAIL: package.sh: %s.toc lists %s, not in %s\n' "$folder" "$entry" "$zip" >&2; exit 1; }
@@ -286,179 +286,179 @@ done
 if command -v git >/dev/null 2>&1 && command -v zip >/dev/null 2>&1 && command -v unzip >/dev/null 2>&1 && command -v luajit >/dev/null 2>&1 && $have_sha; then
 	missing_pkg="$scratch_root/package-missing-arena"
 	mkdir -p "$missing_pkg/scripts"
-	cp -R "$repo_root/Olympus" "$missing_pkg/"
+	cp -R "$repo_root/ChillZone" "$missing_pkg/"
 	cp "$repo_root/scripts/package.sh" "$repo_root/scripts/bets-only.txt" "$missing_pkg/scripts/"
-	rm -f "$missing_pkg/Olympus/TestBuild.lua"
+	rm -f "$missing_pkg/ChillZone/TestBuild.lua"
 	(
 		cd "$missing_pkg"
 		git init -q
 		git config user.name "Package Test"
 		git config user.email "package-test@example.invalid"
-		git add Olympus scripts/package.sh scripts/bets-only.txt
+		git add ChillZone scripts/package.sh scripts/bets-only.txt
 		git commit -qm "package fixture without Arena"
 	)
 	if (cd "$missing_pkg" && bash scripts/package.sh > out.txt 2>&1); then
-		package_fail 'a release without Olympus_Arena unexpectedly built'
+		package_fail 'a release without ChillZone_Arena unexpectedly built'
 	fi
-	grep -Fq 'requires Olympus_Arena/Olympus_Arena.toc in the Olympus release bundle' "$missing_pkg/out.txt" ||
+	grep -Fq 'requires ChillZone_Arena/ChillZone_Arena.toc in the ChillZone release bundle' "$missing_pkg/out.txt" ||
 		package_fail 'the missing-Arena refusal says why'
-	printf 'ok: package.sh refuses a commit missing the Olympus_Arena half of the release bundle\n'
+	printf 'ok: package.sh refuses a commit missing the ChillZone_Arena half of the release bundle\n'
 
 	missing_site="$scratch_root/package-missing-site-aggregate"
 	mkdir -p "$missing_site/scripts"
-	cp -R "$repo_root/Olympus" "$repo_root/Olympus_Arena" "$missing_site/"
+	cp -R "$repo_root/ChillZone" "$repo_root/ChillZone_Arena" "$missing_site/"
 	cp "$repo_root/scripts/package.sh" "$repo_root/scripts/bets-only.txt" "$missing_site/scripts/"
-	rm -f "$missing_site/Olympus/TestBuild.lua"
+	rm -f "$missing_site/ChillZone/TestBuild.lua"
 	(
 		cd "$missing_site"
 		git init -q
 		git config user.name "Package Test"
 		git config user.email "package-test@example.invalid"
-		git add Olympus Olympus_Arena scripts/package.sh scripts/bets-only.txt
+		git add ChillZone ChillZone_Arena scripts/package.sh scripts/bets-only.txt
 		git commit -qm "package fixture without site aggregate"
 	)
 	if (cd "$missing_site" && bash scripts/package.sh > out.txt 2>&1); then
-		package_fail 'a release without OlympusSiteAggregate unexpectedly built'
+		package_fail 'a release without ChillZoneSiteAggregate unexpectedly built'
 	fi
-	grep -Fq 'requires OlympusSiteAggregate/OlympusSiteAggregate.toc in the Olympus release bundle' "$missing_site/out.txt" ||
+	grep -Fq 'requires ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc in the ChillZone release bundle' "$missing_site/out.txt" ||
 		package_fail 'the missing-site-aggregate refusal says why'
-	printf 'ok: package.sh refuses a commit missing the bundled OlympusSiteAggregate addon\n'
+	printf 'ok: package.sh refuses a commit missing the bundled ChillZoneSiteAggregate addon\n'
 
 	mismatch_pkg="$scratch_root/package-version-mismatch"
 	mkdir -p "$mismatch_pkg/scripts"
-	cp -R "$repo_root/Olympus" "$repo_root/Olympus_Arena" "$repo_root/OlympusSiteAggregate" "$mismatch_pkg/"
+	cp -R "$repo_root/ChillZone" "$repo_root/ChillZone_Arena" "$repo_root/ChillZoneSiteAggregate" "$mismatch_pkg/"
 	cp "$repo_root/scripts/package.sh" "$repo_root/scripts/bets-only.txt" "$mismatch_pkg/scripts/"
-	rm -f "$mismatch_pkg/Olympus/TestBuild.lua"
+	rm -f "$mismatch_pkg/ChillZone/TestBuild.lua"
 	awk '{ line = $0; sub(/\r$/, "", line); if (line ~ /^## Version:/) print "## Version: 9.9.9"; else print line }' \
-		"$mismatch_pkg/Olympus_Arena/Olympus_Arena.toc" > "$mismatch_pkg/Olympus_Arena/Olympus_Arena.toc.mismatch"
-	mv "$mismatch_pkg/Olympus_Arena/Olympus_Arena.toc.mismatch" "$mismatch_pkg/Olympus_Arena/Olympus_Arena.toc"
+		"$mismatch_pkg/ChillZone_Arena/ChillZone_Arena.toc" > "$mismatch_pkg/ChillZone_Arena/ChillZone_Arena.toc.mismatch"
+	mv "$mismatch_pkg/ChillZone_Arena/ChillZone_Arena.toc.mismatch" "$mismatch_pkg/ChillZone_Arena/ChillZone_Arena.toc"
 	(
 		cd "$mismatch_pkg"
 		git init -q
 		git config user.name "Package Test"
 		git config user.email "package-test@example.invalid"
-		git add Olympus Olympus_Arena OlympusSiteAggregate scripts/package.sh scripts/bets-only.txt
+		git add ChillZone ChillZone_Arena ChillZoneSiteAggregate scripts/package.sh scripts/bets-only.txt
 		git commit -qm "package fixture with mismatched versions"
 	)
 	if (cd "$mismatch_pkg" && bash scripts/package.sh > out.txt 2>&1); then
 		package_fail 'a release with mismatched bundle versions unexpectedly built'
 	fi
 	grep -Fq 'requires one bundle version:' "$mismatch_pkg/out.txt" || package_fail 'the version-mismatch refusal says why'
-	printf 'ok: package.sh refuses mismatched Olympus and Olympus_Arena base versions\n'
+	printf 'ok: package.sh refuses mismatched ChillZone and ChillZone_Arena base versions\n'
 
 	site_mismatch="$scratch_root/package-site-version-mismatch"
 	mkdir -p "$site_mismatch/scripts"
-	cp -R "$repo_root/Olympus" "$repo_root/Olympus_Arena" "$repo_root/OlympusSiteAggregate" "$site_mismatch/"
+	cp -R "$repo_root/ChillZone" "$repo_root/ChillZone_Arena" "$repo_root/ChillZoneSiteAggregate" "$site_mismatch/"
 	cp "$repo_root/scripts/package.sh" "$repo_root/scripts/bets-only.txt" "$site_mismatch/scripts/"
-	rm -f "$site_mismatch/Olympus/TestBuild.lua"
+	rm -f "$site_mismatch/ChillZone/TestBuild.lua"
 	awk '{ line = $0; sub(/\r$/, "", line); if (line ~ /^## Version:/) print "## Version: 1.3.1-site.9"; else print line }' \
-		"$site_mismatch/OlympusSiteAggregate/OlympusSiteAggregate.toc" > "$site_mismatch/OlympusSiteAggregate/OlympusSiteAggregate.toc.mismatch"
-	mv "$site_mismatch/OlympusSiteAggregate/OlympusSiteAggregate.toc.mismatch" "$site_mismatch/OlympusSiteAggregate/OlympusSiteAggregate.toc"
+		"$site_mismatch/ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc" > "$site_mismatch/ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc.mismatch"
+	mv "$site_mismatch/ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc.mismatch" "$site_mismatch/ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc"
 	(
 		cd "$site_mismatch"
 		git init -q
 		git config user.name "Package Test"
 		git config user.email "package-test@example.invalid"
-		git add Olympus Olympus_Arena OlympusSiteAggregate scripts/package.sh scripts/bets-only.txt
+		git add ChillZone ChillZone_Arena ChillZoneSiteAggregate scripts/package.sh scripts/bets-only.txt
 		git commit -qm "package fixture with stale site aggregate"
 	)
 	if (cd "$site_mismatch" && bash scripts/package.sh > out.txt 2>&1); then
-		package_fail 'a release with a stale OlympusSiteAggregate version unexpectedly built'
+		package_fail 'a release with a stale ChillZoneSiteAggregate version unexpectedly built'
 	fi
-	grep -Fq 'requires the site reporter for Olympus' "$site_mismatch/out.txt" || package_fail 'the site-version refusal says why'
-	printf 'ok: package.sh refuses a site reporter built for another Olympus base version\n'
+	grep -Fq 'requires the site reporter for ChillZone' "$site_mismatch/out.txt" || package_fail 'the site-version refusal says why'
+	printf 'ok: package.sh refuses a site reporter built for another ChillZone base version\n'
 
 	pkg="$scratch_root/package"
 	mkdir -p "$pkg/scripts"
-	cp -R "$repo_root/Olympus" "$repo_root/Olympus_Arena" "$repo_root/OlympusSiteAggregate" "$pkg/"
+	cp -R "$repo_root/ChillZone" "$repo_root/ChillZone_Arena" "$repo_root/ChillZoneSiteAggregate" "$pkg/"
 	cp "$repo_root/scripts/package.sh" "$repo_root/scripts/bets-only.txt" "$pkg/scripts/"
-	rm -f "$pkg/Olympus/TestBuild.lua"
+	rm -f "$pkg/ChillZone/TestBuild.lua"
 	(
 		cd "$pkg"
 		git init -q
 		git config user.name "Package Test"
 		git config user.email "package-test@example.invalid"
-		git add Olympus Olympus_Arena OlympusSiteAggregate scripts/package.sh scripts/bets-only.txt
+		git add ChillZone ChillZone_Arena ChillZoneSiteAggregate scripts/package.sh scripts/bets-only.txt
 		git commit -qm "package fixture"
 	)
-	version=$(grep '^## Version:' "$pkg/Olympus/Olympus.toc" | awk '{print $3}' | tr -d '\r')
+	version=$(grep '^## Version:' "$pkg/ChillZone/ChillZone.toc" | awk '{print $3}' | tr -d '\r')
 	(cd "$pkg" && bash scripts/package.sh > out.txt) || package_fail 'the release did not build'
-	release="$pkg/dist/Olympus-$version.zip"
+	release="$pkg/dist/ChillZone-$version.zip"
 	[ -f "$release" ] || package_fail "no $release"
 	package_manifest_matches "$release"
 	package_checksum_matches "$release"
 	package_has_no_wager_modules "$release"
 	unzip -l "$release" > "$pkg/list.txt"
-	grep -q ' Olympus/Olympus.toc$' "$pkg/list.txt" || package_fail 'the release lacks Olympus'
-	grep -q ' Olympus_Arena/Olympus_Arena.toc$' "$pkg/list.txt" || package_fail 'the release lacks Olympus_Arena'
-	grep -q ' OlympusSiteAggregate/OlympusSiteAggregate.toc$' "$pkg/list.txt" || package_fail 'the release lacks OlympusSiteAggregate'
-	grep -q ' OlympusSiteAggregate/SiteAggregate.lua$' "$pkg/list.txt" || package_fail 'the release lacks the site reporter code'
-	[ "$(grep -c '^OlympusSiteAggregate/' "${release%.zip}.files.txt")" -eq 2 ] || package_fail 'the site reporter ships files outside its TOC and one Lua file'
-	unzip -p "$release" OlympusSiteAggregate/OlympusSiteAggregate.toc | tr -d '\r' | grep -qx '## SavedVariables: OlympusSiteAggregate' || package_fail 'the site reporter does not own exactly its dedicated variable'
+	grep -q ' ChillZone/ChillZone.toc$' "$pkg/list.txt" || package_fail 'the release lacks ChillZone'
+	grep -q ' ChillZone_Arena/ChillZone_Arena.toc$' "$pkg/list.txt" || package_fail 'the release lacks ChillZone_Arena'
+	grep -q ' ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc$' "$pkg/list.txt" || package_fail 'the release lacks ChillZoneSiteAggregate'
+	grep -q ' ChillZoneSiteAggregate/SiteAggregate.lua$' "$pkg/list.txt" || package_fail 'the release lacks the site reporter code'
+	[ "$(grep -c '^ChillZoneSiteAggregate/' "${release%.zip}.files.txt")" -eq 2 ] || package_fail 'the site reporter ships files outside its TOC and one Lua file'
+	unzip -p "$release" ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc | tr -d '\r' | grep -qx '## SavedVariables: ChillZoneSiteAggregate' || package_fail 'the site reporter does not own exactly its dedicated variable'
 	grep -q 'TestBuild.lua' "$pkg/list.txt" && package_fail 'the release carries a test build'
-	unzip -p "$release" Olympus/Olympus.toc | tr -d '\r' | grep -q "^## Version: $version$" || package_fail 'the release version'
+	unzip -p "$release" ChillZone/ChillZone.toc | tr -d '\r' | grep -q "^## Version: $version$" || package_fail 'the release version'
 	printf 'ok: package.sh: the release zip holds all three isolated addon folders, no test build and no wager-only modules; manifest and checksum match\n'
 
 	(cd "$pkg" && bash scripts/package.sh --test 3 > out.txt) || package_fail 'the test build did not build'
-	testzip="$pkg/dist/Olympus-$version-test3.zip"
+	testzip="$pkg/dist/ChillZone-$version-test3.zip"
 	[ -f "$testzip" ] || package_fail "no $testzip"
-	[ -f "$pkg/dist/Olympus-$version-test3.txt" ] || package_fail 'no install steps'
+	[ -f "$pkg/dist/ChillZone-$version-test3.txt" ] || package_fail 'no install steps'
 	package_manifest_matches "$testzip"
 	package_checksum_matches "$testzip"
 	package_has_no_wager_modules "$testzip"
-	grep -qx 'Olympus/TestBuild.lua' "${testzip%.zip}.files.txt" || package_fail 'the test manifest lacks TestBuild.lua'
+	grep -qx 'ChillZone/TestBuild.lua' "${testzip%.zip}.files.txt" || package_fail 'the test manifest lacks TestBuild.lua'
 	unzip -l "$testzip" > "$pkg/list.txt"
-	grep -q ' Olympus_Arena/Olympus_Arena.toc$' "$pkg/list.txt" || package_fail 'the test build lacks Olympus_Arena'
-	grep -q ' OlympusSiteAggregate/OlympusSiteAggregate.toc$' "$pkg/list.txt" || package_fail 'the test build lacks OlympusSiteAggregate'
-	grep -Fq 'Interface/AddOns/OlympusSiteAggregate' "$pkg/dist/Olympus-$version-test3.txt" || package_fail 'the test install steps do not replace the site reporter'
-	grep -Fq 'delete all three folders' "$pkg/dist/Olympus-$version-test3.txt" || package_fail 'the rollback steps do not remove all three folders'
-	unzip -p "$testzip" Olympus/Olympus.toc | tr -d '\r' > "$pkg/toc.txt"
+	grep -q ' ChillZone_Arena/ChillZone_Arena.toc$' "$pkg/list.txt" || package_fail 'the test build lacks ChillZone_Arena'
+	grep -q ' ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc$' "$pkg/list.txt" || package_fail 'the test build lacks ChillZoneSiteAggregate'
+	grep -Fq 'Interface/AddOns/ChillZoneSiteAggregate' "$pkg/dist/ChillZone-$version-test3.txt" || package_fail 'the test install steps do not replace the site reporter'
+	grep -Fq 'delete all three folders' "$pkg/dist/ChillZone-$version-test3.txt" || package_fail 'the rollback steps do not remove all three folders'
+	unzip -p "$testzip" ChillZone/ChillZone.toc | tr -d '\r' > "$pkg/toc.txt"
 	grep -q "^## Version: $version-test.3$" "$pkg/toc.txt" || package_fail 'the test version'
 	grep -q '(arena test 3)' "$pkg/toc.txt" || package_fail 'the test title'
 	awk 'prev == "Core.lua" && $0 == "TestBuild.lua" { found = 1 } { prev = $0 } END { exit !found }' "$pkg/toc.txt" || package_fail 'TestBuild.lua after Core.lua'
-	cmp -s "$repo_root/Olympus/Olympus.toc" "$pkg/Olympus/Olympus.toc" || package_fail 'the copy of the repository changed'
-	[ ! -e "$pkg/Olympus/TestBuild.lua" ] || package_fail 'TestBuild.lua written into the repository'
+	cmp -s "$repo_root/ChillZone/ChillZone.toc" "$pkg/ChillZone/ChillZone.toc" || package_fail 'the copy of the repository changed'
+	[ ! -e "$pkg/ChillZone/TestBuild.lua" ] || package_fail 'TestBuild.lua written into the repository'
 	mkdir -p "$pkg/unzipped"
 	(cd "$pkg/unzipped" && unzip -q "$testzip")
-	luajit - "$pkg/unzipped" "$version" <<'LUA' || package_fail 'the test build is not one Olympus takes'
+	luajit - "$pkg/unzipped" "$version" <<'LUA' || package_fail 'the test build is not one ChillZone takes'
 local dir, version = arg[1], arg[2]
 local function Read(p) local f = assert(io.open(p, "rb")) local s = f:read("*a") f:close() return s end
 -- The test build's shape, as ArenaNet.lua's Arena.TestBuild reads it.
 local L = setmetatable({}, { __index = function(_, k) return k end })
 local ns = { L = L, Comm = { Handle = function() end }, On = function() end, RegisterEvent = function() end,
 	Now = os.time, Print = function() end, Log = function() end, statusLines = {} }
-assert(loadfile(dir .. "/Olympus/TestBuild.lua"))("Olympus", ns)
-assert(loadfile(dir .. "/Olympus/ArenaNet.lua"))("Olympus", ns)
+assert(loadfile(dir .. "/ChillZone/TestBuild.lua"))("ChillZone", ns)
+assert(loadfile(dir .. "/ChillZone/ArenaNet.lua"))("ChillZone", ns)
 local t = assert(ns.Arena.TestBuild(), "Arena.TestBuild refuses it")
 assert(t.n == 3 and t.base == version and t.expires - t.built == 21 * 86400, "its fields")
--- The Olympus Arena module's handoff takes it: its Version is Olympus's base version, ns.VERSION.
-ns.VERSION = assert(Read(dir .. "/Olympus/Core.lua"):match('\nns%.VERSION = "([^"]+)"'))
-local arenaVersion = assert(Read(dir .. "/Olympus_Arena/Olympus_Arena.toc"):match("## Version:%s*([^\r\n]+)"))
-C_AddOns = { GetAddOnMetadata = function(name, field) if name == "Olympus_Arena" and field == "Version" then return arenaVersion end end }
-OlympusArenaHandoff = ns
+-- The ChillZone Arena module's handoff takes it: its Version is ChillZone's base version, ns.VERSION.
+ns.VERSION = assert(Read(dir .. "/ChillZone/Core.lua"):match('\nns%.VERSION = "([^"]+)"'))
+local arenaVersion = assert(Read(dir .. "/ChillZone_Arena/ChillZone_Arena.toc"):match("## Version:%s*([^\r\n]+)"))
+C_AddOns = { GetAddOnMetadata = function(name, field) if name == "ChillZone_Arena" and field == "Version" then return arenaVersion end end }
+ChillZoneArenaHandoff = ns
 local own = {}
-assert(loadfile(dir .. "/Olympus_Arena/Handoff.lua"))("Olympus_Arena", own)
-assert(OlympusArenaHandoff == nil, "the handoff is taken")
-assert(ns.Arena.companionReady == true and own.host == ns, "the handoff refused the test build's Olympus Arena module")
+assert(loadfile(dir .. "/ChillZone_Arena/Handoff.lua"))("ChillZone_Arena", own)
+assert(ChillZoneArenaHandoff == nil, "the handoff is taken")
+assert(ns.Arena.companionReady == true and own.host == ns, "the handoff refused the test build's ChillZone Arena module")
 LUA
 	printf 'ok: package.sh --test 3: all three folders, no wager-only modules, TestBuild.lua after Core.lua, manifest and checksum match, the handoff takes it\n'
 
 	# 1.1.6: --release116 leaves out the files only the bets need (scripts/bets-only.txt) and their
 	# TOC lines; both folders, the compliance gate and every other file the TOCs list ship.
 	(cd "$pkg" && bash scripts/package.sh --release116 > out.txt) || package_fail 'the 1.1.6 package did not build'
-	cut="$pkg/dist/release116/Olympus-$version.zip"
+	cut="$pkg/dist/release116/ChillZone-$version.zip"
 	[ -f "$cut" ] || package_fail "no $cut"
 	package_manifest_matches "$cut"
 	package_checksum_matches "$cut"
 	package_has_no_wager_modules "$cut"
 	unzip -Z1 "$cut" > "$pkg/list.txt"
-	for need in Olympus/Olympus.toc Olympus/Compliance.lua Olympus/Locales/ComplianceText.lua Olympus/Lottery.lua Olympus/Stakes.lua Olympus_Arena/Olympus_Arena.toc OlympusSiteAggregate/OlympusSiteAggregate.toc OlympusSiteAggregate/SiteAggregate.lua; do
+	for need in ChillZone/ChillZone.toc ChillZone/Compliance.lua ChillZone/Locales/ComplianceText.lua ChillZone/Lottery.lua ChillZone/Stakes.lua ChillZone_Arena/ChillZone_Arena.toc ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc ChillZoneSiteAggregate/SiteAggregate.lua; do
 		grep -qxF "$need" "$pkg/list.txt" || package_fail "the 1.1.6 package lacks $need"
 	done
 	grep -q TestBuild.lua "$pkg/list.txt" && package_fail 'the 1.1.6 package carries a test build'
-	cmp -s "$repo_root/Olympus/Olympus.toc" "$pkg/Olympus/Olympus.toc" || package_fail 'the 1.1.6 package changed the repository copy'
+	cmp -s "$repo_root/ChillZone/ChillZone.toc" "$pkg/ChillZone/ChillZone.toc" || package_fail 'the 1.1.6 package changed the repository copy'
 	cp "$pkg/scripts/bets-only.txt" "$pkg/bets-only.saved"
-	printf 'Olympus/NotThere.lua\n' >> "$pkg/scripts/bets-only.txt"
+	printf 'ChillZone/NotThere.lua\n' >> "$pkg/scripts/bets-only.txt"
 	git -C "$pkg" commit -qam "a leave-out line naming no file"
 	if (cd "$pkg" && bash scripts/package.sh --release116 > out.txt 2>&1); then package_fail 'a leave-out line naming no file built'; fi
 	grep -Fq 'which HEAD does not have' "$pkg/out.txt" || package_fail 'the leave-out refusal says why'
@@ -471,25 +471,25 @@ LUA
 	git -C "$pkg" commit -qam "the leave-out list back"
 	printf 'ok: package.sh --release116: the 1.1.6 package without the files only the bets need, its TOCs naming only files it has\n'
 
-	printf 'return {}\n' > "$pkg/Olympus/UntrackedWouldShip.lua"
+	printf 'return {}\n' > "$pkg/ChillZone/UntrackedWouldShip.lua"
 	if (cd "$pkg" && bash scripts/package.sh > out.txt 2>&1); then package_fail 'an untracked addon file silently shipped'; fi
-	grep -Fq 'refuses untracked or ignored addon file: Olympus/UntrackedWouldShip.lua' "$pkg/out.txt" || package_fail 'the untracked-file refusal says why'
-	rm -f "$pkg/Olympus/UntrackedWouldShip.lua"
+	grep -Fq 'refuses untracked or ignored addon file: ChillZone/UntrackedWouldShip.lua' "$pkg/out.txt" || package_fail 'the untracked-file refusal says why'
+	rm -f "$pkg/ChillZone/UntrackedWouldShip.lua"
 	printf 'ok: package.sh refuses an untracked file under an addon folder\n'
-	printf 'return {}\n' > "$pkg/OlympusSiteAggregate/UntrackedWouldShip.lua"
+	printf 'return {}\n' > "$pkg/ChillZoneSiteAggregate/UntrackedWouldShip.lua"
 	if (cd "$pkg" && bash scripts/package.sh > out.txt 2>&1); then package_fail 'an untracked site reporter file silently shipped'; fi
-	grep -Fq 'refuses untracked or ignored addon file: OlympusSiteAggregate/UntrackedWouldShip.lua' "$pkg/out.txt" || package_fail 'the site reporter untracked-file refusal says why'
-	rm -f "$pkg/OlympusSiteAggregate/UntrackedWouldShip.lua"
+	grep -Fq 'refuses untracked or ignored addon file: ChillZoneSiteAggregate/UntrackedWouldShip.lua' "$pkg/out.txt" || package_fail 'the site reporter untracked-file refusal says why'
+	rm -f "$pkg/ChillZoneSiteAggregate/UntrackedWouldShip.lua"
 	printf 'ok: package.sh refuses an untracked file under the site reporter folder\n'
 
-	printf '\n-- a tracked packaging-test change\n' >> "$pkg/Olympus/Core.lua"
+	printf '\n-- a tracked packaging-test change\n' >> "$pkg/ChillZone/Core.lua"
 	if (cd "$pkg" && bash scripts/package.sh > out.txt 2>&1); then package_fail 'a tracked change silently shipped'; fi
 	grep -Fq 'requires a clean worktree' "$pkg/out.txt" || package_fail 'the tracked-change refusal says why'
-	git -C "$pkg" checkout -- Olympus/Core.lua
+	git -C "$pkg" checkout -- ChillZone/Core.lua
 	printf 'ok: package.sh refuses tracked worktree changes\n'
 
-	cp "$pkg/unzipped/Olympus/TestBuild.lua" "$pkg/Olympus/TestBuild.lua"
-	if (cd "$pkg" && bash scripts/package.sh > out.txt 2>&1); then package_fail 'a release built with Olympus/TestBuild.lua there'; fi
+	cp "$pkg/unzipped/ChillZone/TestBuild.lua" "$pkg/ChillZone/TestBuild.lua"
+	if (cd "$pkg" && bash scripts/package.sh > out.txt 2>&1); then package_fail 'a release built with ChillZone/TestBuild.lua there'; fi
 	grep -Fq 'TestBuild.lua exists' "$pkg/out.txt" || package_fail 'the refusal says why'
 	if (cd "$pkg" && bash scripts/package.sh --test 0 > out.txt 2>&1); then package_fail 'test build 0'; fi
 	if (cd "$pkg" && bash scripts/package.sh --test x > out.txt 2>&1); then package_fail 'test build x'; fi

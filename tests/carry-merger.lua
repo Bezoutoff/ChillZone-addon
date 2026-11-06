@@ -1,10 +1,10 @@
 local base, test, eq = ...
 local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]carry%-merger%.lua$") or "./"
-local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "Olympus/", ns = base })
+local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "ChillZone/", ns = base })
 local function Setup()
 	local w = World.New({ council = false, compliance = "shipped", arenaFiles = { "ArenaMath", "ArenaNet", "ArenaMoney", "Debts" } })
 	local king, member = w:Role("king"), w:Role("fighterA")
-	local dest = w:Role("fighterB", { rank = 0, guild = "Olympus II" })
+	local dest = w:Role("fighterB", { rank = 0, guild = "ChillZone II" })
 	local source = w:Client("Source Warden-Emberfall", { rank = 0, guild = member.guild })
 	for _, c in ipairs({ king, member, dest, source }) do w:As(c, function()
 		c.ns.Roster = { Fresh = function() return c.fresh ~= false and {} or nil end,
@@ -24,11 +24,11 @@ local function Setup()
 		c.ns.ViewAs = { Previewing = function() return false end }
 		c.ns.Dialog = { Show = function(_, _, _, data) c.question = data; return true end }
 		c.ns.RealmPages = {}
-		assert(loadfile(ROOT .. "Olympus/Locales/CarryText.lua"))("Olympus", c.ns)
-		assert(loadfile(ROOT .. "Olympus/Locales/CarryMergerText.lua"))("Olympus", c.ns)
-		assert(loadfile(ROOT .. "Olympus/CarryHistory.lua"))("Olympus", c.ns)
-		assert(loadfile(ROOT .. "Olympus/Carry.lua"))("Olympus", c.ns)
-		assert(loadfile(ROOT .. "Olympus/CarryMerger.lua"))("Olympus", c.ns)
+		assert(loadfile(ROOT .. "ChillZone/Locales/CarryText.lua"))("ChillZone", c.ns)
+		assert(loadfile(ROOT .. "ChillZone/Locales/CarryMergerText.lua"))("ChillZone", c.ns)
+		assert(loadfile(ROOT .. "ChillZone/CarryHistory.lua"))("ChillZone", c.ns)
+		assert(loadfile(ROOT .. "ChillZone/Carry.lua"))("ChillZone", c.ns)
+		assert(loadfile(ROOT .. "ChillZone/CarryMerger.lua"))("ChillZone", c.ns)
 	end) end
 	w:Group({ king.name, member.name, dest.name, source.name })
 	for _, c in ipairs({ king, dest, source }) do w:As(c, function()
@@ -108,13 +108,13 @@ test("carry-merger: same SHA256 manifest receives three firsthand actual signatu
 	Errors(w)
 end)
 
-test("carry-merger: approved source keeper can later serve from another Olympus guild; historical guild labels survive its removal but no new facts enter frozen root", function()
+test("carry-merger: approved source keeper can later serve from another ChillZone guild; historical guild labels survive its removal but no new facts enter frozen root", function()
 	local w, king, member, dest, source = Setup(); Notes(w, source, member)
 	local former = source.guild; local id = Approved(w, king, dest, source)
 	w:As(source, function()
 		assert(source.ns.CarryHistory.CaptureOriginal("L", member.name, "after-freeze", w.clock, former, { writer = source.name, words = "NOT IN FROZEN MANIFEST", to = member.name }))
 	end); w:Run(2)
-	source.guild, member.guild = "Olympus Refuge", dest.guild
+	source.guild, member.guild = "ChillZone Refuge", dest.guild
 	for _, c in ipairs(w.clients) do local original = c.ns.IsFederation; c.ns.IsFederation = function(guild) return guild ~= former and original(guild) end end
 	Consent(w, member, dest, id)
 	w:As(dest, function() local all = dest.ns.CarryMerger.Archives(); eq(#all, 1); eq(dest.ns.CarryHistory.Parse(all[1].text).guild, former) end)
@@ -130,7 +130,7 @@ test("carry-merger: incomplete mandate cannot invent historical source authority
 		source.ns.ViewAs.Previewing = function() return true end; eq(source.ns.CarryMerger.Prepare(dest.name), false); source.ns.ViewAs.Previewing = function() return false end
 	end)
 	local id = Prepare(w, source, dest); Approve(w, dest, id, "D")
-	source.guild = "Olympus Refuge"
+	source.guild = "ChillZone Refuge"
 	Approve(w, king, id, "K")
 	w:As(dest, function()
 		eq(dest.ns.CarryMerger.Policies()[1].approved, nil); eq(dest.ns.CarryMerger.RequestConsent(id, member.name), false); eq(#dest.ns.CarryMerger.Archives(), 0)
@@ -319,7 +319,7 @@ test("carry-merger: reloading transport can resume already-consented exact pages
 	-- A reload clears only the transport jobs/assemblers, preserving real saved mandates,
 	-- direct signatures, subject consents and imported cursor rows. No synthetic consent.
 	for _, timer in ipairs(w.timers) do if timer.c == source or timer.c == dest then timer.Cancel() end end
-	for _, c in ipairs({ source, dest }) do w:As(c, function() assert(loadfile(ROOT .. "Olympus/CarryMerger.lua"))("Olympus", c.ns) end) end
+	for _, c in ipairs({ source, dest }) do w:As(c, function() assert(loadfile(ROOT .. "ChillZone/CarryMerger.lua"))("ChillZone", c.ns) end) end
 	w:As(dest, function()
 		local resume
 		for _, line in ipairs(dest.ns.CarryMerger.Lines()) do if line.text:find("already-consented frozen archive", 1, true) then resume = line.onClick end end

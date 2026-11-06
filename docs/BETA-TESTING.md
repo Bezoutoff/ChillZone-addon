@@ -1,4 +1,4 @@
-# Testing an Olympus beta
+# Testing an ChillZone beta
 
 An automated pass and an in-game pass are different evidence. Record both. A green
 repository check means the Lua, fixtures and package invariants passed offline; it does not mean
@@ -7,7 +7,7 @@ that a World of Warcraft client, gamepad flow or exchange between real players w
 ## 1. Build gate (automated)
 
 Start from the exact commit to be tested, in a clean Git worktree. `package.sh` refuses tracked
-changes and any untracked or ignored file under `Olympus/` or `Olympus_Arena/` that could enter a
+changes and any untracked or ignored file under `ChillZone/` or `ChillZone_Arena/` that could enter a
 zip.
 
 ```bash
@@ -20,31 +20,31 @@ scripts/package.sh --test N
 
 The last command writes four tester artifacts:
 
-- `dist/Olympus-<version>-testN.zip`
-- `dist/Olympus-<version>-testN.files.txt`, the sorted files in that zip
-- `dist/Olympus-<version>-testN.sha256`, the zip's SHA-256
-- `dist/Olympus-<version>-testN.txt`, install and rollback instructions
+- `dist/ChillZone-<version>-testN.zip`
+- `dist/ChillZone-<version>-testN.files.txt`, the sorted files in that zip
+- `dist/ChillZone-<version>-testN.sha256`, the zip's SHA-256
+- `dist/ChillZone-<version>-testN.txt`, install and rollback instructions
 
 Review the manifest before distributing the zip. On macOS verify it from `dist/` with
-`shasum -a 256 -c Olympus-<version>-testN.sha256`; on Linux use `sha256sum -c`.
+`shasum -a 256 -c ChillZone-<version>-testN.sha256`; on Linux use `sha256sum -c`.
 Keep the test zip and its sidecars together. Test builds expire, identify their build and commit
 in game, stay in their test group, and are not release files.
 
 ## 2. One Windows client (observed)
 
 1. Quit World of Warcraft. Back up both addon folders and
-   `WTF/Account/<ACCOUNT>/SavedVariables/Olympus.lua`. Keep the backup outside `Interface/AddOns`.
+   `WTF/Account/<ACCOUNT>/SavedVariables/ChillZone.lua`. Keep the backup outside `Interface/AddOns`.
 2. Verify the downloaded zip in PowerShell. The printed hash must equal the first field of the
    supplied `.sha256` file:
 
    ```powershell
-   (Get-FileHash .\Olympus-<version>-testN.zip -Algorithm SHA256).Hash
+   (Get-FileHash .\ChillZone-<version>-testN.zip -Algorithm SHA256).Hash
    ```
 
-3. Turn off automatic updates for Olympus while testing. Delete the installed `Olympus` and
-   `Olympus_Arena` folders, then extract the zip directly into
+3. Turn off automatic updates for ChillZone while testing. Delete the installed `ChillZone` and
+   `ChillZone_Arena` folders, then extract the zip directly into
    `<WoW flavor>\Interface\AddOns\`. Do not leave an extra zip-named directory around them.
-4. Restart the game. Confirm the addon list shows the test number and `/oly arena status` shows
+4. Restart the game. Confirm the addon list shows the test number and `/cz arena status` shows
    the expected build, base version, lane and commit. Record any Lua error before continuing.
 5. Walk the main windows at the tester's normal resolution and UI scale, then at one smaller
    scale. Check tabs, Back, scroll areas, hover help, overlays, portraits, close/reopen and combat
@@ -54,7 +54,7 @@ in game, stay in their test group, and are not release files.
 7. Check `enUS`, `ptBR`, and at least one locale that intentionally falls back to English. Look
    for clipped labels, broken format placeholders and buttons narrower than their text.
 8. `/reload`, relog, and restart the client. Record what persisted and what the client discarded.
-   Use `/oly bug` and, after a reload or logout, `WOW_HOST=user@pc scripts/logs.sh` for the evidence.
+   Use `/cz bug` and, after a reload or logout, `WOW_HOST=user@pc scripts/logs.sh` for the evidence.
 
 Rollback is also an observed gate: quit the game, remove both test folders, reinstall the current
 release from the addon app, restore saved data only if needed, restart, and confirm the release
@@ -98,16 +98,16 @@ verified observation to stay local. The installation and build instructions abov
   Private messages must never reach the spectator. Collapse/reopen the side panel; keep an
   unfinished draft in each tab; repeat with gamepad mode. Disable spectators during a queued
   public message: it must not be delivered. The innkeeper's practice has no multiplayer chat.
-  In `/oly arena sim boneschat`, check the red square/yellow arrow to the right of Sit Down,
+  In `/cz arena sim boneschat`, check the red square/yellow arrow to the right of Sit Down,
   including while the setup covers the table. It must remain clickable above the table's
   surfaces; collapse restores the original width without an extra bar. Expanded chat must have
   no world-visible seam between it and the table. Close the preview, then check that normal
   pages show real records or honest empty lists, not sample opponents or results. Repeat with
-  `/oly arena sim off`; this empty layout preview is not proof of multiplayer routing.
+  `/cz arena sim off`; this empty layout preview is not proof of multiplayer routing.
   After completing the innkeeper lesson, find an opponent outside an inn/camp: Find opens and
   can search, but New Table remains blocked. Meet in the same mapped inn, at a real Forever
   campfire with **Campfire Nearby** on each player, or at an explicitly registered Board camp
-  (`/oly camp`, requiring location consent). For a physical fire, keep location sharing off:
+  (`/cz camp`, requiring location consent). For a physical fire, keep location sharing off:
   the open Play page must enable New Table when the effect appears and disable it when the
   effect disappears, without reopening. No camp post or consent change should occur. A retained
   camping benefit or a classic cooking fire alone is not enough. The first lesson still requires
@@ -150,7 +150,7 @@ Keep one small table for every candidate:
 | Gate | Evidence | Result |
 |---|---|---|
 | Repository and package | commit, command log, manifest, SHA-256 | Pass / Fail |
-| Windows client | client build, screenshots, `/oly bug`, saved log | Pass / Fail / Not run |
+| Windows client | client build, screenshots, `/cz bug`, saved log | Pass / Fail / Not run |
 | Gamepad, locales and UI | client build and observations | Pass / Fail / Not run |
 | Mixed-version session | roster, versions and report | Pass / Fail / Not run |
 | Multi-account/adversarial | roster, ledger reconciliation and report | Pass / Fail / Not run |
@@ -179,31 +179,31 @@ an unintended recipient.
 After a full client restart, use these in-game commands:
 
 ```text
-/oly status
-/oly arena status
-/oly bug
-/oly perf reset
-/oly perf on
+/cz status
+/cz arena status
+/cz bug
+/cz perf reset
+/cz perf on
 ```
 
 Confirm the supplied candidate/build/commit before testing. Play the normal workload, including
-the busy Chat, Census, Realm, Treasury and Games pages. Then use `/oly perf` and save its
-copyable report, screenshots and `/oly bug` output; finish with `/oly perf off`.
-Repeat the same workload with Olympus disabled **after another full client restart**. Record
+the busy Chat, Census, Realm, Treasury and Games pages. Then use `/cz perf` and save its
+copyable report, screenshots and `/cz bug` output; finish with `/cz perf off`.
+Repeat the same workload with ChillZone disabled **after another full client restart**. Record
 visible stutter, worst spikes and surrounding events; average CPU or RAM alone is insufficient.
 Do not claim the enabled/disabled comparison passed from a Lua fixture or a short idle session.
 
 ### Windows UI, privacy and honours
 
-1. Run `/oly privacy`. Close it with X without changing an existing choice, reload and relog.
+1. Run `/cz privacy`. Close it with X without changing an existing choice, reload and relog.
    Existing choices should remain; the same questions should not reopen automatically. A new
    question may be asked once. Check that the version letter follows a pending privacy page
    without repeatedly reopening a previously answered page or the main window.
-2. Run `/oly profile`. Test Look, Icons, Who sees what, Letters, Back and reopening. With Games
+2. Run `/cz profile`. Test Look, Icons, Who sees what, Letters, Back and reopening. With Games
    off, an ordinary member can still select a personal portrait fallback icon, but no Games
    sharing is enabled. Council chat icons remain restricted to actual High Councillors. Own and
-   other portrait/name right-clicks open **View profile** in the normal Olympus shell.
-3. On an actually authorized author client, run `/oly honours preview`. Open every gallery
+   other portrait/name right-clicks open **View profile** in the normal ChillZone shell.
+3. On an actually authorized author client, run `/cz honours preview`. Open every gallery
    family, including gold/silver/bronze, monthly, cross, charm and Slayer examples. The preview
    must create no saved award/letter/Wanted entry, change no worn pick and consume no real
    waiting letter. An ordinary member or a role preview gets no author gallery. Close it before
@@ -216,7 +216,7 @@ Do not claim the enabled/disabled comparison passed from a Lua fixture or a shor
    letters should not repeat; subsequent movement uses quiet notices. The King gets no letter
    from himself. The completed-month koi/Bones charm and a retained cornucopia choice need
    their own checks; do not create fake saved achievements to mark them passed.
-6. Click native `[Olympus]` in chat: its input targets Olympus when writing is permitted. Test
+6. Click native `[ChillZone]` in chat: its input targets ChillZone when writing is permitted. Test
    the native chat UI and any chat replacement separately. With mouse input and a free guild
    shortcut, an authorized High Councillor's Shift + guild key opens The Watch; existing saved
    or override bindings are not replaced. Hotkey opt-out and gamepad mode remain respected.
@@ -225,20 +225,20 @@ Do not claim the enabled/disabled comparison passed from a Lua fixture or a shor
    location availability and resumes without an off/on workaround. Games live-table settings
    remain independent. Compare the visible crown/layer on another client.
 8. Repeat native kick, promote, demote and rank changes with the game's guild window open and
-   an Olympus question open. No Olympus line should be inserted into native guild roster menus.
+   an ChillZone question open. No ChillZone line should be inserted into native guild roster menus.
    Separately reproduce the reported network-ban attempt in a battleground with authorized
    moderators; retain the exact action/error/stack. Generic popup checks do not prove this
    previously intermittent error resolved.
 
 ### Two or more real clients
 
-- **Wanted:** use ordinary verified members from different Olympus guilds, with capture consent
-  enabled, and a spectator. Perform agreed outdoor PvP observations; run `/oly wanted status`
+- **Wanted:** use ordinary verified members from different ChillZone guilds, with capture consent
+  enabled, and a spectator. Perform agreed outdoor PvP observations; run `/cz wanted status`
   on sender and receiver. A player's own observed death/kill should reach the other client.
   Retry the same evidence: one death counts once. Nonfatal damage, animals, stale recaps,
   unresolved identities and instance deaths must not count. Zero/zero entries stay out of all
   views. Compare points, kills, revenge notice/avenger actions and the bounty's reset after a
-  claim. Test a proved Olympian alt link and an unlinked character separately: do not infer
+  claim. Test a proved ChillZoner alt link and an unlinked character separately: do not infer
   Horde account ownership or claim the unrelated two-account farming case solved.
 - **Role rooms and Games:** check approved HC, GM, legate, department, Church and Watch
   audiences with one authorized participant and one excluded client. A role preview grants
@@ -334,16 +334,16 @@ Do not claim the enabled/disabled comparison passed from a Lua fixture or a shor
 4. For a deliberately arranged same-character guild move, retain source records and run:
 
    ```text
-   /oly carry history collect <original author-Realm>
-   /oly carry prepare <destination guild master-Realm>
-   /oly carry
-   /oly carry offer
-   /oly carry cancel
+   /cz carry history collect <original author-Realm>
+   /cz carry prepare <destination guild master-Realm>
+   /cz carry
+   /cz carry offer
+   /cz carry cancel
    ```
 
    Prepare in the source guild; cancel its question first and verify nothing is sent. Confirm
    preparation, move by a human invitation and wait for the complete destination roster. Offer
-   to that exact verified master. The master opens `/oly carry`, cancels the acceptance question
+   to that exact verified master. The master opens `/cz carry`, cancels the acceptance question
    once, then explicitly accepts the pending offer while it is fresh: only their current private
    master view may show unverified quotes.
    Compare original author/time/relay against retained originals. Destination Loot/Court/Dues/
@@ -365,7 +365,7 @@ moderation-record transport and complete sister-guild negative dues coverage rem
 from the implemented original-signature archives, named-heir route, response metrics and
 own-guild private grace. Keep these limits distinct from every unobserved live gate above.
 
-## 5. The Olympus Accord and BattleTag (1.2.5.1) live checks
+## 5. The ChillZone Accord and BattleTag (1.2.5.1) live checks
 
 None of these has been observed yet. Run each on Classic Era 1.15.9, TBC Anniversary 2.5.6 and
 WoW: Forever 1.60.1 where it applies, and record **Pass / Fail / Not run** as in section 4. The
@@ -377,12 +377,12 @@ offline tests stub Battle.net (`BNGetInfo`, `BNConnected`), which proves nothing
    On the author's PC run `luajit scripts/forever-api.lua <Interface folder> --check`: the fixture's
    `BNGetInfo`, `BNConnected`, `BNFeaturesEnabledAndConnected` and `BN_*` entries were added by
    hand for 1.2.5.1 and must match what the script writes.
-2. A fresh account (no saved variables) in an Olympus guild: the Accord's letter appears about 30
-   seconds after login, or when the Olympus window opens. Check the parchment, the Morpheus title,
+2. A fresh account (no saved variables) in an ChillZone guild: the Accord's letter appears about 30
+   seconds after login, or when the ChillZone window opens. Check the parchment, the Morpheus title,
    the scroll with the mouse wheel, and that nothing is cut at normal and smaller UI scales. The tag
    shows as `Name#****`; **Show** reveals it for ten seconds. **I accept** leads to the privacy page
-   and then the version letter; `/oly status` says `accord: v1 accepted`.
-3. **Not now**: Olympus stays dark (no channel, no census, no chats; `/oly status` says not
+   and then the version letter; `/cz status` says `accord: v1 accepted`.
+3. **Not now**: ChillZone stays dark (no channel, no census, no chats; `/cz status` says not
    accepted). The window shows the Accord's page; opening the window shows the letter again.
 4. Battle.net disconnected, if it can be reproduced: **I accept** is greyed and the wait text shows;
    an account that already accepted keeps working.
@@ -400,17 +400,17 @@ offline tests stub Battle.net (`BNGetInfo`, `BNConnected`), which proves nothing
    ask) are still kept.
 7. The moderator logs off within a minute of his ask: the player's chat shows no "No player named"
    line with mouse and keyboard (with the gamepad UI the line may show: the filter stays off there),
-   and his `/oly status` accord line counts `gone`. `/oly accord forget <player>` on the moderator's
+   and his `/cz status` accord line counts `gone`. `/cz accord forget <player>` on the moderator's
    client removes that player's characters from the page.
-8. Right-click a player in a guild outside Olympus (Trade, his portrait): only the Olympus version
-   line, **Check version** and, when his addon does not answer, **Tell them about Olympus**. Right-click
-   an Olympus guildmate: the profile, **Report to Olympus** and the Arena's lines too.
-   A member of another Olympus guild who just wrote on `/ol` gets **Report to Olympus** too.
-9. An update with the game running, then `/reload`: the restart message, and Olympus stays off
+8. Right-click a player in a guild outside ChillZone (Trade, his portrait): only the ChillZone version
+   line, **Check version** and, when his addon does not answer, **Tell them about ChillZone**. Right-click
+   an ChillZone guildmate: the profile, **Report to ChillZone** and the Arena's lines too.
+   A member of another ChillZone guild who just wrote on `/czn` gets **Report to ChillZone** too.
+9. An update with the game running, then `/reload`: the restart message, and ChillZone stays off
    until the game restarts.
 10. Census: with one guildmate who has not accepted, the guild stays in the census from the others.
-11. In an Olympus guild, **Not now**, then `/ol hello` or `/oly profile`: the chat says Olympus stays
-    off until the Accord is accepted (`/oly accord`), not "Olympus members only".
+11. In an ChillZone guild, **Not now**, then `/czn hello` or `/cz profile`: the chat says ChillZone stays
+    off until the Accord is accepted (`/cz accord`), not "ChillZone members only".
 12. Battle.net disconnected (step 4) in pt-BR too: the red note sits under "Your BattleTag:", never
     over it, and the band and the words above it make room for its second line.
 
@@ -418,36 +418,36 @@ A sanction that follows the BattleTag (TagFollow.lua). None of these has been ob
 characters of one game account (S, sanctioned, and A, his alt) and a High Councillor's client (C)
 that holds S's BattleTag (step 6), plus a named moderator's client (M) for the timeout steps.
 
-13. On C: `/oly netoff S: test`. Expected: C's chat says S's sanction follows his BattleTag too
-    (the count of his other characters C knows). `/oly status` on C counts `follows 1 (yours 1)`.
+13. On C: `/cz netoff S: test`. Expected: C's chat says S's sanction follows his BattleTag too
+    (the count of his other characters C knows). `/cz status` on C counts `follows 1 (yours 1)`.
 14. Log in as A. Precondition: S was logged in during step 13 (so the follow is in the account's
     saved file) and A is on the same realm group and faction. Otherwise the pop-up comes only with
-    C's next repeat, within about 6.5 minutes while C stays online (at once if A chats on an Olympus
+    C's next repeat, within about 6.5 minutes while C stays online (at once if A chats on an ChillZone
     channel first: C's addon sends it again), and never while C is offline. Expected: within about
-    30 seconds Olympus's pop-up says a sanction on another
+    30 seconds ChillZone's pop-up says a sanction on another
     character of his BattleTag applies to this one (the reason and the time, never C's name);
-    `/ol hi` is refused; the Decrees tab shows the red "Your BattleTag's sanction is on you" line,
+    `/czn hi` is refused; the Decrees tab shows the red "Your BattleTag's sanction is on you" line,
     its tooltip the same text. If A sent C his BattleTag, C sees none of A's lines, and The Watch's
     BattleTags page shows the red "Sanction follows this BattleTag" line and "same BattleTag as a
     sanctioned player" beside A.
-15. On C: `/oly neton S`. Expected: at once A's chat says the sanction that followed his BattleTag
-    is over, and `/ol hi` goes again.
+15. On C: `/cz neton S`. Expected: at once A's chat says the sanction that followed his BattleTag
+    is over, and `/czn hi` goes again.
 16. M gives S a 5-minute timeout. Expected: A's pop-up starts with "This sanction was given to another
     character of your BattleTag"; **Appeal** sends (the council sees it); after five minutes A chats again.
-17. With S off again: `/oly accord unfollow S` on C (or the red line's click, Yes). Expected: A is
+17. With S off again: `/cz accord unfollow S` on C (or the red line's click, Yes). Expected: A is
     free within a minute while S stays off, and the page drops the red line.
-18. Steps 14 and 17 with the gamepad UI on A and C: the pop-up and the stop dialog are Olympus's own
+18. Steps 14 and 17 with the gamepad UI on A and C: the pop-up and the stop dialog are ChillZone's own
     windows, the controller answers them, no taint message and no game popup.
 19. On the King's client (or the author's King preview) with the BattleTags page open: the follow's
     line and the mark show, the names masked, no part of any BattleTag.
 20. A client on the CurseForge version before this release, on the same channel during steps 13-17:
     no Lua error; it hides S by name and never A.
-21. After A logs out, search A's `WTF/Account/<account>/SavedVariables/Olympus.lua` for the
+21. After A logs out, search A's `WTF/Account/<account>/SavedVariables/ChillZone.lua` for the
     BattleTag (`Name#digits`) and for its name alone: neither appears (A keeps the follow without
     its code).
-22. Step 14 with its precondition unmet (S logged out during step 13, C online): A's first `/ol hi`
+22. Step 14 with its precondition unmet (S logged out during step 13, C online): A's first `/czn hi`
     goes out; a moment later A's own pop-up comes (C's addon sent the follow again for that line),
-    the next `/ol hi` is refused, and C's `/oly status` still counts `derived 0`. A typing in the
+    the next `/czn hi` is refused, and C's `/cz status` still counts `derived 0`. A typing in the
     game's own guild chat (`/g hi`) never changes that count.
 23. A character of the King's game account (once the King's own character logged in on it) and a
     councillor's client C that asks for BattleTags: C's BattleTags page never lists that character.

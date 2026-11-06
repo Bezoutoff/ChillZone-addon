@@ -15,11 +15,11 @@ test("King's Legates: final EN/PT locale assignments describe manual twenty-five
 		for _, language in ipairs({ "enUS", "ptBR" }) do
 			GetLocale = function() return language end
 			local words = { L = {} }
-			assert(loadfile(ROOT .. "Olympus/Locales.lua"))("Olympus", words)
+			assert(loadfile(ROOT .. "ChillZone/Locales.lua"))("ChillZone", words)
 			assert(words.L.NOMINEES_MAIN_TITLE:find("Legates", 1, true), language .. ": current manual title")
 			assert(not words.L.NOMINEES_MAIN_TITLE:find("%s", 1, true))
 			assert(words.L.NOMINEES_MAIN_HINT:find("25", 1, true))
-			local note = words.L.NOMINEES_MAIN_NOTE:format("Olympus", 39)
+			local note = words.L.NOMINEES_MAIN_NOTE:format("ChillZone", 39)
 			assert(note:find("39", 1, true) and note:find("40", 1, true), "leader plus thirty-nine agreed guildmates")
 			assert(not note:find("99", 1, true))
 			assert(not note:find("1.1.6", 1, true), "no obsolete appointment expiry instructions")
@@ -38,7 +38,7 @@ local function With(fn)
 		preview = ns.db.previewMainNominees, kingView = ns.db.devKingView, store = ns.rdb.warSquads, squads = rawget(ns, "WarSquads"),
 		show = ns.War.Show, shown = ns.CouncilNamesShown(), vis = ns.Workshop.Visible, author = ns.Workshop.IsAuthor,
 		roster = { R.byName, R.guild, R.complete, R.generation, R.group, R.faction, R.snapshotAt, R.members },
-		popups = { StaticPopupDialogs.OLYMPUS_SQUAD_REVIEW, StaticPopupDialogs.OLYMPUS_SQUAD_REPLACE } }
+		popups = { StaticPopupDialogs.CHILLZONE_SQUAD_REVIEW, StaticPopupDialogs.CHILLZONE_SQUAD_REPLACE } }
 	local w = { sent = {}, printed = {}, timers = {}, logged = {}, clock = 1800000000 }
 	local ok, err = pcall(function()
 		N.Reset()
@@ -53,12 +53,12 @@ local function With(fn)
 		ns.After = function(_, _, f) w.timers[#w.timers + 1] = f end
 		ns.War.Show = function() w.warShown = (w.warShown or 0) + 1 end
 		R.byName = { [KING] = 0, [PIP] = 1, [VERA] = 3, ["Ada-Realm"] = 3, ["Bea-Realm"] = 3 }
-		R.guild, R.complete, R.generation, R.group, R.faction, R.snapshotAt, R.members = "Olympus", true, 1, ns.group, ns.faction, w.clock, {}
+		R.guild, R.complete, R.generation, R.group, R.faction, R.snapshotAt, R.members = "ChillZone", true, 1, ns.group, ns.faction, w.clock, {}
 		w.as = function(me, guild, rank)
 			ns.me = me
 			GetGuildInfo = function() return guild, rank == 0 and "King" or "Member", rank end
 		end
-		w.asKing = function() w.as(KING, "Olympus", 0) end
+		w.asKing = function() w.as(KING, "ChillZone", 0) end
 		w.flush = function() local due = w.timers; w.timers = {}; for _, f in ipairs(due) do f() end end
 		w.parts = function()
 			local out = {}
@@ -70,7 +70,7 @@ local function With(fn)
 		w.squads = function()
 			local c = setmetatable({ On = function() end, ChatRooms = { RegisterProvider = function() end },
 				Comm = setmetatable({ Handle = function() end }, { __index = ns.Comm }) }, { __index = ns })
-			assert(loadfile(ROOT .. "Olympus/WarSquads.lua"))("Olympus", c)
+			assert(loadfile(ROOT .. "ChillZone/WarSquads.lua"))("ChillZone", c)
 			rawset(ns, "WarSquads", c.WarSquads)
 			return c.WarSquads
 		end
@@ -85,7 +85,7 @@ local function With(fn)
 	ns.Workshop.Visible, ns.Workshop.IsAuthor = saved.vis, saved.author
 	local R = ns.Roster
 	R.byName, R.guild, R.complete, R.generation, R.group, R.faction, R.snapshotAt, R.members = unpack(saved.roster, 1, 8)
-	StaticPopupDialogs.OLYMPUS_SQUAD_REVIEW, StaticPopupDialogs.OLYMPUS_SQUAD_REPLACE = unpack(saved.popups, 1, 2)
+	StaticPopupDialogs.CHILLZONE_SQUAD_REVIEW, StaticPopupDialogs.CHILLZONE_SQUAD_REPLACE = unpack(saved.popups, 1, 2)
 	K.Reset(); N.Reset()
 	if not ok then error(err, 0) end
 end
@@ -97,7 +97,7 @@ test("King's Legates: actual manual appointments rather than a council seat crea
 		eq(#S.Leaders(), 0, "no implicit HC leadership")
 		eq(N.NameMain("Ada"), true); eq(N.NameMain("Bea"), true)
 		eq(N.NameMain("Unknown"), false, "current own roster required")
-		eq(N.RoleOf("Ada-Realm", "Olympus"), "centurion", "legacy role id, not automatic rank")
+		eq(N.RoleOf("Ada-Realm", "ChillZone"), "centurion", "legacy role id, not automatic rank")
 		eq(#S.Leaders(), 2); eq(S.Leaders()[1].name, "Ada-Realm")
 		eq(S.Assign("Ada", VERA), true); eq(S.Get("Ada").total, 2)
 		eq(S.Get(VERA), nil, "the councillor may be a soldier without becoming a leader")
@@ -105,11 +105,11 @@ test("King's Legates: actual manual appointments rather than a council seat crea
 		local part
 		for _, msg in ipairs(w.parts()) do if msg:find("c=Ada", 1, true) then part = msg end end
 		assert(part, "actual unchanged c= transport contains the manual appointment")
-		w.as("Ada-Realm", "Olympus", 3); N.Handle("CHANNEL", KING, part)
-		eq(N.RoleOf("Ada-Realm", "Olympus"), "centurion"); eq(S.CanManage(), true)
+		w.as("Ada-Realm", "ChillZone", 3); N.Handle("CHANNEL", KING, part)
+		eq(N.RoleOf("Ada-Realm", "ChillZone"), "centurion"); eq(S.CanManage(), true)
 		eq(S.Assign("Ada", "Bea"), true, "actual ordinary-rank appointee manages own group")
 		eq(S.Assign("Bea", VERA), false, "no other group's write authority")
-		w.as(VERA, "Olympus", 3)
+		w.as(VERA, "ChillZone", 3)
 		eq(S.Get(VERA), nil); eq(S.CanAccess(S.Get("Bea").room), false, "no implicit HC room access")
 	end)
 end)
@@ -118,11 +118,11 @@ test("King's Legates: actual manual revocation removes leadership without deleti
 	With(function(w)
 		local S = w.squads(); w.asKing()
 		eq(N.NameMain("Ada"), true); eq(S.Assign("Ada", "Bea"), true)
-		local store = ns.rdb.warSquads[ns.Fold("Olympus")]
+		local store = ns.rdb.warSquads[ns.Fold("ChillZone")]
 		local retained = store.rows[ns.Fold("Ada-Realm")]
-		eq(N.RemoveMain("Ada"), true); eq(N.RoleOf("Ada-Realm", "Olympus"), nil)
+		eq(N.RemoveMain("Ada"), true); eq(N.RoleOf("Ada-Realm", "ChillZone"), nil)
 		eq(S.Get("Ada"), nil); eq(store.rows[ns.Fold("Ada-Realm")], retained)
-		w.as("Ada-Realm", "Olympus", 3); eq(S.CanManage(), false); eq(S.Assign("Ada", VERA), false)
+		w.as("Ada-Realm", "ChillZone", 3); eq(S.CanManage(), false); eq(S.Assign("Ada", VERA), false)
 	end)
 end)
 
@@ -130,10 +130,10 @@ test("King's Legates: existing manual c= saves remain held rather than automatic
 	With(function(w)
 		local S = w.squads(); w.asKing()
 		ns.rdb.mainNominees = { rev = w.clock, by = KING, list = { { r = "c", n = "Ada-Realm" } } }
-		eq(N.ListOf("Olympus").entries[1].name, "Ada-Realm"); eq(S.Get("Ada").name, "Ada-Realm")
+		eq(N.ListOf("ChillZone").entries[1].name, "Ada-Realm"); eq(S.Get("Ada").name, "Ada-Realm")
 		local retained = ns.rdb.mainNominees
 		eq(N.Retire(), false); N.Minute()
-		eq(ns.rdb.mainNominees, retained); eq(N.RoleOf("Ada-Realm", "Olympus"), "centurion")
+		eq(ns.rdb.mainNominees, retained); eq(N.RoleOf("Ada-Realm", "ChillZone"), "centurion")
 		for _, msg in ipairs(w.parts()) do assert(msg:find("c=Ada", 1, true), "no automatic empty retirement word") end
 	end)
 end)
@@ -142,7 +142,7 @@ test("King's Legates: actual author King preview names only a local sample and g
 	With(function(w)
 		local S = w.squads()
 		ns.Workshop.Visible, ns.Workshop.IsAuthor = function() return true end, function() return true end
-		w.as("Writer-Realm", "Olympus II", 3); eq(ns.ViewAs.Set("king"), true)
+		w.as("Writer-Realm", "ChillZone II", 3); eq(ns.ViewAs.Set("king"), true)
 		eq(K.Preview(), true); eq(N.NameMain("Ada"), true)
 		eq(N.MainEditor(), false); eq(N.SendMain(true), false); eq(S.CanManage(), false)
 		w.flush(); eq(#w.parts(), 0); eq(ns.rdb.mainNominees, nil)
@@ -156,9 +156,9 @@ test("King's Legates: other guilds require their own verified master's manual ap
 	With(function(w)
 		local S, BOSS = w.squads(), "Boss Master-Realm"
 		local R = ns.Roster
-		R.byName, R.guild = { [BOSS] = 0, [OLAF] = 3, ["Ada-Realm"] = 3, ["Bea-Realm"] = 3 }, "Olympus II"
-		w.as("Ada-Realm", "Olympus II", 3); eq(#S.Leaders(), 0)
-		N.Handle("CHANNEL", BOSS, Msg("Olympus II", w.clock, "c=Ada;c=Bea"))
+		R.byName, R.guild = { [BOSS] = 0, [OLAF] = 3, ["Ada-Realm"] = 3, ["Bea-Realm"] = 3 }, "ChillZone II"
+		w.as("Ada-Realm", "ChillZone II", 3); eq(#S.Leaders(), 0)
+		N.Handle("CHANNEL", BOSS, Msg("ChillZone II", w.clock, "c=Ada;c=Bea"))
 		eq(#S.Leaders(), 2); eq(S.Leaders()[1].name, "Ada-Realm"); eq(S.Get(OLAF), nil)
 		R.byName[BOSS] = 3; eq(#S.Leaders(), 0, "deposed issuer supplies no active leadership")
 	end)

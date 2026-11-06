@@ -194,7 +194,7 @@ test("1.2 the arena's foundation: a test build sends T only, to its raid or part
 	NoErrors(w)
 end)
 
-test("1.2 the arena's foundation: Arena.TestBuild takes only the right shape; an expired one turns the arena off at login (the rest of Olympus works)", function()
+test("1.2 the arena's foundation: Arena.TestBuild takes only the right shape; an expired one turns the arena off at login (the rest of ChillZone works)", function()
 	local w = World.New()
 	local base = TestBuild(w)
 	local function Shape(extra)
@@ -594,7 +594,7 @@ test("1.2 the arena's foundation: the kill switch: nothing sent, shown or handle
 	NoErrors(w)
 end)
 
-test("1.2 the arena's foundation: actions and the /oly arena router: Can asks the action's rule, Do acts; sub-commands, help, and /oly arena and /ola through Core", function()
+test("1.2 the arena's foundation: actions and the /cz arena router: Can asks the action's rule, Do acts; sub-commands, help, and /cz arena and /cza through Core", function()
 	local w = World.New()
 	local a = w:Client("Lida Fenn")
 	local acted = {}
@@ -605,25 +605,25 @@ test("1.2 the arena's foundation: actions and the /oly arena router: Can asks th
 	a.Arena.Action("broken", function() error("oops") end, function() end)
 	eq(select(2, a.Arena.Can("broken")), "error")
 	local ran = {}
-	a.Arena.Slash("zz", function(args) ran[#ran + 1] = args end, "/oly arena zz - a test's")
+	a.Arena.Slash("zz", function(args) ran[#ran + 1] = args end, "/cz arena zz - a test's")
 	a.Arena.RunSlash("ZZ one two")
 	eq(ran[1], "one two")
 	a.Arena.RunSlash("help")
-	eq(Printed(a, "/oly arena zz - a test's"), 1)
+	eq(Printed(a, "/cz arena zz - a test's"), 1)
 	a.Arena.RunSlash("nosuch")
-	eq(Printed(a, "/oly arena zz - a test's"), 2, "an unknown one shows the help")
-	-- Through Core's /oly and /ola.
-	w:As(a, function() a.slashes.OLYMPUS("arena zz three") end)
+	eq(Printed(a, "/cz arena zz - a test's"), 2, "an unknown one shows the help")
+	-- Through Core's /cz and /cza.
+	w:As(a, function() a.slashes.CHILLZONE("arena zz three") end)
 	eq(ran[2], "three")
-	w:As(a, function() a.slashes.OLYMPUS("farkle zz") end)
+	w:As(a, function() a.slashes.CHILLZONE("farkle zz") end)
 	a.Arena.Slash("farkle", function(args) ran[#ran + 1] = "farkle " .. args end)
-	w:As(a, function() a.slashes.OLYMPUS("farkle new table") end)
+	w:As(a, function() a.slashes.CHILLZONE("farkle new table") end)
 	eq(ran[3], "farkle new table")
 	a.Arena.Slash("say", function(args) ran[#ran + 1] = "say " .. args end)
-	w:As(a, function() a.slashes.OLYMPUSARENA("hello room") end)
+	w:As(a, function() a.slashes.CHILLZONEARENA("hello room") end)
 	eq(ran[4], "say hello room")
-	-- /oly arena status: the arena's lines (the memory measured on the command alone).
-	w:As(a, function() a.slashes.OLYMPUS("arena status") end)
+	-- /cz arena status: the arena's lines (the memory measured on the command alone).
+	w:As(a, function() a.slashes.CHILLZONE("arena status") end)
 	eq(a.memoryUpdates, 1)
 	eq(Printed(a, a.ns.L.ARENA_SAVED_LOST), 1)
 	NoErrors(w)
@@ -803,7 +803,7 @@ test("1.2 the arena's foundation: the words: the newest wins, the King's own on 
 		return n
 	end
 	local before = Words()
-	Word(w, b, "B", N.bettor1 .. ":o", t0 - 100, "Olympus Ember")
+	Word(w, b, "B", N.bettor1 .. ":o", t0 - 100, "ChillZone Ember")
 	eq(Words(), before, "not from the King or a Steward")
 	-- An older word heard on the giver's side (the King's client missed it) is answered with the
 	-- newer one, once: another within ANSWER_GAP (30 s) is not; after it, again. (The older words
@@ -999,15 +999,15 @@ test("1.2 the arena's foundation: an idle client: no arena timer or frame, only 
 	NoErrors(w)
 end)
 
-test("1.2 the arena's foundation: /oly arena loads the Olympus Arena module with the handoff; its registry, its heavy tables kept across a login where saved data persists", function()
+test("1.2 the arena's foundation: /cz arena loads the ChillZone Arena module with the handoff; its registry, its heavy tables kept across a login where saved data persists", function()
 	local w = World.New()
 	local a = w:Client("Lida Fenn")
-	w:As(a, function() a.slashes.OLYMPUS("arena") end)
+	w:As(a, function() a.slashes.CHILLZONE("arena") end)
 	eq(a.companion.loaded, true); eq(a.Arena.UILoaded(), true); eq(a.ns.Arena.companionReady, true)
-	-- (the screens built the window: /oly arena opens it now, where the stubs said there was none.)
+	-- (the screens built the window: /cz arena opens it now, where the stubs said there was none.)
 	eq(Printed(a, a.ns.L.ARENA_NO_WINDOW), 0, "the window is the screens'")
 	eq(a.companion.own.ArenaUI.IsShown(), true, "the window opened")
-	eq(rawget(_G, "OlympusArenaHandoff"), nil, "the handoff lasts one call")
+	eq(rawget(_G, "ChillZoneArenaHandoff"), nil, "the handoff lasts one call")
 	local UIr = a.ns.Arena.ui
 	eq(type(UIr.RegisterPane), "function")
 	eq(UIr.RegisterPane("fights", { section = "arena", label = "Fights", order = 2 }), true)
@@ -1072,14 +1072,14 @@ test("1.2 the arena's foundation: LoadUI refuses in combat and says why for DISA
 	NoErrors(w)
 end)
 
-test("1.2 the arena's foundation: the Olympus Arena module: its TOC (load on demand, Olympus's version and dependency, its saved variables, every file there), each file behind the host line", function()
-	local toc = Read(H.ARENA_DIR .. "Olympus_Arena.toc")
-	local core = Read(H.ADDON_DIR .. "Olympus.toc")
+test("1.2 the arena's foundation: the ChillZone Arena module: its TOC (load on demand, ChillZone's version and dependency, its saved variables, every file there), each file behind the host line", function()
+	local toc = Read(H.ARENA_DIR .. "ChillZone_Arena.toc")
+	local core = Read(H.ADDON_DIR .. "ChillZone.toc")
 	eq(toc:match("## Version:%s*(%S+)"), core:match("## Version:%s*(%S+)"))
 	eq(toc:match("## Version:%s*(%S+)"), H.ns.VERSION, "the base version (ns.VERSION)")
 	eq(toc:match("## Interface:%s*([^\r\n]+)"), core:match("## Interface:%s*([^\r\n]+)"))
-	eq(toc:match("## LoadOnDemand:%s*(%S+)"), "1"); eq(toc:match("## Dependencies:%s*(%S+)"), "Olympus")
-	eq(toc:match("## SavedVariables:%s*(%S+)"), "OlympusArenaDB")
+	eq(toc:match("## LoadOnDemand:%s*(%S+)"), "1"); eq(toc:match("## Dependencies:%s*(%S+)"), "ChillZone")
+	eq(toc:match("## SavedVariables:%s*(%S+)"), "ChillZoneArenaDB")
 	local files = {}
 	for line in toc:gmatch("[^\r\n]+") do
 		local f = line:match("^([%w_\\]+%.lua)$")
@@ -1095,7 +1095,7 @@ test("1.2 the arena's foundation: the Olympus Arena module: its TOC (load on dem
 		local src = Read(H.ARENA_DIR .. f)
 		if i > 1 then assert(src:find("^local _, own = %.%.%.; local ns = own%.host; if not ns then return end"), f .. ": the host line") end
 	end
-	-- Loaded outside Olympus's handoff it does nothing, and says nothing.
+	-- Loaded outside ChillZone's handoff it does nothing, and says nothing.
 	local own = H.LoadCompanion(false)
 	eq(own.host, nil); eq(own.ArenaUI, nil)
 end)
@@ -1173,7 +1173,7 @@ test("1.2 the arena's foundation: the source rules: no arena or companion file n
 		files[#files + 1] = H.ADDON_DIR .. "Locales/" .. f .. ".lua"
 	end
 	local companion = {}
-	for line in io.lines(H.ARENA_DIR .. "Olympus_Arena.toc") do
+	for line in io.lines(H.ARENA_DIR .. "ChillZone_Arena.toc") do
 		local f = line:match("^([%w_\\]+%.lua)%s*$")
 		if f then companion[#companion + 1] = H.ARENA_DIR .. f:gsub("\\", "/") end
 	end
@@ -1183,16 +1183,16 @@ test("1.2 the arena's foundation: the source rules: no arena or companion file n
 	for _, path in ipairs(files) do
 		local code = Read(path):gsub("%-%-[^\n]*", "")
 		-- (The owner's call, 2026-09-30: the Frame Lab's practice games ship inside the companion as
-		-- they are, under Olympus_Arena/Games/: their animation driver runs an OnUpdate only while
+		-- they are, under ChillZone_Arena/Games/: their animation driver runs an OnUpdate only while
 		-- something moves, and their Escape handling edits UISpecialFrames itself. Only those two
 		-- words are allowed there; every other rule holds for them too.)
-		local labGame = path:find("Olympus_Arena/Games/", 1, true) ~= nil
+		local labGame = path:find("ChillZone_Arena/Games/", 1, true) ~= nil
 		for _, word in ipairs({ "ns.AUTHOR", "IsAuthorName", "IsAuthor", "StaticPopup_", "UISpecialFrames" }) do
 			if not (labGame and word == "UISpecialFrames") then assert(not code:find(word, 1, true), path .. " uses " .. word) end
 		end
 		if isCompanion[path] and not labGame then assert(not code:find("OnUpdate", 1, true), path .. " uses OnUpdate") end
 	end
-	-- The real characters Olympus pins (the King, the Treasurer, the author) are nowhere in them, in
+	-- The real characters ChillZone pins (the King, the Treasurer, the author) are nowhere in them, in
 	-- the pure modules, nor in any arena test or fixture (every package's, under tests/arena/ and
 	-- tests/fixtures/arena-*); nor is anyone named as the source of a decision ("the owner's answer").
 	-- the arena's parser's Honors.lua names the author in two comments: a named exception, reworded at integration.
@@ -1257,7 +1257,7 @@ test("1.2 the arena's foundation: every word the arena's core says exists in Eng
 	eq(L.SOUND_ARENA ~= "SOUND_ARENA", true); eq(L.HELP_ARENA ~= "HELP_ARENA", true)
 end)
 
-test("1.2 the arena's foundation: Core: the arena's sound kind, the Treasurer's characters by name on his realm group, Olympus_Arena's errors are Olympus's", function()
+test("1.2 the arena's foundation: Core: the arena's sound kind, the Treasurer's characters by name on his realm group, ChillZone_Arena's errors are ChillZone's", function()
 	local w = World.New()
 	local a = w:Client("Lida Fenn")
 	local ns2 = a.ns
@@ -1270,11 +1270,11 @@ test("1.2 the arena's foundation: Core: the arena's sound kind, the Treasurer's 
 	eq(ns2.IsTreasurerCharacter(N.bettor1), false); eq(ns2.IsTreasurerCharacter(""), false); eq(ns2.IsTreasurerCharacter(nil), false)
 	eq(ns2.IsTreasurer(N.treasurerMail, nil), false, "(the whisper's case: IsTreasurer needs a guild)")
 	local own = H.ns.OwnError
-	eq(own("Interface/AddOns/Olympus_Arena/Window.lua:3: boom"), true)
-	eq(own("x", "Interface\\AddOns\\Olympus_Arena\\Panes.lua:9: in function"), true)
-	eq(own("Interface/AddOns/Olympus_ArenaPlus/X.lua:1: other"), false)
-	eq(own("Interface/AddOns/Olympus/Core.lua:1: ours"), true)
-	eq(own("x", "Interface/AddOns/Olympus/Bootstrap.lua:40: handler\nInterface/AddOns/Other/A.lua:2"), false)
+	eq(own("Interface/AddOns/ChillZone_Arena/Window.lua:3: boom"), true)
+	eq(own("x", "Interface\\AddOns\\ChillZone_Arena\\Panes.lua:9: in function"), true)
+	eq(own("Interface/AddOns/ChillZone_ArenaPlus/X.lua:1: other"), false)
+	eq(own("Interface/AddOns/ChillZone/Core.lua:1: ours"), true)
+	eq(own("x", "Interface/AddOns/ChillZone/Bootstrap.lua:40: handler\nInterface/AddOns/Other/A.lua:2"), false)
 	NoErrors(w)
 end)
 
@@ -1301,7 +1301,7 @@ test("1.2 the arena's foundation: Moderation: a net-off client sends none of the
 	NoErrors(w)
 end)
 
-test("1.2 the arena's foundation: the status lines: /oly status carries the arena's (ns.statusLines); one that fails says so", function()
+test("1.2 the arena's foundation: the status lines: /cz status carries the arena's (ns.statusLines); one that fails says so", function()
 	local lines = H.ns.statusLines
 	local n = #lines
 	table.insert(lines, function(out) out[#out + 1] = "arena test line" end)
@@ -1310,7 +1310,7 @@ test("1.2 the arena's foundation: the status lines: /oly status carries the aren
 		local text = H.ns.StatusText()
 		assert(text:find("arena test line", 1, true), "the line")
 		assert(text:find("status line failed", 1, true), "the failure")
-		assert(H.ns.BuildBugReport():find("arena test line", 1, true), "and in /oly bug")
+		assert(H.ns.BuildBugReport():find("arena test line", 1, true), "and in /cz bug")
 	end)
 	for i = #lines, n + 1, -1 do lines[i] = nil end
 	if not ok then error(err, 0) end
@@ -1432,7 +1432,7 @@ end)
 test("1.2 the arena's foundation: the backup: the arena's settings (never 'pub'), the bank's ledger, the key, every copper line, the wallet, stakes and tickets; never the rehearsal, the rules' yes, the checklist or the sentinel", function()
 	local w = World.New()
 	local a = w:Client("Coffrey Vault")
-	w:As(a, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("Olympus", a.ns) end)
+	w:As(a, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("ChillZone", a.ns) end)
 	local B = a.ns.Backup
 	local db, r = a.db, a.Arena.Store("L")
 	db.arenaOff = true
@@ -1470,7 +1470,7 @@ test("1.2 the arena's foundation: the backup: the arena's settings (never 'pub')
 	-- back, the realm's (the ledger, the wallet, stakes, tickets) stay that realm's, and the confirm
 	-- says so. (Before the review nothing came back there, the key and the copper lines neither.)
 	local b = w:Client("Coffrey Vault", { realm = "Emberfall2" })
-	w:As(b, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("Olympus", b.ns) end)
+	w:As(b, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("ChillZone", b.ns) end)
 	local other = w:As(b, b.ns.Backup.Read, text)
 	eq(type(other), "table"); eq(other.arena.key, nil); eq(other.arena.copper.c1.state, "open")
 	eq(other.arena.bank, nil, "another realm's ledger is not this realm's"); eq(other.arena.mine, nil); eq(other.arena.stakes, nil); eq(other.arena.tickets, nil)
@@ -1480,7 +1480,7 @@ test("1.2 the arena's foundation: the backup: the arena's settings (never 'pub')
 	-- On the same character's fresh install: each part only where none is held, copper lines added.
 	local w2 = World.New()
 	local c = w2:Client("Coffrey Vault")
-	w2:As(c, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("Olympus", c.ns) end)
+	w2:As(c, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("ChillZone", c.ns) end)
 	c.db.arenaKey = { pk = "held here" }
 	c.db.arenaCopper = { c0 = { state = "open" } }
 	c.db.arenaProfile = { [c.name] = { nick = "x.y" } }
@@ -1527,7 +1527,7 @@ local function RealComm(fn)
 	end
 	C_ChatInfo = { RegisterAddonMessagePrefix = function() end, SendAddonMessage = Send, SendAddonMessageLogged = Send }
 	local ok, err = pcall(function()
-		assert(loadfile(H.ADDON_DIR .. "Comm.lua"))("Olympus", cns)
+		assert(loadfile(H.ADDON_DIR .. "Comm.lua"))("ChillZone", cns)
 		for _, f in ipairs(login) do f() end
 		local function Deliver(dist, sender, text)
 			for _, f in ipairs(events.CHAT_MSG_ADDON) do f(H.ns.PREFIX, text, dist, sender) end
@@ -1570,12 +1570,12 @@ test("1.2 the arena's foundation: Comm.Send passes done: success done(true); a t
 		done = {}
 		for i = 1, 61 do C.Send("GUILD", "ZZ~" .. i, nil, false, false, D("q" .. i)) end
 		eq(done[1], "q1:false:dropped")
-		-- Out of an Olympus guild: everything waiting goes, "left".
+		-- Out of an ChillZone guild: everything waiting goes, "left".
 		GetGuildInfo = function() return "Not Ours" end
 		C.Pump()
 		eq(#done, 61); eq(done[61], "q61:false:left")
 		-- The key still replaces the waiting message and its done (Comm.lua's dedupe), done kept when none given.
-		GetGuildInfo = function() return "Olympus II" end
+		GetGuildInfo = function() return "ChillZone II" end
 		done = {}
 		C.Send("GUILD", "ZZ~a", "same", false, false, D("a"))
 		C.Send("GUILD", "ZZ~b", "same", false, false, D("b"))
@@ -1602,19 +1602,19 @@ test("1.2 the arena's foundation: the hello's sixth field says an arena bank on 
 		-- Guildmates: a bank (first by name) and another.
 		Deliver("GUILD", "Abank-Realm", "H1~1.2.0~Realm~p~~b")
 		Deliver("GUILD", "Bob-Realm", "H1~1.2.0~Realm~p~")
-		C.MaybeBroadcast({ guild = "Olympus II" })
+		C.MaybeBroadcast({ guild = "ChillZone II" })
 		eq(C.reporterName, "Bob", "the bank is left out")
 		-- The same peer's hello without the flag: electable again.
 		Deliver("GUILD", "Abank-Realm", "H1~1.2.0~Realm~p~")
-		C.MaybeBroadcast({ guild = "Olympus II" })
+		C.MaybeBroadcast({ guild = "ChillZone II" })
 		eq(C.reporterName, "Abank")
 		-- A 1.1 hello (five fields) reads as before.
 		Deliver("GUILD", "Abank-Realm", "H1~1.1.1~Realm~p~z")
-		C.MaybeBroadcast({ guild = "Olympus II" })
+		C.MaybeBroadcast({ guild = "ChillZone II" })
 		eq(C.reporterName, "Abank"); eq(C.SharesZone("Abank-Realm"), true)
 		-- A bank on duty never reports, even alone.
 		duty = true
-		C.MaybeBroadcast({ guild = "Olympus II" })
+		C.MaybeBroadcast({ guild = "ChillZone II" })
 		eq(C.isReporter, false); eq(C.isRunnerUp, false)
 		eq(C.BankOnDuty(), true)
 	end)
@@ -1892,24 +1892,24 @@ test("1.2 the arena's foundation review: a state word sent even while blocked (o
 	NoErrors(w)
 end)
 
-test("1.2 the arena's foundation review: /oly arena sim loads the companion first, then turns the sim on and opens it (the first click too); refused in combat, the sim stays off", function()
+test("1.2 the arena's foundation review: /cz arena sim loads the companion first, then turns the sim on and opens it (the first click too); refused in combat, the sim stays off", function()
 	local w = World.New()
 	local t = w:Client("Wenna Crale", { testBuild = TestBuild(w) })
 	local opened = {}
 	t.ns.On("ARENA_UI_LOADED", function() t.ns.Arena.ui.Sim = function(args) opened[#opened + 1] = args end end)
-	w:As(t, function() t.slashes.OLYMPUS("arena sim") end)
+	w:As(t, function() t.slashes.CHILLZONE("arena sim") end)
 	eq(#opened, 1, "the first click opens it"); eq(t.Arena.Sim(), true); eq(t.companion.loaded, true)
-	w:As(t, function() t.slashes.OLYMPUS("arena sim off") end)
+	w:As(t, function() t.slashes.CHILLZONE("arena sim off") end)
 	eq(t.Arena.Sim(), false)
 	local u = w:Client("Lida Fenn", { testBuild = TestBuild(w) })
 	w:Combat(u, true)
-	w:As(u, function() u.slashes.OLYMPUS("arena sim") end)
+	w:As(u, function() u.slashes.CHILLZONE("arena sim") end)
 	eq(u.Arena.Sim(), false, "no window: no sim"); eq(Printed(u, u.ns.L.ARENA_UI_COMBAT), 1)
 	w:Group({ u, t })
 	eq(u.Arena.Send("AF", "T", "x"), true, "its sends are not refused as the sim's")
 	-- Someone who may not run it: told so, and the companion stays unloaded.
 	local r = w:Client("Parric Stowe")
-	w:As(r, function() r.slashes.OLYMPUS("arena sim") end)
+	w:As(r, function() r.slashes.CHILLZONE("arena sim") end)
 	eq(Printed(r, r.ns.L.ARENA_SIM_REFUSED), 1); eq(r.companion.loaded, nil)
 	NoErrors(w)
 end)
@@ -2035,7 +2035,7 @@ end)
 test("1.2 the arena's foundation review: the backup at the design's caps (a bank of 5,000 accounts and 5,000 entries) keeps the copper lines and the ledger (1.2.0: never the key nor the bank's secret); a part its owner's check refuses, or whose check fails, is left out and named; the copy box shows what Export writes", function()
 	local w = World.New()
 	local a = w:Client("Coffrey Vault")
-	w:As(a, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("Olympus", a.ns) end)
+	w:As(a, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("ChillZone", a.ns) end)
 	local A = a.ns.Arena
 	local r = a.Arena.Store("L")
 	local accounts, entries = {}, {}
@@ -2054,7 +2054,7 @@ test("1.2 the arena's foundation review: the backup at the design's caps (a bank
 	-- A fresh install of the same character, whose stakes' and tickets' owners check them.
 	local w2 = World.New()
 	local c = w2:Client("Coffrey Vault")
-	w2:As(c, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("Olympus", c.ns) end)
+	w2:As(c, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("ChillZone", c.ns) end)
 	local B = c.ns.Backup
 	B.arenaChecks.stakes = function() return nil end
 	B.arenaChecks.tickets = function() error("a check that fails") end
@@ -2144,7 +2144,7 @@ test("1.2 the arena's foundation review: H.LoadCompanion gives the companion its
 	eq(own.db, db); eq(a.ns.Arena.companionReady, true)
 	local heavy = a.Arena.Heavy("L")
 	eq(type(heavy), "table"); assert(next(db.stores) ~= nil, "kept in its own saved variables")
-	eq(rawget(_G, "OlympusArenaDB"), nil, "the game's global put back")
+	eq(rawget(_G, "ChillZoneArenaDB"), nil, "the game's global put back")
 	-- Without a db: one of its own each call.
 	local b = w:Client("Parric Stowe")
 	local own2 = w:As(b, function() return H.LoadCompanion(b.ns) end)
@@ -2166,7 +2166,7 @@ end)
 
 print("the arena's foundation review: Comm.lua")
 
-test("1.2 the arena's foundation review: leaving an Olympus guild drops Comm's queue with each done told 'left' (ArenaNet's urgent share and outbox are not left counting)", function()
+test("1.2 the arena's foundation review: leaving an ChillZone guild drops Comm's queue with each done told 'left' (ArenaNet's urgent share and outbox are not left counting)", function()
 	RealComm(function(C, cns)
 		local done = {}
 		local function D(tag) return function(ok, why) done[#done + 1] = tag .. ":" .. tostring(ok) .. ":" .. tostring(why) end end
@@ -2174,7 +2174,7 @@ test("1.2 the arena's foundation review: leaving an Olympus guild drops Comm's q
 		local ok, err = pcall(function()
 			GetChannelName = function() return 5 end
 			LeaveChannelByName = function() end
-			C.SetJoinedForTest("OlympusNet")
+			C.SetJoinedForTest("ChillZoneNet")
 			C.Send("CHANNEL", "ZZ~1", nil, false, false, D("c1"))
 			C.Whisper("Someone-Realm", "ZZ~2", nil, true, false, D("w1"))
 			cns.IsMember = function() return false end
@@ -2189,7 +2189,7 @@ end)
 
 test("1.2 the arena's foundation review: the real Comm and Moderation: a net-off client's bet slip gets done(false, 'held') at once, its receipt goes", function()
 	RealComm(function(C, cns, results, sent)
-		assert(loadfile(H.ADDON_DIR .. "Moderation.lua"))("Olympus", cns)
+		assert(loadfile(H.ADDON_DIR .. "Moderation.lua"))("ChillZone", cns)
 		cns.Moderation.SelfOff = function() return true end
 		local done = {}
 		local function D(tag) return function(ok, why) done[#done + 1] = tag .. ":" .. tostring(ok) .. ":" .. tostring(why) end end
@@ -2349,9 +2349,9 @@ test("1.2 arena pop-ups: one at a time; a stacking one (the rules' yes) opens ov
 	local Kit = own.ArenaUI.Kit
 	local function Open(f) f:Show() f:GetScript("OnShow")(f) end
 	w:As(a, function()
-		local one = Kit.Frame("OlympusArenaTestOne", 300, 200, { title = "One" })
-		local two = Kit.Frame("OlympusArenaTestTwo", 300, 200, { title = "Two" })
-		local gate = Kit.Frame("OlympusArenaTestGate", 300, 200, { title = "Gate", stack = true })
+		local one = Kit.Frame("ChillZoneArenaTestOne", 300, 200, { title = "One" })
+		local two = Kit.Frame("ChillZoneArenaTestTwo", 300, 200, { title = "Two" })
+		local gate = Kit.Frame("ChillZoneArenaTestGate", 300, 200, { title = "Gate", stack = true })
 		assert(one.footer and two.footer, "a footer compartment each")
 		Open(one)
 		Open(two)
@@ -2369,7 +2369,7 @@ end)
 test("1.2 the arena window: 960 x 700, tabs at the top, the list's dark panel, no top row of buttons, New fight in the games' bar, the list without its action lines", function()
 	local w = World.New()
 	local a = w:Client("Lida Fenn")
-	w:As(a, function() a.slashes.OLYMPUS("arena") end)
+	w:As(a, function() a.slashes.CHILLZONE("arena") end)
 	local UI = a.companion.own.ArenaUI
 	local f = UI.Frame()
 	eq(UI.W, 960); eq(UI.H, 700)
@@ -2427,7 +2427,7 @@ test("1.2 Wallet: the Treasury tab owns the canonical page; a normal client gets
 		eq(own.ArenaUI.WalletModel().bankName, N.treasurerMail, "the recommended designated receiver")
 		a.ns.Wallet.View = wasView
 		T.Show("summary")
-		-- (The Olympus window itself is not built in the test world: its tab choice is read.)
+		-- (The ChillZone window itself is not built in the test world: its tab choice is read.)
 		local savedUI, selected = a.ns.UI, nil
 		a.ns.UI = { SelectTab = function(key) selected = key end }
 		own.Games.OnMoney()
@@ -2513,13 +2513,13 @@ test("test33 the Games tab's rows: each game's icon and name drawn whole in both
 	local pt = {}
 	local savedLocale = GetLocale
 	GetLocale = function() return "ptBR" end
-	local okPt, errPt = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaHomeText.lua"))("Olympus", { L = pt }) end)
+	local okPt, errPt = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaHomeText.lua"))("ChillZone", { L = pt }) end)
 	GetLocale = savedLocale
 	assert(okPt, errPt)
 	H.WithUI(function()
 		local uns = setmetatable({}, { __index = H.ns })
 		uns.On = function() end
-		assert(loadfile(H.ADDON_DIR .. "UI.lua"))("Olympus", uns)
+		assert(loadfile(H.ADDON_DIR .. "UI.lua"))("ChillZone", uns)
 		local savedUI, savedFile, savedWords, savedFaction = rawget(a.ns, "UI"), rawget(_G, "GetFileIDFromPath"), {}, rawget(a.ns, "faction")
 		for _, k in ipairs(KEYS) do savedWords[k] = rawget(L, k) end
 		rawset(a.ns, "UI", uns.UI)
@@ -2583,7 +2583,7 @@ test("1.2 the sim: no SIMULATION strip on the windows and no SAMPLE DATA stamp o
 end)
 
 -- The owner on build 4: the letter's portrait sat off the frame's ring; on test build 33 every
--- Olympus portrait still looked unlike his own on his unit frame. The Arena's own letter (the
+-- ChillZone portrait still looked unlike his own on his unit frame. The Arena's own letter (the
 -- sim's, and any build without HonorsNet's letters) draws his portrait as HonorsNet.NewPortrait
 -- does (Borders.NewPortrait: his frame's portrait, ring and art round it, at its offsets, scaled
 -- as a whole), the honour he won on it, a first place in the Arena's "-1" spelling as the honour;
@@ -2593,7 +2593,7 @@ test("1.2 the King's letter (the Arena's own): his portrait drawn as his own on 
 	local t = w:Client("Wenna Crale", { testBuild = TestBuild(w) })
 	w:As(t, function()
 		rawset(t.ns, "Borders", nil)
-		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("Olympus", t.ns)
+		assert(loadfile(H.ADDON_DIR .. "Borders.lua"))("ChillZone", t.ns)
 	end)
 	local points, pictures = {}, {}
 	local create = t.globals.CreateFrame
@@ -2619,12 +2619,12 @@ test("1.2 the King's letter (the Arena's own): his portrait drawn as his own on 
 	assert(type(rig) == "table" and rig.container and rig.box and rig.underlay and not rig.plain, "Borders.NewPortrait's rig, not a drawing of the letter's own")
 	eq(rig.size, 96); eq(rig.mirror, true, "turned round, as round his own portrait")
 	eq(rig.shown, "arena-champion", "the champion's first place: the honour itself")
-	eq(rig.honor.winged.texture, "Interface\\AddOns\\Olympus\\media\\honors\\gryphon-gold"); eq(rig.honor.winged.shown, true)
+	eq(rig.honor.winged.texture, "Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-gold"); eq(rig.honor.winged.shown, true)
 	local last = pictures[#pictures]
 	eq(last.tex, rig.portrait); eq(last.unit, "player"); eq(last.square, true, "square: the rig's mask rounds it")
 	-- Second place: the silver gryphon on the same texture.
 	w:As(t, AH.ReadLetter, { key = "arena-champion-2" })
-	eq(rig.shown, "arena-champion-2"); eq(rig.honor.winged.texture, "Interface\\AddOns\\Olympus\\media\\honors\\gryphon-silver")
+	eq(rig.shown, "arena-champion-2"); eq(rig.honor.winged.texture, "Interface\\AddOns\\ChillZone\\media\\honors\\gryphon-silver")
 	-- The words clear of the art: "To <name>," above it, the honour's title below it.
 	local at, title = points[rig.slot].TOP, points[f.honour].TOP
 	eq(-at[3] - rig.reach.top >= 84, true, "below the greeting")
@@ -2646,7 +2646,7 @@ test("1.2 rankings: the podium's marks by category and place, none past third", 
 	eq(UI.RankMark("A", 4), nil, "fourth: the division's icon")
 	for _, cat in ipairs({ "CWA", "CPA", "CHU", "CRO", "CPR", "CSH", "CMA", "CWL", "CDR", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8" }) do
 		local file = UI.RankMark(cat, 1):match("honours\\(.+)$")
-		local f = io.open(H.ROOT .. "Olympus/media/honours/" .. file .. ".tga", "rb")
+		local f = io.open(H.ROOT .. "ChillZone/media/honours/" .. file .. ".tga", "rb")
 		assert(f, "the file is there: " .. file)
 		f:close()
 	end
@@ -2657,7 +2657,7 @@ end)
 test("1.2 rankings: the list in the grey block with its filters, the podium on the parchment, the test build's note in a corner", function()
 	local w = World.New()
 	local a = w:Client("Wenna Crale", { testBuild = TestBuild(w) })
-	w:As(a, function() a.slashes.OLYMPUS("arena") end)
+	w:As(a, function() a.slashes.CHILLZONE("arena") end)
 	local UI = a.companion.own.ArenaUI
 	local spec = UI.Pane("arena.rankings")
 	assert(spec.lines and spec.detail and spec.head, "a list, a detail and a head")
@@ -2673,12 +2673,12 @@ end)
 -- The owner's profile page (2026-09-30): the stat blocks and the in-profile fight History in the
 -- grey block, the portrait and who he is on the parchment; Visibility opens the privacy page.
 -- 1.2.4 (an intended change): Visibility, "As others see me" and the King's letters moved into "My
--- profile" in the Olympus window, its sections; the second button is "Edit my profile", which opens
+-- profile" in the ChillZone window, its sections; the second button is "Edit my profile", which opens
 -- that page (the next test). The privacy page's Profile lines stay.
 test("1.2 the profile: its stat blocks and History, the Edit my profile button (1.2.4), the privacy page's Profile lines", function()
 	local w = World.New()
 	local a = w:Client("Wenna Crale", { testBuild = TestBuild(w) })
-	w:As(a, function() a.slashes.OLYMPUS("arena") end)
+	w:As(a, function() a.slashes.CHILLZONE("arena") end)
 	local UI, L = a.companion.own.ArenaUI, a.ns.L
 	local spec = UI.Pane("arena.profile")
 	assert(spec.lines and spec.detail, "a list and a detail")
@@ -2698,13 +2698,13 @@ test("1.2 the profile: its stat blocks and History, the Edit my profile button (
 end)
 
 -- 1.2.4, the owner's screenshot (the Games window, the Edit panel and its picker stacked): one place
--- to edit. "Edit my profile" closes the Games window and opens "My profile" in the Olympus window
+-- to edit. "Edit my profile" closes the Games window and opens "My profile" in the ChillZone window
 -- (stood in: the world's clients load no UI.lua); Back there brings the Games window back on Profile
--- and closes the Olympus window, closed before. The Games tab's row opens the same page.
-test("1.2.4 the Games window's Profile: Edit my profile hides the Games window and opens My profile in the Olympus window; Back brings the Games window back on Profile, the Olympus window closed again; the Games tab's row opens it too", function()
+-- and closes the ChillZone window, closed before. The Games tab's row opens the same page.
+test("1.2.4 the Games window's Profile: Edit my profile hides the Games window and opens My profile in the ChillZone window; Back brings the Games window back on Profile, the ChillZone window closed again; the Games tab's row opens it too", function()
 	local w = World.New()
 	local a = w:Client("Wenna Crale", { testBuild = TestBuild(w) })
-	w:As(a, function() a.slashes.OLYMPUS("arena") end)
+	w:As(a, function() a.slashes.CHILLZONE("arena") end)
 	local UI, L = a.companion.own.ArenaUI, a.ns.L
 	local ui = assert(loadfile(H.ROOT .. "tests/arena/lib/fights-world.lua"))(H).PageUI(w, a)
 	w:As(a, function() UI.ShowPane("arena.profile") end)
@@ -2713,12 +2713,12 @@ test("1.2.4 the Games window's Profile: Edit my profile hides the Games window a
 	eq(buttons[2][1], L.ARENA_PROFILE_EDIT)
 	w:As(a, buttons[2][2])
 	eq(UI.IsShown(), false, "the Games window steps aside")
-	eq(ui.shown, true); eq(ui.OwnProfileShown(), true, "My profile, in the Olympus window")
+	eq(ui.shown, true); eq(ui.OwnProfileShown(), true, "My profile, in the ChillZone window")
 	eq(a.ns.ProfileEdit.Section(), "look")
 	eq(w:As(a, a.ns.ProfileEdit.Back), true)
-	eq(ui.person, nil); eq(ui.shown, false, "the Olympus window closed, as before")
+	eq(ui.person, nil); eq(ui.shown, false, "the ChillZone window closed, as before")
 	eq(UI.IsShown(), true, "the Games window back"); eq(UI.state.pane.arena, "arena.profile", "on Profile")
-	-- Opened with the Olympus window already open: Back leaves it open.
+	-- Opened with the ChillZone window already open: Back leaves it open.
 	ui.shown = true
 	w:As(a, buttons[2][2])
 	eq(w:As(a, a.ns.ProfileEdit.Back), true)
@@ -2838,7 +2838,7 @@ test("1.2 the Games tab: the author's View as shows the staff section of the rol
 	local author, a = w:Role("author"), w:Client("Lida Fenn")
 	w:As(author, function()
 		local ns = author.ns
-		assert(loadfile(H.ADDON_DIR .. "ViewAs.lua"))("Olympus", ns)
+		assert(loadfile(H.ADDON_DIR .. "ViewAs.lua"))("ChillZone", ns)
 		local AH, VA = ns.ArenaHome, ns.ViewAs
 		eq(ns.Workshop.IsAuthor(), true, "the world's author")
 		eq(AH.GamesStaff(), true, "his own view: the staff section")
@@ -2850,13 +2850,13 @@ test("1.2 the Games tab: the author's View as shows the staff section of the rol
 		assert(VA.Set("my")); eq(AH.GamesStaff(), true)
 	end)
 	w:As(a, function()
-		assert(loadfile(H.ADDON_DIR .. "ViewAs.lua"))("Olympus", a.ns)
+		assert(loadfile(H.ADDON_DIR .. "ViewAs.lua"))("ChillZone", a.ns)
 		eq(a.ns.ViewAs.Set("king"), false, "no View as but the author's"); eq(a.ns.ViewAs.Previewing(), false)
 		eq(a.ns.ArenaHome.GamesStaff(), false)
 	end)
 end)
 
--- The arbiter's console had no way in from the guild window: only /oly arena arbiter. A listed
+-- The arbiter's console had no way in from the guild window: only /cz arena arbiter. A listed
 -- arbiter who is not on the staff now has his own lines in the Games tab (on duty or off, the
 -- console, his fights, a new fight); a member has none.
 test("1.2 the Games tab: a listed arbiter who is not staff gets his console lines; a member does not", function()
@@ -2928,7 +2928,7 @@ test("1.2 the Games tab: the author's Arbiter preview shows an arbiter's lines, 
 	w:As(author, function()
 		local ns = author.ns
 		local L = ns.L
-		assert(loadfile(H.ADDON_DIR .. "ViewAs.lua"))("Olympus", ns)
+		assert(loadfile(H.ADDON_DIR .. "ViewAs.lua"))("ChillZone", ns)
 		local AH, VA = ns.ArenaHome, ns.ViewAs
 		eq(ns.Workshop.IsAuthor(), true); eq(AH.IsArbiterHere(), false, "no arbiter")
 		eq(Head(AH.TabLines(), L), nil, "his own view: his own lines, none")
@@ -2958,7 +2958,7 @@ test("1.2 the Games tab: the author's Arbiter preview shows an arbiter's lines, 
 	w2:As(author2, function()
 		local ns = author2.ns
 		local L = ns.L
-		assert(loadfile(H.ADDON_DIR .. "ViewAs.lua"))("Olympus", ns)
+		assert(loadfile(H.ADDON_DIR .. "ViewAs.lua"))("ChillZone", ns)
 		local AH, VA = ns.ArenaHome, ns.ViewAs
 		eq(AH.IsArbiterHere(), true, "a signed arbiter")
 		assert(Head(AH.TabLines(), L), "his own view")
@@ -3127,8 +3127,8 @@ test("1.2 the showcase: a test build's empty real screens stay empty outside exp
 	local w = World.New()
 	local t = w:Client("Wenna Crale", { testBuild = TestBuild(w) })
 	local p = w:Client("Lida Fenn")
-	w:As(t, function() t.slashes.OLYMPUS("arena") end)
-	w:As(p, function() p.slashes.OLYMPUS("arena") end)
+	w:As(t, function() t.slashes.CHILLZONE("arena") end)
+	w:As(p, function() p.slashes.CHILLZONE("arena") end)
 	eq(t.Arena.Sim(), false, "not the sim")
 	local tr = w:As(t, function() return t.ns.ArenaHome.Data.Rankings("all", "A", 1) end)
 	eq(#((tr or {}).rows or {}), 0, "test metadata does not invent rankings")
@@ -3183,7 +3183,7 @@ end)
 test("1.2 the showcase: a test build's own history and Bones history never acquire sample records on companion load", function()
 	local w = World.New()
 	local t = w:Client("Wenna Crale", { testBuild = TestBuild(w) })
-	w:As(t, function() t.slashes.OLYMPUS("arena") end)
+	w:As(t, function() t.slashes.CHILLZONE("arena") end)
 	local hist = w:As(t, function() return t.ns.ArenaHome.Data.History({ mine = true }) end)
 	eq(#hist, 0, "no invented fights or stakes")
 	eq(#w:As(t, function() return t.ns.ArenaHome.Data.BoneHistory() end), 0, "no invented Bones games")
@@ -3264,10 +3264,10 @@ test("1.2 P1.8 Bones entry: the full table is an in-world introduction with one 
 	NoErrors(w)
 end)
 
--- /oly games photos (the owner's slides): a test build's tour of the games' screens, its rolls
+-- /cz games photos (the owner's slides): a test build's tour of the games' screens, its rolls
 -- scripted through the companion's local roll function, never replacing the game's RandomRoll;
 -- refused on a player's client.
-test("1.2 /oly games photos: a test build's tour scripts only local rolls; a player's client refuses", function()
+test("1.2 /cz games photos: a test build's tour scripts only local rolls; a player's client refuses", function()
 	local w = World.New()
 	local t = w:Client("Wenna Crale", { testBuild = TestBuild(w) })
 	local p = w:Client("Lida Fenn")
@@ -3275,13 +3275,13 @@ test("1.2 /oly games photos: a test build's tour scripts only local rolls; a pla
 	local was = rawget(_G, "RandomRoll")
 	RandomRoll = function() rolled = rolled + 1 end
 	local mine = RandomRoll
-	w:As(p, function() p.slashes.OLYMPUS("games photos") end)
+	w:As(p, function() p.slashes.CHILLZONE("games photos") end)
 	eq(Printed(p, p.companion.own.ArenaUI and p.ns.L.ARENA_GAMES_PHOTOS_REFUSED or "?") > 0 or p.companion.loaded ~= true, true, "refused")
-	-- (the Olympus window itself is not built in the test world: its tab choice is a no-op here; a
+	-- (the ChillZone window itself is not built in the test world: its tab choice is a no-op here; a
 	-- step that fails ends the tour, so the rest runs only when every step works)
 	t.ns.UI = t.ns.UI or {}
 	t.ns.UI.SelectTab = function() end
-	w:As(t, function() t.slashes.OLYMPUS("games photos") end)
+	w:As(t, function() t.slashes.CHILLZONE("games photos") end)
 	local duringTour = RandomRoll
 	eq(t.companion.own.ArenaUI.Kit.PhotoStaged(), true, "the windows on black while it runs")
 	local shots = 0
@@ -3299,7 +3299,7 @@ test("1.2 /oly games photos: a test build's tour scripts only local rolls; a pla
 	RandomRoll = was
 end)
 
-test("1.2 /oly games photos: Escape and a failed step restore the local roll delegate", function()
+test("1.2 /cz games photos: Escape and a failed step restore the local roll delegate", function()
 	for _, stop in ipairs({ "escape", "error" }) do
 		local w = World.New()
 		local t = w:Client("Wenna Crale", { testBuild = TestBuild(w) })
@@ -3313,7 +3313,7 @@ test("1.2 /oly games photos: Escape and a failed step restore the local roll del
 				assert(own.Roll ~= previous, "the tour holds its own roll delegate")
 				local stage
 				for _, part in ipairs(t.frames) do
-					if part.frame:GetName() == "OlympusPhotoBackdrop" then stage = part.frame break end
+					if part.frame:GetName() == "ChillZonePhotoBackdrop" then stage = part.frame break end
 				end
 				assert(stage, "the backdrop Escape closes")
 				stage:Hide()
@@ -3329,7 +3329,7 @@ test("1.2 /oly games photos: Escape and a failed step restore the local roll del
 	end
 end)
 
-test("1.2 /oly games photos: practice games use the companion's delegate or the native roll", function()
+test("1.2 /cz games photos: practice games use the companion's delegate or the native roll", function()
 	for _, scripted in ipairs({ true, false }) do
 		local w = FW.New()
 		local t = w:Player("Wenna Crale", { testBuild = TestBuild(w) })
@@ -3359,15 +3359,15 @@ test("1.2 /oly games photos: practice games use the companion's delegate or the 
 end)
 
 -- (The 1.1.6 base: the gamepad gate's "photo" covers the companion's tours too, now that the audit
--- reads Olympus_Arena/.) With the gamepad UI on, a test build's tour does not start: RandomRoll
+-- reads ChillZone_Arena/.) With the gamepad UI on, a test build's tour does not start: RandomRoll
 -- stays the game's, no shot, no black stage.
-test("1.2 /oly games photos with the gamepad UI on: refused, RandomRoll left alone", function()
+test("1.2 /cz games photos with the gamepad UI on: refused, RandomRoll left alone", function()
 	local w = World.New()
 	local t = w:Client("Wenna Crale", { testBuild = TestBuild(w) })
 	local was = rawget(_G, "RandomRoll")
 	local mine = function() end
 	RandomRoll = mine
-	-- (the tour's own entry: with the gamepad UI no /oly command runs at all, the gate's "slash")
+	-- (the tour's own entry: with the gamepad UI no /cz command runs at all, the gate's "slash")
 	local own = w:As(t, function() return H.LoadCompanion(t.ns) end)
 	H.WithGamepadUI(true, function()
 		w:As(t, function() eq(own.ArenaUI.GamesPhotos(), false, "refused") end)
@@ -3380,13 +3380,13 @@ end)
 
 -- The owner, 2026-09-30: Check version and Ask to update from the guild's rows too: the guild
 -- rosters' menus are hooked (this client's: COMMUNITIES_GUILD_MEMBER and COMMUNITIES_WOW_MEMBER;
--- the old Guild window's GUILD), and a right-click on an Olympus window row that names a player
+-- the old Guild window's GUILD), and a right-click on an ChillZone window row that names a player
 -- opens a menu of the same lines.
 -- (Changed on purpose, 1.2.1, an officer's failed kick and rank change: the game's guild roster
 -- menus, COMMUNITIES_GUILD_MEMBER and GUILD, hold its promote, demote, rank and removal, and get no
--- Olympus line any more (PlayerMenu.NEVER, tests/arena/guild-rank-taint.lua); the community roster's
--- menu and the Olympus window's rows keep them.)
-test("1.2 the guild's rows: the community roster's menu hooked, never the game's guild roster's; an Olympus row's right-click opens the player menu's lines", function()
+-- ChillZone line any more (PlayerMenu.NEVER, tests/arena/guild-rank-taint.lua); the community roster's
+-- menu and the ChillZone window's rows keep them.)
+test("1.2 the guild's rows: the community roster's menu hooked, never the game's guild roster's; an ChillZone row's right-click opens the player menu's lines", function()
 	-- (the harness's own client: it loads 1.1.2's PlayerMenu.lua and Versions.lua)
 	local ns = H.ns
 	local PM = ns.PlayerMenu
@@ -3454,7 +3454,7 @@ end)
 test("1.2.0 backup: a keeper's name with a pipe or a control byte in a pasted text is left out, never shown raw", function()
 	local w = World.New()
 	local a = w:Client("Lida Fenn")
-	w:As(a, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("Olympus", a.ns) end)
+	w:As(a, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("ChillZone", a.ns) end)
 	local B = a.ns.Backup
 	local d = w:As(a, function()
 		local payload = B.Write({ v = 1, t = a.ns.Now(), char = a.ns.me, group = a.ns.group, faction = a.ns.faction, settings = {},

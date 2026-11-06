@@ -1,4 +1,4 @@
-# Olympus 1.2.4 — test candidate
+# ChillZone 1.2.4 — test candidate
 
 This candidate brings the current changes together for testing on WoW: Forever. These notes
 describe implemented behavior, not a completed Windows or multiplayer acceptance test. No
@@ -28,13 +28,13 @@ tickets stay disabled.
   removed. Games lists live Arena/Bones conversations; after a Bones game ends, participants
   can continue its conversation while spectators retain read-only history, within retention
   limits. A lifecycle update does not open the window automatically.
-- Native `[Olympus]` links open the Olympus input when the character may write there. A free
+- Native `[ChillZone]` links open the ChillZone input when the character may write there. A free
   Shift + guild shortcut opens The Watch for an actually authorized High Councillor; other
   characters retain the normal window toggle. Existing bindings and hotkey opt-out are respected.
 
 ## Honours and profiles
 
-- The normal Olympus window holds My profile, its look, personal portrait fallback icon,
+- The normal ChillZone window holds My profile, its look, personal portrait fallback icon,
   privacy summary and retained letters. Self and other-player menus say **View profile**.
   Every member can choose a personal icon with Games off; that local choice does not enable
   sharing. Council chat icons remain High-Council-only.
@@ -48,7 +48,7 @@ tickets stay disabled.
   The King receives no letter from himself. Later losses, returns and place changes use quiet,
   bounded notices. Letter text, parchment layout and the red seal beside the signature were
   revised; clipping and actual texture appearance still need the client checks below.
-- `/oly honours preview` opens the author's gallery of every existing letter family, using
+- `/cz honours preview` opens the author's gallery of every existing letter family, using
   the actual framed parchment. It creates no award, saved letter, Wanted entry or broadcast,
   and cannot consume a waiting real letter. It is not available through a role preview.
 
@@ -57,7 +57,7 @@ tickets stay disabled.
 - Verified ordinary members' own observed outdoor kills and deaths can reach other clients.
   Empty zero-point/zero-kill entries are hidden, and repeated reports of one death count once.
   Bounties use the existing victim office/level and target-level formula, with revenge notices
-  and a reset after a claim. `/oly wanted status` explains local captures and refusals.
+  and a reset after a claim. `/cz wanted status` explains local captures and refusals.
 - Bounty cooldowns also compare owners established by reciprocal alt links, known local
   characters or independently verified ownership. Unconfirmed characters are not linked by
   guesswork; this is partial anti-farming protection, not a solution for unrelated accounts.
@@ -66,7 +66,7 @@ tickets stay disabled.
   as proof that older records are missing. Missing evidence is not reconstructed.
 - Background census traffic redraws the open main Chat summary at most once a minute; chat
   messages and access changes keep their separate refresh paths. Existing incremental chat
-  layout, coalesced census updates and `/oly perf` time/memory reports remain available.
+  layout, coalesced census updates and `/cz perf` time/memory reports remain available.
   A lower offline cost does not establish that live stutter or spikes have been eliminated.
 
 ## Treasury, dues and voluntary campaigns
@@ -97,14 +97,14 @@ tickets stay disabled.
   off by default for 31 days, to privately share complete signed reset checkpoints with the
   federal Treasurer. Full membership and confirmed alt groups at both boundaries, the amount
   captured at the real reset, and the original verified role/key proofs are required. Nothing
-  goes to public OlympusNet. Turning sharing off withdraws retained coverage; a changed or
+  goes to public ChillZoneNet. Turning sharing off withdraws retained coverage; a changed or
   revoked master, an absent boundary, unknown key or capped source remains unknown. A census
   claim is never negative coverage.
   Book coverage separately requires the pinned actors' own complete native proof tracker,
   started before the week; an old opening date or a generic restored/remote ledger is not proof
   of missing receipts. Positive receipts remain lower bounds. This does not promise complete
   federation-wide coverage, infer nonpayment or impose a sanction, restriction or native action.
-- `/oly carry` retains the older unverified quote route and adds a separate, paginated original
+- `/cz carry` retains the older unverified quote route and adds a separate, paginated original
   signature archive for the same character moving manually between sister guilds. Both sides
   explicitly consent. Unknown original keys require direct confirmation; a forwarded key does
   not become trusted. Private Loot passes between consenting guild masters, never through the
@@ -117,7 +117,7 @@ tickets stay disabled.
   inspectable, including original dates and explicitly labelled present-day witnesses. A
   reload can resume an already-consented partial archive. This does not invite anyone or
   transfer offices, keys, payments, points, active pardons or moderator records. A successor
-  master or alt inherits no permission. Both staff clients still need ordinary Olympus access.
+  master or alt inherits no permission. Both staff clients still need ordinary ChillZone access.
 
 ## Open limitations and acceptance gates
 

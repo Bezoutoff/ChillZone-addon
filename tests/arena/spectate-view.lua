@@ -1,5 +1,5 @@
 -- 1.2.6, Watch duel (Daniel's duel-view request, 2026-10-19): the duel view's window and bar,
--- Olympus_Arena/Spectate.lua, on the test world with the real core (ArenaSpectate.lua) and the real
+-- ChillZone_Arena/Spectate.lua, on the test world with the real core (ArenaSpectate.lua) and the real
 -- companion: the right-click line opening the split window, the live values reaching its bars only
 -- through the core's S.Push and S.Cast (Forever's secrets unchanged, Era's plain values), out of
 -- sight, the cast and its ticker, Auto's bar in combat and the full view at the result, the gear
@@ -85,7 +85,7 @@ local function Recording(c)
 	return made
 end
 
--- The game's tooltip, as Olympus's own tooltips use it (its owner and lines).
+-- The game's tooltip, as ChillZone's own tooltips use it (its owner and lines).
 local function Tooltip(c)
 	local tip = { lines = {} }
 	function tip:SetOwner(owner, anchor) self.owner, self.anchor, self.lines, self.link = owner, anchor, {}, nil end
@@ -146,14 +146,14 @@ test("watch duel view: the right-click line opens one window split down the midd
 	w:As(V, found)
 	local win = assert(View(V).Frame(), "the window")
 	eq(win:IsShown(), true); eq(View(V).Mode(), "full"); eq(View(V).Bar():IsShown(), false, "the bar waits for combat")
-	assert(win.name:find("^OlympusArenaWatch"), win.name); eq(win.TitleText.text, V.ns.L.ARENA_WATCH_TITLE)
+	assert(win.name:find("^ChillZoneArenaWatch"), win.name); eq(win.TitleText.text, V.ns.L.ARENA_WATCH_TITLE)
 	local A, B = win.halves.A, win.halves.B
 	eq(A.name.text, "Torvin Hale"); eq(B.name.text, "Selka Drummond")
 	eq(A.hp.barColor[1], 0.75, "A red"); eq(B.hp.barColor[3], 0.75, "B blue")
 	eq(rawget(A.hp, "reverse"), nil); eq(rawget(B.hp, "reverse"), true, "B's bars fill from his outer edge")
 	eq(A.anchors[1][4] < B.anchors[1][4], true, "A left of B")
 	eq(win.seal.text.text, V.ns.L.ARENA_WATCH_VS)
-	eq(win.fight.text, V.ns.L.ARENA_WATCH_NOT_OLYMPUS, "a pair with no Olympus fight known here")
+	eq(win.fight.text, V.ns.L.ARENA_WATCH_NOT_CHILLZONE, "a pair with no ChillZone fight known here")
 	for _, ev in ipairs(View(V).EVENTS) do eq(View(V).Events().events[ev], true, ev .. " registered") end
 	eq(select(1, View(V).Ticking()), true, "the ticker runs while shown")
 	assert(S(w, V).Watching(), "the session")
@@ -463,7 +463,7 @@ test("watch duel view: a best of 3: after a round the strip keeps the fight's li
 end)
 
 -- (The same regression for a pair this client knows no fight of: a re-duel kept the old winner.)
-test("watch duel view: a pair with no Olympus fight: the result stays through the calm after it and goes when they fight again", function()
+test("watch duel view: a pair with no ChillZone fight: the result stays through the calm after it and goes when they fight again", function()
 	local e = Watch()
 	local w, V, o, cast, win = e.w, e.V, e.o, e.cast, e.win
 	o.bodies[cast.A], o.bodies[cast.B] = { combat = true }, { combat = true }
@@ -479,7 +479,7 @@ test("watch duel view: a pair with no Olympus fight: the result stays through th
 	o.bodies[cast.A].combat, o.bodies[cast.B].combat = true, true
 	w:Run(2)
 	assert(not tostring(win.fight.text):find(V.ns.L.ARENA_WATCH_WON_KO:format("Torvin Hale"), 1, true), "a re-duel: no old winner: " .. tostring(win.fight.text))
-	assert(tostring(win.fight.text):find(V.ns.L.ARENA_WATCH_NOT_OLYMPUS, 1, true), tostring(win.fight.text))
+	assert(tostring(win.fight.text):find(V.ns.L.ARENA_WATCH_NOT_CHILLZONE, 1, true), tostring(win.fight.text))
 	w:As(V, View(V).Pin, "auto")
 	W3.NoErrors(w)
 end)
@@ -620,7 +620,7 @@ test("watch duel view: -/+ scale both the window and the bar within 0.6-1.6; the
 	W3.NoErrors(w)
 end)
 
-test("watch duel view: its X, Escape or /oly arena watch off close it: the tickers cancelled, every event unregistered, the session over; a swap to the bar or the UI hidden with its parent is no close; in combat it goes on updating", function()
+test("watch duel view: its X, Escape or /cz arena watch off close it: the tickers cancelled, every event unregistered, the session over; a swap to the bar or the UI hidden with its parent is no close; in combat it goes on updating", function()
 	local e = Watch()
 	local w, V, o, cast = e.w, e.V, e.o, e.cast
 	o.bodies[cast.A] = { hp = 10, hpMax = 20, grouped = true }
@@ -644,7 +644,7 @@ test("watch duel view: its X, Escape or /oly arena watch off close it: the ticke
 	local involved = table.concat(V.ns.Arena.Involved(), ",")
 	assert(not involved:find("spectate", 1, true), involved)
 	for _, t in ipairs(w:Timers(V, true)) do assert(not (t.every == 0.2 or t.every == 0.1), "a ticker of the view's left") end
-	-- Again, closed by /oly arena watch off.
+	-- Again, closed by /cz arena watch off.
 	assert(S(w, V).Open(assert(S(w, V).PairFromUnit("target"))))
 	eq(win:IsShown(), true)
 	w:As(V, V.ns.Arena.RunSlash, "watch off")
@@ -657,7 +657,7 @@ test("watch duel view: the weight rule: a member who never watches has no frame,
 	local w, V, o, cast = e.w, e.V, e.o, e.cast
 	local idle = w:ArenaWeight(V)
 	eq(View(V).Frame(), nil); eq(View(V).Bar(), nil); eq(View(V).Events(), nil)
-	for _, c in ipairs(V.frames) do assert(not tostring(c.frame.name or ""):find("OlympusArenaWatch", 1, true), "no frame of the view's") end
+	for _, c in ipairs(V.frames) do assert(not tostring(c.frame.name or ""):find("ChillZoneArenaWatch", 1, true), "no frame of the view's") end
 	o.bodies[cast.A] = { combat = true, cast = { name = "Smite", texture = 1, start = 1, finish = 2 } }
 	assert(S(w, V).Open(assert(S(w, V).PairFromUnit("target"))))
 	w:Run(2)

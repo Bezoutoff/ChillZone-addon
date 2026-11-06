@@ -5,7 +5,7 @@ local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]nominees%
 local function World(fn)
 	local savedGuild, dialogs = GetGuildInfo, {}
 	for k, v in pairs(StaticPopupDialogs) do dialogs[k] = v end
-	local w = { now = 1800000000, guild = "Olympus II", rank = 3, prints = {}, packets = {}, quiet = false }
+	local w = { now = 1800000000, guild = "ChillZone II", rank = 3, prints = {}, packets = {}, quiet = false }
 	local c = setmetatable({ me = "Adept-Realm", realm = "Realm", group = "RealmGroup", faction = "Alliance", db = {}, rdb = {} }, { __index = ns })
 	local ok, err = pcall(function()
 		GetGuildInfo = function() return w.guild, "Member", w.rank end
@@ -14,11 +14,11 @@ local function World(fn)
 		c.ShortName = function(name) return name and name:match("^[^-]+") end
 		c.RealmOf = function(name) return name and name:match("%-([^%-]+)$") end
 		c.IsMember = function() return c.IsFederation(w.guild) end
-		c.IsKingGuild, c.KingGuildName = function(g) return g == "Olympus" end, function() return "Olympus" end
+		c.IsKingGuild, c.KingGuildName = function(g) return g == "ChillZone" end, function() return "ChillZone" end
 		c.KingCharacter = function() return "Pinned King-Realm" end
 		c.IsKingCharacter = function(name) return c.FullName(name) == c.KingCharacter() end
 		c.IsHighCouncillor = function(name) return w.council and c.FullName(name) == "Councilor-Realm" or false end
-		c.King = { IsKing = function() return c.IsKingCharacter(c.me) and w.guild == "Olympus" and w.rank == 0 end, Preview = function() return false end }
+		c.King = { IsKing = function() return c.IsKingCharacter(c.me) and w.guild == "ChillZone" and w.rank == 0 end, Preview = function() return false end }
 		c.Workshop, c.ViewAs = { Visible = function() return false end }, { Is = function() return false end, Previewing = function() return false end }
 		c.Print = function(line) w.prints[#w.prints + 1] = line end
 		c.Log, c.Fire, c.On, c.After = function() end, function() end, function() end, function() end
@@ -33,7 +33,7 @@ local function World(fn)
 			return R.complete and R.guild == w.guild and R.group == c.group and R.faction == c.faction
 				and w.now >= R.snapshotAt and w.now - R.snapshotAt <= 600 and R or nil
 		end
-		function w.reload() assert(loadfile(ROOT .. "Olympus/Nominees.lua"))("Olympus", c) end
+		function w.reload() assert(loadfile(ROOT .. "ChillZone/Nominees.lua"))("ChillZone", c) end
 		function w.take(guild, sender, rev, body)
 			c.Nominees.Handle("CHANNEL", sender, ("NM~1~%s~%d~1~1~%s"):format(guild, rev, body))
 		end
@@ -48,12 +48,12 @@ end
 test("nominees retention: accepted own appointments survive 366 offline days and reload, but current roster authority and explicit revocation remain mandatory", function()
 	World(function(w, c)
 		w.take(w.guild, "Guildmaster-Realm", w.now, "c=Peer;d=Department of War=Adept")
-		local stamp = c.rdb.nomineesHeard["olympus ii"].at
+		local stamp = c.rdb.nomineesHeard["chillzone ii"].at
 		w.now = w.now + 366 * 86400; c.Roster.snapshotAt = w.now
 		eq(c.Nominees.RoleOf("Peer", w.guild), "centurion", "offline age is not removal")
 		eq(c.Nominees.Prune(), false); w.reload()
 		eq(c.Nominees.RoleOf("Peer", w.guild), "centurion", "restored old accepted record")
-		eq(c.rdb.nomineesHeard["olympus ii"].at, stamp, "no forged freshness timestamp")
+		eq(c.rdb.nomineesHeard["chillzone ii"].at, stamp, "no forged freshness timestamp")
 		eq(c.Nominees.IsCorrespondent(c.me, w.guild, "Department of War"), true)
 		c.Roster.complete = false
 		eq(c.Nominees.IsCorrespondent(c.me, w.guild, "Department of War"), false)
@@ -123,7 +123,7 @@ end)
 
 test("nominees retention: main c wire is explicit manual data, never an automatic council seat; empty revocation cannot be resurrected by an older peer", function()
 	World(function(w, c)
-		w.guild, c.Roster.guild = "Olympus", "Olympus"
+		w.guild, c.Roster.guild = "ChillZone", "ChillZone"
 		w.council = true; c.rdb.council = { names = { ["councilor"] = true } }
 		eq(c.Nominees.RoleOf("Councilor", w.guild), nil, "a council seat is not an appointment")
 		w.take(w.guild, "Peer-Realm", w.now, "c=Peer")
@@ -171,17 +171,17 @@ test("nominees retention: 25 long-name Legates plus six correspondents fit bound
 		end
 		eq(#N.ListOf(w.guild).entries, 31); w.reload(); N = c.Nominees
 		eq(#N.ListOf(w.guild).entries, 31); eq(N.MAX_LEGATES, 25)
-		c.rdb.nomineesHeard["olympus forged"] = { g = "Olympus Forged", by = "Fake-Realm", rev = math.huge, at = w.now, body = "c=Peer" }
-		w.reload(); eq(c.Nominees.ListOf("Olympus Forged"), nil, "non-finite saved revision cannot monopolize retention")
+		c.rdb.nomineesHeard["chillzone forged"] = { g = "ChillZone Forged", by = "Fake-Realm", rev = math.huge, at = w.now, body = "c=Peer" }
+		w.reload(); eq(c.Nominees.ListOf("ChillZone Forged"), nil, "non-finite saved revision cannot monopolize retention")
 		eq(#c.Nominees.Parts(w.guild, math.huge, entries), 0)
 		-- Even an oversized legacy save cannot turn indefinite age retention into unbounded cache.
 		for i = 1, c.Nominees.SAVED_MAX + 5 do
-			local guild = "Olympus G" .. i
+			local guild = "ChillZone G" .. i
 			c.rdb.nomineesHeard[guild:lower()] = { g = guild, by = "Guildmaster-Realm", rev = 1, at = w.now - i, body = "c=Peer" }
 		end
 		w.reload(); assert(c.Nominees.ListOf(w.guild), "our own guild survives the cap")
 		local count = 0; for _ in pairs(c.rdb.nomineesHeard) do count = count + 1 end
 		eq(count, c.Nominees.SAVED_MAX)
-		eq(c.Nominees.ListOf("Olympus G305"), nil, "eviction bounds memory as well as saved snapshots")
+		eq(c.Nominees.ListOf("ChillZone G305"), nil, "eviction bounds memory as well as saved snapshots")
 	end)
 end)

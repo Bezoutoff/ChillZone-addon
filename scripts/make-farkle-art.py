@@ -12,7 +12,7 @@ The sources are PNGs in media/farkle/src, each the exact pixels of the texture t
 They come from the dice renders (their README: one geometry for every cell, the die's centre at
 the cell's centre, its edge half the cell, the outermost pixel of every cell clear).
 
-Each becomes Olympus_Arena/media/farkle/<name>.tga in the format of the addon's other textures:
+Each becomes ChillZone_Arena/media/farkle/<name>.tga in the format of the addon's other textures:
 32-bit uncompressed true colour with an 8-bit alpha channel (TGA type 2), bottom-left origin,
 the TGA 2.0 footer, written by the same writer as scripts/make-borders.py, so the same PNGs always
 give the same bytes. Every size is a power of two.
@@ -30,7 +30,7 @@ from PIL import Image
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 SOURCES = os.path.join(ROOT, "media", "farkle", "src")
-OUTPUT = os.path.join(ROOT, "Olympus_Arena", "media", "farkle")
+OUTPUT = os.path.join(ROOT, "ChillZone_Arena", "media", "farkle")
 
 # Each texture and its size (FarkleBoard.lua's texture coordinates depend on them).
 TEXTURES = {

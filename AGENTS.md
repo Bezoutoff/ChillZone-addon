@@ -1,10 +1,10 @@
-# Working on Olympus
+# Working on ChillZone
 
 ## Scope and context
 
 - Keep changes focused on the requested task and follow nearby Lua patterns.
 - Read `README.md` for addon behaviour and development commands. Runtime code is
-  in `Olympus/`; `Olympus/Olympus.toc` declares supported interfaces and load order.
+  in `ChillZone/`; `ChillZone/ChillZone.toc` declares supported interfaces and load order.
 - Use the existing offline harness in `tests/run.lua` and fixtures in
   `tests/fixtures/` when adding coverage.
 
@@ -43,7 +43,7 @@ Players use Blizzard's gamepad UI and no release is tried with a controller firs
 stand in. Code that touches the game's own UI (its frames, popups, menus, tooltips, chat box,
 bindings, tables or globals, or its restricted calls) is an integration with the gamepad gate:
 
-1. Add an entry to `Olympus/GamepadRegistry.lua` (or extend one): what the game does with it, and
+1. Add an entry to `ChillZone/GamepadRegistry.lua` (or extend one): what the game does with it, and
    what it does at a login with the gamepad UI on and at each switch between the two modes.
 2. Tag every site with `-- gp:<id>` (end of the line, on the line above the statement, or on the
    first line of a function to cover its own body). `<id>!hook` marks a site only that id's
@@ -55,7 +55,7 @@ bindings, tables or globals, or its restricted calls) is an integration with the
 5. Exercise it in the gamepad pass, `tests/gamepad.lua`, and name it there with
    `GP.Covers("<id>")`: a gamepad login, a switch each way, and what it must leave.
 6. Run `bash scripts/check.sh`. `scripts/gamepad-audit.lua` fails on an untagged reach, a tag with
-   no entry, a write to a global that is not Olympus's, a gate entry's site with no gate check
+   no entry, a write to a global that is not ChillZone's, a gate entry's site with no gate check
    before it, a stale entry, an entry no test covers, and GameTooltip or chat-window uses above
    `scripts/gamepad-baseline.txt` (raise a line there only in the same change, so review sees it).
 

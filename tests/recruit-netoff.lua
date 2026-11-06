@@ -1,8 +1,8 @@
--- Contextual warnings in Olympus's own recruit-invite flow. Native guild invitations remain
+-- Contextual warnings in ChillZone's own recruit-invite flow. Native guild invitations remain
 -- the officer's choice; these tests drive the real moderation records, request rows and dialog.
 local ns, test, eq, H = ...
 local R, M = ns.Recruit, ns.Moderation
-local WHICH = "OLYMPUS_RECRUIT_NETOFF"
+local WHICH = "CHILLZONE_RECRUIT_NETOFF"
 local WHO = "New Recruit-Realm"
 
 local function Scene(fn)
@@ -15,7 +15,7 @@ local function Scene(fn)
 				R.ResetForTests()
 				ns.Dialog.Reset()
 				w.invites, w.sideEffects = {}, 0
-				w.canInvite, w.guild = true, "Olympus II"
+				w.canInvite, w.guild = true, "ChillZone II"
 				CanGuildInvite = function() return w.canInvite end
 				GetGuildInfo = function() return w.guild end
 				C_GuildInfo = { Invite = function(name) w.invites[#w.invites + 1] = name end }
@@ -45,12 +45,12 @@ local function Word(w, name, off, reason, kind)
 		w.clock, name, H.HC, reason or ""))
 end
 local function Request(name)
-	eq(R.OnJoinRequest("WHISPER", name or WHO, "J3~Olympus II~12~MAGE"), true)
+	eq(R.OnJoinRequest("WHISPER", name or WHO, "J3~ChillZone II~12~MAGE"), true)
 	return R.requests[#R.requests]
 end
 local function InviteRow()
 	for _, line in ipairs(R.RequestLines()) do
-		if line.text == ns.Views.Green(ns.L.JOIN_INVITE:format("Olympus II")) then return line end
+		if line.text == ns.Views.Green(ns.L.JOIN_INVITE:format("ChillZone II")) then return line end
 	end
 	error("the officer's invite row is missing")
 end
@@ -78,7 +78,7 @@ test("Recruit net-off warning: reason and timestamp precede the invitation; keep
 				eq(#w.invites, 1); eq(w.invites[1], "New Recruit")
 				eq(#R.requests, 0, "only the explicit invite completes the request")
 				eq(#w.sent, sent); eq(#w.whispered, whispered, "no moderation action or whisper")
-				eq(#game.shown, 0, "the warning uses an Olympus window in both input modes")
+				eq(#game.shown, 0, "the warning uses an ChillZone window in both input modes")
 				eq(#w.popups, 0, "no native popup")
 			end)
 		end)
@@ -109,7 +109,7 @@ test("Recruit net-off warning: permission, guild, request expiry, dismissal and 
 			InviteRow().onClick()
 			local f = Warning()
 			if change == "permission" then w.canInvite = false
-			elseif change == "guild" then w.guild = "Olympus Zeus"
+			elseif change == "guild" then w.guild = "ChillZone Zeus"
 			elseif change == "expiry" then w.clock = w.clock + R.REQUEST_TTL + 1
 			elseif change == "dismiss" then R.Dismiss(req)
 			elseif change == "api" then C_GuildInfo = nil
@@ -124,7 +124,7 @@ test("Recruit net-off warning: clear, guild-only, revoked and pinned-King record
 	for _, context in ipairs({ "clear", "guild", "revoked", "king" }) do
 		Scene(function(w)
 			local who = context == "king" and H.KING or WHO
-			if context == "guild" then Word(w, "Olympus Zeus", true, "Guild removed", "g")
+			if context == "guild" then Word(w, "ChillZone Zeus", true, "Guild removed", "g")
 			elseif context == "revoked" then
 				Word(w, who, true, "Old reason")
 				w.clock = w.clock + 1

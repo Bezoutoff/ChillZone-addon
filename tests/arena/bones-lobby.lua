@@ -49,7 +49,7 @@ test("Bones lobby: the real Play parchment explains the first lesson in steps, t
 		assert(returning:find(L.FARKLE_LOBBY_RETURN, 1, true))
 		assert(returning:find("Find a Player from anywhere", 1, true), "the visible instructions separate search from the table's venue")
 		assert(returning:find("Forever campfire", 1, true), "the real native campfire is a table venue without a Board post")
-		assert(returning:find("registered Olympus camp", 1, true), "explicit Board camps remain supported too")
+		assert(returning:find("registered ChillZone camp", 1, true), "explicit Board camps remain supported too")
 		assert(not returning:find(L.FARKLE_LOBBY_FIRST, 1, true), "a completed lesson no longer asks for the first game")
 		eq(canvas.find:IsEnabled(), true); eq(FT.Live(), nil, "explaining the next step starts no game")
 	end)
@@ -266,7 +266,7 @@ test("Bones lobby: keeper guidance starts and cancels the actual nearest-inn arr
 		function pins:AddMinimapIconWorld(_, frame) self.adds = self.adds + 1; frame:SetPoint("CENTER", g.Minimap, "CENTER", 30, 0); return true end
 		function pins:RemoveMinimapIcon() self.removes = self.removes + 1 end
 		a.ns.Pins = function() return pins end
-		assert(loadfile(H.ADDON_DIR .. "InnkeeperArrow.lua"))("Olympus", a.ns)
+		assert(loadfile(H.ADDON_DIR .. "InnkeeperArrow.lua"))("ChillZone", a.ns)
 		local arrow = a.ns.InnkeeperArrow
 		local target = assert(arrow.Target()); eq(target.id, "inn_goldshire", "the real eligible venue registry chooses the nearest keeper")
 		local sent = #w:Sent({ from = a })

@@ -1,4 +1,4 @@
--- 1.2.1, the Bones tables' notices (Olympus/FarkleTable.lua's KN, the live tables list): a player
+-- 1.2.1, the Bones tables' notices (ChillZone/FarkleTable.lua's KN, the live tables list): a player
 -- who allows watchers announces his table, and anyone on the channel can send one naming himself
 -- as a player. Before 1.2.1 every new id was kept for the session, so one sender with made-up ids
 -- grew the list without end. Now one sender keeps at most FT.NOTICES_EACH (his oldest goes), the

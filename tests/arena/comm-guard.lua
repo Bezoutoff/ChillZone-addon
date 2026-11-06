@@ -22,9 +22,9 @@ local function RealComm(fn)
 	end
 	C_ChatInfo = { RegisterAddonMessagePrefix = function() end, SendAddonMessage = Send, SendAddonMessageLogged = Send }
 	IsInGuild = function() return true end
-	GetGuildInfo = function() return "Olympus II" end
+	GetGuildInfo = function() return "ChillZone II" end
 	local ok, err = pcall(function()
-		assert(loadfile(H.ADDON_DIR .. "Comm.lua"))("Olympus", cns)
+		assert(loadfile(H.ADDON_DIR .. "Comm.lua"))("ChillZone", cns)
 		for _, f in ipairs(login) do f() end
 		fn(cns.Comm, cns, results, sent)
 	end)

@@ -1,4 +1,4 @@
--- 1.2.4: every actual ranking explains its live rules inside the main Olympus window.
+-- 1.2.4: every actual ranking explains its live rules inside the main ChillZone window.
 local ns, test, eq = ...
 local Rules, L = ns.RankingRules, ns.L
 

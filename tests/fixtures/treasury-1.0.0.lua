@@ -1,8 +1,8 @@
 local ADDON, ns = ...
 local L = ns.L
 
--- The Treasury of Olympus (1.0): one treasury kept in several books. Its keepers are the
--- Treasurer (ns.TREASURER of the guild OLYMPUS) and his mail character (the other name of
+-- The Treasury of ChillZone (1.0): one treasury kept in several books. Its keepers are the
+-- Treasurer (ns.TREASURER of the guild CHILLZONE) and his mail character (the other name of
 -- ns.TREASURER_CHARACTERS, in any guild or none), the King (his character, ns.KING_CHARACTER)
 -- and the characters the King adds on the Treasury tab (his word, T1~K, like his switches).
 -- Each keeper's own client keeps his character's book: gold and items he receives by trade or
@@ -43,7 +43,7 @@ local L = ns.L
 --     0.9 clients; 1.0 clients never read it.
 --   TR~<Name-Realm>~<time>~<TB~...>
 --     the Treasurer's client passes on his mail character's book, kept on his account (an
---     account plays one character at a time, and outside an Olympus guild the addon sends
+--     account plays one character at a time, and outside an ChillZone guild the addon sends
 --     nothing: a mail character in another guild or none never sends its own), with the time
 --     that book last changed; a keeper's own TB always counts over it.
 --   T1~T~<id>~<guild>~<balance 0|1><ranking 0|1><book 0|1>~<time>        the King's switches (King.lua)
@@ -264,7 +264,7 @@ end
 
 -- One of the keepers pinned by name (the other side of a trade or a mail: its guild is not
 -- known): the Treasurer's characters (his own and his mail's), or the King's character. (The
--- treasury is <Olympus>'s, the Alliance's.)
+-- treasury is <ChillZone>'s, the Alliance's.)
 local function PinnedName(name)
 	if ns.faction == "Horde" or type(name) ~= "string" or name == "" then return false end
 	name = ns.FullName(ns.Normal(name))
@@ -283,9 +283,9 @@ function Treasury.KeeperByName(name)
 end
 
 -- A keeper speaking (a message's sender, whose name the server sets): the Treasurer of
--- <Olympus>, his mail character in any guild or none (Core.lua: its pinned name on his realm
+-- <ChillZone>, his mail character in any guild or none (Core.lua: its pinned name on his realm
 -- group is the check), the King's character of his guild, or a character on the King's list,
--- of an Olympus guild.
+-- of an ChillZone guild.
 function Treasury.IsKeeperName(name, guild)
 	if type(name) ~= "string" or ns.faction == "Horde" then return false end
 	if ns.IsTreasurerMail(name) then return true end
@@ -295,7 +295,7 @@ function Treasury.IsKeeperName(name, guild)
 	return ns.IsFederation(guild) and Listed(name)
 end
 
--- One of the Treasurer's pinned characters speaking: the Treasurer of <Olympus>, or his mail
+-- One of the Treasurer's pinned characters speaking: the Treasurer of <ChillZone>, or his mail
 -- character in any guild or none (the early supporters come from them alone).
 local function TreasurerSpeaking(name, guild)
 	if ns.faction == "Horde" then return false end
@@ -303,7 +303,7 @@ local function TreasurerSpeaking(name, guild)
 end
 
 -- This character keeps a book of the treasury (the author's view: on his screen only). The
--- Treasurer's mail character keeps one outside an Olympus guild too.
+-- Treasurer's mail character keeps one outside an ChillZone guild too.
 local function RealKeeper()
 	if not (ns.IsMember() or ns.IsTreasurerMail(ns.me)) then return false end
 	return Treasury.IsKeeperName(ns.me, GetGuildInfo("player"))
@@ -1017,7 +1017,7 @@ end
 -- Each keeper's yes (0.9.3's Treasurer's, now every keeper's, the King's too): his book and the
 -- guild bank go out only once he chose to share them (ns.db.keeperShares[character], nil until
 -- he answers; the Treasurer's 0.9.3 answer, ns.db.treasurerShares, stays his). They go on the
--- Olympus channel, where every client receives the bytes; the addon shows them to the King,
+-- ChillZone channel, where every client receives the bytes; the addon shows them to the King,
 -- and to the army only with the King's switches. Turned off, his book is withdrawn (TX) from
 -- every screen at once.
 local function ConsentKey() return OwnKey(ns.me or "") end
@@ -1096,7 +1096,7 @@ ns.Comm.Handle("TX", function(...) Treasury.HandleWithdraw(...) end)
 
 -- Asked once a session until he answers: what goes out and who reads it is in the question.
 local asked = false
-StaticPopupDialogs["OLYMPUS_TREASURER_SHARE"] = {
+StaticPopupDialogs["CHILLZONE_TREASURER_SHARE"] = {
 	text = L.TREASURER_SHARE_ASK,
 	button1 = L.TREASURER_SHARE_YES,
 	button2 = L.TREASURER_SHARE_NO,
@@ -1117,7 +1117,7 @@ function Treasury.AskConsent()
 	if asked or not RealKeeper() or (type(shares) == "table" and shares[ConsentKey()] ~= nil) then return false end
 	if (InCombatLockdown and InCombatLockdown()) or (IsInInstance and IsInInstance()) then return false end
 	asked = true
-	ns.ShowDialog("OLYMPUS_TREASURER_SHARE", ns.Comm.Audience and ns.Comm.Audience() or "")
+	ns.ShowDialog("CHILLZONE_TREASURER_SHARE", ns.Comm.Audience and ns.Comm.Audience() or "")
 	return true
 end
 
@@ -1250,7 +1250,7 @@ end
 
 -- The Treasurer's client passes on the book of his mail character kept on his account (TR),
 -- once after login and every RELAY_EVERY (it changes only while that character plays): an
--- account plays one character at a time, and outside an Olympus guild the addon sends nothing,
+-- account plays one character at a time, and outside an ChillZone guild the addon sends nothing,
 -- so a mail character in another guild or none never sends its own. That character's own yes
 -- counts: kept private, its book is withdrawn instead (TX with its name), repeated as often,
 -- whether the Treasurer shares his own book or not (1.0.0). The time is when that book last
@@ -1436,7 +1436,7 @@ end
 ns.Comm.Handle("TB", function(...) Treasury.HandleReport(...) end)
 
 -- His mail character's book as the Treasurer's client passes it on (TR): from the Treasurer
--- himself (his name, set by the server, in <Olympus>), about his mail character alone, of this
+-- himself (his name, set by the server, in <ChillZone>), about his mail character alone, of this
 -- era; taken unless our copy of that book is as new (its own TB, dated when it came, always is).
 -- The book is checked as a keeper's own is (ReadBook), and its date too: DATE_SLACK ahead of the
 -- server's clock at most (Konig's review of 1.0.0).
@@ -1816,7 +1816,7 @@ ns.King.Register("K", function(sender, id, rest)
 	if at then Treasury.TakeKeepers(tonumber(at), names, sender) end
 end)
 
-StaticPopupDialogs["OLYMPUS_TREASURY_KEEPER"] = {
+StaticPopupDialogs["CHILLZONE_TREASURY_KEEPER"] = {
 	text = L.TREASURY_KEEPER_PROMPT,
 	button1 = OKAY or "OK",
 	button2 = CANCEL or "Cancel",
@@ -1846,7 +1846,7 @@ StaticPopupDialogs["OLYMPUS_TREASURY_KEEPER"] = {
 	preferredIndex = 3,
 }
 
-StaticPopupDialogs["OLYMPUS_TREASURY_UNKEEP"] = {
+StaticPopupDialogs["CHILLZONE_TREASURY_UNKEEP"] = {
 	text = L.TREASURY_KEEPER_REMOVE_CONFIRM,
 	button1 = YES or "Yes",
 	button2 = NO or "No",
@@ -2377,19 +2377,19 @@ local function KeeperLines()
 	for _, name in ipairs(listed) do
 		Row(name, ns.DisplayName(name), mine and {
 			key = name,
-			onClick = function() ns.ShowDialog("OLYMPUS_TREASURY_UNKEEP", ns.DisplayName(name), nil, name) end,
+			onClick = function() ns.ShowDialog("CHILLZONE_TREASURY_UNKEEP", ns.DisplayName(name), nil, name) end,
 			tooltip = function(tt) tt:AddLine(ns.DisplayName(name), 1, 0.82, 0); tt:AddLine(L.TREASURY_KEEPER_CLICK_REMOVE, 1, 1, 1, true) end,
 		} or nil)
 	end
 	if #listed == 0 then lines[#lines + 1] = { indent = 1, text = Grey(L.TREASURY_KEEPER_NONE) } end
 	if mine then
 		lines[#lines].gapAfter = true
-		lines[#lines + 1] = { text = Gold("+ " .. L.TREASURY_KEEPER_ADD), onClick = function() ns.ShowDialog("OLYMPUS_TREASURY_KEEPER") end }
+		lines[#lines + 1] = { text = Gold("+ " .. L.TREASURY_KEEPER_ADD), onClick = function() ns.ShowDialog("CHILLZONE_TREASURY_KEEPER") end }
 	end
 	return lines
 end
 
--- The guild bank of <Olympus> as last seen (Bank.lua): its gold, then each tab's items in a
+-- The guild bank of <ChillZone> as last seen (Bank.lua): its gold, then each tab's items in a
 -- grid. The keepers and the King always; the army with the King's "book" switch.
 local function BankLines(lines, role)
 	if role == "member" and not Treasury.Shows("book") then return end
@@ -2466,7 +2466,7 @@ local function SummaryLines(role, q)
 		lines[#lines + 1] = { text = L.TREASURY_WEEK:format(r.donors), right = Green("+" .. Treasury.Coins(r.week)) }
 		if keeper then
 			lines[#lines + 1] = { text = Grey(L.TREASURY_OPENING:format(Treasury.Coins(Treasury.Opening()))),
-				onClick = function() ns.ShowDialog("OLYMPUS_TREASURY_OPENING") end,
+				onClick = function() ns.ShowDialog("CHILLZONE_TREASURY_OPENING") end,
 				tooltip = function(tt) tt:AddLine(L.TREASURY_OPENING_TIP, 1, 1, 1, true) end }
 		end
 		-- Whose books make it, each one's balance and when it came.
@@ -2573,7 +2573,7 @@ function Treasury.RealmText()
 	return L.TREASURY_REALM:format(Treasury.GoldText(r.balance), ns.Ago(r.t))
 end
 
-StaticPopupDialogs["OLYMPUS_TREASURY_OPENING"] = {
+StaticPopupDialogs["CHILLZONE_TREASURY_OPENING"] = {
 	text = L.TREASURY_OPENING_PROMPT,
 	button1 = OKAY or "OK",
 	button2 = CANCEL or "Cancel",

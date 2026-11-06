@@ -4,17 +4,17 @@
 -- Guild in an exclusive game popup (REMOVE_GUILDMEMBER) whose Yes calls C_GuildInfo.RemoveFromGuild
 -- (HasRestrictions: refused from tainted code). Showing it, Blizzard_StaticPopup/StaticPopup.lua
 -- goes through every game popup on screen (StaticPopup_HideExclusive, StaticPopup_FindVisible,
--- StaticPopup_SetUpPosition); one that Olympus's code opened (ns.ShowDialog's StaticPopup_Show with
--- mouse and keyboard) hands Olympus's taint to that question, and the removal fails ("Interface
+-- StaticPopup_SetUpPosition); one that ChillZone's code opened (ns.ShowDialog's StaticPopup_Show with
+-- mouse and keyboard) hands ChillZone's taint to that question, and the removal fails ("Interface
 -- action failed because of an AddOn"). The offline harness has no taint: these tests check what
--- removes the cause (no Olympus question opens as a game popup while a game guild window is on
--- screen, and one still up as a game popup moves to Olympus's own window as a member's card opens)
--- and that nothing of Olympus touches the removal itself.
+-- removes the cause (no ChillZone question opens as a game popup while a game guild window is on
+-- screen, and one still up as a game popup moves to ChillZone's own window as a member's card opens)
+-- and that nothing of ChillZone touches the removal itself.
 local H = ...
 local test, eq, ns = H.test, H.eq, H.ns
 
-local WHICH = "OLYMPUS_TEST_GUILD_QUESTION"
-local NOTE = "OLYMPUS_TEST_GUILD_NOTE"
+local WHICH = "CHILLZONE_TEST_GUILD_QUESTION"
+local NOTE = "CHILLZONE_TEST_GUILD_NOTE"
 
 -- The game's guild window, as GuildFrame.lua reads it: shown or not, its alpha (ClassicUI Forever
 -- keeps it open unseen at 0) and the scripts hooked on it.
@@ -66,7 +66,7 @@ local function WithGuildWindow(fn)
 			StaticPopupDialogs[WHICH] = { text = "Question %s", button1 = "Yes", button2 = "No", timeout = 0, whileDead = true, hideOnEscape = true,
 				OnAccept = function(_, data) answers[#answers + 1] = data end,
 				OnCancel = function(_, data, reason) cancels[#cancels + 1] = tostring(data) .. " " .. tostring(reason) end }
-			-- (As Olympus's report note and whisper questions: an edit box their OnShow empties.)
+			-- (As ChillZone's report note and whisper questions: an edit box their OnShow empties.)
 			StaticPopupDialogs[NOTE] = { text = "Note on %s", button1 = "Send", button2 = "Cancel", hasEditBox = true, timeout = 0, whileDead = true, hideOnEscape = true,
 				OnShow = function(self) self.editBox:SetText("") end,
 				OnAccept = function(self, data) notes[#notes + 1] = tostring(data) .. ": " .. tostring(self.editBox:GetText()) end }
@@ -74,14 +74,14 @@ local function WithGuildWindow(fn)
 			local gns = setmetatable({}, { __index = ns })
 			gns.RegisterEvent = function() end
 			gns.After = function() end
-			assert(loadfile(H.ADDON_DIR .. "GamepadRegistry.lua"))("Olympus", gns)
-			assert(loadfile(H.ADDON_DIR .. "Gamepad.lua"))("Olympus", gns)
+			assert(loadfile(H.ADDON_DIR .. "GamepadRegistry.lua"))("ChillZone", gns)
+			assert(loadfile(H.ADDON_DIR .. "Gamepad.lua"))("ChillZone", gns)
 			gns.On = function(name, f) if name == "LOGIN" then login[#login + 1] = f end end
 			gns.UI = { CloseIfDocked = function() end, FollowHost = function() end, Undock = function() end }
 			gns.MakeRoundButton = function()
 				return setmetatable({ Show = function() end, Hide = function() end }, { __index = function() return function() end end })
 			end
-			assert(loadfile(H.ADDON_DIR .. "GuildFrame.lua"))("Olympus", gns)
+			assert(loadfile(H.ADDON_DIR .. "GuildFrame.lua"))("ChillZone", gns)
 			local ok, err = pcall(function()
 				for _, f in ipairs(login) do f() end
 				local caught
@@ -107,7 +107,7 @@ local function Shown(which)
 	return f ~= nil and f:IsShown() and f or nil
 end
 
-test("guild removal (1.2.1): with the game's guild window on screen an Olympus question is Olympus's own window, never a game popup; closed, the game's popup as before", function()
+test("guild removal (1.2.1): with the game's guild window on screen an ChillZone question is ChillZone's own window, never a game popup; closed, the game's popup as before", function()
 	WithGuildWindow(function(w)
 		ns.ShowDialog(WHICH, "before", nil, "first")
 		eq(#w.game.shown, 1, "no guild window: the game's popup, as always"); eq(w.game.shown[1].which, WHICH)
@@ -115,7 +115,7 @@ test("guild removal (1.2.1): with the game's guild window on screen an Olympus q
 		w.window:Show()
 		ns.ShowDialog(WHICH, "while open", nil, "second")
 		eq(#w.game.shown, 1, "never the game's popup while the guild window is up")
-		local f = assert(Shown(WHICH), "Olympus's own window")
+		local f = assert(Shown(WHICH), "ChillZone's own window")
 		assert(f.text:GetText():find("Question while open", 1, true), f.text:GetText())
 		f.buttons[1]:Click()
 		eq(w.answers[#w.answers], "second", "its Yes answers as the game's would")
@@ -131,7 +131,7 @@ test("guild removal (1.2.1): with the game's guild window on screen an Olympus q
 	end)
 end)
 
-test("guild removal (1.2.1): a question of Olympus's up as a game popup when a member's card opens (its Remove) moves to Olympus's own window, with what it asked", function()
+test("guild removal (1.2.1): a question of ChillZone's up as a game popup when a member's card opens (its Remove) moves to ChillZone's own window, with what it asked", function()
 	WithGuildWindow(function(w)
 		local data = { name = "Ada-Realm" }
 		ns.ShowDialog(WHICH, "kept", nil, data)
@@ -147,7 +147,7 @@ test("guild removal (1.2.1): a question of Olympus's up as a game popup when a m
 		for _, which in ipairs(w.game.hidden) do if which == WHICH then hidden = true end end
 		eq(hidden, true, "closed there unanswered")
 		eq(#w.answers, 0, "and not answered")
-		local f = assert(Shown(WHICH), "asked again in Olympus's own window")
+		local f = assert(Shown(WHICH), "asked again in ChillZone's own window")
 		assert(f.text:GetText():find("Question kept", 1, true), f.text:GetText())
 		f.buttons[1]:Click()
 		eq(w.answers[1], data, "the same question: the same data")
@@ -157,18 +157,18 @@ end)
 
 -- (A reviewer: the move happens whenever a member's card opens, to look at a member too; a note the
 -- player was writing in the game's popup must not be wiped by that click.)
-test("guild removal (1.2.1): what the player has in the box of an Olympus game popup moves with it into Olympus's own window", function()
+test("guild removal (1.2.1): what the player has in the box of an ChillZone game popup moves with it into ChillZone's own window", function()
 	WithGuildWindow(function(w)
 		ns.ShowDialog(NOTE, "Ada", nil, "case 7")
 		local box = assert(w.popups[NOTE], "the game's popup").EditBox
-		box.text = "spam in the Olympus channel, twice"
+		box.text = "spam in the ChillZone channel, twice"
 		w.window:Show()
 		w.card:Show()
 		eq(StaticPopup_Visible(NOTE), nil, "no longer the game's popup")
-		local f = assert(Shown(NOTE), "in Olympus's own window")
-		eq(f.editBox:GetText(), "spam in the Olympus channel, twice", "the note as the player left it, after the question's own OnShow")
+		local f = assert(Shown(NOTE), "in ChillZone's own window")
+		eq(f.editBox:GetText(), "spam in the ChillZone channel, twice", "the note as the player left it, after the question's own OnShow")
 		f.buttons[1]:Click()
-		eq(w.notes[1], "case 7: spam in the Olympus channel, twice", "sent with that note")
+		eq(w.notes[1], "case 7: spam in the ChillZone channel, twice", "sent with that note")
 		-- An empty box stays empty; a question without a box gets nothing in one.
 		w.window:Hide()
 		ns.ShowDialog(NOTE, "Bo", nil, "case 8")
@@ -181,19 +181,19 @@ test("guild removal (1.2.1): what the player has in the box of an Olympus game p
 end)
 
 -- (A reviewer: with mouse and keyboard Escape closed these questions as the game's popups; asked in
--- Olympus's window while the guild window is open, Escape closed the guild window and left the
+-- ChillZone's window while the guild window is open, Escape closed the guild window and left the
 -- question alone on screen.) The game's Escape past its own popups and menus is CloseAllWindows,
 -- whose CloseSpecialWindows hides every frame named on UISpecialFrames
 -- (Blizzard_UIParentPanelManager); its PLAYER_DEAD and PLAYER_ENTERING_WORLD handlers and the
 -- interface shown again sweep the same list, and the game's popups live through those.
-test("guild removal (1.2.1): with the guild window open Escape closes an Olympus question as it closed the game's popup, and the game's other sweeps of its windows leave it up", function()
+test("guild removal (1.2.1): with the guild window open Escape closes an ChillZone question as it closed the game's popup, and the game's other sweeps of its windows leave it up", function()
 	WithGuildWindow(function(w)
 		local timers, clock, savedTime = {}, 100, GetTime
 		GetTime = function() return clock end
 		local ok, err = pcall(H.WithStub, "After", function(_, _, fn) timers[#timers + 1] = fn end, function()
 			local function NextFrame() local due = timers; timers = {}; for _, fn in ipairs(due) do fn() end end
 			local function Listed()
-				for _, name in ipairs(UISpecialFrames) do if name == "OlympusQuestionEscape" then return _G[name] end end
+				for _, name in ipairs(UISpecialFrames) do if name == "ChillZoneQuestionEscape" then return _G[name] end end
 				return nil
 			end
 			local function Sweep()
@@ -262,14 +262,14 @@ test("guild removal (1.2.1): with the guild window open Escape closes an Olympus
 	end)
 end)
 
--- Nothing else of Olympus is in the game's removal: no code (comments aside) names its question or
+-- Nothing else of ChillZone is in the game's removal: no code (comments aside) names its question or
 -- the removal call, writes to the member's card, hooks the game's popups or menus, or writes a popup
--- of the game's own (every StaticPopupDialogs entry Olympus writes is an OLYMPUS_ one). Olympus's
+-- of the game's own (every StaticPopupDialogs entry ChillZone writes is an CHILLZONE_ one). ChillZone's
 -- lines in the right-click menus (PlayerMenu.lua) go through Menu.ModifyMenu, whose lines Forever's
 -- Blizzard_Menu builds inside securecallfunction, and its guild member menu has no removal.
-test("guild removal (1.2.1): no Olympus code touches the game's Remove from Guild, its popups' functions or its menus' own lines", function()
+test("guild removal (1.2.1): no ChillZone code touches the game's Remove from Guild, its popups' functions or its menus' own lines", function()
 	local scanned = 0
-	for _, dir in ipairs({ H.ADDON_DIR, H.ROOT .. "Olympus_Arena/" }) do
+	for _, dir in ipairs({ H.ADDON_DIR, H.ROOT .. "ChillZone_Arena/" }) do
 		local p = io.popen('ls "' .. dir .. '" 2>/dev/null')
 		for file in p:lines() do
 			if file:match("%.lua$") then
@@ -292,7 +292,7 @@ test("guild removal (1.2.1): no Olympus code touches the game's Remove from Guil
 					assert(not code:find("hooksecurefunc%(%s*[\"']UnitPopup") and not code:find("hooksecurefunc%(%s*UnitPopup"), where .. " hooks the unit menus")
 					assert(not code:find("hooksecurefunc%(%s*CommunitiesFrame"), where .. " hooks the Communities window's functions")
 					for key in code:gmatch("StaticPopupDialogs%[%s*[\"']([%w_]+)[\"']%s*%]%s*=[^=]") do
-						assert(key:find("^OLYMPUS_"), where .. " writes the game's popup " .. key)
+						assert(key:find("^CHILLZONE_"), where .. " writes the game's popup " .. key)
 					end
 				end
 			end

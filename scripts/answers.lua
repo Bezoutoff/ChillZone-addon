@@ -1,6 +1,6 @@
--- The answer bank (1.1.2): docs/answers.json is the source, Olympus/AnswerBank.lua the file the
+-- The answer bank (1.1.2): docs/answers.json is the source, ChillZone/AnswerBank.lua the file the
 -- addon loads (the game has no JSON reader). This script writes the one from the other.
---   luajit scripts/answers.lua           write Olympus/AnswerBank.lua
+--   luajit scripts/answers.lua           write ChillZone/AnswerBank.lua
 --   luajit scripts/answers.lua --check   compare only: exit 1 when the file is not what it would write
 -- From the repository root. tests/run.lua loads it as a module (Answers.Decode, Answers.Render) and
 -- checks the same thing.
@@ -8,7 +8,7 @@
 local M = {}
 
 M.SOURCE = "docs/answers.json"
-M.TARGET = "Olympus/AnswerBank.lua"
+M.TARGET = "ChillZone/AnswerBank.lua"
 M.IN_GAME_MAX = 200 -- a chat line with room to spare (255 bytes), and no "|" (the chat's escape)
 M.ANSWER_MAX = 280  -- Discord's short reply
 
@@ -159,7 +159,7 @@ end
 
 local function Q(s) return ("%q"):format(s) end
 
--- Olympus/AnswerBank.lua for `bank`: the topics in order, each answer's id, topic, questions, the
+-- ChillZone/AnswerBank.lua for `bank`: the topics in order, each answer's id, topic, questions, the
 -- in-game line (text) and the longer answer (long). Nothing else (sources and notes are for us).
 function M.Render(bank)
 	M.Check(bank)

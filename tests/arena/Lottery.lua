@@ -18,8 +18,8 @@ local ns = {
 	},
 	On = function() end,
 }
-assert(loadfile(H.ADDON_DIR .. "ArenaMath.lua"))("Olympus", ns)
-assert(loadfile(H.ADDON_DIR .. "Lottery.lua"))("Olympus", ns)
+assert(loadfile(H.ADDON_DIR .. "ArenaMath.lua"))("ChillZone", ns)
+assert(loadfile(H.ADDON_DIR .. "Lottery.lua"))("ChillZone", ns)
 local L, M = ns.Lottery, ns.ArenaMath
 
 local function Ticket(id, animal, stake, who)
@@ -129,7 +129,7 @@ test("Lottery public rules describe the versioned algorithm and no head-only rul
 		local saved, host = GetLocale, { L = {} }
 		GetLocale = function() return locale end
 		local ok, err = pcall(function()
-			assert(loadfile(H.ARENA_DIR .. "Locales/UIText.lua"))("Olympus_Arena", { host = host })
+			assert(loadfile(H.ARENA_DIR .. "Locales/UIText.lua"))("ChillZone_Arena", { host = host })
 		end)
 		GetLocale = saved
 		if not ok then error(err, 0) end
@@ -170,7 +170,7 @@ test("Lottery public rules describe the versioned algorithm and no head-only rul
 	end
 end)
 
--- A wallet's ledger parser, loaded alone into a namespace of its own: the current Olympus/Wallet.lua,
+-- A wallet's ledger parser, loaded alone into a namespace of its own: the current ChillZone/Wallet.lua,
 -- or tests/fixtures/wallet-1.2-pre-l2.lua, the integration's Wallet.lua just before the five-place
 -- settlement (be25776^), the parser a client on the head-only Lottery (the f5d44c8 era) still runs.
 -- Only what the file touches while it loads is stood in for; Parse itself is the file's own.
@@ -184,7 +184,7 @@ local function WalletOf(path)
 		Debts = { receiptHooks = {} },
 		On = function() end,
 	}
-	assert(loadfile(path))("Olympus", wns)
+	assert(loadfile(path))("ChillZone", wns)
 	return wns.Wallet
 end
 
@@ -223,8 +223,8 @@ test("Lottery beasts: every card's art is a game icon or a 32 x 32 TGA the compa
 			icons = icons + 1
 		else
 			-- A texture path the client resolves inside the companion's folder, as <key>.tga there.
-			local rest = b.art:match("^Interface\\AddOns\\Olympus_Arena\\(.+)$")
-			assert(rest, what .. ": inside Olympus_Arena, " .. b.art)
+			local rest = b.art:match("^Interface\\AddOns\\ChillZone_Arena\\(.+)$")
+			assert(rest, what .. ": inside ChillZone_Arena, " .. b.art)
 			eq(rest, "media\\lottery\\" .. b.key, what .. ": named by its key")
 			local path = H.ARENA_DIR .. rest:gsub("\\", "/") .. ".tga"
 			local f = io.open(path, "rb")

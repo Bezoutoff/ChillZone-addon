@@ -3,7 +3,7 @@ local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]justice%-
 -- Actual Comm queue/dispatch, native Roster.Scan/Fresh, Members manual removal and Watch UI.
 -- The simulated server supplies identity/appointment verdicts and its native roster rows.
 local function Client(name)
-	local w = { name = name, guild = "Olympus II", now = 1800000000, sent = {}, events = {}, listeners = {}, ranks = {},
+	local w = { name = name, guild = "ChillZone II", now = 1800000000, sent = {}, events = {}, listeners = {}, ranks = {},
 		justice = "Justice-Realm", council = { ["Council-Realm"] = true }, native = {}, dialogs = {} }
 	local n = setmetatable({ me = name, realm = "Realm", group = "Realm", faction = "Alliance", CAPTAIN_RANK = 1,
 		db = { blocked = {} }, rdb = { guilds = {} }, ViewAs = {}, WatchChat = {}, Nominees = {}, King = {}, Workshop = {}, UI = {},
@@ -15,7 +15,7 @@ local function Client(name)
 	n.ShortName = function(s) return s:match("^[^-]+") end; n.DisplayName = n.ShortName
 	n.Moderation.CharName = function(s) return type(s) == "string" and n.FullName(s) or nil end
 	n.RealmOf = function(s) return s:match("%-(.+)$") end; n.GroupOf = function(s) return s end
-	n.IsMember = function() return w.guild ~= nil end; n.IsFederation = function(g) return g == "Olympus II" or g == "Olympus III" end
+	n.IsMember = function() return w.guild ~= nil end; n.IsFederation = function(g) return g == "ChillZone II" or g == "ChillZone III" end
 	n.IsKingCharacter = function(s) return s == "Crown-Realm" end; n.IsHighCouncillor = function(s) return w.council[s] == true end
 	n.KingRealm = function() return "Realm" end; n.IsKingGuild = function() return false end
 	n.King.Preview = function() return w.preview == true end; n.King.IsKing = function() return n.IsKingCharacter(n.me) end
@@ -51,7 +51,7 @@ local function Client(name)
 			SendAddonMessage = function(_, text, dist, target) w.sent[#w.sent + 1] = { text = text, dist = dist, target = target, logged = false }; return 0 end,
 			SendAddonMessageLogged = function(_, text, dist, target) w.sent[#w.sent + 1] = { text = text, dist = dist, target = target, logged = true }; return 0 end } }, { __index = _G })
 	w.env = env
-	local function Load(file) local f = assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua")); setfenv(f, env); f("Olympus", n) end
+	local function Load(file) local f = assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua")); setfenv(f, env); f("ChillZone", n) end
 	Load("Comm"); for _, login in ipairs(w.listeners.LOGIN or {}) do login() end
 	Load("Roster"); Load("Members"); Load("Watch"); Load("Ed25519"); Load("JusticeTasks")
 	function w.scan()
@@ -84,7 +84,7 @@ local function Receive(a, b, key, text)
 end
 local function Attempt(a, b, key)
 	b.now = b.now + 30; b.scan(); assert(b.ns.JusticeTasks.AskRemoval(key))
-	local dialog = b.dialogs[#b.dialogs]; eq(dialog.which, "OLYMPUS_GUILD_REMOVE")
+	local dialog = b.dialogs[#b.dialogs]; eq(dialog.which, "CHILLZONE_GUILD_REMOVE")
 	assert(b.ns.Members.Remove(dialog.data)); b.pump(); a.now = b.now; a.scan(); a.receive(b.name, assert(Last(b, "R")))
 end
 local function Absent(a, b, key)
@@ -225,13 +225,13 @@ test("Justice shared: receipt-less offline delivery is unknown, old JT1 facts st
 end)
 test("Justice shared: accepted sister-guild ordinary correspondent is addressable, but false or demoted appointments and stale own roster are not", function()
 	local a, b = Triple()
-	local n = a.ns; local guild, gm = "Olympus III", "SisterMaster-Realm"
+	local n = a.ns; local guild, gm = "ChillZone III", "SisterMaster-Realm"
 	n.Data.KnownRank = function(who, g) if g == guild and who == gm then return 0, 2 end end
 	n.Data.AuthorizedRank = function(who, g) if g == guild and who == gm then return 0, "signed" end end
 	n.Data.Guild = function(g) if g == guild then return { leader = gm, realm = "Realm" } end end
 	n.Borders = { Changed = function() end }; n.ChatRooms = {}; n.PlayerMenu = {}
-	n.IsKingGuild = function(g) return g == "Olympus" end; n.KingGuildName = function() return "Olympus" end
-	local f = assert(loadfile(ROOT .. "Olympus/Nominees.lua")); setfenv(f, a.env); f("Olympus", n)
+	n.IsKingGuild = function(g) return g == "ChillZone" end; n.KingGuildName = function() return "ChillZone" end
+	local f = assert(loadfile(ROOT .. "ChillZone/Nominees.lua")); setfenv(f, a.env); f("ChillZone", n)
 	local packet = ("NM~1~%s~%d~1~1~d=Council of Justice=%s"):format(guild, a.now, b.name)
 	n.Nominees.Handle("CHANNEL", "Other-Realm", packet)
 	eq(n.JusticeTasks.Issue(guild, b.name, "Subject-Realm"), false, "unrecognized issuer cannot name the correspondent")
@@ -241,7 +241,7 @@ test("Justice shared: accepted sister-guild ordinary correspondent is addressabl
 	b.ns.Data.KnownRank = function() return nil end; b.ns.Data.Guild = function() return nil end
 	b.ns.Borders = { Changed = function() end }; b.ns.ChatRooms = {}; b.ns.PlayerMenu = {}
 	b.ns.IsKingGuild = n.IsKingGuild; b.ns.KingGuildName = n.KingGuildName
-	local recipient = assert(loadfile(ROOT .. "Olympus/Nominees.lua")); setfenv(recipient, b.env); recipient("Olympus", b.ns)
+	local recipient = assert(loadfile(ROOT .. "ChillZone/Nominees.lua")); setfenv(recipient, b.env); recipient("ChillZone", b.ns)
 	b.ns.Nominees.Handle("CHANNEL", gm, packet)
 	eq(b.ns.Nominees.IsCorrespondent(b.name, guild, "Council of Justice"), true, "the ordinary recipient is named by its actual native guild master")
 	Transfer(a, b); eq(#b.ns.JusticeTasks.Tasks(), 1); assert(b.ns.JusticeTasks.Tasks()[1].task.receivedAt)

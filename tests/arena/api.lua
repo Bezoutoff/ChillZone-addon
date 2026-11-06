@@ -1,4 +1,4 @@
--- 1.2.4: the Olympus API for other addons (Olympus/API.lua, docs/API.md) on the test world: the
+-- 1.2.4: the ChillZone API for other addons (ChillZone/API.lua, docs/API.md) on the test world: the
 -- privacy page's line for each addon, what a granted addon reads (copies of the pages' own rows,
 -- field by field), its callbacks, and what never leaves. Every name is invented.
 local H = ...
@@ -34,27 +34,27 @@ end
 
 -- API.lua (and its words) loaded into the client as the TOC loads it, after the boards it reads:
 -- with Wanted.lua too (the core's board, which the world's clients do not load), its tab kept off
--- the harness's window. The global OlympusAPI is the client's (c.OlympusAPI), the host's put back.
+-- the harness's window. The global ChillZoneAPI is the client's (c.ChillZoneAPI), the host's put back.
 -- The invented partner addons that exercise the reserved features (API.lua's Reserved) are
 -- authorized on that client's copy of the list, as the shipped list authorizes the real one; any
 -- other invented name is an ordinary addon. partners = false keeps the list as it ships.
 -- (1.2.5.1: QuietTool and OtherTool drive the quiet presence, a reserved feature too.)
 local PARTNERS = { "MapPins", "BountyBoard", "QuietTool", "OtherTool" }
 local function LoadAPI(w, c, wanted, partners)
-	local was = rawget(_G, "OlympusAPI")
+	local was = rawget(_G, "ChillZoneAPI")
 	w:As(c, function()
 		if wanted ~= false then
 			local ui = rawget(c.ns, "UI")
 			rawset(c.ns, "UI", { AddTab = function() end })
-			assert(loadfile(H.ADDON_DIR .. "Wanted.lua"))("Olympus", c.ns)
+			assert(loadfile(H.ADDON_DIR .. "Wanted.lua"))("ChillZone", c.ns)
 			rawset(c.ns, "UI", ui)
 		end
-		assert(loadfile(H.ADDON_DIR .. "Locales/APIText.lua"))("Olympus", c.ns)
-		assert(loadfile(H.ADDON_DIR .. "API.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Locales/APIText.lua"))("ChillZone", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "API.lua"))("ChillZone", c.ns)
 	end)
-	c.OlympusAPI = rawget(_G, "OlympusAPI")
-	rawset(_G, "OlympusAPI", was)
-	assert(c.OlympusAPI and c.OlympusAPI ~= was, "the client's own OlympusAPI")
+	c.ChillZoneAPI = rawget(_G, "ChillZoneAPI")
+	rawset(_G, "ChillZoneAPI", was)
+	assert(c.ChillZoneAPI and c.ChillZoneAPI ~= was, "the client's own ChillZoneAPI")
 	local API = c.ns.API
 	if partners ~= false and type(API.AuthorizedKey) == "function" then
 		for _, name in ipairs(PARTNERS) do API.AUTHORIZED[w:As(c, API.AuthorizedKey, name)] = true end
@@ -130,18 +130,18 @@ local function SightingHost(c)
 			id = id, target = target, phase = "waiting", createdAt = 100 + id, expiresAt = 700 + id,
 			rawSecret = "transport-only-state", targetGUID = "Player-4002-TARGET",
 			results = {
-				{ target = target, reporter = "Scout One-Emberfall", guild = "Olympus", at = 110 + id,
+				{ target = target, reporter = "Scout One-Emberfall", guild = "ChillZone", at = 110 + id,
 					mapID = 1415, x = 401, y = 522, layer = 3, guid = "Player-4001-OBSERVER", rawSecret = "row-only-state" },
-				{ target = target, observer = "Scout One-Emberfall", observerGuild = "Olympus", seenAt = 111 + id,
+				{ target = target, observer = "Scout One-Emberfall", observerGuild = "ChillZone", seenAt = 111 + id,
 					receivedAt = 115 + id, expiresAt = 1011 + id,
 					mapID = 1415, x = 402, y = 523, layer = 3, kind = "exact-unit", accuracyYards = 0 },
-				{ target = target, observer = "Scout Two-Emberfall", observerGuild = "Olympus", seenAt = 112 + id,
+				{ target = target, observer = "Scout Two-Emberfall", observerGuild = "ChillZone", seenAt = 112 + id,
 					receivedAt = "invalid-time", expiresAt = math.huge,
 					mapID = 1415, x = 403, y = 524, layer = 4, kind = "exact-group", accuracyYards = 0 },
 				-- Invalid coordinates are discarded rather than clamped into an apparently valid report.
-				{ target = target, observer = "Bad Row-Emberfall", observerGuild = "Olympus", seenAt = 113 + id,
+				{ target = target, observer = "Bad Row-Emberfall", observerGuild = "ChillZone", seenAt = 113 + id,
 					mapID = 1415, x = 1001, y = 524, layer = 4, rawSecret = "invalid-row-secret" },
-				{ target = target, observer = "False Precision-Emberfall", observerGuild = "Olympus", seenAt = 114 + id,
+				{ target = target, observer = "False Precision-Emberfall", observerGuild = "ChillZone", seenAt = 114 + id,
 					mapID = 1415, x = 404, y = 525, layer = 4, kind = "exact-group", accuracyYards = 5 },
 			},
 		}
@@ -160,16 +160,16 @@ local function SightingHost(c)
 			id = id, mode = "area", scope = scope or "hostile", mapID = mapID, phase = "waiting",
 			createdAt = 100 + id, expiresAt = 700 + id, rawSecret = "area-transport-secret",
 			results = {
-				{ target = "Enemy One-Emberfall", observer = "Hidden Scout-Emberfall", observerGuild = "Olympus",
+				{ target = "Enemy One-Emberfall", observer = "Hidden Scout-Emberfall", observerGuild = "ChillZone",
 					seenAt = 110 + id, receivedAt = 112 + id, expiresAt = 900 + id,
 					mapID = mapID, x = 410, y = 520, layer = 3, kind = "nearby", rawSecret = "area-row-secret" },
-				{ target = "Enemy Exact-Emberfall", reporter = "Hidden Scout Two-Emberfall", observerGuild = "Olympus",
+				{ target = "Enemy Exact-Emberfall", reporter = "Hidden Scout Two-Emberfall", observerGuild = "ChillZone",
 					seenAt = 111 + id, receivedAt = 113 + id, expiresAt = 901 + id,
 					mapID = mapID, x = 411, y = 521, layer = 4, kind = "exact-unit", accuracyYards = 0 },
-				{ target = "Wrong Map-Emberfall", observer = "Hidden Scout-Emberfall", observerGuild = "Olympus",
+				{ target = "Wrong Map-Emberfall", observer = "Hidden Scout-Emberfall", observerGuild = "ChillZone",
 					seenAt = 112 + id, expiresAt = 902 + id, mapID = mapID + 1, x = 412, y = 522, layer = 3 },
 				-- A not-hostile row: only an "outsiders" session may show it.
-				{ target = "Passing Stranger-Emberfall", observer = "Hidden Scout-Emberfall", observerGuild = "Olympus",
+				{ target = "Passing Stranger-Emberfall", observer = "Hidden Scout-Emberfall", observerGuild = "ChillZone",
 					seenAt = 113 + id, receivedAt = 114 + id, expiresAt = 903 + id, mapID = mapID, x = 413, y = 523,
 					layer = 3, kind = "nearby", hostile = false },
 			}
@@ -311,7 +311,7 @@ local function Line(w, c, key)
 	return nil
 end
 
-print("The Olympus API (1.2.4)")
+print("The ChillZone API (1.2.4)")
 
 test("1.2.4 the API: donor fixture overrides preserve the actual Treasury and native Dues tickers", function()
 	local w, cast = Setup()
@@ -328,10 +328,10 @@ test("1.2.4 the API: donor fixture overrides preserve the actual Treasury and na
 	end)
 end)
 
-test("1.2.4 the API: VERSION and Has; Register only for an installed addon, once a session, never Olympus's own name; an unregistered addon has no way in", function()
+test("1.2.4 the API: VERSION and Has; Register only for an installed addon, once a session, never ChillZone's own name; an unregistered addon has no way in", function()
 	local w, cast, viewer, API = Setup()
 	SurfaceHost(viewer)
-	local O = viewer.OlympusAPI
+	local O = viewer.ChillZoneAPI
 	eq(O.VERSION, 1)
 	eq(O.SURFACE_LIMIT, 1)
 	eq(API.VERSION, 1)
@@ -343,15 +343,15 @@ test("1.2.4 the API: VERSION and Has; Register only for an installed addon, once
 	eq(w:As(viewer, O.Has, "census"), false, "no census feature"); eq(w:As(viewer, O.Has, nil), false)
 	-- The global itself is read-only: an addon cannot replace Register for the others.
 	local ok = pcall(function() O.Register = function() end end)
-	eq(ok, false, "OlympusAPI is read-only")
+	eq(ok, false, "ChillZoneAPI is read-only")
 	eq(getmetatable(O), false, "its metatable is locked")
 	-- Nothing but Register gives a way in: no data function on the global.
 	eq(O.GetWanted, nil); eq(O.GetRankings, nil); eq(O.GetProfile, nil); eq(O.On, nil); eq(O.RegisterSurface, nil); eq(O.UI, nil)
-	eq(w:As(viewer, function() return rawget(_G, "OlympusUI") end), nil, "no second UI global")
+	eq(w:As(viewer, function() return rawget(_G, "ChillZoneUI") end), nil, "no second UI global")
 	local h, why = w:As(viewer, O.Register, "MissingAddon")
 	eq(h, nil); eq(why, "unknown", "a name the game has not installed")
-	eq(select(2, w:As(viewer, O.Register, "Olympus")), "self")
-	eq(select(2, w:As(viewer, O.Register, "olympus_arena")), "self")
+	eq(select(2, w:As(viewer, O.Register, "ChillZone")), "self")
+	eq(select(2, w:As(viewer, O.Register, "chillzone_arena")), "self")
 	eq(select(2, w:As(viewer, O.Register, 42)), "name")
 	eq(select(2, w:As(viewer, O.Register, "")), "name")
 	eq(select(2, w:As(viewer, O.Register, "Bad|cffName")), "name")
@@ -380,7 +380,7 @@ end)
 
 test("1.2.5 the API sightings: capability detection, explicit permission, sanitized copies, owner isolation, callbacks, cancellation and revocation", function()
 	local w, cast, viewer, API = Setup()
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	rawset(viewer.ns, "PlayerSightings", nil)
 	eq(w:As(viewer, O.Has, "network.sightings"), false, "no transport: no advertised capability")
 	local host = SightingHost(viewer)
@@ -412,7 +412,7 @@ test("1.2.5 the API sightings: capability detection, explicit permission, saniti
 	eq(state.mode, "player")
 	eq(Keys(state.sightings[1]), "kind,layer,mapID,observer,observerGuild,seenAt,target,x,y")
 	eq(state.sightings[1].kind, "nearby"); eq(state.sightings[1].observer, "Scout One-Emberfall")
-	eq(state.sightings[1].observerGuild, "Olympus"); eq(state.sightings[1].mapID, 1415)
+	eq(state.sightings[1].observerGuild, "ChillZone"); eq(state.sightings[1].mapID, 1415)
 	eq(state.sightings[1].x, 401); eq(state.sightings[1].y, 522); eq(state.sightings[1].layer, 3)
 	eq(state.sightings[2].kind, "exact-unit"); eq(state.sightings[2].accuracyYards, 0)
 	eq(state.sightings[2].receivedAt, 122); eq(state.sightings[2].expiresAt, 1018)
@@ -449,7 +449,7 @@ test("1.2.5 the API sightings: capability detection, explicit permission, saniti
 	eq(Do(w, viewer, a, "On", "SIGHTING_CHANGED", function(_, row) toldA[#toldA + 1] = row end), true)
 	eq(Do(w, viewer, b, "On", "SIGHTING_CHANGED", function(_, row) toldB[#toldB + 1] = row end), true)
 	host.sessions["7"].results[#host.sessions["7"].results + 1] = {
-		target = "Tracked Name-Emberfall", observer = "Scout Three-Emberfall", observerGuild = "Olympus",
+		target = "Tracked Name-Emberfall", observer = "Scout Three-Emberfall", observerGuild = "ChillZone",
 		seenAt = 200, mapID = 1415, x = 405, y = 526, layer = 5,
 	}
 	w:As(viewer, function() viewer.ns.Fire("PLAYER_SIGHTINGS_CHANGED", 7) end)
@@ -530,7 +530,7 @@ end)
 
 test("1.2.5 the API profile presentation: bounded owners, sanitized session events and active revoke cleanup", function()
 	local w, cast, viewer, API = Setup()
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	rawset(viewer.ns, "ProfileEffects", nil)
 	eq(w:As(viewer, O.Has, "network.profile-effects"), false, "no host module: no advertised capability")
 	local host = ProfileEffectsHost(viewer)
@@ -600,10 +600,10 @@ end)
 
 -- 1.2.5.1, the quiet presence (Core.lua, Comm.QUIET_WORDS): self only, for the session; only the
 -- King, a High Councillor (a current signed issuer) or the author may turn it on, with the player's
--- Yes, in an Olympus guild, through an addon the Olympus team authorized (a reserved feature); the
+-- Yes, in an ChillZone guild, through an addon the ChillZone team authorized (a reserved feature); the
 -- handle that turned it on owns it; QUIET_PRESENCE_CHANGED; a No and a /reload end it. On the world's clients, with their own King, Workshop and Wallet: no crown, author
 -- presence or auditor hello leaves while it is on, and each goes again once it is off.
-test("1.2.5.1 the API quiet presence: the King, a councillor or the author alone, with a Yes, in an Olympus guild; its owner, its event; a No and a /reload end it", function()
+test("1.2.5.1 the API quiet presence: the King, a councillor or the author alone, with a Yes, in an ChillZone guild; its owner, its event; a No and a /reload end it", function()
 	local w, cast = W3.New({ more = {
 		{ "councillor", N.councillor, { guild = World.KING_GUILD } },
 		{ "author", N.author },
@@ -614,7 +614,7 @@ test("1.2.5.1 the API quiet presence: the King, a councillor or the author alone
 		if not rawget(c.ns, "API") then LoadAPI(w, c, false) end
 		name = name or "QuietTool"
 		Install(c, name, "Quiet Tool")
-		local h = assert(w:As(c, c.OlympusAPI.Register, name), "a handle for " .. name)
+		local h = assert(w:As(c, c.ChillZoneAPI.Register, name), "a handle for " .. name)
 		return h, "api:" .. name:lower()
 	end
 	local function Yes(c, key, on) w:As(c, c.ns.Consent.Choose, key, on ~= false) end
@@ -632,8 +632,8 @@ test("1.2.5.1 the API quiet presence: the King, a councillor or the author alone
 
 	local hk, kingKey = Tool(king)
 	local API = king.ns.API
-	eq(w:As(king, king.OlympusAPI.Has, "presence.quiet"), true)
-	eq(w:As(king, king.OlympusAPI.Has, "QUIET_PRESENCE_CHANGED"), true)
+	eq(w:As(king, king.ChillZoneAPI.Has, "presence.quiet"), true)
+	eq(w:As(king, king.ChillZoneAPI.Has, "QUIET_PRESENCE_CHANGED"), true)
 	local ok, why = Do(w, king, hk, "SetQuietPresence", true)
 	eq(ok, false); eq(why, "pending", "nothing before the player's Yes")
 	eq(select(2, Do(w, king, hk, "GetQuietPresence")), "pending")
@@ -652,7 +652,7 @@ test("1.2.5.1 the API quiet presence: the King, a councillor or the author alone
 	eq(Do(w, king, hk, "GetQuietPresence").on, true, "each read is a fresh copy")
 	w:Run(API.DISPATCH_DELAY)
 	eq(#told, 1); eq(told[1].on, true); eq(Keys(told[1]), "on,since")
-	-- (A reserved feature, 2026-10-19) An addon the Olympus team has not authorized gets
+	-- (A reserved feature, 2026-10-19) An addon the ChillZone team has not authorized gets
 	-- "unauthorized", even on the King's own client with his Yes: it can neither turn it on nor off,
 	-- read it nor hear of it.
 	local crier, crierKey = Tool(king, "TownCrier")
@@ -718,7 +718,7 @@ test("1.2.5.1 the API quiet presence: the King, a councillor or the author alone
 		eq(ok, false); eq(why, "authority", c.name)
 		eq(Do(w, c, h, "GetQuietPresence").on, false)
 	end
-	-- Outside an Olympus guild, even a councillor may not.
+	-- Outside an ChillZone guild, even a councillor may not.
 	cast.councillor.guild = nil -- (World:Client's guild = false gives the default guild)
 	eq(select(2, Do(w, cast.councillor, hc, "SetQuietPresence", true)), "guild")
 	cast.councillor.guild = World.KING_GUILD
@@ -744,7 +744,7 @@ test("1.2.5.1 the API quiet presence on the world: no court, list repeat, treasu
 	local function Tool(c)
 		LoadAPI(w, c, false)
 		Install(c, "QuietTool", "Quiet Tool")
-		local h = assert(w:As(c, c.OlympusAPI.Register, "QuietTool"), "a handle")
+		local h = assert(w:As(c, c.ChillZoneAPI.Register, "QuietTool"), "a handle")
 		w:As(c, c.ns.Consent.Choose, "api:quiettool", true)
 		return h
 	end
@@ -761,7 +761,7 @@ test("1.2.5.1 the API quiet presence on the world: no court, list repeat, treasu
 	w:As(king, function()
 		local on, login = king.ns.On, {}
 		rawset(king.ns, "On", function(event, fn) if event == "LOGIN" then login[#login + 1] = fn else on(event, fn) end end)
-		local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Court.lua"))("Olympus", king.ns) end)
+		local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Court.lua"))("ChillZone", king.ns) end)
 		rawset(king.ns, "On", on)
 		assert(ok, err)
 		for _, fn in ipairs(login) do fn() end
@@ -847,7 +847,7 @@ test("1.2.5.1 the API quiet presence on the world: no court, list repeat, treasu
 		local raw = {}
 		king.globals.C_ChatInfo.SendAddonMessage = function(_, msg) raw[#raw + 1] = msg return 0 end
 		king.globals.GetChannelName = function() return 5 end
-		rawset(king.ns.Comm, "ChannelName", function() return "OlympusTest" end)
+		rawset(king.ns.Comm, "ChannelName", function() return "ChillZoneTest" end)
 		eq(Do(w, king, hk, "SetQuietPresence", true), true)
 		w:Fire(king, "PLAYER_LOGOUT")
 		eq(#raw, 0, "no word at logout while it is on: " .. tostring(raw[1]))
@@ -868,17 +868,17 @@ test("1.2.5.1 the API quiet presence: its permission line, docs/API.md, the READ
 	-- not true for a guild leader or officer, whom the guildmates' census still shows online from the
 	-- game's guild roster; the line now names what stops and what still shows.)
 	for _, word in ipairs({ "turn on a quiet presence for this session", "only for the King, a High Councillor or the addon's author",
-		"Olympus stops sending on its own the words that announce you online or say where you are",
-		"other Olympus clients age you out as after a logout", "your guild roster, the census your guildmates build from it",
+		"ChillZone stops sending on its own the words that announce you online or say where you are",
+		"other ChillZone clients age you out as after a logout", "your guild roster, the census your guildmates build from it",
 		"a guild leader or officer still shows online there, and your zone may for up to 12 minutes", "/who and chat still show you",
-		"Olympus chat lines you type and what you post yourself still go out", "a /reload or logout ends it",
+		"ChillZone chat lines you type and what you post yourself still go out", "a /reload or logout ends it",
 		"cannot enable the presentation or the quiet presence" }) do
 		assert(head:find(word, 1, true), "the line says: " .. word)
 	end
 	for _, word in ipairs({ "ligar uma presença silenciosa nesta sessão", "só para o Rei, um membro do Alto Conselho ou o autor do addon",
 		"as palavras que anunciam você online ou dizem onde você está", "o censo que seus colegas de guilda montam com ela",
 		"um mestre ou oficial de guilda ainda aparece online lá", "o /who e o chat ainda mostrarão você",
-		"as linhas de chat do Olympus que você digitar e o que você mesmo publicar ainda serão enviados",
+		"as linhas de chat do ChillZone que você digitar e o que você mesmo publicar ainda serão enviados",
 		"não pode ativar a apresentação nem a presença silenciosa" }) do
 		assert(tail:find(word, 1, true), "the pt-BR line says: " .. word)
 	end
@@ -887,14 +887,14 @@ test("1.2.5.1 the API quiet presence: its permission line, docs/API.md, the READ
 	local doc = Read(H.ROOT .. "docs/API.md")
 	for _, word in ipairs({ '"presence.quiet"', "handle:SetQuietPresence(on)", "handle:GetQuietPresence()", "QUIET_PRESENCE_CHANGED",
 		'`false, "authority"`', '`false, "guild"`', '`false, "owner"`', '`false, "quiet"`', "No word says it went quiet",
-		"Olympus chat lines he types", "the census\nstill shows a guild leader or officer online", "for up to 12 minutes",
+		"ChillZone chat lines he types", "the census\nstill shows a guild leader or officer online", "for up to 12 minutes",
 		"PLAYER_GUILD_UPDATE", "It is never saved", "{ on = true, since = 1792000000 }" }) do
 		assert(doc:find(word, 1, true), "docs/API.md: " .. word)
 	end
 	for _, path in ipairs({ "README.md", "docs/CURSEFORGE.md" }) do
-		local section = Read(H.ROOT .. path):match("\n### Other addons: the Olympus API %(1%.2%.4%)\n(.-)\n##")
+		local section = Read(H.ROOT .. path):match("\n### Other addons: the ChillZone API %(1%.2%.4%)\n(.-)\n##")
 		for _, word in ipairs({ "quiet presence for the King, a High Councillor or the addon's", "age\nhim out as after a logout",
-			"a guild leader or officer still shows online there", "Olympus chat lines he types and what he posts himself still go\nout",
+			"a guild leader or officer still shows online there", "ChillZone chat lines he types and what he posts himself still go\nout",
 			"A line on top of the Census and the\nRealm says so" }) do
 			assert(section and section:find(word, 1, true), path .. ": " .. word)
 		end
@@ -905,7 +905,7 @@ end)
 test("1.2.5 the API area sightings: hostile-area shape, privacy, ownership, host map pins and cancellation", function()
 	local w, cast, viewer, API = Setup()
 	viewer.mapID = 1453
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	local host = SightingHost(viewer)
 	Install(viewer, "MapPins", "Map Pins")
 	Install(viewer, "BountyBoard", "Bounty Board")
@@ -985,7 +985,7 @@ test("1.2.5 the API area sightings: hostile-area shape, privacy, ownership, host
 	-- Map ownership is a lifecycle subscription of its own. The consuming addon did not register a
 	-- SIGHTING_CHANGED callback, but the host must still redraw pins after the transport event.
 	host.sessions["7"].results[#host.sessions["7"].results + 1] = {
-		target = "Enemy New-Emberfall", observer = "Hidden Scout-Emberfall", observerGuild = "Olympus",
+		target = "Enemy New-Emberfall", observer = "Hidden Scout-Emberfall", observerGuild = "ChillZone",
 		seenAt = 120, receivedAt = 121, expiresAt = future,
 		mapID = 1453, x = 420, y = 530, layer = 3, kind = "nearby",
 	}
@@ -1005,7 +1005,7 @@ test("1.2.5 the API area sightings: hostile-area shape, privacy, ownership, host
 	eq(rawget(firstFrame, "row"), nil, "empty refresh wipes copied row data from the reusable frame")
 	eq(rawget(secondFrame, "row"), nil); eq(rawget(thirdFrame, "row"), nil)
 	host.sessions["7"].results[1] = {
-		target = "Enemy Return-Emberfall", observer = "Hidden Scout-Emberfall", observerGuild = "Olympus",
+		target = "Enemy Return-Emberfall", observer = "Hidden Scout-Emberfall", observerGuild = "ChillZone",
 		seenAt = 122, receivedAt = 123, expiresAt = future,
 		mapID = 1453, x = 470, y = 580, layer = 3, kind = "nearby",
 	}
@@ -1134,7 +1134,7 @@ local function PinSetup()
 		return after(seconds, where, function() tick.fired = true return fn() end)
 	end
 	viewer.mapID = 1453
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	SightingHost(viewer)
 	Install(viewer, "MapPins", "Map Pins")
 	Install(viewer, "BountyBoard", "Bounty Board")
@@ -1147,7 +1147,7 @@ local function PinSetup()
 	return w, viewer, a, b, pins, tip, state
 end
 
-test("1.2.5.1 the API sighting pins: coloured world-map and minimap dots, Olympus's own tooltip, no world map with the gamepad UI, gone with the permission", function()
+test("1.2.5.1 the API sighting pins: coloured world-map and minimap dots, ChillZone's own tooltip, no world map with the gamepad UI, gone with the permission", function()
 	local w, viewer, a, b, pins, tip, state = PinSetup()
 	local C = viewer.Consent
 	local now = w:As(viewer, viewer.ns.Now)
@@ -1218,7 +1218,7 @@ test("1.2.5.1 the API sighting pins: coloured world-map and minimap dots, Olympu
 	W3.NoErrors(w)
 end)
 
--- Review of the sighting pins (2026-10-20): Olympus showed each dot itself after adding it, so a
+-- Review of the sighting pins (2026-10-20): ChillZone showed each dot itself after adding it, so a
 -- reused minimap frame given a row in another zone (or one the library could not place) stood on
 -- the minimap where its old row had been, with the new row's colour and tooltip.
 test("1.2.5.1 the API sighting pins: the library alone shows a minimap dot, no stale dot from a reused frame, an unknown map neither drawn nor counted, unchanged rows not placed again", function()
@@ -1241,7 +1241,7 @@ test("1.2.5.1 the API sighting pins: the library alone shows a minimap dot, no s
 	-- In an instance the library has no position: a re-added dot stays hidden.
 	viewer.instance = true
 	eq(select(2, Do(w, viewer, a, "SetSightingPins", { here })), 1)
-	eq(slot1.hidden, true, "never shown by Olympus itself")
+	eq(slot1.hidden, true, "never shown by ChillZone itself")
 	viewer.instance = nil
 	-- A map the library does not know: not drawn, not counted, its frame left for the next row.
 	eq(Do(w, viewer, a, "ClearSightingPins"), true)
@@ -1314,10 +1314,10 @@ test("1.2.5.1 the API sighting pins: dots fade and go by themselves while nobody
 	W3.NoErrors(w)
 end)
 
--- Review of the sighting pins (2026-10-20): while Olympus hides locations from a player (a
+-- Review of the sighting pins (2026-10-20): while ChillZone hides locations from a player (a
 -- moderator's timeout, a hold), the guildmates' dots, the crown and the Wanted pins go; these
 -- dots stayed and could be set again.
-test("1.2.5.1 the API sighting pins: none while Olympus hides locations from this player, and those up go at once", function()
+test("1.2.5.1 the API sighting pins: none while ChillZone hides locations from this player, and those up go at once", function()
 	local w, viewer, a, b, pins, tip, state = PinSetup()
 	local now = w:As(viewer, viewer.ns.Now)
 	local row = { target = "Enemy One-Emberfall", category = "hostile", mapID = 1453, x = 410, y = 520, seenAt = now - 30,
@@ -1355,7 +1355,7 @@ end)
 test("1.2.5 the API area sightings: a partial host reports unavailable without spending quota", function()
 	local w, cast, viewer, API = Setup()
 	viewer.mapID = 1453
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	local host = SightingHost(viewer)
 	Install(viewer, "MapPins", "Map Pins")
 	local api = w:As(viewer, O.Register, "MapPins")
@@ -1378,7 +1378,7 @@ end)
 test("1.2.5 the API area scope: hostile by default, outsiders on request with labelled rows, refused when unknown or unsupported", function()
 	local w, cast, viewer, API = Setup()
 	viewer.mapID = 1453
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	local host = SightingHost(viewer)
 	eq(w:As(viewer, O.Has, "network.sightings.area-scope"), true, "the wider scope is feature-detected")
 	Install(viewer, "MapPins", "Map Pins")
@@ -1461,7 +1461,7 @@ end
 test("1.2.5 the API leader presence: only what the King's lines, his crown and the Realm tab's layers show; nothing while barred; consent, guild and rate gates", function()
 	local w, cast, viewer, API = Setup()
 	viewer.mapID = 1453
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	rawset(viewer.ns, "Hop", { missing = true }) -- (Core.lua's stand-in for a file not loaded yet)
 	Install(viewer, "MapPins", "Map Pins")
 	local a = w:As(viewer, O.Register, "MapPins")
@@ -1485,7 +1485,7 @@ test("1.2.5 the API leader presence: only what the King's lines, his crown and t
 	eq(p.name, "The Crown"); eq(p.online, true); eq(p.otherRealm, false); eq(p.onYourLayer, false)
 
 	-- His layer announced in the viewer's zone, his crown shared: the zone, the crown's point in
-	-- thousandths, and the Realm tab's layers with their "~N with Olympus" counts.
+	-- thousandths, and the Realm tab's layers with their "~N with ChillZone" counts.
 	Crown(w, cast.king, 0.42, 0.51)
 	local at = assert(w:As(viewer, viewer.ns.King.Location), "the viewer's own crown")
 	host.king.mapID, host.king.zoneUID = 1453, 9
@@ -1502,13 +1502,13 @@ test("1.2.5 the API leader presence: only what the King's lines, his crown and t
 	eq(p.position.mapID, 1453); eq(p.position.x, 420); eq(p.position.y, 510); eq(p.position.seenAt, at.t)
 	eq(#p.layers, 2)
 	for i, layer in ipairs(p.layers) do
-		eq(Keys(layer), "leader,name,olympus,yours")
+		eq(Keys(layer), "chillzone,leader,name,yours")
 		eq(layer.name, w:As(viewer, viewer.ns.Layers.Name, shown[i]), "the name the Realm tab shows")
-		eq(layer.olympus, shown[i].count, "its ~N with Olympus")
+		eq(layer.chillzone, shown[i].count, "its ~N with ChillZone")
 		eq(layer.leader, shown[i].zoneUID == 9)
 		eq(layer.yours, false)
 	end
-	eq(p.layers[1].olympus, 2); eq(p.layers[1].leader, true); eq(p.layer, p.layers[1].name)
+	eq(p.layers[1].chillzone, 2); eq(p.layers[1].leader, true); eq(p.layer, p.layers[1].name)
 	eq(p.layers[1].name, viewer.ns.L.LAYER_OF:format("Crown Bearer"))
 	host.onLayer = true
 	eq(Do(w, viewer, a, "GetLeaderPresence").onYourLayer, true, "the line 'on the King's layer'")
@@ -1545,11 +1545,11 @@ test("1.2.5 the API leader presence: only what the King's lines, his crown and t
 
 	-- A fresh copy each call.
 	p = assert(Do(w, viewer, a, "GetLeaderPresence"))
-	p.layers[1].olympus, p.position.x = 999, 1
+	p.layers[1].chillzone, p.position.x = 999, 1
 	local again = Do(w, viewer, a, "GetLeaderPresence")
-	eq(again.layers[1].olympus, 2); eq(again.position.x, 420)
+	eq(again.layers[1].chillzone, 2); eq(again.position.x, 420)
 
-	-- Outside an Olympus guild, nothing; past the rate, busy.
+	-- Outside an ChillZone guild, nothing; past the rate, busy.
 	viewer.guild = nil
 	eq(select(2, Do(w, viewer, a, "GetLeaderPresence")), "guild")
 	viewer.guild = World.GUILD
@@ -1562,7 +1562,7 @@ end)
 test("1.2.5 the API LEADER_CHANGED: once per real change, after a burst settles, on the crown's expiry, never without a Yes", function()
 	local w, cast, viewer, API = Setup()
 	viewer.mapID = 1453
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	local host = LeaderHost(viewer)
 	host.king = { name = "The Crown", realm = viewer.ns.realm }
 	Install(viewer, "MapPins", "Map Pins")
@@ -1607,7 +1607,7 @@ test("1.2.5 the API LEADER_CHANGED: once per real change, after a burst settles,
 	w:As(viewer, function() viewer.ns.Fire("LAYERS_CHANGED") end)
 	w:Run(API.DISPATCH_DELAY)
 	eq(#told, count + 2, "one call for the burst")
-	eq(told[#told].layers[1].olympus, 2)
+	eq(told[#told].layers[1].chillzone, 2)
 
 	-- A crown that stops coming leaves the map with no event of its own: told when it expires.
 	local K = viewer.ns.King
@@ -1635,14 +1635,14 @@ test("1.2.5 the API LEADER_CHANGED: once per real change, after a burst settles,
 end)
 
 -- (Daniel, 2026-10-19) The leader's presence and the sightings searches answer only the addons the
--- Olympus team authorized, and so do the quiet presence and the profile presentation (the same
+-- ChillZone team authorized, and so do the quiet presence and the profile presentation (the same
 -- rule, agreed with the authorized client's team): a consenting ordinary addon gets "unauthorized"
 -- from each of their methods, cannot listen to their events and is asked only about what it can
 -- read, while the rest of the API is unchanged for it.
 test("1.2.5.1 the API reserved features: an addon that is not authorized gets \"unauthorized\" from every leader, sightings, quiet presence and profile-presentation method, none of their events, and a privacy line without them", function()
 	local w, cast, viewer, API = Setup()
 	viewer.mapID = 1453
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	local sightings = SightingHost(viewer)
 	local leader = LeaderHost(viewer)
 	local profile = ProfileEffectsHost(viewer)
@@ -1667,7 +1667,7 @@ test("1.2.5.1 the API reserved features: an addon that is not authorized gets \"
 	w:As(viewer, C.Choose, "api:towncrier", true)
 	eq(Do(w, viewer, crier, "Status"), "granted")
 
-	-- (Its No above already ran Olympus's own revoke cleanup for its empty profile owner: a close and a
+	-- (Its No above already ran ChillZone's own revoke cleanup for its empty profile owner: a close and a
 	-- disable that hold nothing. From here on nothing it calls reaches the host.)
 	local profileBefore = #profile.calls
 	for _, call in ipairs(profile.calls) do
@@ -1797,7 +1797,7 @@ test("1.2.5.1 the API reserved features: the list as it ships names nobody (one 
 	for e in pairs(API.RESERVED_EVENTS) do assert(events[e], "a real event: " .. e) end
 	-- The public page says it without naming any addon.
 	local doc = Read(H.ROOT .. "docs/API.md")
-	for _, word in ipairs({ "addons the Olympus team has authorized", '"unauthorized"' }) do
+	for _, word in ipairs({ "addons the ChillZone team has authorized", '"unauthorized"' }) do
 		assert(doc:find(word, 1, true), "docs/API.md: " .. word)
 	end
 	W3.NoErrors(w)
@@ -1806,7 +1806,7 @@ end)
 test("1.2.5 the API area rotation: one live map, one minute, and only current or owned fresh exact-result maps", function()
 	local w, cast, viewer = Setup()
 	viewer.mapID = 1453
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	local host = SightingHost(viewer)
 	Install(viewer, "MapPins", "Map Pins")
 	Install(viewer, "BountyBoard", "Bounty Board")
@@ -1825,10 +1825,10 @@ test("1.2.5 the API area rotation: one live map, one minute, and only current or
 		end
 	end
 	raw.results[#raw.results + 1] = { target = raw.target, observer = "Scout Three-Emberfall",
-		observerGuild = "Olympus", seenAt = w.clock, expiresAt = w.clock + 600,
+		observerGuild = "ChillZone", seenAt = w.clock, expiresAt = w.clock + 600,
 		mapID = 84, x = 500, y = 500, layer = 3, kind = "nearby" }
 	raw.results[#raw.results + 1] = { target = raw.target, observer = "Scout Four-Emberfall",
-		observerGuild = "Olympus", seenAt = w.clock - 20, expiresAt = w.clock - 1,
+		observerGuild = "ChillZone", seenAt = w.clock - 20, expiresAt = w.clock - 1,
 		mapID = 1429, x = 500, y = 500, layer = 3, kind = "exact-unit", accuracyYards = 0 }
 	assert(Do(w, viewer, a, "GetPlayerSearch", exact.id), "the handle reads and owns the fresh exact evidence")
 	local exactRows, withdrawn = {}, {}
@@ -1908,7 +1908,7 @@ end)
 test("1.2.5 the API retained exact-result map proofs stay bounded per handle", function()
 	local w, cast, viewer, API = Setup()
 	viewer.mapID = 1453
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	local host = SightingHost(viewer)
 	Install(viewer, "MapPins", "Map Pins")
 	local api = w:As(viewer, O.Register, "MapPins")
@@ -1935,7 +1935,7 @@ end)
 test("1.2.5 the API area sightings: a reused transport id never enters a stale handle's map frames", function()
 	local w, cast, viewer, API = Setup()
 	viewer.mapID = 1453
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	local host = SightingHost(viewer)
 	Install(viewer, "MapPins", "Map Pins")
 	local api = w:As(viewer, O.Register, "MapPins")
@@ -1993,7 +1993,7 @@ end)
 test("1.2.5 the API area sightings: a map-library false return leaves no partial host pins", function()
 	local w, cast, viewer = Setup()
 	viewer.mapID = 1453
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	local host = SightingHost(viewer)
 	Install(viewer, "MapPins", "Map Pins")
 	local api = w:As(viewer, O.Register, "MapPins")
@@ -2043,7 +2043,7 @@ end)
 
 test("1.2.5 the API guild-tools route: named profiles and neutral sections stay host-owned", function()
 	local w, _, viewer = Setup()
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	Install(viewer, "MapPins", "Map Pins")
 	local api = w:As(viewer, O.Register, "MapPins")
 	rawset(viewer.ns, "Watch", nil)
@@ -2110,7 +2110,7 @@ test("1.2.5 the API guild-tools route: named profiles and neutral sections stay 
 	w:As(viewer, C.Choose, "api:mappins", false)
 	selected = nil
 	eq(Do(w, viewer, api, "OpenGuildTools", "reports"), true,
-		"a data No does not disable Olympus's own accessible page")
+		"a data No does not disable ChillZone's own accessible page")
 	eq(selected, "watch"); eq(page, "reports")
 	local pageCalls = 0
 	viewer.ns.Watch.PageId = function() pageCalls = pageCalls + 1 error("host state unavailable") end
@@ -2132,7 +2132,7 @@ end)
 test("1.2.4 the API: one shared UI surface, opaque ownership, retry after rejection, and lifecycle calls routed to its owner", function()
 	local w, cast, viewer = Setup()
 	local host = SurfaceHost(viewer)
-	local O = viewer.OlympusAPI
+	local O = viewer.ChillZoneAPI
 	Install(viewer, "MapPins", "Map Pins")
 	Install(viewer, "BountyBoard", "Bounty Board")
 	local first = w:As(viewer, O.Register, "MapPins")
@@ -2184,7 +2184,7 @@ end)
 test("1.2.4 the API: UI surfaces work while data consent is pending or refused; data reads remain blocked", function()
 	local w, cast, viewer = Setup()
 	SurfaceHost(viewer)
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	Install(viewer, "MapPins", "Map Pins")
 	local api = w:As(viewer, O.Register, "MapPins")
 	eq(Do(w, viewer, api, "Status"), "pending")
@@ -2206,7 +2206,7 @@ end)
 
 test("1.2.4 the API: nothing before a deliberate authorization nor after No; Keep current choices grants nothing and Authorize all grants visible pending lines", function()
 	local w, cast, viewer, API = Setup()
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	-- Every line the page had shown already (the player closed it): no question waits.
 	w:As(viewer, function() C.Show() C.Hide() end)
 	eq(w:As(viewer, C.Waiting), false)
@@ -2252,7 +2252,7 @@ test("1.2.4 the API: nothing before a deliberate authorization nor after No; Kee
 	Install(viewer, "MapPins", "Map Pins")
 	LoadAPI(w, viewer)
 	PlantWanted(w, viewer)
-	api = w:As(viewer, viewer.OlympusAPI.Register, "MapPins")
+	api = w:As(viewer, viewer.ChillZoneAPI.Register, "MapPins")
 	eq(Do(w, viewer, api, "Status"), "granted", "kept for the account")
 	eq(w:As(viewer, viewer.Consent.Answer, "api:mappins"), true)
 	eq(w:As(viewer, viewer.Consent.Waiting), false, "asked once, for good")
@@ -2263,9 +2263,9 @@ test("1.2.4 the API: nothing before a deliberate authorization nor after No; Kee
 	W3.NoErrors(w)
 end)
 
-test("1.2.4 the API: a granted addon gets copies of exactly what the pages show: the Wanted rows, the Slayers boards, the donors' and the Church's top three, the published games; its own profile; outside an Olympus guild, only that", function()
+test("1.2.4 the API: a granted addon gets copies of exactly what the pages show: the Wanted rows, the Slayers boards, the donors' and the Church's top three, the published games; its own profile; outside an ChillZone guild, only that", function()
 	local w, cast, viewer, API = Setup()
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	Install(viewer, "MapPins", "Map Pins")
 	local api = w:As(viewer, O.Register, "MapPins")
 	w:As(viewer, C.Choose, "api:mappins", true)
@@ -2322,11 +2322,11 @@ test("1.2.4 the API: a granted addon gets copies of exactly what the pages show:
 	-- The King's own: his role.
 	LoadAPI(w, cast.king, false)
 	Install(cast.king, "MapPins", "Map Pins")
-	local kapi = w:As(cast.king, cast.king.OlympusAPI.Register, "MapPins")
+	local kapi = w:As(cast.king, cast.king.ChillZoneAPI.Register, "MapPins")
 	w:As(cast.king, cast.king.Consent.Choose, "api:mappins", true)
 	eq(Do(w, cast.king, kapi, "GetProfile").role, "king")
 	eq(Do(w, cast.king, kapi, "GetProfile").rankIndex, 0)
-	-- Outside an Olympus guild: that he is in none, and nothing else.
+	-- Outside an ChillZone guild: that he is in none, and nothing else.
 	viewer.guild = nil
 	p = Do(w, viewer, api, "GetProfile")
 	eq(Keys(p), "member"); eq(p.member, false)
@@ -2349,7 +2349,7 @@ end)
 -- on it any more, and the API reads the tab's list.)
 test("1.2.4 the API: GetWanted lists what the Wanted tab lists: a Horde player with 0 points and 0 kills (one a member killed who killed none of ours) is left out, though his entry and its claim stay", function()
 	local w, cast, viewer, API = Setup()
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	Install(viewer, "MapPins", "Map Pins")
 	local api = w:As(viewer, O.Register, "MapPins")
 	w:As(viewer, C.Choose, "api:mappins", true)
@@ -2369,7 +2369,7 @@ end)
 test("1.2.4 the API Lottery privacy: even an older ArenaHome exposing a public Lottery word cannot export saved winners", function()
 	local w, cast, viewer = Setup()
 	Install(viewer, "MapPins", "Map Pins")
-	local api = w:As(viewer, viewer.OlympusAPI.Register, "MapPins")
+	local api = w:As(viewer, viewer.ChillZoneAPI.Register, "MapPins")
 	w:As(viewer, viewer.Consent.Choose, "api:mappins", true)
 	viewer.db.lotteryWinners = { L = { old = { at = w.clock - 10, rows = { { name = N.bettor3, beast = 7, amount = 25000 } } } } }
 	-- This is the verified old ArenaHome contract, whose per-game publish word exposed Lottery.
@@ -2380,9 +2380,9 @@ test("1.2.4 the API Lottery privacy: even an older ArenaHome exposing a public L
 	W3.NoErrors(w)
 end)
 
-test("1.2.4 the API: every table is the addon's own copy: changing it changes nothing of Olympus's, nor what the next call or another addon gets", function()
+test("1.2.4 the API: every table is the addon's own copy: changing it changes nothing of ChillZone's, nor what the next call or another addon gets", function()
 	local w, cast, viewer, API = Setup()
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	Install(viewer, "MapPins", "Map Pins")
 	Install(viewer, "BountyBoard", "Bounty Board")
 	local a = w:As(viewer, O.Register, "MapPins")
@@ -2401,7 +2401,7 @@ test("1.2.4 the API: every table is the addon's own copy: changing it changes no
 	r.donors.all[1] = "Mallory"
 	local p = Do(w, viewer, a, "GetProfile")
 	p.guild, p.role, p.frame = "Other", "king", "donor-top-1"
-	-- Olympus's own: as before.
+	-- ChillZone's own: as before.
 	local t = viewer.rdb.wanted.targets["g:" .. HORDE.guid]
 	eq(t.current, 42); eq(t.name, HORDE.name); eq(t.guid, HORDE.guid)
 	local s = viewer.rdb.wanted.slayers["g:" .. SECRET.slayerGuid]
@@ -2423,7 +2423,7 @@ end)
 
 test("1.2.4 the API: rate-limited per addon (RATE_MAX calls a RATE_WINDOW), the others unaffected; Status and On cost nothing", function()
 	local w, cast, viewer, API = Setup()
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	Install(viewer, "MapPins", "Map Pins")
 	Install(viewer, "BountyBoard", "Bounty Board")
 	local a = w:As(viewer, O.Register, "MapPins")
@@ -2441,7 +2441,7 @@ test("1.2.4 the API: rate-limited per addon (RATE_MAX calls a RATE_WINDOW), the 
 	w:Run(API.RATE_WINDOW)
 	assert(type(Do(w, viewer, a, "GetWanted")) == "table", "the next window")
 	-- (Review of 1.2.4) An addon polling past the rate window after window: still that one line, not
-	-- one a window (they filled the log's ring and the last lines /oly bug copies).
+	-- one a window (they filled the log's ring and the last lines /cz bug copies).
 	for window = 1, 6 do
 		local busy = 0
 		for _ = 1, API.RATE_MAX + 5 do
@@ -2466,7 +2466,7 @@ end)
 
 test("1.2.4 the API: callbacks fire on a change, once a burst settles, only when what the call returns changed, never in combat nor for an addon without a Yes; an erroring callback is contained, logged, dropped after three errors", function()
 	local w, cast, viewer, API = Setup()
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	Install(viewer, "MapPins", "Map Pins")
 	Install(viewer, "BountyBoard", "Bounty Board")
 	Install(viewer, "Quiet", "Quiet")
@@ -2499,11 +2499,11 @@ test("1.2.4 the API: callbacks fire on a change, once a burst settles, only when
 	eq(got[1].event, "WANTED_CHANGED"); eq(got[1].rows[1].bounty, -1, "the addon's own copy, changed by it")
 	eq(#good, 1); eq(good[1][1].bounty, 50, "the other addon's copy: untouched by the first")
 	eq(bad, 1); eq(quiet, 0, "nothing without a Yes")
-	eq(t.current, 50, "Olympus's own: untouched")
+	eq(t.current, 50, "ChillZone's own: untouched")
 	local failed = 0
 	for _, l in ipairs(viewer.log) do if l:find("api: BountyBoard's WANTED_CHANGED callback failed", 1, true) then failed = failed + 1 end end
 	eq(failed, 1, "the error in the log, with the addon's name")
-	eq(#viewer.errors, 0, "never Olympus's error report")
+	eq(#viewer.errors, 0, "never ChillZone's error report")
 	eq(#rankings, 1, "the Slayers boards are told too (a Wanted change)")
 	eq(rankings[1].slayers.all[1].points, 75)
 	-- The same rows again: nothing to tell.
@@ -2555,7 +2555,7 @@ end)
 
 test("1.2.4 the API: no secret ever comes back: not the realm key nor the sealed channel's name, the account key, a victim, a place, who added or took off an entry, a member's GUID", function()
 	local w, cast, viewer, API = Setup()
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	viewer.rdb.realmKey = "rk-Secret-0123456789"
 	local channel = "Oly" .. H.ns.Comm.Hash36(viewer.rdb.realmKey)
 	w:As(viewer, viewer.ns.Debts.MyKey)
@@ -2603,7 +2603,7 @@ test("1.2.4 the API: read-only by its source: no send, no message, no window, no
 		"RegisterEvent", "ns.Every", "SetCVar", "ns.Print", "_G[", "hooksecurefunc" }) do
 		eq(src:find(word, 1, true), nil, "API.lua uses " .. word)
 	end
-	local toc, at, n = Read(H.ADDON_DIR .. "Olympus.toc"), {}, 0
+	local toc, at, n = Read(H.ADDON_DIR .. "ChillZone.toc"), {}, 0
 	for line in toc:gmatch("[^\r\n]+") do n = n + 1; at[line] = n end
 	assert(at["API.lua"], "API.lua in the TOC")
 	for _, f in ipairs({ "Consent.lua", "Wanted.lua", "Roster.lua", "King.lua" }) do assert(at[f] < at["API.lua"], "after " .. f) end
@@ -2639,7 +2639,7 @@ test("1.2.4 the API: its words in English and pt-BR; docs/API.md names every met
 	do
 		local k = "API_CONSENT_TEXT_BASIC"
 		local basic = assert(src:match("\nL%." .. k .. ' = "(.-)"\n'), k)
-		for _, word in ipairs({ "what Olympus shows you", "Never your location or the King's", "Authorize all", "Keep current choices",
+		for _, word in ipairs({ "what ChillZone shows you", "Never your location or the King's", "Authorize all", "Keep current choices",
 			"addons you trust", "No, Keep current choices, or no answer: it receives nothing and cannot act on your group." }) do
 			assert(basic:find(word, 1, true), k .. " says: " .. word)
 		end
@@ -2661,7 +2661,7 @@ test("1.2.4 the API: its words in English and pt-BR; docs/API.md names every met
 		for _, word in ipairs({ "short host-owned profile-presentation session", "pre-approved caption", "quiet presence" }) do
 			assert(full:find(word, 1, true), "API_CONSENT_TEXT still says: " .. word)
 		end
-		for _, word in ipairs({ "sessão curta de apresentação de perfil controlada pelo Olympus", "legenda pré-aprovada", "presença silenciosa" }) do
+		for _, word in ipairs({ "sessão curta de apresentação de perfil controlada pelo ChillZone", "legenda pré-aprovada", "presença silenciosa" }) do
 			assert(ptFull:find(word, 1, true), "API_CONSENT_TEXT (pt-BR) still says: " .. word)
 		end
 	end
@@ -2670,20 +2670,20 @@ test("1.2.4 the API: its words in English and pt-BR; docs/API.md names every met
 	for _, k in ipairs({ "API_CONSENT_TEXT", "API_CONSENT_TEXT_BASIC" }) do
 		local line = assert(src:match("\nL%." .. k .. ' = "(.-)"\n'), k)
 		for _, word in ipairs({ "group listings and the players looking", "never their names", "your own listing's applications",
-			"invite (the game's own invite)", "decline an applicant", "lower your listing", "open Olympus's own group card",
+			"invite (the game's own invite)", "decline an applicant", "lower your listing", "open ChillZone's own group card",
 			"it never lists a group, raises a flag, applies or writes words for you", "in place of the Board's Your group",
-			"a switch on the Board brings Olympus's back", "act on your group" }) do
+			"a switch on the Board brings ChillZone's back", "act on your group" }) do
 			assert(line:find(word, 1, true), k .. " says: " .. word)
 		end
 		local ptLine = assert(tail:match("\n\tL%." .. k .. ' = "(.-)"\n'), k .. " (pt-BR)")
 		for _, word in ipairs({ "anúncios de grupo do Mural", "nunca os nomes", "convidar (o convite do próprio jogo)", "recusar um candidato",
 			"retirar o seu anúncio", "nunca anuncia um grupo, levanta uma bandeira, se candidata nem escreve palavras por você",
-			"no lugar do Seu grupo do Mural", "traz de volta o do Olympus", "agir no seu grupo" }) do
+			"no lugar do Seu grupo do Mural", "traz de volta o do ChillZone", "agir no seu grupo" }) do
 			assert(ptLine:find(word, 1, true), k .. " (pt-BR) says: " .. word)
 		end
 	end
 	for _, word in ipairs({ "Seen nearby", "Exact last-seen point", "Visto nas proximidades", "Ponto exato do último avistamento",
-		"Not hostile, outside Olympus's guilds", "Não hostil, fora das guildas do Olympus" }) do
+		"Not hostile, outside ChillZone's guilds", "Não hostil, fora das guildas do ChillZone" }) do
 		assert(src:find(word, 1, true), "the map tooltip says: " .. word)
 	end
 	for _, word in ipairs({ "exact-name last-seen search", "target, nameplate or mouseover observation",
@@ -2691,10 +2691,10 @@ test("1.2.4 the API: its words in English and pt-BR; docs/API.md names every met
 		"A visible Start must declare", "any list source it includes", "at least 60 seconds after the previous area start",
 		"show the selected map and rotation position", "never open the world map automatically",
 		"stop on Off, permission loss or UI reload",
-		"at most 48 distinct hostile players", "Olympus-owned world-map pins",
+		"at most 48 distinct hostile players", "ChillZone-owned world-map pins",
 		"target's native observed-unit or matching party/raid-unit point", "observer's nearby encounter point",
 		"at most 64 observations", "only in memory", "up to 15 minutes", "Authorize all",
-		"short host-owned profile-presentation session", "current signed issuer", "single fixed Olympus-owned style",
+		"short host-owned profile-presentation session", "current signed issuer", "single fixed ChillZone-owned style",
 		"cannot choose a target, texture, atlas, colour, layout or arbitrary message", "pre-approved caption",
 		"every 10 seconds", "about 32 seconds",
 		"Keep current choices", "last-seen information, not continuous tracking",
@@ -2707,26 +2707,26 @@ test("1.2.4 the API: its words in English and pt-BR; docs/API.md names every met
 		"Um Iniciar visível precisa declarar", "qualquer fonte de lista que incluir", "esperar pelo menos 60 segundos",
 		"mostrar o mapa selecionado e a posição na rotação", "nunca abrir o mapa-múndi automaticamente",
 		"parar ao Desligar, perder a permissão ou recarregar a interface",
-		"no máximo 48 jogadores hostis distintos", "marcadores do mapa-múndi pertencentes ao Olympus",
+		"no máximo 48 jogadores hostis distintos", "marcadores do mapa-múndi pertencentes ao ChillZone",
 		"ponto nativo do alvo observado ou da unidade correspondente no grupo ou raide", "ponto próximo do encontro",
-		"sessão curta de apresentação de perfil controlada pelo Olympus", "emissor assinado atual",
-		"único estilo fixo do Olympus", "não poderá escolher alvo, textura, atlas, cor, layout ou mensagem arbitrária",
+		"sessão curta de apresentação de perfil controlada pelo ChillZone", "emissor assinado atual",
+		"único estilo fixo do ChillZone", "não poderá escolher alvo, textura, atlas, cor, layout ou mensagem arbitrária",
 		"legenda pré-aprovada", "a cada 10 segundos", "cerca de 32 segundos",
 		"no máximo 64 observações", "só na memória", "por até 15 minutos", "Autorizar tudo",
 		"Manter escolhas atuais", "último avistamento, não rastreamento contínuo",
 		"nenhuma ação protegida", "censo", "chaves" }) do
 		assert(src:find(word, 1, true), "the pt-BR line says: " .. word)
 	end
-	-- Its promises are Olympus's own: ordinary reads are passive, while the separately described,
+	-- Its promises are ChillZone's own: ordinary reads are passive, while the separately described,
 	-- explicit search or visible user-started session is the only network action. What the other
 	-- addon does with copies is its own.
 	eq(head:find("it sends nothing for you", 1, true), nil, "no promise for the other addon")
 	eq(tail:find("ele não envia nada por você", 1, true), nil, "no promise for the other addon (pt-BR)")
-	for _, word in ipairs({ "what Olympus shows you", "what that addon then does with the copies is up to that addon", "addons you trust",
+	for _, word in ipairs({ "what ChillZone shows you", "what that addon then does with the copies is up to that addon", "addons you trust",
 		"No, Keep current choices, or no answer: it receives nothing, starts no search and cannot enable the presentation" }) do
 		assert(head:find(word, 1, true), "the line says: " .. word)
 	end
-	for _, word in ipairs({ "o que o Olympus mostra a você", "o que esse addon fizer depois com as cópias é responsabilidade dele",
+	for _, word in ipairs({ "o que o ChillZone mostra a você", "o que esse addon fizer depois com as cópias é responsabilidade dele",
 		"em que você confia", "Não, Manter escolhas atuais ou sem resposta: ele não recebe nada, não inicia busca e não pode ativar a apresentação" }) do
 		assert(tail:find(word, 1, true), "the pt-BR line says: " .. word)
 	end
@@ -2745,11 +2745,11 @@ test("1.2.4 the API: its words in English and pt-BR; docs/API.md names every met
 	local api = Read(H.ADDON_DIR .. "API.lua")
 	for m in api:gmatch("\nfunction METHODS%.(%u%a+)%(") do assert(doc:find(":" .. m .. "(", 1, true), "docs/API.md: " .. m) end
 	for e in api:match("API%.EVENTS = (%b{})"):gmatch('"([%u_]+)"') do assert(doc:find(e, 1, true), "docs/API.md: " .. e) end
-	for _, f in ipairs({ "OlympusAPI.VERSION", "OlympusAPI.SURFACE_LIMIT", "OlympusAPI.Has", "OlympusAPI.Register", "## OptionalDeps: Olympus", "/oly privacy" }) do
+	for _, f in ipairs({ "ChillZoneAPI.VERSION", "ChillZoneAPI.SURFACE_LIMIT", "ChillZoneAPI.Has", "ChillZoneAPI.Register", "## OptionalDeps: ChillZone", "/cz privacy" }) do
 		assert(doc:find(f, 1, true), "docs/API.md: " .. f)
 	end
 	for _, word in ipairs({ '"ui.surface"', "one client-owned page", "availableWhenLocked", 'style = "old" or "hd"',
-		"OlympusAPI.SURFACE_LIMIT", '"surface-full"', "works while the answer is pending or refused",
+		"ChillZoneAPI.SURFACE_LIMIT", '"surface-full"', "works while the answer is pending or refused",
 		"contains no addon name, consent key or", "expiry is enforced locally by each client",
 		"x = 520, y = 375", 'kind = "exact-group"', "accuracyYards = 0",
 		"receivedAt = 1792000125", "expiresAt = 1792001023", "must stop alerts and sharing",
@@ -2788,14 +2788,14 @@ test("1.2.4 the API: its words in English and pt-BR; docs/API.md names every met
 		"never the names of a group's members", "never a time of anyone's", "on the King's", "anyNumber", "fresh = true",
 		"places = { \"DM\", \"SFK\" }", "Nothing here posts a listing, raises a flag, applies or writes a word",
 		"`OpenGroup` (his own listing's id) or `OpenListingDialog`", '"panel-full"', "the first registered keeps it",
-		"bounds its height to 20-600", "Olympus's own", "6 calls", '"not-leader"', '"invited"', "LOOKING_CHANGED", "MY_GROUP_CHANGED" }) do
+		"bounds its height to 20-600", "ChillZone's own", "6 calls", '"not-leader"', '"invited"', "LOOKING_CHANGED", "MY_GROUP_CHANGED" }) do
 		assert(doc:find(word, 1, true), "docs/API.md groups contract: " .. word)
 	end
 	eq(doc:find("trusted roster", 1, true), nil, "the public contract stays consumer-neutral")
 	local sections = {}
 	for _, path in ipairs({ "README.md", "docs/CURSEFORGE.md" }) do
 		local page = Read(H.ROOT .. path)
-		local s = page:match("\n### Other addons: the Olympus API %(1%.2%.4%)\n(.-)\n##")
+		local s = page:match("\n### Other addons: the ChillZone API %(1%.2%.4%)\n(.-)\n##")
 		assert(s and s ~= "", path .. ": the section")
 		assert(s:find("docs/API.md", 1, true), path .. ": its link")
 		-- The public pages make the same distinction as the permission line: passive ordinary reads,
@@ -2811,7 +2811,7 @@ test("1.2.4 the API: its words in English and pt-BR; docs/API.md names every met
 			"encounter point, rounded", "not continuous tracking", "at most 64", "only in memory",
 			"Authorize all", "Keep current choices", "Requests and answers expire", "up to it", "authorize only addons",
 			"while he shows the Treasury's ranking",
-			"one such page per session", "data handles still work", "data answer is pending or refused", "hosting it grants no Olympus data" }) do
+			"one such page per session", "data handles still work", "data answer is pending or refused", "hosting it grants no ChillZone data" }) do
 			assert(s:find(word, 1, true), path .. ": " .. word)
 		end
 		local privacy = page:match("\n%*%*What waits for your yes%.%*%*(.-)\n\n")
@@ -2855,7 +2855,7 @@ end
 -- Honors.FRAMES_SHIPPED), without the Wanted boards (so every name in a return is a donor's).
 test("1.2.4 the API: the donors' top three only while the King shows the army the Treasury's ranking, never by the staff's view; the month's only in a build that wears its koi (1.2.4 does)", function()
 	local w, cast, viewer, API = Setup({ wanted = false, world = { compliance = "shipped" } })
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	eq(w:As(viewer, viewer.ns.Honors.FrameShipped, { family = "donor-month" }), true, "1.2.4 wears the koi")
 	eq(w:As(viewer, viewer.ns.Honors.FrameShipped, { family = "donor-top" }), true)
 	eq(w:As(viewer, viewer.ns.Treasury.PublicShows, "ranking"), false, "the King's switch: off until he turns it")
@@ -2883,7 +2883,7 @@ test("1.2.4 the API: the donors' top three only while the King shows the army th
 	-- The King sees the ranking on his own Treasury tab: his addon gets no more (never a staff view).
 	LoadAPI(w, cast.king, false)
 	Install(cast.king, "MapPins", "Map Pins")
-	local kapi = w:As(cast.king, cast.king.OlympusAPI.Register, "MapPins")
+	local kapi = w:As(cast.king, cast.king.ChillZoneAPI.Register, "MapPins")
 	w:As(cast.king, cast.king.Consent.Choose, "api:mappins", true)
 	eq(w:As(cast.king, cast.king.ns.Treasury.MaySee, "ranking"), true, "his tab shows it")
 	eq(Do(w, cast.king, kapi, "GetRankings", "donors"), nil, "his addon: no donors either")
@@ -2898,7 +2898,7 @@ test("1.2.4 the API: the donors' top three only while the King shows the army th
 	eq(Keys(d), "all,month", "the month's too: its koi is worn")
 	eq(table.concat(d.month, ","), table.concat(word.month or {}, ","))
 	eq(table.concat(d.all, ","), table.concat(word.all, ","))
-	-- A listener is told when the switch turns (Olympus's TREASURY_CHANGED), and when it turns back:
+	-- A listener is told when the switch turns (ChillZone's TREASURY_CHANGED), and when it turns back:
 	-- then no name again.
 	w:Run(API.DISPATCH_DELAY)
 	eq(#told, base + 1, "told of the switch"); eq(table.concat(told[base + 1].donors.all, ","), table.concat(word.all, ","))
@@ -2935,7 +2935,7 @@ test("1.2.4 the API: an account updating from 1.2.2 is asked about an addon by i
 		Install(viewer, "MapPins", "Map Pins")
 		LoadAPI(w, viewer, false)
 		-- The other addon registers as it loads, before the login's wait is over.
-		local api = w:As(viewer, viewer.OlympusAPI.Register, "MapPins")
+		local api = w:As(viewer, viewer.ChillZoneAPI.Register, "MapPins")
 		assert(type(api) == "table", "its handle")
 		return api, viewer.Consent
 	end
@@ -2971,7 +2971,7 @@ test("1.2.4 the API: docs/API.md's title example shows the player's title on his
 	local title = w:As(viewer, viewer.ns.HonorsNet.TitleText, "donor-top-3")
 	assert(type(title) == "string" and title ~= "", "his title's words")
 	Install(viewer, "MapPins", "Map Pins")
-	local api = w:As(viewer, viewer.OlympusAPI.Register, "MapPins")
+	local api = w:As(viewer, viewer.ChillZoneAPI.Register, "MapPins")
 	local function Load()
 		local shown = {}
 		local frame = { title = { SetText = function(_, text) shown[#shown + 1] = text end } }
@@ -2988,18 +2988,18 @@ test("1.2.4 the API: docs/API.md's title example shows the player's title on his
 	W3.NoErrors(w)
 end)
 
--- 1.2.5.1: the Olympus Accord (Accord.lua). Until this account accepted it the player is no member
--- (ns.IsMember): a granted addon reads what it reads outside an Olympus guild ("guild", member =
+-- 1.2.5.1: the ChillZone Accord (Accord.lua). Until this account accepted it the player is no member
+-- (ns.IsMember): a granted addon reads what it reads outside an ChillZone guild ("guild", member =
 -- false), and the contract is not changed by it (CONSENT_VERSION 10 since 1.4.0, for the Board's
--- groups and IsOlympusMember; the Accord itself asks nothing again). Accepting it (Accord.lua's ACCORD_CHANGED,
+-- groups and IsChillZoneMember; the Accord itself asks nothing again). Accepting it (Accord.lua's ACCORD_CHANGED,
 -- fired here as the Accord fires it) tells every data event's listeners once the burst settles.
-test("accord: the API before the Olympus Accord is accepted reads as outside an Olympus guild; once it is, WANTED, RANKINGS and PROFILE listeners are told", function()
+test("accord: the API before the ChillZone Accord is accepted reads as outside an ChillZone guild; once it is, WANTED, RANKINGS and PROFILE listeners are told", function()
 	local w, cast, viewer, API = Setup()
-	-- (1.4.0: 10, raised for the Board's groups and IsOlympusMember, which a Yes now gives too; the
+	-- (1.4.0: 10, raised for the Board's groups and IsChillZoneMember, which a Yes now gives too; the
 	-- Accord itself still changes nothing of the contract, so this stays the version the API's own
 	-- reads set.)
 	eq(API.CONSENT_VERSION, 10, "the contract the Accord leaves as it is")
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	Install(viewer, "MapPins", "Map Pins")
 	local api = w:As(viewer, O.Register, "MapPins")
 	w:As(viewer, C.Choose, "api:mappins", true)
@@ -3033,18 +3033,18 @@ end)
 -- addon here is an ordinary one: these features are not reserved.
 ---------------------------------------------------------------------------
 
-local DAWN = "Olympus Dawn"
+local DAWN = "ChillZone Dawn"
 local function LoadGroups(w, c)
 	w:As(c, function()
-		assert(loadfile(H.ADDON_DIR .. "Board.lua"))("Olympus", c.ns)
-		assert(loadfile(H.ADDON_DIR .. "Groups.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Board.lua"))("ChillZone", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Groups.lua"))("ChillZone", c.ns)
 	end)
 	c.ns.Board.RefreshCamps = function() end -- (the camps' map badges: not these tests')
 	-- The game's invite and the group's leader as the client gives them (world.lua models neither).
 	c.invited = {}
 	c.globals.C_PartyInfo = { InviteUnit = function(name) c.invited[#c.invited + 1] = name end }
 	c.globals.UnitIsGroupLeader = function() return c.notLeader ~= true end
-	-- Olympus's own window as the host the Board opens in: what it was asked to show.
+	-- ChillZone's own window as the host the Board opens in: what it was asked to show.
 	c.opened = {}
 	local views, ui = c.ns.Views, c.ns.UI
 	rawset(c.ns, "Views", setmetatable({ ShowBoard = function(on) c.opened[#c.opened + 1] = on and "board" or "off" end,
@@ -3061,7 +3061,7 @@ local function GroupsWorld()
 	local quester = LoadGroups(w, w:Client("Mira Thorn", { guild = DAWN }))
 	local mate = w:Client("Dax Ember", { guild = DAWN })
 	Install(viewer, "GroupFinder", "Group Finder")
-	local api = w:As(viewer, viewer.OlympusAPI.Register, "GroupFinder")
+	local api = w:As(viewer, viewer.ChillZoneAPI.Register, "GroupFinder")
 	assert(type(api) == "table", "an ordinary addon's handle")
 	return w, cast, viewer, API, api, leader, quester, mate
 end
@@ -3080,7 +3080,7 @@ end
 
 test("1.4.0 the API groups: Has; GetGroups and GetLooking copy what the Board's sections show, field by field, in its order: counts not names, no time, the King's screen's words hidden; the usual gates", function()
 	local w, cast, viewer, API, api, leader, quester, mate = GroupsWorld()
-	local O, L = viewer.OlympusAPI, viewer.ns.L
+	local O, L = viewer.ChillZoneAPI, viewer.ns.L
 	for _, f in ipairs({ "groups", "groups.manage", "ui.board-groups", "GROUPS_CHANGED", "LOOKING_CHANGED", "MY_GROUP_CHANGED" }) do
 		eq(w:As(viewer, O.Has, f), true, f)
 	end
@@ -3153,11 +3153,11 @@ test("1.4.0 the API groups: Has; GetGroups and GetLooking copy what the Board's 
 	w:As(viewer, viewer.ns.Board.Lower, true)
 	w:Run(2)
 	eq(#Do(w, viewer, api, "GetLooking", "dungeon"), 1, "taken down: gone from the list")
-	-- Copies: changing one changes nothing of Olympus's.
+	-- Copies: changing one changes nothing of ChillZone's.
 	rows = Do(w, viewer, api, "GetGroups")
 	rows[1].need.tank, rows[1].leader = 9, "x"
 	eq(Do(w, viewer, api, "GetGroups")[1].need.tank, 1)
-	-- Outside an Olympus guild: nothing.
+	-- Outside an ChillZone guild: nothing.
 	local member = viewer.ns.IsMember
 	viewer.ns.IsMember = function() return false end
 	eq(select(2, Do(w, viewer, api, "GetGroups")), "guild"); eq(select(2, Do(w, viewer, api, "GetMyGroup")), "guild")
@@ -3252,13 +3252,13 @@ test("1.4.0 the API groups: GetMyGroup, and the own-group actions run the Board'
 	eq(select(2, Do(w, viewer, api, "LowerListing")), "unknown")
 	-- Without the Yes: nothing.
 	Install(viewer, "QuietFinder", "Quiet Finder")
-	local quiet = w:As(viewer, viewer.OlympusAPI.Register, "QuietFinder")
+	local quiet = w:As(viewer, viewer.ChillZoneAPI.Register, "QuietFinder")
 	eq(select(2, Do(w, viewer, quiet, "LowerListing")), "pending")
 	eq(select(2, Do(w, viewer, quiet, "InviteApplicant", leader.name, "tank")), "pending")
 	W3.NoErrors(w)
 end)
 
-test("1.4.0 the API groups: OpenGroup, OpenListingDialog and OpenFlagDialog open Olympus's own card, composer and flag dialog on the Board, and send nothing", function()
+test("1.4.0 the API groups: OpenGroup, OpenListingDialog and OpenFlagDialog open ChillZone's own card, composer and flag dialog on the Board, and send nothing", function()
 	local w, cast, viewer, API, api, leader = GroupsWorld()
 	local L = viewer.ns.L
 	w:As(viewer, viewer.Consent.Choose, "api:groupfinder", true)
@@ -3268,7 +3268,7 @@ test("1.4.0 the API groups: OpenGroup, OpenListingDialog and OpenFlagDialog open
 	local sent = #w.sent
 	eq(Do(w, viewer, api, "OpenGroup", id), true)
 	eq(G(w, viewer).View(), "R")
-	eq(viewer.opened[#viewer.opened], "tab:realm", "the Board in Olympus's window")
+	eq(viewer.opened[#viewer.opened], "tab:realm", "the Board in ChillZone's window")
 	local lines = Lines(w, viewer)
 	assert(LineOf(lines, "> " .. L.GROUPS_APPLY_AS:format(L.GROUPS_ROLE_T)), "its card open: the player applies there himself")
 	eq(select(2, Do(w, viewer, api, "OpenGroup", "zz:Nobody-Emberfall")), "unknown")
@@ -3324,11 +3324,11 @@ test("1.4.0 the API groups: GROUPS_CHANGED, LOOKING_CHANGED and MY_GROUP_CHANGED
 	W3.NoErrors(w)
 end)
 
-test("1.4.0 the API group panel: one a session; it takes Your group's place while the addon has its Yes, with a switch back to Olympus's own kept for the account; build errors contained; Unregister gives the Board's own back", function()
+test("1.4.0 the API group panel: one a session; it takes Your group's place while the addon has its Yes, with a switch back to ChillZone's own kept for the account; build errors contained; Unregister gives the Board's own back", function()
 	local w, cast, viewer, API, api, leader = GroupsWorld()
 	local L = viewer.ns.L
 	Install(viewer, "OtherPanel", "Other Panel")
-	local other = w:As(viewer, viewer.OlympusAPI.Register, "OtherPanel")
+	local other = w:As(viewer, viewer.ChillZoneAPI.Register, "OtherPanel")
 	local built, refreshed = {}, 0
 	local spec = { label = "Group Finder", build = function(frame) built[#built + 1] = frame end, refresh = function() refreshed = refreshed + 1 end }
 	eq(select(2, Do(w, viewer, api, "RegisterGroupPanel", "x")), "invalid-spec")
@@ -3340,11 +3340,11 @@ test("1.4.0 the API group panel: one a session; it takes Your group's place whil
 	eq(select(2, Do(w, viewer, api, "RegisterGroupPanel", spec)), "registered")
 	eq(select(2, Do(w, viewer, other, "RegisterGroupPanel", spec)), "panel-full", "the first keeps it")
 	G(w, viewer).Show("D", true)
-	-- Pending: Olympus's own Your group, no switch.
+	-- Pending: ChillZone's own Your group, no switch.
 	local lines = Lines(w, viewer)
 	eq(LineId(lines, "board-panel-switch"), nil); eq(LineId(lines, "board-panel"), nil)
-	assert(LineOf(lines, L.GROUPS_LIST:format(L.GROUPS_KIND_D)), "Olympus's own way to list one")
-	-- Yes: the switch and the panel in its place; the listings stay Olympus's.
+	assert(LineOf(lines, L.GROUPS_LIST:format(L.GROUPS_KIND_D)), "ChillZone's own way to list one")
+	-- Yes: the switch and the panel in its place; the listings stay ChillZone's.
 	w:As(viewer, viewer.Consent.Choose, "api:groupfinder", true)
 	assert(G(w, leader).Post("D", "DM", nil, "113", ""))
 	w:Run(2)
@@ -3353,16 +3353,16 @@ test("1.4.0 the API group panel: one a session; it takes Your group's place whil
 	assert(switch and slot, "the switch and the panel")
 	eq(switch.nav[1].text, "Group Finder"); eq(switch.nav[1].selected, true); eq(switch.nav[2].text, L.GROUPS_PANEL_OWN)
 	eq(LineOf(lines, L.GROUPS_LIST:format(L.GROUPS_KIND_D)), nil, "Your group's own lines give their place")
-	assert(LineOf(lines, "Orin Vale"), "the listings stay Olympus's")
-	-- Drawn in its row: built once into an Olympus frame, refreshed after.
+	assert(LineOf(lines, "Orin Vale"), "the listings stay ChillZone's")
+	-- Drawn in its row: built once into an ChillZone frame, refreshed after.
 	local row = CreateFrame("Button")
 	local h, frame = w:As(viewer, slot.panel, row, 300)
 	eq(#built, 1); eq(built[1], frame); eq(h, viewer.ns.Groups.PANEL_MIN, "its frame's height, bounded")
 	w:As(viewer, slot.panel, row, 300)
 	eq(#built, 1, "built once"); eq(refreshed, 1)
-	-- The player's switch: Olympus's own, kept for the account; and back.
+	-- The player's switch: ChillZone's own, kept for the account; and back.
 	w:As(viewer, switch.nav[2].onClick)
-	eq(viewer.db.groupsPanel, "olympus")
+	eq(viewer.db.groupsPanel, "chillzone")
 	lines = Lines(w, viewer)
 	assert(LineId(lines, "board-panel-switch") and not LineId(lines, "board-panel"))
 	assert(LineOf(lines, L.GROUPS_LIST:format(L.GROUPS_KIND_D)))
@@ -3371,7 +3371,7 @@ test("1.4.0 the API group panel: one a session; it takes Your group's place whil
 	assert(LineId(Lines(w, viewer), "board-panel"))
 	eq(Do(w, viewer, api, "RefreshGroupPanel"), true)
 	eq(Do(w, viewer, api, "IsGroupPanelShown"), false, "the window isn't open here")
-	-- No: Olympus's own again (no switch).
+	-- No: ChillZone's own again (no switch).
 	w:As(viewer, viewer.Consent.Choose, "api:groupfinder", false)
 	lines = Lines(w, viewer)
 	eq(LineId(lines, "board-panel-switch"), nil); assert(LineOf(lines, L.GROUPS_LIST:format(L.GROUPS_KIND_D)))
@@ -3385,20 +3385,20 @@ test("1.4.0 the API group panel: one a session; it takes Your group's place whil
 	local _, same = w:As(viewer, LineId(Lines(w, viewer), "board-panel").panel, row, 300)
 	eq(same, frame); eq(#built, 1)
 	eq(Do(w, viewer, api, "UnregisterGroupPanel"), true)
-	-- A build that fails: contained, logged, Olympus's own Your group instead.
+	-- A build that fails: contained, logged, ChillZone's own Your group instead.
 	w:As(viewer, viewer.Consent.Choose, "api:otherpanel", true)
 	eq(Do(w, viewer, other, "RegisterGroupPanel", { label = "Other", build = function() error("broken") end }), true)
 	slot = LineId(Lines(w, viewer), "board-panel")
 	eq(w:As(viewer, slot.panel, CreateFrame("Button"), 300), 0)
-	eq(LineId(Lines(w, viewer), "board-panel"), nil, "Olympus's own instead")
+	eq(LineId(Lines(w, viewer), "board-panel"), nil, "ChillZone's own instead")
 	local logged = false
 	for _, l in ipairs(viewer.log) do if l:find("panel build failed", 1, true) then logged = true end end
 	eq(logged, true)
 	W3.NoErrors(w)
 end)
 
--- 1.4.0: IsOlympusMember(unit), the safe eligibility check promised to an addon author (an addon
--- that buffs or marks Olympus players). The units below are the game's, as this test's client
+-- 1.4.0: IsChillZoneMember(unit), the safe eligibility check promised to an addon author (an addon
+-- that buffs or marks ChillZone players). The units below are the game's, as this test's client
 -- reports them: the world's own functions stay underneath for "player" (who the viewer is).
 local SecretValue = assert(loadfile(H.ROOT .. "tests/arena/lib/secret.lua"))()
 local function MemberUnits(w, viewer)
@@ -3408,8 +3408,8 @@ local function MemberUnits(w, viewer)
 		focus = { player = true, faction = "Alliance", guild = "Silver Hand" },
 		mouseover = { player = false, faction = "Alliance" },                  -- a creature
 		party1 = { player = true, faction = "Alliance" },                      -- no guild from the game
-		party2 = { player = true, faction = "Alliance", guild = "Olympus Fakes" },
-		raid3 = { player = true, faction = "Horde", guild = "Olympus Horde" },
+		party2 = { player = true, faction = "Alliance", guild = "ChillZone Fakes" },
+		raid3 = { player = true, faction = "Horde", guild = "ChillZone Horde" },
 		raid4 = { player = true, faction = "Alliance", guild = secret },       -- a value the game keeps secret
 		nameplate12 = { player = true, faction = "Alliance", guild = World.KING_GUILD },
 		targettarget = { player = true, faction = "Alliance", guild = World.GUILD },
@@ -3438,39 +3438,39 @@ local function MemberUnits(w, viewer)
 	return units, asked, secret
 end
 
-test("1.4.0 the API IsOlympusMember: a live unit token's guild by Olympus's own rule; true, false, or nil and why; never a name", function()
+test("1.4.0 the API IsChillZoneMember: a live unit token's guild by ChillZone's own rule; true, false, or nil and why; never a name", function()
 	local w, cast, viewer, API = Setup()
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	local units, asked, secret = MemberUnits(w, viewer)
 	-- Any addon may have it (not a reserved feature): this one is not on the authorized list.
 	Install(viewer, "BuffTool", "Buff Tool")
 	local api = w:As(viewer, O.Register, "BuffTool")
 	eq(w:As(viewer, O.Has, "unit.member"), true)
 	-- Before the Yes: nothing, and a bad argument is refused first, for free.
-	local yes, why = Do(w, viewer, api, "IsOlympusMember", "target")
+	local yes, why = Do(w, viewer, api, "IsChillZoneMember", "target")
 	eq(yes, nil); eq(why, "pending")
-	eq(select(2, Do(w, viewer, api, "IsOlympusMember", "Someone-Realm")), "unit")
+	eq(select(2, Do(w, viewer, api, "IsChillZoneMember", "Someone-Realm")), "unit")
 	w:As(viewer, C.Choose, "api:bufftool", true)
-	-- An Olympus guild's player (the world's guild; the King's guild too, by Olympus's list).
-	eq(Do(w, viewer, api, "IsOlympusMember", "target"), true)
-	eq(Do(w, viewer, api, "IsOlympusMember", "TARGET"), true, "the game's tokens take any case")
-	eq(Do(w, viewer, api, "IsOlympusMember", "targettarget"), true, "a token followed by target once")
-	eq(Do(w, viewer, api, "IsOlympusMember", "nameplate12"), true)
-	eq(Do(w, viewer, api, "IsOlympusMember", "player"), true, "the player himself, a member")
+	-- An ChillZone guild's player (the world's guild; the King's guild too, by ChillZone's list).
+	eq(Do(w, viewer, api, "IsChillZoneMember", "target"), true)
+	eq(Do(w, viewer, api, "IsChillZoneMember", "TARGET"), true, "the game's tokens take any case")
+	eq(Do(w, viewer, api, "IsChillZoneMember", "targettarget"), true, "a token followed by target once")
+	eq(Do(w, viewer, api, "IsChillZoneMember", "nameplate12"), true)
+	eq(Do(w, viewer, api, "IsChillZoneMember", "player"), true, "the player himself, a member")
 	-- Not one: another guild; a creature.
-	eq(Do(w, viewer, api, "IsOlympusMember", "focus"), false)
-	eq(Do(w, viewer, api, "IsOlympusMember", "mouseover"), false)
-	-- Olympus's rule, not the name alone: a guild the High Council removed is not Olympus's, though
-	-- its name says Olympus; and the answer is the one Olympus's own pages work from.
-	eq(Do(w, viewer, api, "IsOlympusMember", "party2"), true, "by name, until removed")
-	rawset(viewer.ns, "REMOVED_BUILTIN", { Alliance = { "Olympus Fakes" } })
-	eq(Do(w, viewer, api, "IsOlympusMember", "party2"), false, "removed: no longer an Olympus guild")
+	eq(Do(w, viewer, api, "IsChillZoneMember", "focus"), false)
+	eq(Do(w, viewer, api, "IsChillZoneMember", "mouseover"), false)
+	-- ChillZone's rule, not the name alone: a guild the High Council removed is not ChillZone's, though
+	-- its name says ChillZone; and the answer is the one ChillZone's own pages work from.
+	eq(Do(w, viewer, api, "IsChillZoneMember", "party2"), true, "by name, until removed")
+	rawset(viewer.ns, "REMOVED_BUILTIN", { Alliance = { "ChillZone Fakes" } })
+	eq(Do(w, viewer, api, "IsChillZoneMember", "party2"), false, "removed: no longer an ChillZone guild")
 	for _, unit in ipairs({ "target", "focus", "party2", "nameplate12" }) do
-		eq(Do(w, viewer, api, "IsOlympusMember", unit), w:As(viewer, viewer.ns.IsFederation, units[unit].guild), unit .. ": ns.IsFederation's answer")
+		eq(Do(w, viewer, api, "IsChillZoneMember", unit), w:As(viewer, viewer.ns.IsFederation, units[unit].guild), unit .. ": ns.IsFederation's answer")
 	end
 	-- What this client cannot tell: nil and "unknown", never a guess.
 	for _, unit in ipairs({ "party1", "raid3", "raid4", "nameplate7", "party3target" }) do
-		yes, why = Do(w, viewer, api, "IsOlympusMember", unit)
+		yes, why = Do(w, viewer, api, "IsChillZoneMember", unit)
 		eq(yes, nil, unit); eq(why, "unknown", unit)
 	end
 	-- Only the game's unit tokens: a name, an out-of-range or malformed token, anything else.
@@ -3478,36 +3478,36 @@ test("1.4.0 the API IsOlympusMember: a live unit token's guild by Olympus's own 
 	for _, bad in ipairs({ "Someone-Realm", "someone-realm", "Zeus", "party0", "party5", "raid0", "raid01", "raid41",
 		"nameplate0", "nameplate" .. (API.NAMEPLATE_MAX + 1), "player2", "targettargettarget", "pet", "npc", "", 42, true, {}, secret }) do
 		local label = type(bad) == "string" and bad or type(bad) -- (a secret is never joined or printed)
-		yes, why = Do(w, viewer, api, "IsOlympusMember", bad)
+		yes, why = Do(w, viewer, api, "IsChillZoneMember", bad)
 		eq(yes, nil, label); eq(why, "unit", label)
 	end
 	eq(#asked, before, "the game is never asked about a name or a refused token")
 	-- No sanction is ever told: a player the moderators took off the network reads as his guild does.
 	local moderation = rawget(viewer.ns, "Moderation")
 	rawset(viewer.ns, "Moderation", setmetatable({ Hides = function() return { kind = "netoff" } end }, { __index = moderation }))
-	eq(Do(w, viewer, api, "IsOlympusMember", "target"), true, "a net-off is not told")
+	eq(Do(w, viewer, api, "IsChillZoneMember", "target"), true, "a net-off is not told")
 	rawset(viewer.ns, "Moderation", moderation)
-	-- Outside an Olympus guild: "guild", as every read.
+	-- Outside an ChillZone guild: "guild", as every read.
 	viewer.guild = nil
-	yes, why = Do(w, viewer, api, "IsOlympusMember", "target")
+	yes, why = Do(w, viewer, api, "IsChillZoneMember", "target")
 	eq(yes, nil); eq(why, "guild")
 	viewer.guild = World.GUILD
 	-- After No: nothing.
 	w:As(viewer, C.Choose, "api:bufftool", false)
-	eq(select(2, Do(w, viewer, api, "IsOlympusMember", "target")), "refused")
+	eq(select(2, Do(w, viewer, api, "IsChillZoneMember", "target")), "refused")
 	W3.NoErrors(w)
 end)
 
-test("1.4.0 the API IsOlympusMember: a budget of its own (a raid of 40, twice, every 10 s), apart from the other reads; said once in the log", function()
+test("1.4.0 the API IsChillZoneMember: a budget of its own (a raid of 40, twice, every 10 s), apart from the other reads; said once in the log", function()
 	local w, cast, viewer, API = Setup()
-	local O, C = viewer.OlympusAPI, viewer.Consent
+	local O, C = viewer.ChillZoneAPI, viewer.Consent
 	MemberUnits(w, viewer)
 	Install(viewer, "BuffTool", "Buff Tool")
 	local api = w:As(viewer, O.Register, "BuffTool")
 	w:As(viewer, C.Choose, "api:bufftool", true)
 	eq(API.UNIT_RATE_MAX, 80); eq(API.UNIT_RATE_MAX >= 2 * 40, true, "a full raid checked twice in a window")
-	for i = 1, API.UNIT_RATE_MAX do eq(Do(w, viewer, api, "IsOlympusMember", "target"), true, "check " .. i) end
-	local yes, why = Do(w, viewer, api, "IsOlympusMember", "target")
+	for i = 1, API.UNIT_RATE_MAX do eq(Do(w, viewer, api, "IsChillZoneMember", "target"), true, "check " .. i) end
+	local yes, why = Do(w, viewer, api, "IsChillZoneMember", "target")
 	eq(yes, nil); eq(why, "busy", "past its own budget")
 	-- The other reads keep theirs: a raid check starves none of them.
 	assert(type(Do(w, viewer, api, "GetProfile")) == "table", "GetProfile still reads")
@@ -3516,23 +3516,23 @@ test("1.4.0 the API IsOlympusMember: a budget of its own (a raid of 40, twice, e
 	w:Run(API.RATE_WINDOW)
 	-- ...nor do they starve it.
 	for _ = 1, API.RATE_MAX + 5 do Do(w, viewer, api, "GetProfile") end
-	eq(Do(w, viewer, api, "IsOlympusMember", "target"), true, "the reads' budget spent, the check still answers")
-	for _ = 1, 2 * API.UNIT_RATE_MAX do Do(w, viewer, api, "IsOlympusMember", "target") end
+	eq(Do(w, viewer, api, "IsChillZoneMember", "target"), true, "the reads' budget spent, the check still answers")
+	for _ = 1, 2 * API.UNIT_RATE_MAX do Do(w, viewer, api, "IsChillZoneMember", "target") end
 	w:Run(API.RATE_WINDOW)
-	for _ = 1, 2 * API.UNIT_RATE_MAX do Do(w, viewer, api, "IsOlympusMember", "target") end
+	for _ = 1, 2 * API.UNIT_RATE_MAX do Do(w, viewer, api, "IsChillZoneMember", "target") end
 	local lines = 0
 	for _, l in ipairs(viewer.log) do if l:find("api: BuffTool asked more than 80 membership checks", 1, true) then lines = lines + 1 end end
 	eq(lines, 1, "once a session, however many windows")
 	-- A refused token costs nothing: it never reaches the budget.
 	w:Run(API.RATE_WINDOW)
-	for _ = 1, 3 * API.UNIT_RATE_MAX do Do(w, viewer, api, "IsOlympusMember", "Someone-Realm") end
-	eq(Do(w, viewer, api, "IsOlympusMember", "target"), true)
+	for _ = 1, 3 * API.UNIT_RATE_MAX do Do(w, viewer, api, "IsChillZoneMember", "Someone-Realm") end
+	eq(Do(w, viewer, api, "IsChillZoneMember", "target"), true)
 	W3.NoErrors(w)
 end)
 
-test("1.4.0 the API IsOlympusMember: a Yes given for 1.3's contract is asked again; the privacy line, docs/API.md and the store pages say what it reads", function()
+test("1.4.0 the API IsChillZoneMember: a Yes given for 1.3's contract is asked again; the privacy line, docs/API.md and the store pages say what it reads", function()
 	local w, cast, viewer, API = Setup()
-	local O = viewer.OlympusAPI
+	local O = viewer.ChillZoneAPI
 	eq(API.CONSENT_VERSION, 10)
 	-- An account that said Yes before 1.4.0 (version 9): pending again, so nothing until asked.
 	viewer.db.apiAddons = viewer.db.apiAddons or {}
@@ -3541,24 +3541,24 @@ test("1.4.0 the API IsOlympusMember: a Yes given for 1.3's contract is asked aga
 	Install(viewer, "BuffTool", "Buff Tool")
 	local api = w:As(viewer, O.Register, "BuffTool")
 	eq(Do(w, viewer, api, "Status"), "pending")
-	eq(select(2, Do(w, viewer, api, "IsOlympusMember", "target")), "pending")
+	eq(select(2, Do(w, viewer, api, "IsChillZoneMember", "target")), "pending")
 	-- The line it is asked with says it, in both languages, for every addon (basic and authorized).
 	local src = Read(H.ADDON_DIR .. "Locales/APIText.lua")
 	local tail = src:match("\nif GetLocale and GetLocale%(%) == \"ptBR\" then(\n.*)$")
 	for _, k in ipairs({ "API_CONSENT_TEXT_BASIC", "API_CONSENT_TEXT" }) do
 		local en = assert(src:match("\nL%." .. k .. ' = "(.-)"\n'), k) -- (the English line comes first)
 		local pt = assert(tail:match("\n\tL%." .. k .. ' = "(.-)"\n'), k .. " (pt-BR)")
-		assert(en:find("whether a player the game shows you right now (your target, group, mouseover or a nameplate) is in an Olympus guild", 1, true), k)
-		assert(pt:find("se um jogador que o jogo mostra a você agora (seu alvo, seu grupo, o mouseover ou uma placa de nome) está em uma guilda do Olympus", 1, true), k .. " (pt-BR)")
+		assert(en:find("whether a player the game shows you right now (your target, group, mouseover or a nameplate) is in an ChillZone guild", 1, true), k)
+		assert(pt:find("se um jogador que o jogo mostra a você agora (seu alvo, seu grupo, o mouseover ou uma placa de nome) está em uma guilda do ChillZone", 1, true), k .. " (pt-BR)")
 	end
 	local doc = Read(H.ROOT .. "docs/API.md")
-	for _, word in ipairs({ '| `"unit.member"` | `handle:IsOlympusMember(unit)` |', "### `handle:IsOlympusMember(unit)`",
+	for _, word in ipairs({ '| `"unit.member"` | `handle:IsChillZoneMember(unit)` |', "### `handle:IsChillZoneMember(unit)`",
 		'`nil, "unit"`', '`nil, "unknown"`', "80 calls in 10 seconds", "another faction's player",
 		"never the census, a roster, a sighting,\na moderation sanction" }) do
 		assert(doc:find(word, 1, true), "docs/API.md: " .. word)
 	end
 	for _, path in ipairs({ "README.md", "docs/CURSEFORGE.md", "docs/CURSEFORGE-STORE.md" }) do
-		assert(Read(H.ROOT .. path):find("whether a player your game shows you now is in an\nOlympus guild", 1, true), path)
+		assert(Read(H.ROOT .. path):find("whether a player your game shows you now is in an\nChillZone guild", 1, true), path)
 	end
 	W3.NoErrors(w)
 end)

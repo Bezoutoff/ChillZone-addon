@@ -1,9 +1,9 @@
 # Record mode: the witnesses' file format (format 1)
 
-This page describes the file that Olympus's record mode writes for the Guinness World Records
+This page describes the file that ChillZone's record mode writes for the Guinness World Records
 attempt (recording on 2026-10-20 and 2026-10-21). It gives everything an offline verifier needs:
 where the data is, its exact layout, the hash rule and how to compare witnesses. The verifier can be
-built from this page alone, without reading any Lua. The code is `Olympus/Record.lua`. A verifier
+built from this page alone, without reading any Lua. The code is `ChillZone/Record.lua`. A verifier
 in Lua can also call the check itself, `Record.VerifyFile` (section 8.1), which uses the recorder's
 own hash and line functions. The tests are in `tests/record.lua`, and the two sample files are
 `tests/fixtures/record-sample.lua` and `tests/fixtures/record-sample-b.lua`.
@@ -20,41 +20,41 @@ own hash and line functions. The tests are in `tests/record.lua`, and the two sa
   witnesses. Census reports from other guilds come from those guilds' reporters, not from the
   witness.
 - **Zero new messages.** Record mode sends nothing: no addon message, no chat line, no whisper.
-  A test reads `Olympus/Record.lua` and fails if it contains any send call. Everything stays in the
+  A test reads `ChillZone/Record.lua` and fails if it contains any send call. Everything stays in the
   witness's own SavedVariables until the witness sends the file.
-- **Opt-in.** `/oly record on` turns it on for one character. It stays on for that character
-  until `/oly record off`. It is off by default, and a player who never turns it on has no
-  `OlympusRecordDB` at all.
-- **Olympus guilds only.** Record mode works only for a member of an Olympus guild (Olympus's own
-  `ns.IsMember`). `/oly record on` is refused elsewhere, and a session ends when the witness's
-  guild is not an Olympus guild.
+- **Opt-in.** `/cz record on` turns it on for one character. It stays on for that character
+  until `/cz record off`. It is off by default, and a player who never turns it on has no
+  `ChillZoneRecordDB` at all.
+- **ChillZone guilds only.** Record mode works only for a member of an ChillZone guild (ChillZone's own
+  `ns.IsMember`). `/cz record on` is refused elsewhere, and a session ends when the witness's
+  guild is not an ChillZone guild.
 - **Who may record a guild: the author's decision.** The attempt's plan of 28 September said
   that a guild's roster is exported only with its leader's agreement, and that a guild can opt
-  out. Record mode does not ask: any member of an Olympus guild who turns it on records that
+  out. Record mode does not ask: any member of an ChillZone guild who turns it on records that
   guild's roster, GUIDs included, every quarter hour. Whether to require the leader's agreement,
   and how a guild opts out, is the author's call. This page records the difference until he
   decides.
 
 ## 2. Collection
 
-- **File.** All of an addon's SavedVariables go into one file, so `OlympusRecordDB` is in
-  `WTF\Account\<ACCOUNT>\SavedVariables\Olympus.lua`, next to `OlympusDB`. `<ACCOUNT>` is the
+- **File.** All of an addon's SavedVariables go into one file, so `ChillZoneRecordDB` is in
+  `WTF\Account\<ACCOUNT>\SavedVariables\ChillZone.lua`, next to `ChillZoneDB`. `<ACCOUNT>` is the
   account's folder name. The file holds every character of that WoW account.
 - **When the file is written.** The game writes it at `/reload`, logout or quit, and never in
   between. A crash loses everything since the last write. So witnesses `/reload` or log out
   before they copy the file.
-- **New SavedVariable.** The game reads `## SavedVariables: OlympusDB, OlympusRecordDB` only at
+- **New SavedVariable.** The game reads `## SavedVariables: ChillZoneDB, ChillZoneRecordDB` only at
   startup. After installing the build, a witness must restart the game (`/reload` is not
-  enough). Until then `Record.lua` is not loaded, and `/oly record` prints the restart message.
-- **What to send.** At the end of each day, each witness sends `Olympus.lua` to the author.
+  enough). Until then `Record.lua` is not loaded, and `/cz record` prints the restart message.
+- **What to send.** At the end of each day, each witness sends `ChillZone.lua` to the author.
 - **The Forever beta bug.** If the game does not load SavedVariables back at login, every
-  session starts with an empty `OlympusRecordDB`. The next write then overwrites the file with
-  that session alone, and the record-mode switch is forgotten too. `/oly record status` tells the
+  session starts with an empty `ChillZoneRecordDB`. The next write then overwrites the file with
+  that session alone, and the record-mode switch is forgotten too. `/cz record status` tells the
   witness which case applies:
   - "loaded this file back with N earlier session(s)": the file accumulates sessions, so each
     day's file also holds the days before;
   - "loaded no earlier record data": on a first use this is normal. Otherwise the witness copies
-    the file after **every** logout, before logging in again, and types `/oly record on` again
+    the file after **every** logout, before logging in again, and types `/cz record on` again
     after each login.
 - **Duplicates.** The verifier must expect the same session in several files, for example
   day 1's sessions again in day 2's file. A session is identified by its `id` (section 4). Its
@@ -65,8 +65,8 @@ own hash and line functions. The tests are in `tests/record.lua`, and the two sa
 The file is Lua source written by the game. Parse it as data and never execute it. Only this
 subset occurs:
 
-- top-level statements `Name = value`. Skip every name except `OlympusRecordDB`, since
-  `OlympusDB` can be several MB;
+- top-level statements `Name = value`. Skip every name except `ChillZoneRecordDB`, since
+  `ChillZoneDB` can be several MB;
 - tables `{ ... }` whose fields are `["key"] = value,`, `[123] = value,` or `value,`. Array
   values carry a trailing comment such as `-- [17]`. Fields end with `,` (and `;` is also legal);
 - strings in double quotes, using Lua 5.1 escapes (`\\`, `\"`, `\n`, `\r`, `\t`, `\ddd` decimal
@@ -81,7 +81,7 @@ Lua would, then hash the result: the chain decides.
 `scripts/record-check.lua` contains a reference reader for this subset (`M.Parse`, about 100
 lines).
 
-## 4. `OlympusRecordDB`
+## 4. `ChillZoneRecordDB`
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -93,9 +93,9 @@ lines).
 | `eventsDay` | number | the UTC day (`floor(server time / 86400)`) that `events` counts |
 | `saves` | number | how many logouts or `/reload`s wrote this table, used to detect whether the game loads the file back. Not chained |
 
-A **session** is one login or `/reload` of one character with record mode on, in one Olympus
+A **session** is one login or `/reload` of one character with record mode on, in one ChillZone
 guild. A change of guild ends the session, and the next one starts in the new guild if it is an
-Olympus guild. A loading screen does not end it: there the game briefly gives no guild name while
+ChillZone guild. A loading screen does not end it: there the game briefly gives no guild name while
 the player is still in the guild (`IsInGuild()` is true), and record mode waits.
 
 | Field | Type | Meaning |
@@ -139,13 +139,13 @@ convenience and must agree with the lines.
 | 3 | start, in server time | `1792504740` |
 | 4 | witness character, `Name-Realm` | `Witness Example-ClassicBetaPvP` |
 | 5 | witness GUID, `UnitGUID("player")` | `Player-0000-0000000A` |
-| 6 | guild, `GetGuildInfo("player")` | `Olympus Example` |
+| 6 | guild, `GetGuildInfo("player")` | `ChillZone Example` |
 | 7 | guild rank index (0 = guild master) | `4` |
 | 8 | guild rank name | `Soldier` |
 | 9 | faction | `Alliance` |
 | 10 | realm (normalised, no spaces) | `ClassicBetaPvP` |
-| 11 | Olympus's census realm group | `ClassicBetaPvP` |
-| 12 | Olympus version | `1.2.5.1` |
+| 11 | ChillZone's census realm group | `ClassicBetaPvP` |
+| 12 | ChillZone version | `1.2.5.1` |
 | 13 | test build number, empty for a release | `` |
 | 14 | a hash of the player's own BattleTag (below), empty when the game gives none | `973dcf3a...41eb76eb` |
 | 15 | client interface number (`GetBuildInfo()`'s 4th) | `16001` |
@@ -179,10 +179,10 @@ match members by name and GUID.
 | # | Field | Example |
 |---|---|---|
 | 1 | `C` | |
-| 2 | kind: `Q` for an automatic quarter hour, `M` for a manual `/oly record mark` | `Q` |
+| 2 | kind: `Q` for an automatic quarter hour, `M` for a manual `/cz record mark` | `Q` |
 | 3 | slot: for `Q`, the quarter hour (a multiple of 900); for `M`, the time the mark was asked | `1792505700` |
 | 4 | when the roster was read, in server time | `1792505702` |
-| 5 | guild | `Olympus Example` |
+| 5 | guild | `ChillZone Example` |
 | 6 | total members, `GetNumGuildMembers()`'s 1st return | `8` |
 | 7 | online by the game's count, `GetNumGuildMembers()`'s 2nd return (may be empty) | `7` |
 | 8 | roster rows read (rows with a name) | `8` |
@@ -215,7 +215,7 @@ match members by name and GUID.
 - The reads use the 1st (name), 4th (level), 9th (online) and 11th (class file) returns of
   `GetGuildRosterInfo(i)` for `i = 1..total`, and the 17th (GUID). This return order is checked
   in Blizzard's Classic Era 1.15.9 `FriendsFrame.lua` (`GetGuildRosterInfo(GetGuildRosterSelection())`,
-  17 returns). Olympus's census already reads the same order on Forever (`Roster.lua`).
+  17 returns). ChillZone's census already reads the same order on Forever (`Roster.lua`).
 
 ### 5.5 `E`: a census report from another guild, heard on the channel
 
@@ -224,14 +224,14 @@ match members by name and GUID.
 | 1 | `E` | |
 | 2 | when this client took it, in server time | `1792504870` |
 | 3 | the report's own time, field 25 of the report, stamped by its reporter (may be empty) | `1792504868` |
-| 4 | guild, as the census keys it | `Olympus Second` |
+| 4 | guild, as the census keys it | `ChillZone Second` |
 | 5 | total members, as reported | `950` |
 | 6 | online, as reported (the census caps it at the total) | `310` |
 | 7 | the guild's addon users, as reported | `12` |
 | 8 | the reporter: the sender's name as the server stamped it, `Name-Realm` | `Sample Reporter-ClassicBetaPvP2` |
 
-- Only reports that Olympus's census accepted (`Data.Receive`) are kept. These come from
-  Olympus guilds of the witness's faction, never the witness's own guild, and not after a
+- Only reports that ChillZone's census accepted (`Data.Receive`) are kept. These come from
+  ChillZone guilds of the witness's faction, never the witness's own guild, and not after a
   conflict outvote.
 - **Sampling.** Only the first accepted report of each guild in each quarter hour (by field 2)
   is kept. Guild reporters send about every 170 s, so this is the report nearest after each
@@ -246,7 +246,7 @@ match members by name and GUID.
 |---|---|---|
 | 1 | `Z` | |
 | 2 | when, in server time | `1792506000` |
-| 3 | why: `logout` (also a `/reload`), `off`, `guild` (the witness left or changed guild, or the guild is not an Olympus guild; never a loading screen) or `full` | `logout` |
+| 3 | why: `logout` (also a `/reload`), `off`, `guild` (the witness left or changed guild, or the guild is not an ChillZone guild; never a loading screen) or `full` | `logout` |
 | 4 | census reports not kept in this session (the daily cap) | `0` |
 
 ## 6. Bitmaps
@@ -295,23 +295,23 @@ field 14 for the BattleTag SampleWitness#0000
   SHA256("olympus-record-1|battletag|SampleWitness#0000")
                                              = 973dcf3aa89dd097c64d6764c475996c11ee2aa22b4ec83c542453d341eb76eb
 h1 for the line
-  S|1|1792483200|Witness Example-ClassicBetaPvP|Player-0000-00000001|Olympus Example|4|Soldier|Alliance|ClassicBetaPvP|ClassicBetaPvP|1.2.5.1||973dcf3aa89dd097c64d6764c475996c11ee2aa22b4ec83c542453d341eb76eb|16001|1.60.1.70450|enUS
-                                             = b4d70a7f064a26ed45d75604d8a4279db182e0551066bbdd07cb98e4b3e289bf
+  S|1|1792483200|Witness Example-ClassicBetaPvP|Player-0000-00000001|ChillZone Example|4|Soldier|Alliance|ClassicBetaPvP|ClassicBetaPvP|1.2.5.1||973dcf3aa89dd097c64d6764c475996c11ee2aa22b4ec83c542453d341eb76eb|16001|1.60.1.70450|enUS
+                                             = acef9a0b39304a31aa5704eaba0b03cd3313ce94a4849a4d8b91d7db98bc29dd
 ```
 
 The samples (section 10):
 
 ```
 tests/fixtures/record-sample.lua    session Player-0000-0000000A:1792504740, 17 lines,
-  head 95bd06d6c5853eaad1af8e9e3d42c6c93cea3e8893226b367b586ba648683344
+  head 362f64a0f7b762a7123d72708fdcd2b8678b717f9aebe6be85f42d1eec82b566
 tests/fixtures/record-sample-b.lua  session Player-0000-0000000B:1792505100, 13 lines,
-  head d50c51179f068b5bffa0a396a70f33f037f941e6659c4eb0771cbc20cfb8dbf0
+  head b4329ee215d086ddf7bda896dbad8370304e309665fed4c4b17a0534e4272560
 ```
 
 In the game the client hashes a few lines each frame (about 2 KB of lines a frame, paused in
 combat), so a 1000-member guild's first checkpoint (about 1,000 M lines) is spread over frames
 rather than done at once. Its cost in the game has not been measured yet. All remaining lines
-are hashed at logout, before the game writes the file. `/oly record status` shows the head so far (its first
+are hashed at logout, before the game writes the file. `/cz record status` shows the head so far (its first
 16 hex digits) and how many lines it covers.
 
 ### 7.1 What the chain proves, and what it does not
@@ -330,14 +330,14 @@ It does not prove:
 
 - **Anything against the witness before a head is published.** No secret goes into the chain,
   so whoever holds the file can edit it and compute every hash again. A test shows exactly this.
-- **That the code that wrote it was Olympus's.** A modified client can write anything.
+- **That the code that wrote it was ChillZone's.** A modified client can write anything.
 - **That the counts are true.** Only agreement between **independent witnesses** of one guild,
   and Blizzard's own UI on stream, give weight to a number.
 - **People.** It counts characters, and accounts online at one instant (section 1).
 
 ## 8. Verifying N witness files
 
-1. Parse each file (section 3) and take `OlympusRecordDB`. Refuse any `format` or `version`
+1. Parse each file (section 3) and take `ChillZoneRecordDB`. Refuse any `format` or `version`
    other than those in section 4.
 2. For each session, check the chain (section 7). Report the first broken line, and keep a
    broken session out of the counts.
@@ -391,21 +391,21 @@ exits 1 when a chain breaks or two copies of one session differ.
 
 ### 8.1 The check in Lua: `Record.VerifyFile`
 
-`Olympus/Record.lua` holds the hash rule and the reading of lines once. The recorder writes with
+`ChillZone/Record.lua` holds the hash rule and the reading of lines once. The recorder writes with
 them. `Record.VerifyFile` uses the same functions to check a whole file (steps 1 to 5; the caller
 parses the file), so `scripts/record-check.lua` and the Companion's verifier have no copy of their
 own. It calls no WoW API, neither when the file loads nor when it runs. It needs Lua 5.1 or
-LuaJIT, and the `bit` library that `Olympus/Sign.lua` reads as `_G.bit` (built into LuaJIT).
+LuaJIT, and the `bit` library that `ChillZone/Sign.lua` reads as `_G.bit` (built into LuaJIT).
 `tests/record.lua` runs it with no other global.
 
 ```lua
 local ns = { L = {} }                         -- ns.L: any table (only the game's text reads it)
-assert(loadfile("Olympus/Sign.lua"))("Olympus", ns)    -- ns.Sign.SHA256
-assert(loadfile("Olympus/Record.lua"))("Olympus", ns)  -- ns.Record
+assert(loadfile("ChillZone/Sign.lua"))("ChillZone", ns)    -- ns.Sign.SHA256
+assert(loadfile("ChillZone/Record.lua"))("ChillZone", ns)  -- ns.Record
 local result = ns.Record.VerifyFile(db, ns.Sign.SHA256)
 ```
 
-- `db` is `OlympusRecordDB` as the file holds it, parsed as data (section 3;
+- `db` is `ChillZoneRecordDB` as the file holds it, parsed as data (section 3;
   `scripts/record-check.lua`'s `M.Parse` reads it).
 - `sha256(text)` returns the 32 raw bytes of SHA-256, as `ns.Sign.SHA256` does. When it is
   `nil`, `ns.Sign.SHA256` is used. A function that returns anything other than 32 bytes, such as
@@ -418,7 +418,7 @@ local result = ns.Record.VerifyFile(db, ns.Sign.SHA256)
 | Field | Meaning |
 |---|---|
 | `ok` | `true` when the file is format 1, every session verifies and no two copies of one session differ |
-| `why` | set when the file itself is refused (step 1): `"no OlympusRecordDB of format 1"`; `sessions` is then empty |
+| `why` | set when the file itself is refused (step 1): `"no ChillZoneRecordDB of format 1"`; `sessions` is then empty |
 | `sessions` | the sessions, in the file's order, each copy that repeats an earlier one exactly left out |
 | `conflicts` | `{ id = ..., copies = <n> }` for each `id` whose copies in this file differ (step 3). Every copy stays in `sessions`, with `ok = false` |
 | `duplicates` | how many exact copies were left out |
@@ -500,7 +500,7 @@ days, with a `/reload` every 8 hours (6 sessions, 6,000 M lines, 192 checkpoints
 guild online and changing every quarter hour):
 
 - the roster lines take **495,555 bytes**;
-- the whole `OlympusRecordDB` as the game writes it takes **1,896,735 bytes**. 70 other guilds'
+- the whole `ChillZoneRecordDB` as the game writes it takes **1,896,735 bytes**. 70 other guilds'
   E lines for every quarter hour of both days are most of that.
 
 A heavier case, also measured by `tests/record.lua`: a witness in a 1,000-member guild who logs in
@@ -511,9 +511,9 @@ so both days of the attempt fit. A real witness online for part of each day writ
 ## 10. The samples
 
 `tests/fixtures/record-sample.lua` (witness A) and `tests/fixtures/record-sample-b.lua` (witness
-B) are fake files: invented names, the realm names that Olympus's other fixtures use, and GUIDs
-on server `0000`. Each file has an `OlympusDB` before `OlympusRecordDB`, which a verifier must
-skip. Both witnesses are in `<Olympus Example>`:
+B) are fake files: invented names, the realm names that ChillZone's other fixtures use, and GUIDs
+on server `0000`. Each file has an `ChillZoneDB` before `ChillZoneRecordDB`, which a verifier must
+skip. Both witnesses are in `<ChillZone Example>`:
 
 - A logs in at 13:59 UTC on 2026-10-20 and turns record mode on. A takes 14:00, marks at 14:10,
   takes 14:15 and logs out at 14:20. A's game gives a BattleTag, so A's S line holds its hash.
@@ -526,8 +526,8 @@ skip. Both witnesses are in `<Olympus Example>`:
 - Both witnesses heard the same census reports from their arrival on.
 
 `tests/record.lua` regenerates both samples and fails if either file differs from what it
-generates, so the samples always match the code. `OLYMPUS_RECORD_SAMPLE_WRITE=1` rewrites them,
-and `OLYMPUS_RECORD_SAMPLE_OUT=DIR` also writes copies to DIR.
+generates, so the samples always match the code. `CHILLZONE_RECORD_SAMPLE_WRITE=1` rewrites them,
+and `CHILLZONE_RECORD_SAMPLE_OUT=DIR` also writes copies to DIR.
 
 ## 11. Changes
 
@@ -539,7 +539,7 @@ ways without a new version:
 
 - S field 14 holds a hash of the BattleTag (section 5.2), no longer the tag;
 - a read with no roster is never written, and a partial one is read about 5 s apart (5.4);
-- a loading screen no longer ends a session; a session begins only in an Olympus guild (4);
+- a loading screen no longer ends a session; a session begins only in an ChillZone guild (4);
 - a /reload just after a slot does not read it again when the file holds the earlier reading;
 - the limit is 120,000 lines per file (9);
 - the check refuses a line after the Z line, a second S line and any `n` other than `#lines`

@@ -62,8 +62,8 @@ local function Words(code)
 	local savedLocale = GetLocale
 	GetLocale = function() return code end
 	local ok, err = pcall(function()
-		assert(loadfile(ROOT .. "Olympus/Locales.lua"))("Olympus", t)
-		if code == "deDE" or code == "esES" or code == "frFR" then assert(loadfile(ROOT .. "Olympus/Locales/" .. code .. ".lua"))("Olympus", t) end
+		assert(loadfile(ROOT .. "ChillZone/Locales.lua"))("ChillZone", t)
+		if code == "deDE" or code == "esES" or code == "frFR" then assert(loadfile(ROOT .. "ChillZone/Locales/" .. code .. ".lua"))("ChillZone", t) end
 	end)
 	GetLocale = savedLocale
 	if not ok then error(err, 0) end
@@ -101,7 +101,7 @@ end
 
 test("1.2.4 average level: to the tenth as the census carries it, our own guild's unrounded one cut the same way; none for 0, a missing one or one no guild can have", function()
 	-- Our own guild's from our roster, unrounded, and the same guild's report as another client hears it.
-	local heard = assert(ns.Codec.DecodeReport(ns.Codec.EncodeReport({ guild = "Olympus Test", total = 100, online = 10, avgLevel = 47.96 })))
+	local heard = assert(ns.Codec.DecodeReport(ns.Codec.EncodeReport({ guild = "ChillZone Test", total = 100, online = 10, avgLevel = 47.96 })))
 	eq(heard.avgLevel, 47.9, "the wire cuts it down")
 	eq(D.AvgTenths({ avgLevel = 47.96 }), 479, "ours, cut the same way")
 	eq(D.AvgTenths(heard), 479, "theirs")
@@ -117,8 +117,8 @@ test("1.2.4 average level: to the tenth as the census carries it, our own guild'
 	L.DECIMAL_MARK = mark
 	if not ok then error(err, 0) end
 	-- A guild by its name, from the census kept: 0 for none, so it sorts as the lowest.
-	WithGuilds({ ["Olympus A"] = Report(10, 33.3) }, function()
-		eq(D.AvgTenthsOf("Olympus A"), 333); eq(D.AvgTenthsOf("OLYMPUS A"), 333, "whatever the case"); eq(D.AvgTenthsOf("Olympus Z"), 0)
+	WithGuilds({ ["ChillZone A"] = Report(10, 33.3) }, function()
+		eq(D.AvgTenthsOf("ChillZone A"), 333); eq(D.AvgTenthsOf("CHILLZONE A"), 333, "whatever the case"); eq(D.AvgTenthsOf("ChillZone Z"), 0)
 	end)
 end)
 
@@ -142,13 +142,13 @@ test("1.2.4 the Census: a column for the average level between Online and the Lo
 	eq(pt.COL_AVG_LEVEL, "Nv. méd."); eq(pt.AVG_LEVEL_TAG:format("47,9"), "(nv. méd. 47,9)"); eq(pt.DECIMAL_MARK, ",")
 	-- The rows: our own guild's unrounded one as every client has it, none as "-", the Lord after it.
 	WithGuilds({
-		["Olympus Own"] = Report(300, 47.96, { leader = "Ownlord" }),
-		["Olympus Old"] = Report(200, 0, { leader = "Oldlord" }), -- (a version that sent none)
-		["Olympus Forged"] = Report(100, 1000, { leader = "Fakelord" }), -- (the field reads up to 1000.0)
+		["ChillZone Own"] = Report(300, 47.96, { leader = "Ownlord" }),
+		["ChillZone Old"] = Report(200, 0, { leader = "Oldlord" }), -- (a version that sent none)
+		["ChillZone Forged"] = Report(100, 1000, { leader = "Fakelord" }), -- (the field reads up to 1000.0)
 	}, function()
 		local rows = CensusRows()
 		eq(#rows, 3)
-		eq(Bare(rows[1].cols[1]), "Olympus Own"); eq(rows[1].cols[4], "47.9"); eq(Bare(rows[1].cols[5]), "Ownlord")
+		eq(Bare(rows[1].cols[1]), "ChillZone Own"); eq(rows[1].cols[4], "47.9"); eq(Bare(rows[1].cols[5]), "Ownlord")
 		eq(rows[2].cols[4], Grey("-")); eq(rows[3].cols[4], Grey("-"), "what no guild can have is none")
 		-- The hover says the same number (it said 48.0 for our own 47.96: "%.1f" of the unrounded one).
 		local tip = {}
@@ -160,30 +160,30 @@ test("1.2.4 the Census: a column for the average level between Online and the Lo
 		-- The copy for Discord: the same column.
 		local copy = D.DiscordText()
 		assert(copy:find("Members  *Online  *Avg lvl  *Leader"), copy)
-		assert(copy:find("Olympus Own%s+300%s+10%s+47%.9%s+Ownlord"), copy)
-		assert(copy:find("Olympus Old%s+200%s+10%s+%-%s+Oldlord"), copy)
+		assert(copy:find("ChillZone Own%s+300%s+10%s+47%.9%s+Ownlord"), copy)
+		assert(copy:find("ChillZone Old%s+200%s+10%s+%-%s+Oldlord"), copy)
 	end)
 end)
 
 test("1.2.4 the Census: a click on Avg lvl sorts by it, the highest first, again the lowest first; a guild without one last both ways, a tie the larger guild first", function()
 	WithGuilds({
-		["Olympus A"] = Report(100, 40),
-		["Olympus B"] = Report(300, 55.5),
-		["Olympus C"] = Report(200, 40),
-		["Olympus D"] = Report(900, nil), -- (none: the largest guild)
-		["Olympus E"] = Report(50, 20.04),
-		["Olympus F"] = Report(800, 0),
-		["Olympus Stale"] = Report(950, 60, { t = os.time() - D.FRESH - 1 }),
+		["ChillZone A"] = Report(100, 40),
+		["ChillZone B"] = Report(300, 55.5),
+		["ChillZone C"] = Report(200, 40),
+		["ChillZone D"] = Report(900, nil), -- (none: the largest guild)
+		["ChillZone E"] = Report(50, 20.04),
+		["ChillZone F"] = Report(800, 0),
+		["ChillZone Stale"] = Report(950, 60, { t = os.time() - D.FRESH - 1 }),
 	}, function()
 		-- By default: fresh first, the larger first.
-		eq(CensusNames(), "Olympus D,Olympus F,Olympus B,Olympus C,Olympus A,Olympus E,Olympus Stale")
+		eq(CensusNames(), "ChillZone D,ChillZone F,ChillZone B,ChillZone C,ChillZone A,ChillZone E,ChillZone Stale")
 		V.SortBy("level")
 		eq(V.sort.key, "level"); eq(V.sort.desc, true, "a first click: the highest first")
-		eq(CensusNames(), "Olympus B,Olympus C,Olympus A,Olympus E,Olympus D,Olympus F,Olympus Stale",
+		eq(CensusNames(), "ChillZone B,ChillZone C,ChillZone A,ChillZone E,ChillZone D,ChillZone F,ChillZone Stale",
 			"55.5, then 40 twice (200 members before 100), 20.0; none last; an old report after every current one")
 		V.SortBy("level")
 		eq(V.sort.desc, false)
-		eq(CensusNames(), "Olympus E,Olympus C,Olympus A,Olympus B,Olympus D,Olympus F,Olympus Stale",
+		eq(CensusNames(), "ChillZone E,ChillZone C,ChillZone A,ChillZone B,ChillZone D,ChillZone F,ChillZone Stale",
 			"the lowest first; none still last, a tie still the larger guild first")
 		-- Another title, back to the highest first for a count, A to Z for a name.
 		V.SortBy("members"); eq(V.sort.desc, true)
@@ -191,63 +191,63 @@ test("1.2.4 the Census: a click on Avg lvl sorts by it, the highest first, again
 	end)
 end)
 
-test("1.2.4 tie-breaks: the higher average level first in every column's tie, whichever way it runs, after the exact <OLYMPUS> (CR-04); the default order keeps it first at the same size", function()
+test("1.2.4 tie-breaks: the higher average level first in every column's tie, whichever way it runs, after the exact <CHILLZONE> (CR-04); the default order keeps it first at the same size", function()
 	WithGuilds({
-		["OLYMPUS"] = Report(500, 10, { online = 50, leader = "King" }),
-		["Olympus Hi"] = Report(500, 58, { online = 50, leader = "Same" }),
-		["Olympus Lo"] = Report(500, 30, { online = 50, leader = "same" }),
-		["Olympus None"] = Report(500, nil, { online = 50, leader = "Same" }),
-		["Olympus Few"] = Report(100, 59, { online = 5, leader = "Zed" }),
+		["CHILLZONE"] = Report(500, 10, { online = 50, leader = "King" }),
+		["ChillZone Hi"] = Report(500, 58, { online = 50, leader = "Same" }),
+		["ChillZone Lo"] = Report(500, 30, { online = 50, leader = "same" }),
+		["ChillZone None"] = Report(500, nil, { online = 50, leader = "Same" }),
+		["ChillZone Few"] = Report(100, 59, { online = 5, leader = "Zed" }),
 	}, function()
 		-- The shared order (1.1.5): the standard-bearer at the same size, then the higher average level.
-		eq(CensusNames(), "OLYMPUS,Olympus Hi,Olympus Lo,Olympus None,Olympus Few")
-		eq((RealmHeaders()), "OLYMPUS,Olympus Hi,Olympus Lo,Olympus None,Olympus Few", "the Realm in the same order")
+		eq(CensusNames(), "CHILLZONE,ChillZone Hi,ChillZone Lo,ChillZone None,ChillZone Few")
+		eq((RealmHeaders()), "CHILLZONE,ChillZone Hi,ChillZone Lo,ChillZone None,ChillZone Few", "the Realm in the same order")
 		local names = {}
 		for i, e in ipairs(D.Summary().guilds) do names[i] = e.name end
-		eq(table.concat(names, ","), "OLYMPUS,Olympus Hi,Olympus Lo,Olympus None,Olympus Few", "Data.Summary's")
+		eq(table.concat(names, ","), "CHILLZONE,ChillZone Hi,ChillZone Lo,ChillZone None,ChillZone Few", "Data.Summary's")
 		-- Members the other way: the smallest first; as many, the higher average level first.
-		-- (Changed on purpose, CR-04, the author's ask: the exact <OLYMPUS> first on a tie of any
+		-- (Changed on purpose, CR-04, the author's ask: the exact <CHILLZONE> first on a tie of any
 		-- order, a column's too, before the average level; it sat by its average level, 10.0, before.)
 		V.SortBy("members")
 		eq(V.sort.desc, false)
-		eq(CensusNames(), "Olympus Few,OLYMPUS,Olympus Hi,Olympus Lo,Olympus None")
+		eq(CensusNames(), "ChillZone Few,CHILLZONE,ChillZone Hi,ChillZone Lo,ChillZone None")
 		-- Online, both ways: as many online, the higher average level first.
 		V.sort = { key = "online", desc = true }
-		eq(CensusNames(), "OLYMPUS,Olympus Hi,Olympus Lo,Olympus None,Olympus Few")
+		eq(CensusNames(), "CHILLZONE,ChillZone Hi,ChillZone Lo,ChillZone None,ChillZone Few")
 		V.sort = { key = "online", desc = false }
-		eq(CensusNames(), "Olympus Few,OLYMPUS,Olympus Hi,Olympus Lo,Olympus None")
+		eq(CensusNames(), "ChillZone Few,CHILLZONE,ChillZone Hi,ChillZone Lo,ChillZone None")
 		-- The Lord: the same name (any case), the higher average level first.
 		V.sort = { key = "lord", desc = false }
-		eq(CensusNames(), "OLYMPUS,Olympus Hi,Olympus Lo,Olympus None,Olympus Few")
+		eq(CensusNames(), "CHILLZONE,ChillZone Hi,ChillZone Lo,ChillZone None,ChillZone Few")
 	end)
 end)
 
 test("1.2.4 the Realm: its guilds' average level in parentheses after their Lord's online or offline, kept whole; its guilds in its own order, chosen on its line, the average level's among them", function()
 	WithGuilds({
-		["Olympus Big"] = Report(900, 31.25, { leader = "Bigboss", leaderOnline = true }),
-		["Olympus Mid"] = Report(500, 52, { leader = "Midboss", leaderOnline = false, leaderDays = 0 }),
-		["Olympus Small"] = Report(100, nil, { leader = "Smallboss", leaderOnline = false, leaderDays = 5 }),
-		["Olympus Grey"] = Report(50, 44, { leader = "Greyboss", leaderOnline = false, leaderDays = 0, t = os.time() - D.FRESH - 1 }),
+		["ChillZone Big"] = Report(900, 31.25, { leader = "Bigboss", leaderOnline = true }),
+		["ChillZone Mid"] = Report(500, 52, { leader = "Midboss", leaderOnline = false, leaderDays = 0 }),
+		["ChillZone Small"] = Report(100, nil, { leader = "Smallboss", leaderOnline = false, leaderDays = 5 }),
+		["ChillZone Grey"] = Report(50, 44, { leader = "Greyboss", leaderOnline = false, leaderDays = 0, t = os.time() - D.FRESH - 1 }),
 	}, function()
 		local order, header = RealmHeaders()
-		eq(order, "Olympus Big,Olympus Mid,Olympus Small,Olympus Grey", "by default the shared order, as before")
-		eq(header["Olympus Big"].right, Green(L.ONLINE_NOW) .. "  " .. Grey("(avg lvl ") .. "31.2" .. Grey(")"),
+		eq(order, "ChillZone Big,ChillZone Mid,ChillZone Small,ChillZone Grey", "by default the shared order, as before")
+		eq(header["ChillZone Big"].right, Green(L.ONLINE_NOW) .. "  " .. Grey("(avg lvl ") .. "31.2" .. Grey(")"),
 			"its Lord online, then the average level: the number white, its words grey")
-		eq(Bare(header["Olympus Mid"].right), L.OFFLINE_TODAY .. "  (avg lvl 52.0)")
-		eq(Bare(header["Olympus Small"].right), L.OFFLINE_DAYS:format(5) .. " !", "none: nothing after it")
-		eq(header["Olympus Grey"].right, Grey(L.OFFLINE_TODAY) .. "  " .. Grey("(avg lvl 44.0)"), "an old report: all grey")
+		eq(Bare(header["ChillZone Mid"].right), L.OFFLINE_TODAY .. "  (avg lvl 52.0)")
+		eq(Bare(header["ChillZone Small"].right), L.OFFLINE_DAYS:format(5) .. " !", "none: nothing after it")
+		eq(header["ChillZone Grey"].right, Grey(L.OFFLINE_TODAY) .. "  " .. Grey("(avg lvl 44.0)"), "an old report: all grey")
 		for name, line in pairs(header) do eq(line.rightWide, true, name) end
 		-- The hover as ever (the same number).
 		local tip = {}
-		header["Olympus Big"].tooltip({ AddLine = function() end, AddDoubleLine = function(_, a, b) tip[a] = b end })
+		header["ChillZone Big"].tooltip({ AddLine = function() end, AddDoubleLine = function(_, a, b) tip[a] = b end })
 		eq(tip[L.AVG_LEVEL], "31.2")
 		-- (Changed on purpose, 1.2.4's review: the Realm's guilds followed the title last clicked in the
 		-- Census, unseen on the Realm, and only the Census could put them back. The Realm has its own
 		-- order now, on its own line, and a title clicked in the Census leaves it as it was.)
 		V.SortBy("level")
-		eq((RealmHeaders()), "Olympus Big,Olympus Mid,Olympus Small,Olympus Grey", "the Census's title clicked: the Realm as it was")
+		eq((RealmHeaders()), "ChillZone Big,ChillZone Mid,ChillZone Small,ChillZone Grey", "the Census's title clicked: the Realm as it was")
 		V.SortBy("name")
-		eq((RealmHeaders()), "Olympus Big,Olympus Mid,Olympus Small,Olympus Grey")
+		eq((RealmHeaders()), "ChillZone Big,ChillZone Mid,ChillZone Small,ChillZone Grey")
 		V.sort = { key = "members", desc = true }
 		-- Its line, above its guilds: the shared order by default; its choices the Census's five columns.
 		local line = OrderLine()
@@ -271,30 +271,30 @@ test("1.2.4 the Realm: its guilds' average level in parentheses after their Lord
 		Choose(L.AVG_LEVEL)
 		eq(refreshed, 1, "redrawn")
 		eq(V.realmSort, "level")
-		eq((RealmHeaders()), "Olympus Mid,Olympus Big,Olympus Small,Olympus Grey")
+		eq((RealmHeaders()), "ChillZone Mid,ChillZone Big,ChillZone Small,ChillZone Grey")
 		eq(OrderLine().filters[1].value, L.AVG_LEVEL, "the line says it")
-		eq(V.sort.key, "members"); eq(CensusNames(), "Olympus Big,Olympus Mid,Olympus Small,Olympus Grey", "the Census as it was")
+		eq(V.sort.key, "members"); eq(CensusNames(), "ChillZone Big,ChillZone Mid,ChillZone Small,ChillZone Grey", "the Census as it was")
 		-- A search's guilds in it too (no line over them).
-		V.SetFilter("realm", "olympus")
-		eq((RealmHeaders()), "Olympus Mid,Olympus Big,Olympus Small,Olympus Grey"); eq(OrderLine(), nil, "no line over a search")
+		V.SetFilter("realm", "chillzone")
+		eq((RealmHeaders()), "ChillZone Mid,ChillZone Big,ChillZone Small,ChillZone Grey"); eq(OrderLine(), nil, "no line over a search")
 		V.SetFilter("realm", "")
 		-- By the Lord, A to Z; then back to the shared order.
 		Choose(L.COL_LORD)
-		eq((RealmHeaders()), "Olympus Big,Olympus Mid,Olympus Small,Olympus Grey")
+		eq((RealmHeaders()), "ChillZone Big,ChillZone Mid,ChillZone Small,ChillZone Grey")
 		Choose(L.COL_MEMBERS)
-		eq(V.realmSort, "members"); eq((RealmHeaders()), "Olympus Big,Olympus Mid,Olympus Small,Olympus Grey")
+		eq(V.realmSort, "members"); eq((RealmHeaders()), "ChillZone Big,ChillZone Mid,ChillZone Small,ChillZone Grey")
 	end)
 	-- One guild: nothing to order, no line.
-	WithGuilds({ ["Olympus Alone"] = Report(100, 30) }, function() eq(OrderLine(), nil) end)
+	WithGuilds({ ["ChillZone Alone"] = Report(100, 30) }, function() eq(OrderLine(), nil) end)
 end)
 
 test("1.2.4 the Realm's guild header: a long guild and Lord give way to its online and average level, kept whole up to half the row (a third for other rows)", function()
 	WithUI(function()
 		WithGuilds({
-			["Olympus Brotherhood Of Ages"] = Report(900, 47.9, { leader = "Longestlordname", leaderOnline = false, leaderDays = 0 }),
+			["ChillZone Brotherhood Of Ages"] = Report(900, 47.9, { leader = "Longestlordname", leaderOnline = false, leaderDays = 0 }),
 		}, function()
 			local _, header = RealmHeaders()
-			local line = header["Olympus Brotherhood Of Ages"]
+			local line = header["ChillZone Brotherhood Of Ages"]
 			assert(line, "its header")
 			local function Kept(l)
 				local content = CreateFrame("Frame", nil, UIParent)
@@ -319,26 +319,26 @@ end)
 test("1.2.4 Recruiting and the zones: as many free slots, or soldiers in a zone, the higher average level first; its average level after its free slots", function()
 	local zones = { m1453 = 20 }
 	WithGuilds({
-		["Olympus Q"] = Report(600, 25, { zones = zones }),
-		["Olympus R"] = Report(600, 45, { zones = zones }),
-		["Olympus S"] = Report(600, nil, { zones = zones }),
-		["Olympus T"] = Report(100, 10, { zones = { m1453 = 30 } }),
+		["ChillZone Q"] = Report(600, 25, { zones = zones }),
+		["ChillZone R"] = Report(600, 45, { zones = zones }),
+		["ChillZone S"] = Report(600, nil, { zones = zones }),
+		["ChillZone T"] = Report(100, 10, { zones = { m1453 = 30 } }),
 	}, function()
 		local open = V.OpenGuilds(D.Summary())
 		local names = {}
 		for i, o in ipairs(open) do names[i] = o.name .. "=" .. o.free end
-		eq(table.concat(names, ","), "Olympus T=900,Olympus R=400,Olympus Q=400,Olympus S=400")
+		eq(table.concat(names, ","), "ChillZone T=900,ChillZone R=400,ChillZone Q=400,ChillZone S=400")
 		-- Who recruits are sent to (Recruit.lua's route answer) goes by it too.
 		names = {}
 		for i, o in ipairs(ns.Recruit.OpenGuilds()) do names[i] = o.name end
-		eq(table.concat(names, ","), "Olympus T,Olympus R,Olympus Q,Olympus S")
+		eq(table.concat(names, ","), "ChillZone T,ChillZone R,ChillZone Q,ChillZone S")
 		-- The Realm's Recruiting: the free slots, then the average level (none: nothing).
 		local rows = {}
 		for _, line in ipairs(V.Build("realm")) do
-			local name = line.text and Bare(line.text):match("^<(Olympus %a)>$")
+			local name = line.text and Bare(line.text):match("^<(ChillZone %a)>$")
 			if name and line.right and Bare(line.right):find(L.FREE_SLOTS:format(""), 1, true) then rows[#rows + 1] = name .. ": " .. Bare(line.right) end
 		end
-		eq(table.concat(rows, " | "), "Olympus T: 900 free  (avg lvl 10.0) | Olympus R: 400 free  (avg lvl 45.0) | Olympus Q: 400 free  (avg lvl 25.0) | Olympus S: 400 free")
+		eq(table.concat(rows, " | "), "ChillZone T: 900 free  (avg lvl 10.0) | ChillZone R: 400 free  (avg lvl 45.0) | ChillZone Q: 400 free  (avg lvl 25.0) | ChillZone S: 400 free")
 		-- The Census's search for a zone: its guilds by their soldiers there, then the average level.
 		V.SetFilter("census", "stormwind")
 		local lines, at = V.Build("census"), nil
@@ -351,14 +351,14 @@ test("1.2.4 Recruiting and the zones: as many free slots, or soldiers in a zone,
 			found[#found + 1] = Bare(lines[i].text) .. " " .. Bare(lines[i].right)
 			eq(lines[i].rightWide, true, Bare(lines[i].text))
 		end
-		eq(table.concat(found, ","), "<Olympus T> 30  (avg lvl 10.0),<Olympus R> 20  (avg lvl 45.0),<Olympus Q> 20  (avg lvl 25.0),<Olympus S> 20")
+		eq(table.concat(found, ","), "<ChillZone T> 30  (avg lvl 10.0),<ChillZone R> 20  (avg lvl 45.0),<ChillZone Q> 20  (avg lvl 25.0),<ChillZone S> 20")
 		-- The Census's "recruiting": the same order, the same words after the free slots.
 		V.SetFilter("census", "recruiting")
 		found = {}
 		for _, line in ipairs(V.Build("census")) do
 			if line.indent == 1 and line.right then found[#found + 1] = Bare(line.text) .. " " .. Bare(line.right) end
 		end
-		eq(table.concat(found, ","), "<Olympus T> 900 free  (avg lvl 10.0),<Olympus R> 400 free  (avg lvl 45.0),<Olympus Q> 400 free  (avg lvl 25.0),<Olympus S> 400 free")
+		eq(table.concat(found, ","), "<ChillZone T> 900 free  (avg lvl 10.0),<ChillZone R> 400 free  (avg lvl 45.0),<ChillZone Q> 400 free  (avg lvl 25.0),<ChillZone S> 400 free")
 	end)
 end)
 
@@ -368,7 +368,7 @@ end)
 test("1.2.4's review: a long guild name gives way to Recruiting's free slots and average level, and a zone's count and average level, kept whole up to half the row", function()
 	WithUI(function()
 		WithGuilds({
-			["Olympus Brotherhood Ages"] = Report(600, 45, { zones = { m1453 = 20 } }), -- (24 letters, the longest a guild's name)
+			["ChillZone Brotherhood Ages"] = Report(600, 45, { zones = { m1453 = 20 } }), -- (24 letters, the longest a guild's name)
 		}, function()
 			local function Find(lines, pred) for _, l in ipairs(lines) do if pred(l) then return l end end end
 			local function Free(l) return l.right and Bare(l.right):find(L.FREE_SLOTS:format(""), 1, true) and Bare(l.text):find("Brotherhood", 1, true) end
@@ -388,7 +388,7 @@ test("1.2.4's review: a long guild name gives way to Recruiting's free slots and
 			narrow.rightWide = nil
 			assert(kept > (Kept(narrow)), "more kept than a third: " .. kept)
 			V.SetFilter("census", "stormwind")
-			local zone = assert(Find(V.Build("census"), function(l) return l.indent == 1 and Bare(l.text) == "<Olympus Brotherhood Ages>" end), "the zone's row")
+			local zone = assert(Find(V.Build("census"), function(l) return l.indent == 1 and Bare(l.text) == "<ChillZone Brotherhood Ages>" end), "the zone's row")
 			eq(Bare(zone.right), "20  (avg lvl 45.0)")
 			kept, whole = Kept(zone)
 			eq(kept, whole, "a zone's guild: whole")
@@ -410,7 +410,7 @@ test("1.2.4's review: the Royal Inspection's guilds, as many inspected, the high
 	local saved = { dev = ns.devThrone, member = ns.IsMember, rank = ns.Roster.RankOf, after = ns.After, enforced = ns.Authority and ns.Authority.Enforced }
 	local ok, err = pcall(function()
 		WithGuilds({
-			["Olympus Alpha"] = Report(100, 20), ["Olympus Beta"] = Report(100, 50), ["Olympus Many"] = Report(100, 10),
+			["ChillZone Alpha"] = Report(100, 20), ["ChillZone Beta"] = Report(100, 50), ["ChillZone Many"] = Report(100, 10),
 		}, function()
 			K.Reset()
 			ns.devThrone = true -- (the Throne's preview: the King's own page, nothing sent)
@@ -420,19 +420,19 @@ test("1.2.4's review: the Royal Inspection's guilds, as many inspected, the high
 			ns.Roster.RankOf = function() return 1 end -- (each reporter one we can place in his guild)
 			eq(K.CanCall(), true)
 			K.Inspect()
-			K.ReceiveReport("Scouta-Realm", "T3~0~Olympus Alpha~6~4~0~")
-			K.ReceiveReport("Scoutb-Realm", "T3~0~Olympus Beta~3~7~0~")
-			K.ReceiveReport("Scoutc-Realm", "T3~0~Olympus Many~20~0~0~")
-			K.ReceiveReport("Scoutd-Realm", "T3~0~Olympus Abyss~5~5~0~") -- (no census of it: no average)
+			K.ReceiveReport("Scouta-Realm", "T3~0~ChillZone Alpha~6~4~0~")
+			K.ReceiveReport("Scoutb-Realm", "T3~0~ChillZone Beta~3~7~0~")
+			K.ReceiveReport("Scoutc-Realm", "T3~0~ChillZone Many~20~0~0~")
+			K.ReceiveReport("Scoutd-Realm", "T3~0~ChillZone Abyss~5~5~0~") -- (no census of it: no average)
 			local rows = {}
 			for _, l in ipairs(K.InspectionLines()) do
-				if l.indent == 2 and Bare(l.text):match("^<Olympus") then
+				if l.indent == 2 and Bare(l.text):match("^<ChillZone") then
 					rows[#rows + 1] = Bare(l.text) .. " " .. Bare(l.right)
 					eq(l.rightWide, true, Bare(l.text))
 				end
 			end
-			eq(table.concat(rows, ","), "<Olympus Many> 100%  (20/20)  (avg lvl 10.0),<Olympus Beta> 30%  (3/10)  (avg lvl 50.0),"
-				.. "<Olympus Alpha> 60%  (6/10)  (avg lvl 20.0),<Olympus Abyss> 50%  (5/10)", "20 first; then 10 each: 50.0, 20.0, none (by name: Abyss first)")
+			eq(table.concat(rows, ","), "<ChillZone Many> 100%  (20/20)  (avg lvl 10.0),<ChillZone Beta> 30%  (3/10)  (avg lvl 50.0),"
+				.. "<ChillZone Alpha> 60%  (6/10)  (avg lvl 20.0),<ChillZone Abyss> 50%  (5/10)", "20 first; then 10 each: 50.0, 20.0, none (by name: Abyss first)")
 		end)
 	end)
 	ns.devThrone, ns.IsMember, ns.Roster.RankOf, ns.After = saved.dev, saved.member, saved.rank, saved.after
@@ -443,62 +443,62 @@ end)
 
 test("1.2.4 Data.SortGuildCounts: the larger first by each count in turn, then the higher average level, then the name; a row's own census entry read first", function()
 	WithGuilds({
-		["Olympus A"] = Report(10, 20), ["Olympus B"] = Report(10, 50), ["Olympus C"] = Report(10, nil),
+		["ChillZone A"] = Report(10, 20), ["ChillZone B"] = Report(10, 50), ["ChillZone C"] = Report(10, nil),
 	}, function()
-		local rows = { { name = "Olympus C", n = 3 }, { name = "Olympus A", n = 3 }, { name = "Olympus B", n = 3 }, { name = "Olympus Z", n = 3 },
-			{ name = "Olympus Y", n = 7 } }
+		local rows = { { name = "ChillZone C", n = 3 }, { name = "ChillZone A", n = 3 }, { name = "ChillZone B", n = 3 }, { name = "ChillZone Z", n = 3 },
+			{ name = "ChillZone Y", n = 7 } }
 		D.SortGuildCounts(rows, "n")
 		local names = {}
 		for i, r in ipairs(rows) do names[i] = r.name .. ":" .. r.avg end
-		eq(table.concat(names, ","), "Olympus Y:0,Olympus B:500,Olympus A:200,Olympus C:0,Olympus Z:0",
+		eq(table.concat(names, ","), "ChillZone Y:0,ChillZone B:500,ChillZone A:200,ChillZone C:0,ChillZone Z:0",
 			"7 first; then 50.0, 20.0; none and unknown by name")
 		-- Two counts (the dues: gold paid, then members), then the average level.
-		rows = { { name = "Olympus A", copper = 5, members = 10 }, { name = "Olympus B", copper = 5, members = 10 },
-			{ name = "Olympus C", copper = 5, members = 12 }, { name = "Olympus Z", copper = 9 } }
+		rows = { { name = "ChillZone A", copper = 5, members = 10 }, { name = "ChillZone B", copper = 5, members = 10 },
+			{ name = "ChillZone C", copper = 5, members = 12 }, { name = "ChillZone Z", copper = 9 } }
 		D.SortGuildCounts(rows, "copper", "members")
 		names = {}
 		for i, r in ipairs(rows) do names[i] = r.name end
-		eq(table.concat(names, ","), "Olympus Z,Olympus C,Olympus B,Olympus A")
+		eq(table.concat(names, ","), "ChillZone Z,ChillZone C,ChillZone B,ChillZone A")
 		-- A row with its census entry (Data.Summary's, as Views.OpenGuilds keeps it): read from it.
-		rows = { { name = "Olympus A", n = 1, e = { g = { avgLevel = 59 } } }, { name = "Olympus B", n = 1 } }
+		rows = { { name = "ChillZone A", n = 1, e = { g = { avgLevel = 59 } } }, { name = "ChillZone B", n = 1 } }
 		D.SortGuildCounts(rows, "n")
-		eq(rows[1].name .. ":" .. rows[1].avg, "Olympus A:590")
+		eq(rows[1].name .. ":" .. rows[1].avg, "ChillZone A:590")
 	end)
 end)
 
--- CR-04 (the author's ask, 10-02: "<OLYMPUS> comes first on a tie, then average level is the third
+-- CR-04 (the author's ask, 10-02: "<CHILLZONE> comes first on a tie, then average level is the third
 -- sorting rule", the Census and the Realm): the 1.1.5 default order had it; now every order of
 -- guilds does, a column's whichever way it runs, the Realm's own and the lists by a count. Its
 -- average level here the lowest of every tie, so only the standard-bearer rule puts it first.
-test("CR-04 the exact <OLYMPUS> first on a tie of every order of guilds, whichever way a column runs, before the average level; a larger count and a current report still first", function()
-	for _, name in ipairs({ "OLYMPUS", "Olympus", "olympus" }) do eq(D.IsStandardBearer(name), true, name) end
-	for _, name in ipairs({ "Olympus II", "Knights of Olympus", "<OLYMPUS>", "Olympus ", "", 7 }) do
+test("CR-04 the exact <CHILLZONE> first on a tie of every order of guilds, whichever way a column runs, before the average level; a larger count and a current report still first", function()
+	for _, name in ipairs({ "CHILLZONE", "ChillZone", "chillzone" }) do eq(D.IsStandardBearer(name), true, name) end
+	for _, name in ipairs({ "ChillZone II", "Knights of ChillZone", "<CHILLZONE>", "ChillZone ", "", 7 }) do
 		eq(D.IsStandardBearer(name), false, tostring(name))
 	end
 	eq(D.IsStandardBearer(nil), false)
 	local zones = { m1453 = 20 }
 	WithGuilds({
-		["OLYMPUS"] = Report(500, 10, { online = 50, leader = "Same", zones = zones }),
-		["Alpha Olympus"] = Report(500, 10, { online = 50, leader = "same", zones = zones }),
-		["Olympus Hi"] = Report(500, 58, { online = 50, leader = "Same", zones = zones }),
-		["Olympus Lo"] = Report(500, 30, { online = 50, leader = "SAME", zones = zones }),
-		["Olympus Few"] = Report(100, 59, { online = 5, leader = "Zed", zones = { m1453 = 30 } }),
-		["Olympus Stale"] = Report(500, 60, { online = 50, leader = "Same", t = os.time() - D.FRESH - 1 }),
+		["CHILLZONE"] = Report(500, 10, { online = 50, leader = "Same", zones = zones }),
+		["Alpha ChillZone"] = Report(500, 10, { online = 50, leader = "same", zones = zones }),
+		["ChillZone Hi"] = Report(500, 58, { online = 50, leader = "Same", zones = zones }),
+		["ChillZone Lo"] = Report(500, 30, { online = 50, leader = "SAME", zones = zones }),
+		["ChillZone Few"] = Report(100, 59, { online = 5, leader = "Zed", zones = { m1453 = 30 } }),
+		["ChillZone Stale"] = Report(500, 60, { online = 50, leader = "Same", t = os.time() - D.FRESH - 1 }),
 	}, function()
-		eq(CensusNames(), "OLYMPUS,Olympus Hi,Olympus Lo,Alpha Olympus,Olympus Few,Olympus Stale", "the default order, as in 1.1.5")
+		eq(CensusNames(), "CHILLZONE,ChillZone Hi,ChillZone Lo,Alpha ChillZone,ChillZone Few,ChillZone Stale", "the default order, as in 1.1.5")
 		-- Each Census column, both ways: as many, the standard-bearer first, then the higher average level.
 		local orders = {
-			{ "members", false, "Olympus Few,OLYMPUS,Olympus Hi,Olympus Lo,Alpha Olympus,Olympus Stale" },
-			{ "online", true, "OLYMPUS,Olympus Hi,Olympus Lo,Alpha Olympus,Olympus Few,Olympus Stale" },
-			{ "online", false, "Olympus Few,OLYMPUS,Olympus Hi,Olympus Lo,Alpha Olympus,Olympus Stale" },
+			{ "members", false, "ChillZone Few,CHILLZONE,ChillZone Hi,ChillZone Lo,Alpha ChillZone,ChillZone Stale" },
+			{ "online", true, "CHILLZONE,ChillZone Hi,ChillZone Lo,Alpha ChillZone,ChillZone Few,ChillZone Stale" },
+			{ "online", false, "ChillZone Few,CHILLZONE,ChillZone Hi,ChillZone Lo,Alpha ChillZone,ChillZone Stale" },
 			-- (The average level's own column: 10.0 twice, the standard-bearer before the name.)
-			{ "level", true, "Olympus Few,Olympus Hi,Olympus Lo,OLYMPUS,Alpha Olympus,Olympus Stale" },
-			{ "level", false, "OLYMPUS,Alpha Olympus,Olympus Lo,Olympus Hi,Olympus Few,Olympus Stale" },
+			{ "level", true, "ChillZone Few,ChillZone Hi,ChillZone Lo,CHILLZONE,Alpha ChillZone,ChillZone Stale" },
+			{ "level", false, "CHILLZONE,Alpha ChillZone,ChillZone Lo,ChillZone Hi,ChillZone Few,ChillZone Stale" },
 			-- (The same Lord in any case.)
-			{ "lord", false, "OLYMPUS,Olympus Hi,Olympus Lo,Alpha Olympus,Olympus Few,Olympus Stale" },
-			{ "lord", true, "Olympus Few,OLYMPUS,Olympus Hi,Olympus Lo,Alpha Olympus,Olympus Stale" },
+			{ "lord", false, "CHILLZONE,ChillZone Hi,ChillZone Lo,Alpha ChillZone,ChillZone Few,ChillZone Stale" },
+			{ "lord", true, "ChillZone Few,CHILLZONE,ChillZone Hi,ChillZone Lo,Alpha ChillZone,ChillZone Stale" },
 			-- (A name A to Z: no tie, so its title's order alone.)
-			{ "name", false, "Alpha Olympus,OLYMPUS,Olympus Few,Olympus Hi,Olympus Lo,Olympus Stale" },
+			{ "name", false, "Alpha ChillZone,CHILLZONE,ChillZone Few,ChillZone Hi,ChillZone Lo,ChillZone Stale" },
 		}
 		for _, o in ipairs(orders) do
 			V.sort = { key = o[1], desc = o[2] }
@@ -507,17 +507,17 @@ test("CR-04 the exact <OLYMPUS> first on a tie of every order of guilds, whichev
 		V.sort = { key = "members", desc = true }
 		-- The Realm's own order, chosen on its line: the same.
 		V.realmSort = "online"
-		eq((RealmHeaders()), "OLYMPUS,Olympus Hi,Olympus Lo,Alpha Olympus,Olympus Few,Olympus Stale", "the Realm by online")
+		eq((RealmHeaders()), "CHILLZONE,ChillZone Hi,ChillZone Lo,Alpha ChillZone,ChillZone Few,ChillZone Stale", "the Realm by online")
 		V.realmSort = "level"
-		eq((RealmHeaders()), "Olympus Few,Olympus Hi,Olympus Lo,OLYMPUS,Alpha Olympus,Olympus Stale", "the Realm by average level")
+		eq((RealmHeaders()), "ChillZone Few,ChillZone Hi,ChillZone Lo,CHILLZONE,Alpha ChillZone,ChillZone Stale", "the Realm by average level")
 		V.realmSort = "members"
 		-- Recruiting (and who recruits are sent to): as many free slots, the standard-bearer first.
 		local names = {}
 		for i, o in ipairs(V.OpenGuilds(D.Summary())) do names[i] = o.name .. "=" .. o.free end
-		eq(table.concat(names, ","), "Olympus Few=900,OLYMPUS=500,Olympus Hi=500,Olympus Lo=500,Alpha Olympus=500")
+		eq(table.concat(names, ","), "ChillZone Few=900,CHILLZONE=500,ChillZone Hi=500,ChillZone Lo=500,Alpha ChillZone=500")
 		names = {}
 		for i, o in ipairs(ns.Recruit.OpenGuilds()) do names[i] = o.name end
-		eq(table.concat(names, ","), "Olympus Few,OLYMPUS,Olympus Hi,Olympus Lo,Alpha Olympus")
+		eq(table.concat(names, ","), "ChillZone Few,CHILLZONE,ChillZone Hi,ChillZone Lo,Alpha ChillZone")
 		-- A zone's guilds, by their soldiers there.
 		V.SetFilter("census", "stormwind")
 		local lines, at = V.Build("census"), nil
@@ -525,31 +525,31 @@ test("CR-04 the exact <OLYMPUS> first on a tie of every order of guilds, whichev
 		assert(at, "the zone's header")
 		local found = {}
 		for i = at + 1, at + 5 do found[#found + 1] = Bare(lines[i].text) end
-		eq(table.concat(found, ","), "<Olympus Few>,<OLYMPUS>,<Olympus Hi>,<Olympus Lo>,<Alpha Olympus>")
+		eq(table.concat(found, ","), "<ChillZone Few>,<CHILLZONE>,<ChillZone Hi>,<ChillZone Lo>,<Alpha ChillZone>")
 		V.SetFilter("census", "")
 		-- Data.SortGuildCounts (the map's pins, the Royal Inspection, the dues table): the counts
 		-- first, then the standard-bearer, then the average level.
-		local rows = { { name = "Olympus Hi", n = 3 }, { name = "Alpha Olympus", n = 3 }, { name = "OLYMPUS", n = 3 }, { name = "Olympus Few", n = 7 } }
+		local rows = { { name = "ChillZone Hi", n = 3 }, { name = "Alpha ChillZone", n = 3 }, { name = "CHILLZONE", n = 3 }, { name = "ChillZone Few", n = 7 } }
 		D.SortGuildCounts(rows, "n")
 		names = {}
 		for i, r in ipairs(rows) do names[i] = r.name end
-		eq(table.concat(names, ","), "Olympus Few,OLYMPUS,Olympus Hi,Alpha Olympus")
-		rows = { { name = "Olympus Hi", copper = 5, members = 10 }, { name = "OLYMPUS", copper = 5, members = 10 },
-			{ name = "Olympus Lo", copper = 5, members = 12 }, { name = "Olympus Few", copper = 9 } }
+		eq(table.concat(names, ","), "ChillZone Few,CHILLZONE,ChillZone Hi,Alpha ChillZone")
+		rows = { { name = "ChillZone Hi", copper = 5, members = 10 }, { name = "CHILLZONE", copper = 5, members = 10 },
+			{ name = "ChillZone Lo", copper = 5, members = 12 }, { name = "ChillZone Few", copper = 9 } }
 		D.SortGuildCounts(rows, "copper", "members")
 		names = {}
 		for i, r in ipairs(rows) do names[i] = r.name end
-		eq(table.concat(names, ","), "Olympus Few,Olympus Lo,OLYMPUS,Olympus Hi", "the dues: gold, then members, then the standard-bearer")
+		eq(table.concat(names, ","), "ChillZone Few,ChillZone Lo,CHILLZONE,ChillZone Hi", "the dues: gold, then members, then the standard-bearer")
 	end)
 	-- An old report of it stays after every current one, whatever the column.
 	WithGuilds({
-		["OLYMPUS"] = Report(500, 60, { online = 50, t = os.time() - D.FRESH - 1 }),
-		["Olympus Hi"] = Report(500, 10, { online = 50 }),
+		["CHILLZONE"] = Report(500, 60, { online = 50, t = os.time() - D.FRESH - 1 }),
+		["ChillZone Hi"] = Report(500, 10, { online = 50 }),
 	}, function()
 		V.sort = { key = "online", desc = true }
-		eq(CensusNames(), "Olympus Hi,OLYMPUS")
+		eq(CensusNames(), "ChillZone Hi,CHILLZONE")
 		V.sort = { key = "members", desc = false }
-		eq(CensusNames(), "Olympus Hi,OLYMPUS")
+		eq(CensusNames(), "ChillZone Hi,CHILLZONE")
 	end)
 end)
 
@@ -605,13 +605,13 @@ local function OpenIn(Lx, hd, fn)
 			FriendsFrame = CreateFrame("Frame", "FriendsFrame", UIParent)
 			FriendsFrame:SetSize(385, 424)
 		end
-		assert(loadfile(ROOT .. "Olympus/UI.lua"))("Olympus", uns)
+		assert(loadfile(ROOT .. "ChillZone/UI.lua"))("ChillZone", uns)
 		WithGuilds({
-			["Olympus A"] = Report(300, 40), ["Olympus B"] = Report(200, 55), ["Olympus C"] = Report(100, nil),
+			["ChillZone A"] = Report(300, 40), ["ChillZone B"] = Report(200, 55), ["ChillZone C"] = Report(100, nil),
 		}, function()
 			ns.UI = uns.UI
 			uns.UI.Toggle()
-			local main = hd and OlympusFrameHD or OlympusFrame
+			local main = hd and ChillZoneFrameHD or ChillZoneFrame
 			eq(main.views.census:GetWidth(), hd and 352 or 296, "the list's width")
 			eq(main.tab, "census")
 			eq(main.colHeader:IsShown(), true)
@@ -632,7 +632,7 @@ test("1.2.4 the Census window: five titles, Avg lvl the fourth, side by side acr
 			end
 			return table.concat(out, ",")
 		end
-		eq(Shown(), "Olympus A=40.0,Olympus B=55.0,Olympus C=-")
+		eq(Shown(), "ChillZone A=40.0,ChillZone B=55.0,ChillZone C=-")
 		-- Each cell under its own title (to 3 px, the titles' shared edges), the numbers right-justified:
 		-- in the window's own units, the titles from the header row's left, the cells from the list's.
 		local row
@@ -647,9 +647,9 @@ test("1.2.4 the Census window: five titles, Avg lvl the fourth, side by side acr
 		end
 		t[4].b:Click()
 		eq(V.sort.key, "level"); eq(V.sort.desc, true)
-		eq(Shown(), "Olympus B=55.0,Olympus A=40.0,Olympus C=-", "the highest first, none last")
+		eq(Shown(), "ChillZone B=55.0,ChillZone A=40.0,ChillZone C=-", "the highest first, none last")
 		t[4].b:Click()
-		eq(Shown(), "Olympus A=40.0,Olympus B=55.0,Olympus C=-", "the lowest first, none still last")
+		eq(Shown(), "ChillZone A=40.0,ChillZone B=55.0,ChillZone C=-", "the lowest first, none still last")
 		-- A table of four columns (the Church's, the Tabards'): its rows' fifth cell hidden.
 		local content = CreateFrame("Frame", nil, UIParent)
 		content:SetWidth(300)

@@ -5,7 +5,7 @@
 --
 --   local World = H.World
 --   local w = World.New{ paced = false }             -- paced: Comm's 1.2 s and 60-item queue
---   local a = w:Client("Lida Fenn", { realm = "Emberfall", guild = "Olympus Ember" })
+--   local a = w:Client("Lida Fenn", { realm = "Emberfall", guild = "ChillZone Ember" })
 --   a.Arena.Send(...)            -- a module's functions run as that client (w:As swaps its globals)
 --   w:Run(30)                    -- the clock moves: timers fire, queued messages go out
 --   w:Sent{ from = a, type = "AF", dist = "CHANNEL" }, w:ChannelText()
@@ -18,9 +18,9 @@ World.__index = World
 
 World.REALMS = { "Emberfall", "Emberfall2" }
 World.GROUP = "Emberfall+Emberfall2"
-World.GUILD = "Olympus Ember"          -- an Olympus guild (ns.IsFederation)
-World.KING_GUILD = "Olympus"           -- the Alliance King's guild (ns.KING_GUILD.Alliance)
-World.KING_GUILD_HORDE = "Olympus Horde" -- the Horde King's, in this world
+World.GUILD = "ChillZone Ember"          -- an ChillZone guild (ns.IsFederation)
+World.KING_GUILD = "ChillZone"           -- the Alliance King's guild (ns.KING_GUILD.Alliance)
+World.KING_GUILD_HORDE = "ChillZone Horde" -- the Horde King's, in this world
 World.CLOCK = 1790000000
 -- The cast (the design's invented names where it has them).
 World.NAMES = {
@@ -36,11 +36,11 @@ World.NAMES = {
 -- councillors, the Steward and the arena's signed arbiters above.
 World.COUNCIL = assert(loadfile(H.ROOT .. "tests/fixtures/arena-council.lua"))()
 
--- The core's files, as Olympus.toc lists them, from ArenaMath.lua on; and every file of ours a
+-- The core's files, as ChillZone.toc lists them, from ArenaMath.lua on; and every file of ours a
 -- stack may name, for the weight rule's count.
 local function TocFiles()
 	local out, arena = {}, false
-	for line in io.lines(H.ADDON_DIR .. "Olympus.toc") do
+	for line in io.lines(H.ADDON_DIR .. "ChillZone.toc") do
 		local file = line:match("^([%w_]+)%.lua%s*$")
 		if file == "ArenaMath" then arena = true end
 		if arena and file then out[#out + 1] = file end
@@ -52,10 +52,10 @@ local ARENA_SOURCE = {}
 for _, f in ipairs(World.ARENA_FILES) do ARENA_SOURCE[f] = true end
 local function FromArena()
 	local tb = debug.traceback("", 2)
-	for file in tb:gmatch("Olympus[/\\]([%w_]+)%.lua") do
+	for file in tb:gmatch("ChillZone[/\\]([%w_]+)%.lua") do
 		if ARENA_SOURCE[file] then return true end
 	end
-	return tb:find("Olympus_Arena[/\\]") ~= nil
+	return tb:find("ChillZone_Arena[/\\]") ~= nil
 end
 World.FromArena = FromArena
 
@@ -158,19 +158,19 @@ function World:As(c, fn, ...)
 	if ownPopups then rawset(_G, "StaticPopupDialogs", ownPopups) end
 	if ownSlashes then rawset(_G, "SlashCmdList", ownSlashes) end
 	-- The companion's saved variables are a global the client's own code writes: set, then taken back.
-	local savedDB, startDB = rawget(_G, "OlympusArenaDB"), g.OlympusArenaDB
+	local savedDB, startDB = rawget(_G, "ChillZoneArenaDB"), g.ChillZoneArenaDB
 	for k, v in pairs(g) do rawset(_G, k, v) end
-	rawset(_G, "OlympusArenaDB", startDB)
+	rawset(_G, "ChillZoneArenaDB", startDB)
 	local was = self.current
 	self.current = c
 	local res = { pcall(fn, ...) }
-	local nowDB = rawget(_G, "OlympusArenaDB")
-	if nowDB ~= startDB then g.OlympusArenaDB = nowDB end
+	local nowDB = rawget(_G, "ChillZoneArenaDB")
+	if nowDB ~= startDB then g.ChillZoneArenaDB = nowDB end
 	if ownPopups then c.popups = rawget(_G, "StaticPopupDialogs") end
 	if ownSlashes then c.slashes = rawget(_G, "SlashCmdList") end
 	self.current = was
-	for k in pairs(g) do if k ~= "OlympusArenaDB" then rawset(_G, k, saved[k]) end end
-	rawset(_G, "OlympusArenaDB", savedDB)
+	for k in pairs(g) do if k ~= "ChillZoneArenaDB" then rawset(_G, k, saved[k]) end end
+	rawset(_G, "ChillZoneArenaDB", savedDB)
 	rawset(_G, "StaticPopupDialogs", savedPopups)
 	rawset(_G, "SlashCmdList", savedSlashes)
 	if not res[1] then error(res[2], 0) end
@@ -504,8 +504,8 @@ end
 ---------------------------------------------------------------------------
 
 -- What loading Core.lua and Channels.lua writes to the game's tables: put back after each client.
-local SAVED_GLOBALS = { "SLASH_OLYMPUS1", "SLASH_OLYMPUS2", "SLASH_OLYMPUSARENA1", "SLASH_OLYMPUSALL1", "SLASH_OLYMPUSCAPTAINS1",
-	"SLASH_OLYMPUSLORDS1", "OlympusDB" }
+local SAVED_GLOBALS = { "SLASH_CHILLZONE1", "SLASH_CHILLZONE2", "SLASH_CHILLZONEARENA1", "SLASH_CHILLZONEALL1", "SLASH_CHILLZONECAPTAINS1",
+	"SLASH_CHILLZONELORDS1", "ChillZoneDB" }
 local function Short(name) return (name:gsub("%-.*$", "")) end
 
 local function Globals(w, c)
@@ -566,10 +566,10 @@ local function Globals(w, c)
 	}
 	g.C_AddOns = {
 		LoadAddOn = function(name) return w:LoadAddOn(c, name) end,
-		IsAddOnLoaded = function(name) return name == "Olympus" or (name == "Olympus_Arena" and c.companion.loaded == true) end,
+		IsAddOnLoaded = function(name) return name == "ChillZone" or (name == "ChillZone_Arena" and c.companion.loaded == true) end,
 		GetAddOnMetadata = function(name, field)
 			if field ~= "Version" then return nil end
-			if name == "Olympus_Arena" then return c.companion.version or World.CompanionVersion() end
+			if name == "ChillZone_Arena" then return c.companion.version or World.CompanionVersion() end
 			return c.ns and c.ns.VERSION
 		end,
 	}
@@ -580,8 +580,8 @@ local function Globals(w, c)
 	end
 	g.GetMoney = function() return c.money end
 	g.GetAddOnMemoryUsage = function(name)
-		if name == "Olympus" then return 2048 end
-		if name == "Olympus_Arena" then return c.companion.loaded and 512 or 0 end
+		if name == "ChillZone" then return 2048 end
+		if name == "ChillZone_Arena" then return c.companion.loaded and 512 or 0 end
 		return 0
 	end
 	g.UpdateAddOnMemoryUsage = function() c.memoryUpdates = (c.memoryUpdates or 0) + 1 end
@@ -595,7 +595,7 @@ local function Globals(w, c)
 		for i = 1, select("#", ...) do parts[i] = tostring((select(i, ...))) end
 		c.printed[#c.printed + 1] = table.concat(parts, " ")
 	end
-	g.OlympusArenaDB = nil
+	g.ChillZoneArenaDB = nil
 	g.ERR_TRADE_COMPLETE = "Trade complete."
 	g.ERR_CHAT_PLAYER_NOT_FOUND_S = "No player named '%s' is currently playing."
 	-- Trade and mail (w:Trade, w:Mail): what this client's windows show now.
@@ -640,7 +640,7 @@ function World:UnitClient(c, unit)
 end
 
 function World.CompanionVersion()
-	for line in io.lines(H.ROOT .. "Olympus_Arena/Olympus_Arena.toc") do
+	for line in io.lines(H.ROOT .. "ChillZone_Arena/ChillZone_Arena.toc") do
 		local v = line:match("^## Version:%s*(%S+)")
 		if v then return v end
 	end
@@ -650,18 +650,18 @@ end
 -- ADDON_LOADED. c.companion.state: "ok", "missing", "disabled", "interface", "dep".
 local STATES = { missing = "MISSING", disabled = "DISABLED", interface = "INTERFACE_VERSION", dep = "DEP_DISABLED" }
 function World:LoadAddOn(c, name)
-	if name ~= "Olympus_Arena" then return false, "MISSING" end
+	if name ~= "ChillZone_Arena" then return false, "MISSING" end
 	local state = c.companion.state or "ok"
 	if STATES[state] then return false, STATES[state] end
 	if c.companion.loaded then return true end
 	c.companion.loaded = true
 	c.companion.own = H.LoadCompanion(nil, { keepHandoff = true, version = c.companion.version, without = c.companion.without })
-	c.globals.OlympusArenaDB = c.saved and c.saved.heavy or nil
-	rawset(_G, "OlympusArenaDB", c.globals.OlympusArenaDB)
-	self:Fire(c, "ADDON_LOADED", "Olympus_Arena")
+	c.globals.ChillZoneArenaDB = c.saved and c.saved.heavy or nil
+	rawset(_G, "ChillZoneArenaDB", c.globals.ChillZoneArenaDB)
+	self:Fire(c, "ADDON_LOADED", "ChillZone_Arena")
 	return true
 end
--- The companion loaded some other way than Olympus's (another addon's LoadAddOn, "load always"):
+-- The companion loaded some other way than ChillZone's (another addon's LoadAddOn, "load always"):
 -- no handoff, so it does nothing.
 function World:PreloadCompanion(c)
 	c = Of(self, c)
@@ -669,7 +669,7 @@ function World:PreloadCompanion(c)
 		c.companion.loaded = true
 		c.companion.own = H.LoadCompanion(false)
 	end)
-	self:Fire(c, "ADDON_LOADED", "Olympus_Arena")
+	self:Fire(c, "ADDON_LOADED", "ChillZone_Arena")
 end
 
 -- A WoW event on that client's handlers (ns.RegisterEvent).
@@ -716,8 +716,8 @@ local function Load(w, c)
 		-- (1.1.5: the gamepad gate, the client's own, loaded first as the TOC has it, so Core.lua's
 		-- and the modules' hooks are never the harness's; its one event a no-op here.)
 		cns.RegisterEvent = function() end
-		assert(loadfile(H.ADDON_DIR .. "Gamepad.lua"))("Olympus", cns)
-		assert(loadfile(H.ADDON_DIR .. "Core.lua"))("Olympus", cns)
+		assert(loadfile(H.ADDON_DIR .. "Gamepad.lua"))("ChillZone", cns)
+		assert(loadfile(H.ADDON_DIR .. "Core.lua"))("ChillZone", cns)
 		cns.Now = function() return w.clock end
 		cns.RegisterEvent = function(event, fn)
 			c.events[event] = c.events[event] or {}
@@ -745,13 +745,13 @@ local function Load(w, c)
 		cns.AUTHOR, cns.AUTHOR_REALM = Short(World.NAMES.author), World.REALMS[1]
 		cns.TEST_BUILD = c.testBuild
 		cns.Comm = FakeComm(w, c)
-		for _, f in ipairs(World.OWN) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("Olympus", cns) end
-		for _, f in ipairs(World.MODULES) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("Olympus", cns) end
-		for _, f in ipairs(World.LOCALES) do assert(loadfile(H.ADDON_DIR .. "Locales/" .. f .. ".lua"))("Olympus", cns) end
+		for _, f in ipairs(World.OWN) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("ChillZone", cns) end
+		for _, f in ipairs(World.MODULES) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("ChillZone", cns) end
+		for _, f in ipairs(World.LOCALES) do assert(loadfile(H.ADDON_DIR .. "Locales/" .. f .. ".lua"))("ChillZone", cns) end
 		-- (opts.arenaFiles: another list of the core's arena files, a package profile's TOC.)
-		for _, f in ipairs(w.arenaFiles or World.ARENA_FILES) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("Olympus", cns) end
-		-- (1.4.0) A new duty letter opens the Olympus window by itself (RoleBriefings.Arrived, loaded with
-		-- the TOC's files above); this world builds no Olympus window (its frames are stand-ins), so this
+		for _, f in ipairs(w.arenaFiles or World.ARENA_FILES) do assert(loadfile(H.ADDON_DIR .. f .. ".lua"))("ChillZone", cns) end
+		-- (1.4.0) A new duty letter opens the ChillZone window by itself (RoleBriefings.Arrived, loaded with
+		-- the TOC's files above); this world builds no ChillZone window (its frames are stand-ins), so this
 		-- client's letters wait in the list instead.
 		if type(rawget(cns, "RoleBriefings")) == "table" then cns.RoleBriefings.Arrived = function() return false end end
 		-- (Every family's honour frame in the machinery's worlds; a shipped-release world wears the donors' alone.)
@@ -791,7 +791,7 @@ local function OpenData(c)
 	db.links = db.links or {}
 	for _, r in ipairs(World.REALMS) do db.links[r] = World.GROUP end
 	db.addonChat, db.rollCall = true, true
-	-- (1.2.5.1: each account accepted the Olympus Accord, as every account using Olympus does; the
+	-- (1.2.5.1: each account accepted the ChillZone Accord, as every account using ChillZone does; the
 	-- Accord's own tests, tests/accord.lua, start without it. No fp and no BNGetInfo here.)
 	db.accord = db.accord or { v = 1, yes = true, at = 0 }
 	db.realms = db.realms or {}
@@ -860,7 +860,7 @@ function World:Login(c)
 	c.companion.loaded, c.companion.own = nil, nil
 	c.comm = nil
 	OpenData(c)
-	c.globals.OlympusArenaDB = nil
+	c.globals.ChillZoneArenaDB = nil
 	Load(self, c)
 	c.online = true
 	if self.council and c.council ~= false then self:TakeCouncil(c) end
@@ -875,7 +875,7 @@ end
 function World:Logout(c)
 	c = Of(self, c)
 	self:Fire(c, "PLAYER_LOGOUT")
-	c.saved = c.persists and { db = Copy(c.db), heavy = Copy(c.globals.OlympusArenaDB) } or nil
+	c.saved = c.persists and { db = Copy(c.db), heavy = Copy(c.globals.ChillZoneArenaDB) } or nil
 	c.online = false
 	c.comm.queue, c.comm.chatq = {}, {}
 	c.groupId = nil

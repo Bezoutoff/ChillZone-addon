@@ -74,7 +74,7 @@ local function WithMapWanted(fn)
 		UnitIsPlayer = function() return true end
 		UnitFactionGroup = function() return "Horde" end
 		UnitCanAttack, UnitIsPVP = function() return true end, function() return true end
-		GetGuildInfo = function(unit) return unit == "player" and "Olympus" or nil end
+		GetGuildInfo = function(unit) return unit == "player" and "ChillZone" or nil end
 		issecretvalue = function() return false end
 		C_Map = { GetMapInfo = function() return { mapType = 3 } end,
 			GetBestMapForUnit = function() return 1429 end,
@@ -92,9 +92,9 @@ local function WithMapWanted(fn)
 				if not worldAllowed then for f in pairs(world) do world[f] = nil end end
 				return worldAllowed
 			end }, { __index = ns })
-		assert(loadfile(ROOT .. "Olympus/Map.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Map.lua"))("ChillZone", c)
 		hooks["map-overlay"].install()
-		local menu = assert(frames.OlympusMapMenu)
+		local menu = assert(frames.ChillZoneMapMenu)
 		c.UI = {
 			IsShown = function() return true end,
 			PageId = function() return "wanted/" .. (c.Wanted and c.Wanted.PageId and c.Wanted.PageId() or "list") end,
@@ -129,7 +129,7 @@ test("Wanted last seen: an old zone stays dated on the list and map, focuses wit
 		c.Zones = { KeyForName = function(name) return name == "Elwynn Forest" and "m1429" or ("t" .. tostring(name)) end,
 			MapID = function(key) return key == "m1429" and 1429 or nil end }
 		c.WatchChat = { Barred = function() return nil end }
-		assert(loadfile(ROOT .. "Olympus/Wanted.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Wanted.lua"))("ChillZone", c)
 		c.Wanted.CanManage = function() return true end
 		assert(c.Wanted.AddTarget("Enemy-Realm", guid))
 		local stored = assert(c.rdb.wanted.targets["g:" .. guid])
@@ -189,7 +189,7 @@ end)
 test("Wanted last seen online (RH-09): this client's own sighting stays on the list row after its pin and a reload, the time alone; off records none and the No forgets it", function()
 	WithMapWanted(function(c, _, _, _, guid)
 		c.WatchChat = { Barred = function() return nil end }
-		assert(loadfile(ROOT .. "Olympus/Wanted.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Wanted.lua"))("ChillZone", c)
 		c.Wanted.CanManage = function() return true end
 		assert(c.Wanted.AddTarget("Enemy-Realm", guid))
 		-- (A kill counted long ago with no time kept: nothing dates him yet.)
@@ -219,7 +219,7 @@ test("Wanted last seen online (RH-09): this client's own sighting stays on the l
 
 		-- His pin's 15 minutes pass, then a reload: no pin is left, the list still says when.
 		c.TestAdvance(c.Wanted.SIGHT_TTL + 60)
-		assert(loadfile(ROOT .. "Olympus/Wanted.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Wanted.lua"))("ChillZone", c)
 		assert(c.Wanted.Prune())
 		eq(c.Wanted.LiveSighting(assert(c.Wanted.Target(nil, guid))), nil, "no session pin is left")
 		eq(Short(), c.L.WANTED_ROW_SEEN:format(c.L.AGO_MIN:format(math.floor((c.Wanted.SIGHT_TTL + 60) / 60))),
@@ -251,7 +251,7 @@ end)
 test("Wanted last seen online (RH-09): a No said on another realm group or faction forgets this list's times too; off, none shows and the next Prune drops one kept", function()
 	WithMapWanted(function(c, _, _, _, guid)
 		c.WatchChat = { Barred = function() return nil end }
-		assert(loadfile(ROOT .. "Olympus/Wanted.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Wanted.lua"))("ChillZone", c)
 		c.Wanted.CanManage = function() return true end
 		assert(c.Wanted.AddTarget("Enemy-Realm", guid))
 		c.rdb.wanted.targets["g:" .. guid].base = { lifetimeKills = 1 }
@@ -308,7 +308,7 @@ end)
 
 test("Wanted map refresh: gamepad gate is checked before the periodic path reads WorldMapFrame", function()
 	WithMapWanted(function(c)
-		assert(loadfile(ROOT .. "Olympus/Wanted.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Wanted.lua"))("ChillZone", c)
 		c.Gate.Allowed = function(key) return key ~= "wanted-map" end
 		WorldMapFrame.IsShown = function() error("WorldMapFrame was read outside the wanted-map gate") end
 		assert(c.Wanted.RefreshPins())
@@ -319,7 +319,7 @@ test("Wanted last seen: the newest timestamp chooses the displayed location and 
 	WithMapWanted(function(c, _, _, _, guid)
 		c.Zones = { KeyForName = function() return "m1429" end, MapID = function() return 1429 end }
 		c.WatchChat = { Barred = function() return nil end }
-		assert(loadfile(ROOT .. "Olympus/Wanted.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Wanted.lua"))("ChillZone", c)
 		c.Wanted.CanManage = function() return true end
 		assert(c.Wanted.AddTarget("Enemy-Realm", guid))
 		local stored = assert(c.rdb.wanted.targets["g:" .. guid])
@@ -351,7 +351,7 @@ test("Wanted last seen: ordinary world-map show and map changes refresh historic
 		c.Zones = { KeyForName = function(name) return name == "Elwynn Forest" and "m1429" end,
 			MapID = function(key) return key == "m1429" and 1429 or nil end }
 		c.WatchChat = { Barred = function() return nil end }
-		assert(loadfile(ROOT .. "Olympus/Wanted.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Wanted.lua"))("ChillZone", c)
 		c.Wanted.CanManage = function() return true end
 		assert(c.Wanted.AddTarget("Enemy-Realm", guid))
 		local stored = assert(c.rdb.wanted.targets["g:" .. guid])
@@ -376,7 +376,7 @@ test("Wanted last seen: a location sanction hides text, map action and historica
 		c.Ago = function(at) return tostring(1800000000 - (tonumber(at) or 0)) .. "s" end
 		c.Zones = { KeyForName = function() return "m1429" end, MapID = function() return 1429 end }
 		c.WatchChat = { Barred = function(kind) return kind == "locations" and barred or nil end }
-		assert(loadfile(ROOT .. "Olympus/Wanted.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Wanted.lua"))("ChillZone", c)
 		c.Wanted.CanManage = function() return true end
 		assert(c.Wanted.AddTarget("Enemy-Realm", guid))
 		local stored = assert(c.rdb.wanted.targets["g:" .. guid])
@@ -404,7 +404,7 @@ end)
 
 test("Wanted map option: hides and restores actual sightings without changing minimap or consent", function()
 	WithMapWanted(function(c, menu, world, mini, guid, mode)
-		assert(loadfile(ROOT .. "Olympus/Wanted.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Wanted.lua"))("ChillZone", c)
 		-- (Only the wanted are sighted: the target is on this client's list.)
 		c.Wanted.CanManage = function() return true end
 		assert(c.Wanted.AddTarget("Enemy-Realm", guid))

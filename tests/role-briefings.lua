@@ -7,11 +7,11 @@
 -- the Throne's and the Treasury's sources are stood in. Every name is invented.
 local ns, test, eq, extra = ...
 local ROOT = assert(extra and extra.ROOT)
-local ADDON = ROOT .. "Olympus/"
+local ADDON = ROOT .. "ChillZone/"
 local H = extra
 
-assert(loadfile(ADDON .. "Locales/RoleBriefingsText.lua"))("Olympus", ns)
-assert(loadfile(ADDON .. "Locales/ArenaFightsText.lua"))("Olympus", ns)
+assert(loadfile(ADDON .. "Locales/RoleBriefingsText.lua"))("ChillZone", ns)
+assert(loadfile(ADDON .. "Locales/ArenaFightsText.lua"))("ChillZone", ns)
 local L = ns.L
 
 local function Plain(s) return (tostring(s or ""):gsub("|T.-|t", ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
@@ -36,7 +36,7 @@ local function Fresh(over)
 	for k, v in pairs(over or {}) do c[k] = v end
 	c.On = c.On or function() end
 	c.After = c.After or function() end
-	assert(loadfile(ADDON .. "RoleBriefings.lua"))("Olympus", c)
+	assert(loadfile(ADDON .. "RoleBriefings.lua"))("ChillZone", c)
 	return c.RoleBriefings, c
 end
 
@@ -47,11 +47,11 @@ local function WithRoles(options, fn)
 	local saved = { guildInfo = GetGuildInfo }
 	local rank, clock, opened, printed = options.rank == nil and 3 or options.rank, 2200000000, {}, {}
 	local ok, err = pcall(function()
-		GetGuildInfo = function() return options.guild or "Olympus II", "rank", rank end
+		GetGuildInfo = function() return options.guild or "ChillZone II", "rank", rank end
 		local RB, c = Fresh({
 			IsMember = function() return options.member ~= false end,
-			IsFederation = function(g) return type(g) == "string" and g:find("Olympus", 1, true) ~= nil end,
-			IsKingGuild = function(g) return g == "Olympus" end,
+			IsFederation = function(g) return type(g) == "string" and g:find("ChillZone", 1, true) ~= nil end,
+			IsKingGuild = function(g) return g == "ChillZone" end,
 			IsHighCouncillor = function() return options.council == true end,
 			CouncilTitle = function() return options.councilDept and { title = "Marshal", dept = options.councilDept } or nil end,
 			King = {
@@ -92,7 +92,7 @@ end
 -- Review of the first duty letters: they had no gate, and every officer, guild master, councillor
 -- and Church holder got them at the first login after the update, against the author's call of
 -- 2026-10-20 (preview only, until he turns them on). Fails before: the scan made the letter.
-test("role briefings: while not LIVE a real office makes no letter, no line in chat, no Realm link and no Church link; /oly duties says they are not out", function()
+test("role briefings: while not LIVE a real office makes no letter, no line in chat, no Realm link and no Church link; /cz duties says they are not out", function()
 	WithRoles({ live = false, rank = 0, churchRole = "M" }, function(RB, c, w)
 		eq(RB.LIVE, false)
 		eq(RB.Scan(false), 0, "nothing made")
@@ -111,7 +111,7 @@ test("role briefings: while not LIVE a real office makes no letter, no line in c
 end)
 
 test("role briefings: the author and the King preview every letter from the Realm (and the Workshop); a preview saves, sends and marks nothing, and its buttons do nothing but copy the site", function()
-	for _, who in ipairs({ { author = true }, { king = true, rank = 0, guild = "Olympus" } }) do
+	for _, who in ipairs({ { author = true }, { king = true, rank = 0, guild = "ChillZone" } }) do
 		local opts = { live = false, rank = who.rank, guild = who.guild, author = who.author, king = who.king }
 		WithRoles(opts, function(RB, c, w)
 			eq(RB.PreviewAllowed(), true)
@@ -202,8 +202,8 @@ test("role briefings: every letter is the King's, a sober missive signed - The K
 		end
 		RB.Preview("launch")
 		local launch = Flat(Text(RB.Page()))
-		assert(launch:find("The beta is ended. Olympus is live.", 1, true), launch)
-		assert(launch:find("olympus.roachcouncil.com", 1, true), "the site in the words")
+		assert(launch:find("The beta is ended. ChillZone is live.", 1, true), launch)
+		assert(launch:find("chillzone.roachcouncil.com", 1, true), "the site in the words")
 	end)
 end)
 
@@ -212,8 +212,8 @@ test("role briefings: the launch letter's button copies the site's link in a cop
 		RB.Preview("launch")
 		local button = assert(Row(RB.Page(), "> " .. L.LETTERS_COPY_LINK))
 		button.onClick()
-		eq(w.opened[#w.opened], "copy:https://olympus.roachcouncil.com/")
-		eq(RB.SITE, "https://olympus.roachcouncil.com/")
+		eq(w.opened[#w.opened], "copy:https://chillzone.roachcouncil.com/")
+		eq(RB.SITE, "https://chillzone.roachcouncil.com/")
 	end)
 end)
 
@@ -288,7 +288,7 @@ test("role briefings: each office has its letter, title and buttons; a Justice c
 		eq(RB.Scan(true), 1, "one letter: his correspondent's")
 		eq(RB.Letters()[1].kind, "correspondent")
 	end)
-	WithRoles({ king = true, rank = 0, guild = "Olympus", council = true }, function(RB)
+	WithRoles({ king = true, rank = 0, guild = "ChillZone", council = true }, function(RB)
 		eq(RB.Scan(true), 0, "the King signs them; he gets none")
 	end)
 	WithRoles({ council = true, mod = true }, function(RB)
@@ -316,7 +316,7 @@ test("role briefings: once LIVE a new letter is said in one chat line and kept f
 end)
 
 -- 1.4.4 (the author's ask: a duty letter in a window of its own, like the version letter, not on
--- the Olympus window's page). Fails before: Open led to the Realm page alone.
+-- the ChillZone window's page). Fails before: Open led to the Realm page alone.
 test("role briefings: a letter opens in the version letter's window (Letters.ShowText): the page's title as the window's, the letter's title, its paragraphs, the King's signature and a button back to the page; a guild master's window carries his opening, grant and closing words; without that window, the page as before", function()
 	WithRoles({ steward = true }, function(RB, c, w)
 		eq(RB.Scan(false), 1)
@@ -352,7 +352,7 @@ local function ChurchLetters(w, cl)
 	c.RealmPages = {}
 	c.King, c.Watch, c.Treasury, c.Nominees, c.WatchChat = {}, {}, {}, {}, {}
 	c.db.roleBriefings = nil
-	w:As(cl, function() assert(loadfile(ADDON .. "RoleBriefings.lua"))("Olympus", c) end)
+	w:As(cl, function() assert(loadfile(ADDON .. "RoleBriefings.lua"))("ChillZone", c) end)
 	c.RoleBriefings.LIVE = true
 	return c.RoleBriefings
 end
@@ -427,7 +427,7 @@ end)
 local function GuildMaster(fn)
 	local savedGuild, dialogs = GetGuildInfo, {}
 	for k, v in pairs(StaticPopupDialogs) do dialogs[k] = v end
-	local w = { now = 1800000000, guild = "Olympus Ember", rank = 0, prints = {}, calls = {}, corr = {}, watchers = {} }
+	local w = { now = 1800000000, guild = "ChillZone Ember", rank = 0, prints = {}, calls = {}, corr = {}, watchers = {} }
 	local function Call(what) return function(...) w.calls[#w.calls + 1] = table.concat({ what, ... }, ":") end end
 	local c = setmetatable({ me = "Master-Realm", realm = "Realm", group = "RealmGroup", faction = "Alliance", db = {}, rdb = {}, RealmPages = {},
 		L = setmetatable({}, { __index = ns.L }) }, { __index = ns })
@@ -438,7 +438,7 @@ local function GuildMaster(fn)
 		c.ShortName = function(name) return name and name:match("^[^-]+") end
 		c.RealmOf = function(name) return name and name:match("%-([^%-]+)$") end
 		c.IsMember = function() return c.IsFederation(w.guild) end
-		c.IsKingGuild, c.KingGuildName = function(g) return g == "Olympus" end, function() return "Olympus" end
+		c.IsKingGuild, c.KingGuildName = function(g) return g == "ChillZone" end, function() return "ChillZone" end
 		c.KingCharacter = function() return "Pinned King-Realm" end
 		c.IsKingCharacter = function(name) return c.FullName(name) == c.KingCharacter() end
 		c.IsHighCouncillor = function() return false end
@@ -464,9 +464,9 @@ local function GuildMaster(fn)
 		c.UI = { SelectTab = Call("tab"), Refresh = function() end }
 		c.Views = { ShowPage = Call("page") }
 		c.Letters = { ShowText = function(o) w.calls[#w.calls + 1] = "letter:" .. tostring(o and o.title) return true end }
-		assert(loadfile(ADDON .. "Nominees.lua"))("Olympus", c)
+		assert(loadfile(ADDON .. "Nominees.lua"))("ChillZone", c)
 		c.Nominees.Prompt = function(role, dept) w.calls[#w.calls + 1] = "prompt:" .. role .. (dept and (":" .. dept) or "") end
-		assert(loadfile(ADDON .. "RoleBriefings.lua"))("Olympus", c)
+		assert(loadfile(ADDON .. "RoleBriefings.lua"))("ChillZone", c)
 		c.RoleBriefings.LIVE = true
 		fn(w, c, c.RoleBriefings)
 	end)
@@ -516,7 +516,7 @@ test("role briefings: a guild master's letter ticks each line from what he named
 		names[2].onClick()
 		eq(w.calls[#w.calls], "prompt:correspondent:Department of War")
 		eq(Click(L.RB_GM_BTN_CHURCH), "tab:church,church-show:name,church-ask:correspondent:" .. w.guild)
-		eq(Click(L.RB_GM_BTN_WATCHER), "watch-show:chat,tab:watch,dialog:OLYMPUS_WATCHCHAT_NAME:" .. L.WATCHCHAT_WATCHERS_ADD)
+		eq(Click(L.RB_GM_BTN_WATCHER), "watch-show:chat,tab:watch,dialog:CHILLZONE_WATCHCHAT_NAME:" .. L.WATCHCHAT_WATCHERS_ADD)
 		eq(Click(L.RB_GM_BTN_WRITE), "tab:realm,page:guildcharter")
 		eq(Click(L.RB_GM_BTN_OPEN), "bank")
 		-- His Guild tab (King.Build hands it the tab's lines): the letter, with how many are named.
@@ -572,7 +572,7 @@ test("role briefings: once LIVE, for a release with no letter of its own, the la
 			local lns = setmetatable({ L = own, On = function() end, After = function() end,
 				Every = function() return { Cancel = function() end } end,
 				UI = setmetatable({ ShowCopy = function(title, text) copied = { title = title, text = text } end }, { __index = ns.UI or {} }) }, { __index = ns })
-			assert(loadfile(ADDON .. "Letters.lua"))("Olympus", lns)
+			assert(loadfile(ADDON .. "Letters.lua"))("ChillZone", lns)
 			local Lt = lns.Letters
 			for i = #Lt.LIST, 1, -1 do if Lt.LIST[i] == "1.4.0" then table.remove(Lt.LIST, i) end end
 			-- Not LIVE: the version letters are as they were. (Loaded without them, so the file's own LIVE,
@@ -610,9 +610,9 @@ test("role briefings: once LIVE, for a release with no letter of its own, the la
 end)
 
 -- The gamepad gate (the author's rule: nothing new reaches the game's own UI): the letter's new
--- button is a button of Olympus's own letter window, and its copy is Olympus's own pop-up, never one
+-- button is a button of ChillZone's own letter window, and its copy is ChillZone's own pop-up, never one
 -- of the game's popups, with the gamepad UI as with mouse and keyboard.
-test("role briefings: with the gamepad UI the launch letter's copy button opens Olympus's own copy pop-up, never a popup of the game's", function()
+test("role briefings: with the gamepad UI the launch letter's copy button opens ChillZone's own copy pop-up, never a popup of the game's", function()
 	for _, gamepad in ipairs({ true, false }) do
 		H.WithGamepadUI(gamepad, function(game)
 			H.WithUI(function()
@@ -624,7 +624,7 @@ test("role briefings: with the gamepad UI the launch letter's copy button opens 
 					local lns = setmetatable({ L = own, On = function() end, After = function() end,
 						Every = function() return { Cancel = function() end } end,
 						UI = setmetatable({ ShowCopy = function(title, text) copied = text end }, { __index = ns.UI or {} }) }, { __index = ns })
-					assert(loadfile(ADDON .. "Letters.lua"))("Olympus", lns)
+					assert(loadfile(ADDON .. "Letters.lua"))("ChillZone", lns)
 					local RB = Fresh({ Letters = lns.Letters, L = own })
 					RB.LIVE = true
 					RB.RegisterLaunch()
@@ -649,11 +649,11 @@ end)
 test("role briefings: every letter's words in pt-BR too, in the same sober voice, with the same placeholders", function()
 	local pt, saved = { L = {} }, GetLocale
 	GetLocale = function() return "ptBR" end
-	local ok, err = pcall(function() assert(loadfile(ADDON .. "Locales/RoleBriefingsText.lua"))("Olympus", pt) end)
+	local ok, err = pcall(function() assert(loadfile(ADDON .. "Locales/RoleBriefingsText.lua"))("ChillZone", pt) end)
 	GetLocale = saved
 	assert(ok, err)
 	local en = { L = {} }
-	assert(loadfile(ADDON .. "Locales/RoleBriefingsText.lua"))("Olympus", en)
+	assert(loadfile(ADDON .. "Locales/RoleBriefingsText.lua"))("ChillZone", en)
 	local same = { RB_BTN_WATCH = true, RB_GM_WATCHERS = true, RB_WATCHER_TITLE = true, RB_LEGATE_TITLE = true, RB_PREVIEW_DEPT = true,
 		RB_GM_DONE = true, RB_GM_TODO = true }
 	local n = 0
@@ -688,7 +688,7 @@ test("role briefings: every letter's words in pt-BR too, in the same sober voice
 			eq(hit, nil, "pt-BR: never the streamer's voice: " .. key .. ": " .. word)
 		end
 	end
-	assert(pt.L.RB_LAUNCH:find("olympus.roachcouncil.com", 1, true))
+	assert(pt.L.RB_LAUNCH:find("chillzone.roachcouncil.com", 1, true))
 end)
 
 test("role briefings: the 1.4.0 release writes its own launch letter (the dev's, to the King and the army): RegisterLaunch keeps it, LIVE or not; its own signature and the site's link to copy", function()
@@ -701,7 +701,7 @@ test("role briefings: the 1.4.0 release writes its own launch letter (the dev's,
 			local lns = setmetatable({ L = own, On = function() end, After = function() end,
 				Every = function() return { Cancel = function() end } end,
 				UI = setmetatable({ ShowCopy = function(title, text) copied = { title = title, text = text } end }, { __index = ns.UI or {} }) }, { __index = ns })
-			assert(loadfile(ADDON .. "Letters.lua"))("Olympus", lns)
+			assert(loadfile(ADDON .. "Letters.lua"))("ChillZone", lns)
 			local Lt = lns.Letters
 			local RB = Fresh({ Letters = Lt, L = own })
 			eq(Lt.LIST[1], "1.5.1"); eq(Lt.LIST[9], "1.4.0"); eq(Lt.Has("1.4.0"), true) -- (1.4.1: the launch letter stays listed after the fix)
@@ -716,7 +716,7 @@ test("role briefings: the 1.4.0 release writes its own launch letter (the dev's,
 			local f = Lt.Frame()
 			eq(f.title:GetText(), L.LETTER_1_4_0_TITLE)
 			eq(Lt.Holds(), true, "shown, the version letter holds the screen (a duty letter waits)")
-			-- (1.4.0, the author's ask: the launch letter's window has its own name, not "Olympus 1.4.0")
+			-- (1.4.0, the author's ask: the launch letter's window has its own name, not "ChillZone 1.4.0")
 			eq(f.titleText, L.LETTER_1_4_0_HEAD, "the launch letter's own name on its window")
 			eq(f.sign:GetText(), L.LETTER_1_4_0_SIGNED, "the dev's own signature")
 			eq(f.link:IsShown(), true)

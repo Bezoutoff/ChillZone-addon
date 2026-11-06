@@ -53,13 +53,13 @@ end
 
 local function Army()
 	return {
-		["Olympus Home"] = Report(100, 60, nil, { mine = true }),
-		["Olympus Agreed"] = Report(200, 60, { "Ann-Realm", "Bob-Realm" }),
-		["Olympus Lonely"] = Report(50, 60, { "Cid-Realm" }),
-		["Olympus Split"] = Report(60, 60, { "Dee-Realm", "Eve-Realm" }, { conflict = true }),
-		["Olympus Asleep"] = Report(80, 2 * 3600),
-		["Olympus Gone"] = Report(30, 2 * 86400),
-		["Olympus Banned"] = Report(40, 600),
+		["ChillZone Home"] = Report(100, 60, nil, { mine = true }),
+		["ChillZone Agreed"] = Report(200, 60, { "Ann-Realm", "Bob-Realm" }),
+		["ChillZone Lonely"] = Report(50, 60, { "Cid-Realm" }),
+		["ChillZone Split"] = Report(60, 60, { "Dee-Realm", "Eve-Realm" }, { conflict = true }),
+		["ChillZone Asleep"] = Report(80, 2 * 3600),
+		["ChillZone Gone"] = Report(30, 2 * 86400),
+		["ChillZone Banned"] = Report(40, 600),
 	}
 end
 
@@ -69,61 +69,61 @@ local function Find(list, name)
 end
 
 test("census clean: banned guilds apart, departed guilds tombstoned, each counted guild's confidence", function()
-	With({ guilds = Army(), banned = { ["Olympus Banned"] = true }, alts = { ["Olympus Home"] = 3 } }, function()
+	With({ guilds = Army(), banned = { ["ChillZone Banned"] = true }, alts = { ["ChillZone Home"] = 3 } }, function()
 		local s = D.Summary()
 		local c = C.Compute(s)
 		eq(s.characters, 100 + 200 + 50 + 60 + 80, "the census counts neither the banned guild nor the departed one")
-		eq(c.banned.guilds, 1); eq(c.banned.characters, 40); eq(c.banned.list[1].name, "Olympus Banned")
-		eq(c.departed.guilds, 1); eq(c.departed.list[1].name, "Olympus Gone"); eq(c.departed.list[1].members, 30)
+		eq(c.banned.guilds, 1); eq(c.banned.characters, 40); eq(c.banned.list[1].name, "ChillZone Banned")
+		eq(c.departed.guilds, 1); eq(c.departed.list[1].name, "ChillZone Gone"); eq(c.departed.list[1].members, 30)
 		eq(c.confidence.own, 100); eq(c.confidence.confirmed, 200); eq(c.confidence.single, 50)
 		eq(c.confidence.disputed, 60); eq(c.confidence.stale, 80); eq(c.confidence.relayed, 0)
 		eq(c.confirmedPeople, 300 - 3, "own and confirmed, their linked alts once")
 		eq(c.addonOnline, 5 + 10 + 2 + 3, "fresh reports only")
 		eq(c.excess, 0)
-		eq(Find(c.guilds, "Olympus Gone"), nil); eq(Find(c.guilds, "Olympus Banned"), nil)
-		eq(Find(c.guilds, "Olympus Asleep").status, "stale"); eq(Find(c.guilds, "Olympus Asleep").online, 0)
-		eq(c.guilds[1].name, "Olympus Agreed", "biggest first")
+		eq(Find(c.guilds, "ChillZone Gone"), nil); eq(Find(c.guilds, "ChillZone Banned"), nil)
+		eq(Find(c.guilds, "ChillZone Asleep").status, "stale"); eq(Find(c.guilds, "ChillZone Asleep").online, 0)
+		eq(c.guilds[1].name, "ChillZone Agreed", "biggest first")
 	end)
 end)
 
 test("census clean: a banned guild never heard is listed with its size unknown; a relay row gives one", function()
-	With({ guilds = Army(), banned = { ["Olympus Unheard"] = true, ["Olympus Relayed"] = true },
-		global = { ["olympus relayed"] = { name = "Olympus Relayed", total = 70, online = 5, avg10 = 400, observed = NOW - 300 } } }, function()
+	With({ guilds = Army(), banned = { ["ChillZone Unheard"] = true, ["ChillZone Relayed"] = true },
+		global = { ["chillzone relayed"] = { name = "ChillZone Relayed", total = 70, online = 5, avg10 = 400, observed = NOW - 300 } } }, function()
 		local c = C.Compute()
-		eq(Find(c.banned.list, "Olympus Unheard").known, false)
-		eq(Find(c.banned.list, "Olympus Relayed").members, 70)
+		eq(Find(c.banned.list, "ChillZone Unheard").known, false)
+		eq(Find(c.banned.list, "ChillZone Relayed").members, 70)
 		eq(c.banned.characters, 70)
 	end)
 end)
 
 test("census clean: a lone reporter's jump past the guild's reach is held back on the statistics only, until agreement or an hour", function()
-	local guilds = { ["Olympus Lonely"] = Report(100, 60, { "Cid-Realm" }) }
+	local guilds = { ["ChillZone Lonely"] = Report(100, 60, { "Cid-Realm" }) }
 	With({ guilds = guilds }, function(clock)
 		eq(C.Compute().excess, 0, "the first size is the last good one")
 		clock.now = NOW + 120
-		guilds["Olympus Lonely"] = Report(500, 0, { "Cid-Realm" })
-		guilds["Olympus Lonely"].t = clock.now
+		guilds["ChillZone Lonely"] = Report(500, 0, { "Cid-Realm" })
+		guilds["ChillZone Lonely"].t = clock.now
 		local c = C.Compute()
 		eq(c.outliers.guilds, 1); eq(c.outliers.list[1].reported, 500); eq(c.outliers.list[1].kept, 100)
 		eq(c.excess, 400)
-		eq(Find(c.guilds, "Olympus Lonely").status, "outlier")
+		eq(Find(c.guilds, "ChillZone Lonely").status, "outlier")
 		eq(D.Summary().total, 500, "the header's count is untouched")
 		-- Within its reach: 100 + max(25, 10) + 20 a minute for 2 minutes is 165.
-		guilds["Olympus Lonely"] = Report(160, 0, { "Cid-Realm" })
-		guilds["Olympus Lonely"].t = clock.now
+		guilds["ChillZone Lonely"] = Report(160, 0, { "Cid-Realm" })
+		guilds["ChillZone Lonely"].t = clock.now
 		eq(C.Compute().excess, 0, "a size within reach is taken")
-		guilds["Olympus Lonely"] = Report(600, 0, { "Cid-Realm" })
-		guilds["Olympus Lonely"].t = clock.now
+		guilds["ChillZone Lonely"] = Report(600, 0, { "Cid-Realm" })
+		guilds["ChillZone Lonely"].t = clock.now
 		eq(C.Compute().excess, 440)
 		clock.now = clock.now + C.OUTLIER_HOLD
-		guilds["Olympus Lonely"].t = clock.now
-		for _, v in pairs(guilds["Olympus Lonely"].vouch) do v.t = clock.now end
+		guilds["ChillZone Lonely"].t = clock.now
+		for _, v in pairs(guilds["ChillZone Lonely"].vouch) do v.t = clock.now end
 		eq(C.Compute().excess, 0, "held for an hour, it is the guild's size")
 	end)
-	local agreed = { ["Olympus Agreed"] = Report(100, 60, { "Ann-Realm", "Bob-Realm" }) }
+	local agreed = { ["ChillZone Agreed"] = Report(100, 60, { "Ann-Realm", "Bob-Realm" }) }
 	With({ guilds = agreed }, function()
 		C.Compute()
-		agreed["Olympus Agreed"] = Report(700, 30, { "Ann-Realm", "Bob-Realm" })
+		agreed["ChillZone Agreed"] = Report(700, 30, { "Ann-Realm", "Bob-Realm" })
 		eq(C.Compute().excess, 0, "two reporters agreeing take a jump at once")
 	end)
 end)
@@ -132,20 +132,20 @@ end)
 -- two reporters' agreement confirms a size only while its last report is under Data.FRESH old, and
 -- a size held back may be a fall as well as a rise.
 test("census clean: as the census page says: agreement confirms a size only while its last report is fresh; a lone reporter's fall past the guild's reach is held as a rise is", function()
-	With({ guilds = { ["Olympus Agreed"] = Report(200, D.FRESH + 60, { "Ann-Realm", "Bob-Realm" }) } }, function()
+	With({ guilds = { ["ChillZone Agreed"] = Report(200, D.FRESH + 60, { "Ann-Realm", "Bob-Realm" }) } }, function()
 		local s = D.Summary()
 		eq(s.guilds[1].counted, true, "still counted")
 		eq(C.Confidence(s.guilds[1], NOW), "stale", "two reporters agreed, but its last report is older than FRESH: not confirmed")
 	end)
-	With({ guilds = { ["Olympus Agreed"] = Report(200, D.FRESH - 60, { "Ann-Realm", "Bob-Realm" }) } }, function()
+	With({ guilds = { ["ChillZone Agreed"] = Report(200, D.FRESH - 60, { "Ann-Realm", "Bob-Realm" }) } }, function()
 		eq(C.Confidence(D.Summary().guilds[1], NOW), "confirmed", "under FRESH old: confirmed")
 	end)
-	local guilds = { ["Olympus Lonely"] = Report(500, 60, { "Cid-Realm" }) }
+	local guilds = { ["ChillZone Lonely"] = Report(500, 60, { "Cid-Realm" }) }
 	With({ guilds = guilds }, function(clock)
 		eq(C.Compute().excess, 0)
 		clock.now = NOW + 120
-		guilds["Olympus Lonely"] = Report(100, 0, { "Cid-Realm" })
-		guilds["Olympus Lonely"].t = clock.now
+		guilds["ChillZone Lonely"] = Report(100, 0, { "Cid-Realm" })
+		guilds["ChillZone Lonely"].t = clock.now
 		local c = C.Compute()
 		eq(c.outliers.guilds, 1); eq(c.outliers.list[1].reported, 100); eq(c.outliers.list[1].kept, 500, "a fall past its reach, held")
 	end)
@@ -160,33 +160,33 @@ test("census clean: as the census page says: the dispute's and the held size's m
 		r.vouch["Ann-Realm"].n = lo
 		return r
 	end
-	With({ guilds = { ["Olympus Big"] = Pair(860, 900) } }, function()
-		local g = ns.rdb.guilds["Olympus Big"]
+	With({ guilds = { ["ChillZone Big"] = Pair(860, 900) } }, function()
+		local g = ns.rdb.guilds["ChillZone Big"]
 		local d = D.Dispute(g, NOW)
 		eq(d and d.sizes, nil, "40 apart: more than 5 members, within 5%, not disputed")
 		eq(C.Confidence(D.Summary().guilds[1], NOW), "confirmed")
-		ns.rdb.guilds["Olympus Big"] = Pair(850, 900)
-		d = D.Dispute(ns.rdb.guilds["Olympus Big"], NOW)
+		ns.rdb.guilds["ChillZone Big"] = Pair(850, 900)
+		d = D.Dispute(ns.rdb.guilds["ChillZone Big"], NOW)
 		assert(d and d.disputed and d.sizes, "50 apart: past 5%, disputed")
 	end)
-	With({ guilds = { ["Olympus Small"] = Pair(30, 40) } }, function()
-		local d = D.Dispute(ns.rdb.guilds["Olympus Small"], NOW)
+	With({ guilds = { ["ChillZone Small"] = Pair(30, 40) } }, function()
+		local d = D.Dispute(ns.rdb.guilds["ChillZone Small"], NOW)
 		assert(d and d.disputed and d.sizes, "a small guild: 10 apart is past 5 members (5% would be 2)")
 	end)
 	-- A lone reporter's move at the same moment: 10% of 900 is 90 members.
-	local guilds = { ["Olympus Big"] = Report(900, 0, { "Cid-Realm" }) }
+	local guilds = { ["ChillZone Big"] = Report(900, 0, { "Cid-Realm" }) }
 	With({ guilds = guilds }, function()
 		eq(C.Compute().excess, 0)
-		guilds["Olympus Big"] = Report(850, 0, { "Cid-Realm" })
+		guilds["ChillZone Big"] = Report(850, 0, { "Cid-Realm" })
 		eq(C.Compute().outliers.guilds, 0, "50 members: more than 25, within 10%, taken")
-		guilds["Olympus Big"] = Report(750, 0, { "Cid-Realm" })
+		guilds["ChillZone Big"] = Report(750, 0, { "Cid-Realm" })
 		local c = C.Compute()
 		eq(c.outliers.guilds, 1, "100 members: past 10% of 850, held"); eq(c.outliers.list[1].kept, 850)
 	end)
-	local small = { ["Olympus Small"] = Report(100, 0, { "Cid-Realm" }) }
+	local small = { ["ChillZone Small"] = Report(100, 0, { "Cid-Realm" }) }
 	With({ guilds = small }, function()
 		eq(C.Compute().excess, 0)
-		small["Olympus Small"] = Report(130, 0, { "Cid-Realm" })
+		small["ChillZone Small"] = Report(130, 0, { "Cid-Realm" })
 		local c = C.Compute()
 		eq(c.outliers.guilds, 1, "a small guild: 30 members is past 25 (10% would be 10), held"); eq(c.outliers.list[1].kept, 100)
 	end)
@@ -199,9 +199,9 @@ end)
 -- behaviour behind each claim, through the addon's own functions.
 local Codec = ns.Codec
 
--- A report as the channel carries it (Codec.EncodeReport), for a guild named "Olympus Door" unless said.
+-- A report as the channel carries it (Codec.EncodeReport), for a guild named "ChillZone Door" unless said.
 local function Wire(fields)
-	if fields.guild == nil then fields.guild = "Olympus Door" end
+	if fields.guild == nil then fields.guild = "ChillZone Door" end
 	fields.zones = fields.zones or {}
 	return Codec.EncodeReport(fields)
 end
@@ -223,7 +223,7 @@ local function Snapshot(made, rows)
 	return ("CG~%d~S~%d~%s"):format(D.GLOBAL_PROTOCOL, made, table.concat(out, ";"))
 end
 
-test("census clean: as the census page says (S1): a report must parse, name an Olympus guild, carry at most the game's cap and no more players by zone, class or level than online; online above the size is cut to it; a relayed row must have no more online than members and not be dated more than 5 minutes ahead", function()
+test("census clean: as the census page says (S1): a report must parse, name an ChillZone guild, carry at most the game's cap and no more players by zone, class or level than online; online above the size is cut to it; a relayed row must have no more online than members and not be dated more than 5 minutes ahead", function()
 	eq(Codec.DecodeReport("R2~not a report"), nil, "does not parse")
 	eq(Codec.DecodeReport(Wire({ guild = "", total = 10, online = 1 })), nil, "names no guild")
 	assert(Codec.DecodeReport(Wire({ total = Codec.GUILD_CAP, online = 10 })), "the cap itself")
@@ -232,27 +232,27 @@ test("census clean: as the census page says (S1): a report must parse, name an O
 	eq(Codec.DecodeReport(Wire({ total = 10, online = 5, levels = { 3, 3 } })), nil, "more by level than online")
 	eq(Codec.DecodeReport(Wire({ total = 10, online = 20 })).online, 10, "online above the size: cut to the size, not refused")
 	With({}, function()
-		eq(D.Receive(Codec.DecodeReport(Wire({ guild = "Horde Raiders", total = 10, online = 1 })), "Sone-Realm"), false, "not an Olympus guild")
+		eq(D.Receive(Codec.DecodeReport(Wire({ guild = "Horde Raiders", total = 10, online = 1 })), "Sone-Realm"), false, "not an ChillZone guild")
 		eq(next(ns.rdb.guilds), nil, "refused at the door: never in the census")
-		eq(D.Receive(Codec.DecodeReport(Wire({ total = 10, online = 1 })), "Stwo-Realm"), true, "an Olympus guild's report enters")
-		eq(ns.rdb.guilds["Olympus Door"].t, NOW, "a report heard takes this client's time: it cannot be dated ahead")
+		eq(D.Receive(Codec.DecodeReport(Wire({ total = 10, online = 1 })), "Stwo-Realm"), true, "an ChillZone guild's report enters")
+		eq(ns.rdb.guilds["ChillZone Door"].t, NOW, "a report heard takes this client's time: it cannot be dated ahead")
 	end)
 	WithKeeper("Keeper-Realm", nil, function()
 		With({}, function()
 			assert(D.ReceiveGlobalCensus("CHANNEL", "Keeper-Realm", Snapshot(NOW, {
-				{ "Olympus Ahead", 100, 10, 400, NOW + 5 * 60 + 1 },
-				{ "Olympus Edge", 100, 10, 400, NOW + 5 * 60 },
-				{ "Olympus Crowd", 100, 101, 400, NOW - 60 },
-				{ "Olympus Full", 100, 100, 400, NOW - 60 },
+				{ "ChillZone Ahead", 100, 10, 400, NOW + 5 * 60 + 1 },
+				{ "ChillZone Edge", 100, 10, 400, NOW + 5 * 60 },
+				{ "ChillZone Crowd", 100, 101, 400, NOW - 60 },
+				{ "ChillZone Full", 100, 100, 400, NOW - 60 },
 			})))
 			local store = ns.rdb.censusGlobal
-			eq(store["olympus ahead"], nil, "dated more than 5 minutes ahead: refused")
-			eq(store["olympus edge"].total, 100, "5 minutes ahead: taken")
-			eq(store["olympus crowd"], nil, "more online than members: refused")
-			eq(store["olympus full"].online, 100, "as many online as members: taken")
-			eq(D.ReceiveGlobalCensus("CHANNEL", "Keeper-Realm", Snapshot(NOW + 5 * 60 + 1, { { "Olympus Later", 100, 10, 400, NOW } })), false,
+			eq(store["chillzone ahead"], nil, "dated more than 5 minutes ahead: refused")
+			eq(store["chillzone edge"].total, 100, "5 minutes ahead: taken")
+			eq(store["chillzone crowd"], nil, "more online than members: refused")
+			eq(store["chillzone full"].online, 100, "as many online as members: taken")
+			eq(D.ReceiveGlobalCensus("CHANNEL", "Keeper-Realm", Snapshot(NOW + 5 * 60 + 1, { { "ChillZone Later", 100, 10, 400, NOW } })), false,
 				"a snapshot made more than 5 minutes ahead: refused whole")
-			eq(store["olympus later"], nil)
+			eq(store["chillzone later"], nil)
 		end)
 	end)
 end)
@@ -261,46 +261,46 @@ test("census clean: as the census page says (how the census is built): a record 
 	-- Field 25: the server's clock when the report was made, kept with the report; a relay carries it.
 	eq(Codec.DecodeReport(Wire({ total = 10, online = 1, st = NOW - 30 })).st, NOW - 30)
 	WithKeeper("Keeper-Realm", "Keeper-Realm", function()
-		With({ guilds = { ["Olympus Dawn"] = Report(200, 60, nil, { st = NOW - 600 }) } }, function()
+		With({ guilds = { ["ChillZone Dawn"] = Report(200, 60, nil, { st = NOW - 600 }) } }, function()
 			local payload = assert(D.GlobalCensusPayload())
-			assert(payload:find("Olympus Dawn,200,20,400," .. (NOW - 600), 1, true), "the relay carries when it was observed, not when it was heard")
+			assert(payload:find("ChillZone Dawn,200,20,400," .. (NOW - 600), 1, true), "the relay carries when it was observed, not when it was heard")
 		end)
 	end)
 	-- A newer report replaces the older one; one the guild's other reporters outvote does not.
 	With({}, function(clock)
 		local function Send(sender, total, officer)
-			return D.Receive(Codec.DecodeReport(Wire({ guild = "Olympus Newer", total = total, online = 1, leader = "Lead",
+			return D.Receive(Codec.DecodeReport(Wire({ guild = "ChillZone Newer", total = total, online = 1, leader = "Lead",
 				officers = { { name = officer } } })), sender)
 		end
 		eq(Send("Bann-Realm", 200, "Duke"), true); eq(Send("Bbob-Realm", 200, "Duke"), true)
 		clock.now = NOW + 60
-		eq(Send("Bann-Realm", 210, "Duke"), true, "newer"); eq(ns.rdb.guilds["Olympus Newer"].total, 210, "the newer report is the guild's")
+		eq(Send("Bann-Realm", 210, "Duke"), true, "newer"); eq(ns.rdb.guilds["ChillZone Newer"].total, 210, "the newer report is the guild's")
 		clock.now = NOW + 61
 		eq(Send("Bcid-Realm", 250, "Usurper"), false, "against the other reporters' picture")
-		eq(ns.rdb.guilds["Olympus Newer"].total, 210, "outvoted: the row stays"); eq(ns.rdb.guilds["Olympus Newer"].outvoted, true)
+		eq(ns.rdb.guilds["ChillZone Newer"].total, 210, "outvoted: the row stays"); eq(ns.rdb.guilds["ChillZone Newer"].outvoted, true)
 	end)
 	-- A keeper's relay against the guild's own report: shown only when observed after it.
 	local global = {}
-	With({ guilds = { ["Olympus Dawn"] = Report(200, 60, { "Ann-Realm", "Bob-Realm" }, { st = NOW - 60 }) }, global = global }, function()
-		global["olympus dawn"] = { name = "Olympus Dawn", total = 300, online = 30, avg10 = 400, observed = NOW - 120 }
+	With({ guilds = { ["ChillZone Dawn"] = Report(200, 60, { "Ann-Realm", "Bob-Realm" }, { st = NOW - 60 }) }, global = global }, function()
+		global["chillzone dawn"] = { name = "ChillZone Dawn", total = 300, online = 30, avg10 = 400, observed = NOW - 120 }
 		local e = D.Summary().guilds[1]
 		eq(e.g.total, 200, "a relay observed before the report: the report stays"); eq(e.g.relayed, nil)
-		global["olympus dawn"].observed = NOW - 30
+		global["chillzone dawn"].observed = NOW - 30
 		e = D.Summary().guilds[1]
 		eq(e.g.total, 300, "observed after it: the relay"); eq(e.g.relayed, true)
 	end)
 	-- The relay store: an older observation never replaces a newer one, and a row is aged by when it was observed.
 	WithKeeper("Keeper-Realm", nil, function()
 		With({}, function()
-			D.ReceiveGlobalCensus("CHANNEL", "Keeper-Realm", Snapshot(NOW, { { "Olympus Kept", 100, 10, 400, NOW - 100 } }))
-			D.ReceiveGlobalCensus("CHANNEL", "Keeper-Realm", Snapshot(NOW, { { "Olympus Kept", 999, 10, 400, NOW - 200 } }))
-			eq(ns.rdb.censusGlobal["olympus kept"].total, 100, "the older observation refused"); eq(ns.rdb.censusGlobal["olympus kept"].observed, NOW - 100)
+			D.ReceiveGlobalCensus("CHANNEL", "Keeper-Realm", Snapshot(NOW, { { "ChillZone Kept", 100, 10, 400, NOW - 100 } }))
+			D.ReceiveGlobalCensus("CHANNEL", "Keeper-Realm", Snapshot(NOW, { { "ChillZone Kept", 999, 10, 400, NOW - 200 } }))
+			eq(ns.rdb.censusGlobal["chillzone kept"].total, 100, "the older observation refused"); eq(ns.rdb.censusGlobal["chillzone kept"].observed, NOW - 100)
 			D.ReceiveGlobalCensus("CHANNEL", "Keeper-Realm", Snapshot(NOW, {
-				{ "Olympus Stale", 100, 10, 400, NOW - D.FRESH - 60 }, { "Olympus Departed", 100, 10, 400, NOW - D.TOTAL_KEEP - 60 } }))
+				{ "ChillZone Stale", 100, 10, 400, NOW - D.FRESH - 60 }, { "ChillZone Departed", 100, 10, 400, NOW - D.TOTAL_KEEP - 60 } }))
 			local s = D.Summary()
 			local stale, departed
 			for _, e in ipairs(s.guilds) do
-				if e.name == "Olympus Stale" then stale = e elseif e.name == "Olympus Departed" then departed = e end
+				if e.name == "ChillZone Stale" then stale = e elseif e.name == "ChillZone Departed" then departed = e end
 			end
 			eq(stale.fresh, false, "heard now, observed past FRESH: stale"); eq(stale.counted, true)
 			eq(departed.counted, false, "observed past TOTAL_KEEP: departed, though heard now")
@@ -309,50 +309,50 @@ test("census clean: as the census page says (how the census is built): a record 
 end)
 
 test("census clean: as the census page says (S2, S3): forgotten KEEP after the last report; banned guilds' new reports refused, listed with their last size; guilds /who alone saw in no total, listed with the players it saw online", function()
-	With({ guilds = { ["Olympus Week"] = Report(70, D.KEEP - 60), ["Olympus Past"] = Report(70, D.KEEP + 60) } }, function()
+	With({ guilds = { ["ChillZone Week"] = Report(70, D.KEEP - 60), ["ChillZone Past"] = Report(70, D.KEEP + 60) } }, function()
 		local c = C.Compute()
-		eq(c.departed.guilds, 1, "departed and listed until KEEP after its last report"); eq(c.departed.list[1].name, "Olympus Week")
+		eq(c.departed.guilds, 1, "departed and listed until KEEP after its last report"); eq(c.departed.list[1].name, "ChillZone Week")
 	end)
-	With({ guilds = Army(), banned = { ["Olympus Banned"] = true } }, function()
-		eq(D.Receive(Codec.DecodeReport(Wire({ guild = "Olympus Banned", total = 400, online = 1 })), "Bdan-Realm"), false, "a banned guild's new report")
+	With({ guilds = Army(), banned = { ["ChillZone Banned"] = true } }, function()
+		eq(D.Receive(Codec.DecodeReport(Wire({ guild = "ChillZone Banned", total = 400, online = 1 })), "Bdan-Realm"), false, "a banned guild's new report")
 		local c = C.Compute()
-		eq(Find(c.banned.list, "Olympus Banned").members, 40, "listed apart with the last size this client holds")
+		eq(Find(c.banned.list, "ChillZone Banned").members, 40, "listed apart with the last size this client holds")
 		eq(c.banned.characters, 40)
 	end)
-	With({ guilds = { ["Olympus Agreed"] = Report(200, 60, { "Ann-Realm", "Bob-Realm" }) },
-		seen = { ["Olympus Seen"] = { online = 7, t = NOW - 60 }, ["Olympus Agreed"] = { online = 3, t = NOW - 60 } } }, function()
+	With({ guilds = { ["ChillZone Agreed"] = Report(200, 60, { "Ann-Realm", "Bob-Realm" }) },
+		seen = { ["ChillZone Seen"] = { online = 7, t = NOW - 60 }, ["ChillZone Agreed"] = { online = 3, t = NOW - 60 } } }, function()
 		local s = D.Summary()
 		eq(s.characters, 200, "a guild /who alone saw: in no total"); eq(s.online, 20)
-		eq(#s.seen, 1, "a guild this client holds a report of is not listed as seen"); eq(s.seen[1].name, "Olympus Seen")
+		eq(#s.seen, 1, "a guild this client holds a report of is not listed as seen"); eq(s.seen[1].name, "ChillZone Seen")
 		local c = C.Compute(s)
-		eq(Find(c.guilds, "Olympus Seen"), nil)
-		eq(c.seen[1].name, "Olympus Seen"); eq(c.seen[1].online, 7, "listed with the players /who saw online"); eq(c.seen[1].members, nil, "no size: /who knows none")
+		eq(Find(c.guilds, "ChillZone Seen"), nil)
+		eq(c.seen[1].name, "ChillZone Seen"); eq(c.seen[1].online, 7, "listed with the players /who saw online"); eq(c.seen[1].members, nil, "no size: /who knows none")
 	end)
 end)
 
 test("census clean: as the census page says (S4, S5): a relay confirms only while under FRESH old; a stale relay's jump is held; a held size stays held while its guild goes stale, until the minutes since bring it within reach or the same size holds for an hour", function()
-	local global = { ["olympus relay"] = { name = "Olympus Relay", total = 100, online = 5, avg10 = 400, observed = NOW - D.FRESH - 120 } }
+	local global = { ["chillzone relay"] = { name = "ChillZone Relay", total = 100, online = 5, avg10 = 400, observed = NOW - D.FRESH - 120 } }
 	With({ global = global }, function(clock)
 		eq(C.Confidence(D.Summary().guilds[1], NOW), "stale", "a relay observed past FRESH: stale, not relayed")
 		eq(C.Compute().excess, 0, "the first size is the last good one")
 		clock.now = NOW + 60
-		global["olympus relay"] = { name = "Olympus Relay", total = 500, online = 5, avg10 = 400, observed = NOW - D.FRESH }
+		global["chillzone relay"] = { name = "ChillZone Relay", total = 500, online = 5, avg10 = 400, observed = NOW - D.FRESH }
 		local c = C.Compute()
 		eq(c.outliers.guilds, 1, "a stale relay's jump is not confirmed: held"); eq(c.outliers.list[1].kept, 100)
-		global["olympus relay"].observed = clock.now - 60
+		global["chillzone relay"].observed = clock.now - 60
 		eq(C.Confidence(D.Summary().guilds[1], clock.now), "relayed", "under FRESH old: confirmed")
 		c = C.Compute()
-		eq(c.excess, 0, "a fresh relay gives it"); eq(Find(c.guilds, "Olympus Relay").members, 500)
+		eq(c.excess, 0, "a fresh relay gives it"); eq(Find(c.guilds, "ChillZone Relay").members, 500)
 	end)
 	-- 100 to 500 is 400 members: past 25 + 20 a minute since the last good size until its 19th minute.
 	local function Jump(clock, guilds)
 		eq(C.Compute().excess, 0)
 		clock.now = NOW + 120
-		guilds["Olympus Lonely"] = Report(500, 0, { "Cid-Realm" })
-		guilds["Olympus Lonely"].t = clock.now
+		guilds["ChillZone Lonely"] = Report(500, 0, { "Cid-Realm" })
+		guilds["ChillZone Lonely"].t = clock.now
 		eq(C.Compute().outliers.guilds, 1, "a lone reporter's jump: held")
 	end
-	local guilds = { ["Olympus Lonely"] = Report(100, 60, { "Cid-Realm" }) }
+	local guilds = { ["ChillZone Lonely"] = Report(100, 60, { "Cid-Realm" }) }
 	With({ guilds = guilds }, function(clock)
 		Jump(clock, guilds)
 		clock.now = NOW + 18 * 60
@@ -361,20 +361,20 @@ test("census clean: as the census page says (S4, S5): a relay confirms only whil
 		eq(C.Compute(s).outliers.guilds, 1, "still held: 400 members past 25 + 20 a minute for 18 minutes")
 		clock.now = NOW + 19 * 60
 		local c = C.Compute()
-		eq(c.outliers.guilds, 0, "the minutes since bring it within reach: taken"); eq(Find(c.guilds, "Olympus Lonely").members, 500)
+		eq(c.outliers.guilds, 0, "the minutes since bring it within reach: taken"); eq(Find(c.guilds, "ChillZone Lonely").members, 500)
 	end)
 	-- The same size for OUTLIER_HOLD, whatever the reach (no drift a minute here, so the hour alone decides).
 	local savedDrift = C.JUMP_DRIFT
 	C.JUMP_DRIFT = 0
 	local ok, err = pcall(function()
-		local held = { ["Olympus Lonely"] = Report(100, 60, { "Cid-Realm" }) }
+		local held = { ["ChillZone Lonely"] = Report(100, 60, { "Cid-Realm" }) }
 		With({ guilds = held }, function(clock)
 			Jump(clock, held)
 			clock.now = NOW + 120 + C.OUTLIER_HOLD - 60
 			eq(C.Compute().outliers.guilds, 1, "stale, the same size short of an hour: held")
 			clock.now = NOW + 120 + C.OUTLIER_HOLD
 			local c = C.Compute()
-			eq(c.outliers.guilds, 0, "the same size held for an hour: taken"); eq(Find(c.guilds, "Olympus Lonely").members, 500)
+			eq(c.outliers.guilds, 0, "the same size held for an hour: taken"); eq(Find(c.guilds, "ChillZone Lonely").members, 500)
 		end)
 	end)
 	C.JUMP_DRIFT = savedDrift
@@ -393,20 +393,20 @@ test("census clean: as the census page says (S4): two or more reporters who vote
 		return r
 	end
 	assert(D.VOUCH_TTL > D.FRESH + 120, "the votes outlast the sizes compared")
-	local guilds = { ["Olympus Pair"] = Report(200, 60, { "Ann-Realm", "Bob-Realm" }) }
+	local guilds = { ["ChillZone Pair"] = Report(200, 60, { "Ann-Realm", "Bob-Realm" }) }
 	With({ guilds = guilds }, function()
 		eq(C.Compute().excess, 0, "200, the last good size")
-		guilds["Olympus Pair"] = Pair(D.FRESH + 60)
-		eq(D.Dispute(guilds["Olympus Pair"], NOW), nil, "Bob's size is past FRESH: not compared, and he still stands behind the guild")
+		guilds["ChillZone Pair"] = Pair(D.FRESH + 60)
+		eq(D.Dispute(guilds["ChillZone Pair"], NOW), nil, "Bob's size is past FRESH: not compared, and he still stands behind the guild")
 		eq(C.Confidence(D.Summary().guilds[1], NOW), "confirmed", "two reporters voted in the last VOUCH_TTL, no dispute marked")
 		local c = C.Compute()
-		eq(c.outliers.guilds, 0, "confirmed: the jump is taken (S5 holds only what is not)"); eq(Find(c.guilds, "Olympus Pair").members, 500)
+		eq(c.outliers.guilds, 0, "confirmed: the jump is taken (S5 holds only what is not)"); eq(Find(c.guilds, "ChillZone Pair").members, 500)
 	end)
-	guilds = { ["Olympus Pair"] = Report(200, 60, { "Ann-Realm", "Bob-Realm" }) }
+	guilds = { ["ChillZone Pair"] = Report(200, 60, { "Ann-Realm", "Bob-Realm" }) }
 	With({ guilds = guilds }, function()
 		C.Compute()
-		guilds["Olympus Pair"] = Pair(D.VOUCH_TTL + 60)
-		local d = D.Dispute(guilds["Olympus Pair"], NOW)
+		guilds["ChillZone Pair"] = Pair(D.VOUCH_TTL + 60)
+		local d = D.Dispute(guilds["ChillZone Pair"], NOW)
 		eq(d and d.single, "Ann-Realm", "Bob's vote is past VOUCH_TTL: Ann alone")
 		eq(C.Confidence(D.Summary().guilds[1], NOW), "single")
 		local c = C.Compute()
@@ -416,29 +416,29 @@ end)
 
 test("census clean: as the census page says (how the census is built): the guild's other reporters outvote a newer report only while the row it would replace is under FRESH old", function()
 	local function Send(sender, total, officer)
-		return D.Receive(Codec.DecodeReport(Wire({ guild = "Olympus Votes", total = total, online = 1, leader = "Lead",
+		return D.Receive(Codec.DecodeReport(Wire({ guild = "ChillZone Votes", total = total, online = 1, leader = "Lead",
 			officers = { { name = officer } } })), sender)
 	end
 	With({}, function(clock)
 		eq(Send("Vann-Realm", 200, "Duke"), true); eq(Send("Vbob-Realm", 200, "Duke"), true)
 		clock.now = NOW + D.FRESH - 60
 		eq(Send("Vcid-Realm", 260, "Usurper"), false, "the row under FRESH old: outvoted, the row stays")
-		eq(ns.rdb.guilds["Olympus Votes"].total, 200)
+		eq(ns.rdb.guilds["ChillZone Votes"].total, 200)
 	end)
 	With({}, function(clock)
 		eq(Send("Vann-Realm", 200, "Duke"), true); eq(Send("Vbob-Realm", 200, "Duke"), true)
 		clock.now = NOW + D.FRESH + 60
 		eq(Send("Vcid-Realm", 260, "Usurper"), true, "the row past FRESH: the newer report replaces it, though the others' votes still stand")
-		local g = ns.rdb.guilds["Olympus Votes"]
+		local g = ns.rdb.guilds["ChillZone Votes"]
 		eq(g.total, 260); eq(g.reporterFull, "Vcid-Realm"); eq(g.outvoted, nil)
 	end)
 end)
 
 test("census clean: as the census page says (S3): a guild /who saw that this client holds a relay of is not listed as seen", function()
-	With({ global = { ["olympus relayed"] = { name = "Olympus Relayed", total = 70, online = 5, avg10 = 400, observed = NOW - 300 } },
-		seen = { ["Olympus Relayed"] = { online = 4, t = NOW - 60 }, ["Olympus Seen"] = { online = 7, t = NOW - 60 } } }, function()
+	With({ global = { ["chillzone relayed"] = { name = "ChillZone Relayed", total = 70, online = 5, avg10 = 400, observed = NOW - 300 } },
+		seen = { ["ChillZone Relayed"] = { online = 4, t = NOW - 60 }, ["ChillZone Seen"] = { online = 7, t = NOW - 60 } } }, function()
 		local s = D.Summary()
-		eq(#s.seen, 1, "only the guild of which this client holds no report or relay"); eq(s.seen[1].name, "Olympus Seen")
+		eq(#s.seen, 1, "only the guild of which this client holds no report or relay"); eq(s.seen[1].name, "ChillZone Seen")
 		eq(s.characters, 70, "the relay counts; /who adds nothing")
 	end)
 end)
@@ -446,7 +446,7 @@ end)
 test("census clean: last good sizes older than Data.KEEP go at login", function()
 	With({ guilds = Army() }, function(clock)
 		C.Compute()
-		assert(ns.rdb.censusClean.sizes["olympus agreed"], "kept")
+		assert(ns.rdb.censusClean.sizes["chillzone agreed"], "kept")
 		clock.now = NOW + D.KEEP + 1
 		C.Prune()
 		eq(next(ns.rdb.censusClean.sizes), nil)
@@ -459,8 +459,8 @@ test("census stats section: the page's figures and series, the sanitized census 
 		HourSeries = function() return { { ago = 1 }, { t = NOW - 600, c = 490, p = 487, o = 41 } } end,
 		AverageLevel = function() return "40.0" end,
 	}
-	With({ guilds = Army(), banned = { ["Olympus Banned"] = true }, alts = { ["Olympus Home"] = 3 }, page = page }, function()
-		local section = assert(OlympusBridge.GetSection("stats"), "the section")
+	With({ guilds = Army(), banned = { ["ChillZone Banned"] = true }, alts = { ["ChillZone Home"] = 3 }, page = page }, function()
+		local section = assert(ChillZoneBridge.GetSection("stats"), "the section")
 		eq(section.version, 1)
 		local data, s = section.data, D.Summary()
 		eq(data.characters, s.characters); eq(data.people, s.total); eq(data.linkedAlts, s.alts); eq(data.online, s.online)
@@ -471,17 +471,17 @@ test("census stats section: the page's figures and series, the sanitized census 
 		eq(data.avgLevel, "40.0")
 		eq(data.registered, nil, "not counted yet"); eq(data.accounts, nil)
 		eq(data.confidence.disputed, 60)
-		eq(data.banned.list[1], "40~Olympus Banned")
-		eq(data.departed.list[1], ("30~%d~Olympus Gone"):format(NOW - 2 * 86400))
+		eq(data.banned.list[1], "40~ChillZone Banned")
+		eq(data.departed.list[1], ("30~%d~ChillZone Gone"):format(NOW - 2 * 86400))
 		eq(#data.days, 2, "a day without a sample is left out")
 		eq(data.days[2], ("%d~490~487~41"):format(NOW))
 		eq(data.hours[1], ("%d~490~487~41"):format(NOW - 600))
-		eq(data.guilds[1], "200~20~10~400~confirmed~Olympus Agreed")
+		eq(data.guilds[1], "200~20~10~400~confirmed~ChillZone Agreed")
 		eq(#data.guilds, 5)
 	end)
 	-- A build without the census page: the figures still go, without the series.
 	With({ guilds = Army() }, function()
-		local data = assert(OlympusBridge.GetSection("stats")).data
+		local data = assert(ChillZoneBridge.GetSection("stats")).data
 		eq(data.people, D.Summary().total)
 		eq(#data.days, 0); eq(#data.hours, 0); eq(data.avgLevel, nil)
 	end)
@@ -496,7 +496,7 @@ test("census stats section: validated people only from a moderation team client,
 		Count = function() return 3 end,
 	}
 	local ok, err = pcall(With, { guilds = Army() }, function()
-		local data = assert(OlympusBridge.GetSection("stats")).data
+		local data = assert(ChillZoneBridge.GetSection("stats")).data
 		eq(data.validated.battleTags, 2); eq(data.validated.characters, 3)
 		local function Holds(t, depth)
 			for k, v in pairs(t) do
@@ -506,7 +506,7 @@ test("census stats section: validated people only from a moderation team client,
 		end
 		eq(Holds(data.validated, 0), nil, "no tag or name")
 		team = false
-		eq(assert(OlympusBridge.GetSection("stats")).data.validated, nil, "any other client: none")
+		eq(assert(ChillZoneBridge.GetSection("stats")).data.validated, nil, "any other client: none")
 	end)
 	ns.Accord = saved
 	if not ok then error(err, 0) end
@@ -519,7 +519,7 @@ end)
 test("census stats section: peopleEstimate only while a team client's estimate shows, a whole number; its staff figures and rate off the King's stream; a member's client sends none; never a tag or a name", function()
 	local ROOT = (debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]census%-clean%.lua$")) or "./"
 	local cns = setmetatable({ rdb = {}, On = function() end, Every = function() end }, { __index = ns })
-	assert(loadfile(ROOT .. "Olympus/CensusStats.lua"))("Olympus", cns)
+	assert(loadfile(ROOT .. "ChillZone/CensusStats.lua"))("ChillZone", cns)
 	local savedAccord, savedSample = ns.Accord, ns.Alts.Sample
 	local team, stream, alts, tags = false, false, { 250, 100 }, { 60, 50 }
 	ns.Accord = { TeamShown = function() return team end, Stream = function() return stream end,
@@ -532,16 +532,16 @@ test("census stats section: peopleEstimate only while a team client's estimate s
 			if type(v) == "table" and depth < 5 then local found = Holds(v, depth + 1) if found then return found end end
 		end
 	end
-	local ok, err = pcall(With, { guilds = Army(), banned = { ["Olympus Banned"] = true }, alts = { ["Olympus Home"] = 3 }, page = cns.CensusStats }, function()
+	local ok, err = pcall(With, { guilds = Army(), banned = { ["ChillZone Banned"] = true }, alts = { ["ChillZone Home"] = 3 }, page = cns.CensusStats }, function()
 		local s = D.Summary()
 		eq(s.characters, 490); eq(s.total, 487)
 		-- An ordinary member: his header's plain count, so no estimate: the Companion shows `people`.
-		local data = assert(OlympusBridge.GetSection("stats")).data
+		local data = assert(ChillZoneBridge.GetSection("stats")).data
 		eq(data.peopleEstimate, nil, "a member's client: no estimate")
 		eq(data.people, 487, "the plain count, as before"); eq(data.validated, nil, "no validated figures off the team")
 		-- A moderation team client: 50 validated accounts of 60 characters, 50 + 430 / 1.2 = 408.
 		team = true
-		data = assert(OlympusBridge.GetSection("stats")).data
+		data = assert(ChillZoneBridge.GetSection("stats")).data
 		eq(data.peopleEstimate, 408); eq(type(data.peopleEstimate), "number", "a whole number, as the Companion reads it")
 		eq(data.people, 487, "people keeps its meaning")
 		eq(data.validated.battleTags, 1); eq(data.validated.characters, 1, "the store's own figures, as before")
@@ -552,7 +552,7 @@ test("census stats section: peopleEstimate only while a team client's estimate s
 		-- of the staff's figures his page hides there: no rate, no counted validated ones. (The
 		-- store's own two figures are sent as before.)
 		stream = true
-		data = assert(OlympusBridge.GetSection("stats")).data
+		data = assert(ChillZoneBridge.GetSection("stats")).data
 		eq(data.peopleEstimate, 408)
 		eq(data.validated.countedBattleTags, nil); eq(data.validated.countedCharacters, nil); eq(data.validated.unvalidated, nil)
 		eq(data.validated.rate, nil)
@@ -560,10 +560,10 @@ test("census stats section: peopleEstimate only while a team client's estimate s
 		-- A team client whose own sample is too small: the plain count as members see it, so no
 		-- estimate; off the stream its counted figures still go, without a rate.
 		tags = { 6, 5 }
-		data = assert(OlympusBridge.GetSection("stats")).data
+		data = assert(ChillZoneBridge.GetSection("stats")).data
 		eq(data.peopleEstimate, nil); eq(data.validated.countedBattleTags, nil, "still on the stream")
 		stream = false
-		data = assert(OlympusBridge.GetSection("stats")).data
+		data = assert(ChillZoneBridge.GetSection("stats")).data
 		eq(data.peopleEstimate, nil); eq(data.validated.countedBattleTags, 5); eq(data.validated.unvalidated, 484)
 		eq(data.validated.rate, nil, "no rate made the number")
 	end)
@@ -577,11 +577,11 @@ test("census stats section: peopleEstimate is the page's own estimate, and absen
 	local page = { PeopleEstimate = function() return { shown = 480, approx = approx, people = 487 } end,
 		StaffShown = function() return false end }
 	With({ guilds = Army(), page = page }, function()
-		eq(assert(OlympusBridge.GetSection("stats")).data.peopleEstimate, 480, "the header's estimate, as the page shows it")
+		eq(assert(ChillZoneBridge.GetSection("stats")).data.peopleEstimate, 480, "the header's estimate, as the page shows it")
 		approx = false
-		eq(assert(OlympusBridge.GetSection("stats")).data.peopleEstimate, nil, "the plain count: none")
+		eq(assert(ChillZoneBridge.GetSection("stats")).data.peopleEstimate, nil, "the plain count: none")
 	end)
 	With({ guilds = Army() }, function()
-		eq(assert(OlympusBridge.GetSection("stats")).data.peopleEstimate, nil, "no estimate without the page")
+		eq(assert(ChillZoneBridge.GetSection("stats")).data.peopleEstimate, nil, "no estimate without the page")
 	end)
 end)

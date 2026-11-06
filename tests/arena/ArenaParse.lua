@@ -6,7 +6,7 @@ local H = ...
 local test, eq = H.test, H.eq
 
 local ns = {}
-assert(loadfile(H.ADDON_DIR .. "ArenaParse.lua"))("Olympus", ns)
+assert(loadfile(H.ADDON_DIR .. "ArenaParse.lua"))("ChillZone", ns)
 local P = ns.ArenaParse
 
 local NONE = {}
@@ -1042,14 +1042,14 @@ test("1.2 ArenaParse: loading the module writes no global, and its code names no
 	local before = {}
 	for k in pairs(_G) do before[k] = true end
 	local fresh = {}
-	assert(loadfile(H.ADDON_DIR .. "ArenaParse.lua"))("Olympus", fresh)
+	assert(loadfile(H.ADDON_DIR .. "ArenaParse.lua"))("ChillZone", fresh)
 	for k in pairs(_G) do eq(before[k], true, "a new global: " .. tostring(k)) end
 	eq(type(fresh.ArenaParse), "table")
 	local file = assert(io.open(H.ADDON_DIR .. "ArenaParse.lua", "rb"))
 	local code = file:read("*a"):gsub("%-%-[^\n]*", "")   -- the code, not its comments
 	file:close()
 	for _, word in ipairs({ "CreateFrame", "RegisterEvent", "RegisterUnitEvent", "C_Timer", "SendAddonMessage", "SendChatMessage",
-		"ns.On", "ns.Every", "ns.db", "ns.rdb", "OlympusDB", "OlympusArenaDB", "Comm", "setglobal", "rawset" }) do
+		"ns.On", "ns.Every", "ns.db", "ns.rdb", "ChillZoneDB", "ChillZoneArenaDB", "Comm", "setglobal", "rawset" }) do
 		eq(code:find(word, 1, true), nil, word)
 	end
 end)

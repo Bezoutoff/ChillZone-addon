@@ -10,14 +10,14 @@ local function Setup(w, name, options)
 	c.K = BoardUI.New(function() return w.clock end)
 	c.K.Install(c.globals)
 	w:As(c, function()
-		assert(loadfile(H.ADDON_DIR .. "Filter.lua"))("Olympus", c.ns)
-		assert(loadfile(H.ADDON_DIR .. "Views.lua"))("Olympus", c.ns)
-		assert(loadfile(H.ADDON_DIR .. "ChatWindow.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Filter.lua"))("ChillZone", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Views.lua"))("ChillZone", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "ChatWindow.lua"))("ChillZone", c.ns)
 	end)
 	return c
 end
 local function Command(w, c, tail)
-	return w:As(c, function() return c.slashes.OLYMPUS("arena sim " .. tail) end)
+	return w:As(c, function() return c.slashes.CHILLZONE("arena sim " .. tail) end)
 end
 local function Copy(value)
 	if type(value) ~= "table" then return value end

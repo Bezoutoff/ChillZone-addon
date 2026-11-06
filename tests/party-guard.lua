@@ -12,7 +12,7 @@ local function Scene(fn)
 	}
 	local w = {
 		now = 2000000000, kingAt = true, localKing = false, member = true, gamepad = false,
-		rosterName = nil, rosterAt = nil, ownGuild = "Olympus Test", seen = {}, searches = {},
+		rosterName = nil, rosterAt = nil, ownGuild = "ChillZone Test", seen = {}, searches = {},
 		seenReads = 0, room = true, combat = false, invited = {}, printed = {}, dialog = nil, units = {},
 	}
 	local ok, err = pcall(function()
@@ -144,10 +144,10 @@ test("party guard: guild status only comes from fresh roster, explicit who, or a
 		assert(G.OnWhisper("invite me", "Unknown-Realm"))
 		local unknown = assert(Candidate("Unknown-Realm"))
 		eq(unknown.evidence, nil)
-		w.seen[unknown.name] = { guild = "Olympus Test", age = 0 }
+		w.seen[unknown.name] = { guild = "ChillZone Test", age = 0 }
 		eq(assert(Candidate(unknown.name)).evidence, nil, "an older global /who cache is never evidence")
 		eq(w.seenReads, 0, "Party Guard never reads the global /who cache")
-		eq(G.OnWhoSeen(unknown.name, "Olympus Test"), false, "an unsolicited /who row is not evidence")
+		eq(G.OnWhoSeen(unknown.name, "ChillZone Test"), false, "an unsolicited /who row is not evidence")
 		local verify = assert(Has(G.Lines(), ns.L.PARTY_GUARD_VERIFY))
 		assert(verify.text:find("manually", 1, true), "the row says verification is manual")
 		assert(Has(ns.Views.Build("census"), ns.L.PARTY_GUARD_TITLE:format(1)), "the non-modal rows are in the Census")
@@ -156,11 +156,11 @@ test("party guard: guild status only comes from fresh roster, explicit who, or a
 		eq(#w.searches, 1); eq(w.searches[1][1], true); eq(w.searches[1][3], "Unknown-Realm")
 		eq(unknown.evidence, nil, "sending /who alone proves nothing")
 		w.now = sentAt - 1
-		eq(G.OnWhoSeen(unknown.name, "Olympus Test"), false, "a result older than the request and verification is rejected")
+		eq(G.OnWhoSeen(unknown.name, "ChillZone Test"), false, "a result older than the request and verification is rejected")
 		w.now = sentAt
-		assert(G.OnWhoSeen(unknown.name, "Olympus Test"))
+		assert(G.OnWhoSeen(unknown.name, "ChillZone Test"))
 		local found = assert(Candidate(unknown.name))
-		eq(found.evidence.status, "olympus"); eq(found.evidence.source, "who")
+		eq(found.evidence.status, "chillzone"); eq(found.evidence.source, "who")
 		assert(Has(G.Lines(), ns.L.PARTY_GUARD_SOURCE_WHO), "source and age are visible")
 		found.who.at = w.now - G.EVIDENCE_TTL - 1
 		eq(assert(Candidate(unknown.name)).evidence, nil, "stale who becomes Unknown")
@@ -169,8 +169,8 @@ test("party guard: guild status only comes from fresh roster, explicit who, or a
 		assert(G.OnWhisper("inv", "First-Realm")); assert(G.OnWhisper("inv", "Second-Realm"))
 		local first, second = assert(Candidate("First-Realm")), assert(Candidate("Second-Realm"))
 		assert(G.Verify(first))
-		eq(G.OnWhoSeen(second.name, "Olympus Test"), false, "verification is exact to one candidate")
-		assert(G.OnWhoSeen(first.name, "Olympus Test"))
+		eq(G.OnWhoSeen(second.name, "ChillZone Test"), false, "verification is exact to one candidate")
+		assert(G.OnWhoSeen(first.name, "ChillZone Test"))
 		eq(G.OnWhoSeen(first.name, "Other Guild"), false, "one verification cannot authorize later rows")
 
 		G.ResetForTests()
@@ -178,28 +178,28 @@ test("party guard: guild status only comes from fresh roster, explicit who, or a
 		local failed = assert(Candidate("Failed-Realm"))
 		w.searchResult = false
 		eq(G.Verify(failed), false)
-		eq(G.OnWhoSeen(failed.name, "Olympus Test"), false, "a refused search leaves no pending verification")
+		eq(G.OnWhoSeen(failed.name, "ChillZone Test"), false, "a refused search leaves no pending verification")
 		w.searchResult = true
 		w.searchError = "send failed"
 		local ok = pcall(G.Verify, failed)
 		eq(ok, false)
-		eq(G.OnWhoSeen(failed.name, "Olympus Test"), false, "a failed search leaves no pending verification")
+		eq(G.OnWhoSeen(failed.name, "ChillZone Test"), false, "a failed search leaves no pending verification")
 		w.searchError = nil
 		assert(G.Verify(failed))
 		w.now = w.now + G.VERIFY_TTL + 1
-		eq(G.OnWhoSeen(failed.name, "Olympus Test"), false, "a late unrelated /who row cannot satisfy an expired verification")
+		eq(G.OnWhoSeen(failed.name, "ChillZone Test"), false, "a late unrelated /who row cannot satisfy an expired verification")
 
 		G.ResetForTests()
 		w.rosterName, w.rosterAt = "Member-Realm", w.now
 		assert(G.OnWhisper("inv", w.rosterName))
 		local member = assert(Candidate(w.rosterName))
-		eq(member.evidence.status, "olympus"); eq(member.evidence.source, "roster")
+		eq(member.evidence.status, "chillzone"); eq(member.evidence.source, "roster")
 		w.rosterAt = nil
 		eq(assert(Candidate(w.rosterName)).evidence, nil, "stale roster is not authority")
 
 		G.ResetForTests()
 		assert(G.OnWhisper("group invite please", "Visible-Realm"))
-		w.units.target = { name = "SomeoneElse", realm = "Realm", guild = "Olympus Test" }
+		w.units.target = { name = "SomeoneElse", realm = "Realm", guild = "ChillZone Test" }
 		eq(G.ObserveUnit("target"), false, "a different target cannot verify the requester")
 		w.units.target = { name = "Visible", realm = "Realm", guild = "Other Guild" }
 		assert(G.ObserveUnit("target"))
@@ -247,7 +247,7 @@ test("party guard: invitations are manual and recheck King, identity, evidence, 
 		local outsider = assert(Candidate("Outsider-Realm"))
 		assert(G.Verify(outsider)); assert(G.OnWhoSeen(outsider.name, "Other Guild"))
 		assert(G.RequestInvite(outsider)); eq(#w.invited, before, "warning is not an invite")
-		eq(w.dialog.which, "OLYMPUS_PARTY_GUARD_OUTSIDER")
+		eq(w.dialog.which, "CHILLZONE_PARTY_GUARD_OUTSIDER")
 		w.now = w.now + 30
 		assert(G.ConfirmOutsider(w.dialog.data)); eq(#w.invited, before + 1, "manual override")
 
@@ -258,8 +258,8 @@ test("party guard: invitations are manual and recheck King, identity, evidence, 
 		assert(G.RequestInvite(changed))
 		local decision = w.dialog.data
 		w.now = w.now + 1
-		w.seen[changed.name] = { guild = "Olympus Test", age = 0 }
-		changed.who = { guild = "Olympus Test", at = w.now }
+		w.seen[changed.name] = { guild = "ChillZone Test", age = 0 }
+		changed.who = { guild = "ChillZone Test", at = w.now }
 		eq(G.ConfirmOutsider(decision), false, "stale confirmation cannot invite after evidence changes")
 		eq(#w.invited, before + 1)
 	end)
@@ -269,13 +269,13 @@ test("party guard: English and pt-BR user-facing copy have matching format contr
 	local pt = { L = setmetatable({}, { __index = ns.L }) }
 	local savedLocale = GetLocale
 	GetLocale = function() return "ptBR" end
-	local ok, err = pcall(function() assert(loadfile(ROOT .. "Olympus/Locales.lua"))("Olympus", pt) end)
+	local ok, err = pcall(function() assert(loadfile(ROOT .. "ChillZone/Locales.lua"))("ChillZone", pt) end)
 	GetLocale = savedLocale
 	if not ok then error(err, 0) end
 	pt = pt.L
 	local keys = {
 		"HELP_PARTY_GUARD", "PARTY_GUARD_TITLE", "PARTY_GUARD_TIP", "PARTY_GUARD_NEW", "PARTY_GUARD_UNKNOWN",
-		"PARTY_GUARD_OLYMPUS", "PARTY_GUARD_OUTSIDER", "PARTY_GUARD_GUILD_UNKNOWN",
+		"PARTY_GUARD_CHILLZONE", "PARTY_GUARD_OUTSIDER", "PARTY_GUARD_GUILD_UNKNOWN",
 		"PARTY_GUARD_NO_GUILD", "PARTY_GUARD_SOURCE_NONE", "PARTY_GUARD_SOURCE_ROSTER",
 		"PARTY_GUARD_SOURCE_WHO", "PARTY_GUARD_SOURCE_DIRECT", "PARTY_GUARD_DETAIL",
 		"PARTY_GUARD_VERIFY", "PARTY_GUARD_VERIFY_GAMEPAD", "PARTY_GUARD_INVITE",
@@ -363,7 +363,7 @@ test("party guard 1.3.4: a repeat request from a player already invited (or alre
 end)
 
 -- 1.4.0: a Legate's "Invite online member to raid" (WarSquads.lua) through Guard.InviteGuildmate. The
--- click is the only trigger and a fresh roster of the player's own Olympus guild the only evidence:
+-- click is the only trigger and a fresh roster of the player's own ChillZone guild the only evidence:
 -- it is not the whisper inbox, so neither the King's presence nor Party Guard's switch gates it.
 test("party guard: a Legate's raid invite takes only a fresh own-guild roster, inside the click, whoever else is online", function()
 	Scene(function(w)
@@ -379,7 +379,7 @@ test("party guard: a Legate's raid invite takes only a fresh own-guild roster, i
 		local invited = #w.invited
 
 		-- Nothing else is evidence: a stale roster, a name it does not list, a direct observation
-		-- or a /who answer of an Olympus guild, a whisper.
+		-- or a /who answer of an ChillZone guild, a whisper.
 		w.rosterAt = nil
 		eq(G.InviteGuildmate("Squad-Realm"), false, "a stale roster cannot authorize it")
 		eq(w.printed[#w.printed], ns.L.SQUAD_INVITE_GONE:format(ns.DisplayName("Squad-Realm") or "Squad-Realm"))
@@ -390,13 +390,13 @@ test("party guard: a Legate's raid invite takes only a fresh own-guild roster, i
 		eq(#w.searches, 0, "and no /who is started for it")
 		eq(#w.invited, invited)
 
-		-- Only a member of an Olympus guild, in his own guild's roster.
+		-- Only a member of an ChillZone guild, in his own guild's roster.
 		w.member = false
 		eq(G.InviteGuildmate("Squad-Realm"), false, "not a member (or before the Accord)")
 		w.member = true
 		w.ownGuild = "Other Guild"
-		eq(G.InviteGuildmate("Squad-Realm"), false, "not an Olympus guild")
-		w.ownGuild = "Olympus Test"
+		eq(G.InviteGuildmate("Squad-Realm"), false, "not an ChillZone guild")
+		w.ownGuild = "ChillZone Test"
 		eq(#w.invited, invited)
 
 		-- The game's rules for an invite: out of combat, room in the group, the client's function.
@@ -421,7 +421,7 @@ test("party guard: a Legate's raid invite takes only a fresh own-guild roster, i
 		eq(G.InviteGuildmate(nil), false); eq(G.InviteGuildmate(""), false)
 
 		-- With the gamepad UI the click's invite is the same (the gate's "click" guard: the
-		-- player's own click on Olympus's button), and still no /who.
+		-- player's own click on ChillZone's button), and still no /who.
 		w.gamepad = true
 		eq(G.InviteGuildmate("Squad-Realm"), true)
 		eq(#w.invited, invited + 1); eq(#w.searches, 0)

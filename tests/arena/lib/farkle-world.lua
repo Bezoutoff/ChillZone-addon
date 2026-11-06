@@ -19,7 +19,7 @@ local FW = {}
 
 FW.DRUNK = assert(loadfile(H.ROOT .. "tests/fixtures/arena-drunk-strings.lua"))()
 FW.ROLL = "%s rolls %d (%d-%d)"
--- The Goldshire inn's rest area (Olympus/ArenaPlaces.lua: cont 0, -9465.6, 16.8, r 30).
+-- The Goldshire inn's rest area (ChillZone/ArenaPlaces.lua: cont 0, -9465.6, 16.8, r 30).
 FW.INN = { cont = 0, wx = -9465.6, wy = 16.8 }
 FW.ROAD = { cont = 0, wx = -9400.0, wy = 16.8 } -- 65 yd north of it: no inn
 

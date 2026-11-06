@@ -20,7 +20,7 @@ M.SOURCE = "docs/CURSEFORGE.md"
 M.TARGET = "docs/CURSEFORGE-STORE.md"
 M.README = "README.md"
 M.ROADMAP = "ROADMAP.md"
-M.TOC = "Olympus/Olympus.toc"
+M.TOC = "ChillZone/ChillZone.toc"
 M.REPO = "https://github.com/dnl-gentile/olympus-addon"
 M.RECENT = 3 -- versions under "Recent versions": the TOC's and the two before it
 
@@ -36,7 +36,7 @@ M.CUTS = {
 	{ title = "Privacy", keep = 1 },
 	{ title = "Security and trust", keep = 2 },
 	{ title = "What colluding characters can reach", keep = 1 },
-	{ title = "The Missionary Church of Olympus (1.1.6)", keep = 1 }, -- (1.1.6: its details stay in the README)
+	{ title = "The Missionary Church of ChillZone (1.1.6)", keep = 1 }, -- (1.1.6: its details stay in the README)
 	-- (1.2.4: the page grew past the budget with the API's section: the menu's lines stay, its
 	-- Explanations and Answers paragraph is the README's.)
 	{ title = "Right-click a player (1.1.2)", keep = 2 },
@@ -51,28 +51,28 @@ M.CUTS = {
 	{ title = "Layer hop: join the King's layer without begging in chat", keep = 4 },
 	-- (1.2.5: the API's leader presence and wider area scope pushed it past the budget again: the
 	-- API's opening paragraph stays; its page-surface paragraph and the authors' link are the README's.)
-	{ title = "Other addons: the Olympus API (1.2.4)", keep = 1 },
+	{ title = "Other addons: the ChillZone API (1.2.4)", keep = 1 },
 	-- (1.2.5.1 release integration: the merged lanes passed the budget by a few dozen bytes: the
 	-- Steward's "what he never does" paragraph is the README's.)
-	-- (1.2.5.1: the chat warnings, the Companion bridge and the Olympus Accord's line together passed
+	-- (1.2.5.1: the chat warnings, the Companion bridge and the ChillZone Accord's line together passed
 	-- the budget: a High Councillor's tooltip paragraph is the README's.)
 	{ title = "Person details", keep = 1 },
-	-- (1.2.6: the Olympus Companion named in the privacy section's first words passed the budget:
+	-- (1.2.6: the ChillZone Companion named in the privacy section's first words passed the budget:
 	-- the alt links' rules are the README's; their opening stays.)
 	{ title = "Alt links (1.1): one player, counted once", keep = 1 },
 }
 
 -- The commands table's rows that stay, by their first command as the table writes it. (1.2.4: the
--- page past the budget with the role rooms' section: /oly approved's row is the README's.)
+-- page past the budget with the role rooms' section: /cz approved's row is the README's.)
 M.COMMANDS_TITLE = "Commands"
 M.COMMANDS = {
-	"/oly", "/oly realm", "/oly privacy", "/oly chat on\\|off", "/ol <text>", "/oly talk [olympus\\|captains\\|lords]",
-	"/oly mute olympus", "/oly chatwindow tab", "/oly hop", "/oly lfg", "/oly week", "/oly craft [item or name]",
-	"/oly loot", "/oly helpme [text]", "/oly location on", "/oly borders on",
-	"/oly nameplates on", "/oly chatmarks on", "/oly block <name>", "/oly filter add\\|remove <word>",
-	"/oly alt add Name", "/oly sound", "/oly bug", "/oly status",
+	"/cz", "/cz realm", "/cz privacy", "/cz chat on\\|off", "/czn <text>", "/cz talk [chillzone\\|captains\\|lords]",
+	"/cz mute chillzone", "/cz chatwindow tab", "/cz hop", "/cz lfg", "/cz week", "/cz craft [item or name]",
+	"/cz loot", "/cz helpme [text]", "/cz location on", "/cz borders on",
+	"/cz nameplates on", "/cz chatmarks on", "/cz block <name>", "/cz filter add\\|remove <word>",
+	"/cz alt add Name", "/cz sound", "/cz bug", "/cz status",
 }
--- (1.4.0: /oly discord's row is the README's: Olympus Link is its own addon, Olympus_Link.)
+-- (1.4.0: /cz discord's row is the README's: ChillZone Link is its own addon, ChillZone_Link.)
 
 local function Read(path)
 	local f = io.open(path, "rb")
@@ -269,7 +269,7 @@ local function RecentSection(recent)
 		end
 	end
 	body[#body + 1] = ""
-	body[#body + 1] = ("Every version's notes are in the [GitHub releases](%s/releases). This page is the short one for CurseForge: the [README](%s#olympus) has every section in full."):format(M.REPO, M.REPO)
+	body[#body + 1] = ("Every version's notes are in the [GitHub releases](%s/releases). This page is the short one for CurseForge: the [README](%s#chillzone) has every section in full."):format(M.REPO, M.REPO)
 	body[#body + 1] = ""
 	return { heading = "## Recent versions", title = "Recent versions", level = 2, body = body }
 end

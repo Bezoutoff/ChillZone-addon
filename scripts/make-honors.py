@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Brings the honours' finished frames and marks into the addon: Olympus/media/honors/ (1.2).
+"""Brings the honours' finished frames and marks into the addon: ChillZone/media/honors/ (1.2).
 
-The frames were finished in the frame lab (the throwaway OlympusFrameLab addon, where each was
+The frames were finished in the frame lab (the throwaway ChillZoneFrameLab addon, where each was
 seen in game on a portrait and a nameplate) as WoW-ready textures, the format of the addon's other
-art (Olympus/media/borders, scripts/make-borders.py): 32-bit uncompressed true colour with an
+art (ChillZone/media/borders, scripts/make-borders.py): 32-bit uncompressed true colour with an
 8-bit alpha channel (TGA type 2), bottom-left origin, the TGA 2.0 footer; a frame on a 256 x 256
 canvas with its art at the top left (winged 220 x 180, plain 200 x 200: Borders.lua's texture
 coordinates), a nameplate mark on 32 x 32. The lab names each frame <name>.tga (gold; the
@@ -17,7 +17,7 @@ time donors), the koi (the month's donors), the raven (the Oracle) and the comet
 each in gold, silver and bronze; the best guild's owl in gold alone. The lab's other files (the
 raw and colour drafts, the phoenix, the dragon, the owl's silver and bronze) stay out.
 
-1.2.1: the new frames, a preview only (the author's /oly borders test; no honour names them, so
+1.2.1: the new frames, a preview only (the author's /cz borders test; no honour names them, so
 nobody can be awarded or wear them): the Apostles' cross, the Bones' charm and the skyborn's
 owlcat in gold, silver and bronze, and the red cross (an Apostle's own look, on his screen alone).
 They were finished outside the lab, already in the shipped format and under their shipped names,
@@ -61,7 +61,7 @@ import struct
 import sys
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-OUTPUT = os.path.join(ROOT, "Olympus", "media", "honors")
+OUTPUT = os.path.join(ROOT, "ChillZone", "media", "honors")
 MANIFEST = os.path.join(ROOT, "media", "honors", "src", "SHA256SUMS")
 
 METALS = ("gold", "silver", "bronze")
@@ -139,7 +139,7 @@ def read_manifest():
 def write_manifest(rows):
     os.makedirs(os.path.dirname(MANIFEST), exist_ok=True)
     with open(MANIFEST, "w", encoding="utf-8", newline="\n") as f:
-        f.write("# The honours' art (Olympus/media/honors): each file's SHA-256, the frame lab's file it was\n")
+        f.write("# The honours' art (ChillZone/media/honors): each file's SHA-256, the frame lab's file it was\n")
         f.write("# copied from, and its name in the addon. Written by scripts/make-honors.py --from; checked by --check.\n")
         f.write("# 1.2.1's new frames and 1.2.3's crook name their source as ~/Downloads/olympus-new-frames/<name>.\n")
         for name, lab, digest in sorted(rows):
@@ -188,7 +188,7 @@ def main(argv):
                 continue
         if check:
             if not os.path.exists(target):
-                problems.append("missing: Olympus/media/honors/" + name)
+                problems.append("missing: ChillZone/media/honors/" + name)
                 continue
             shipped = read(target)
             why = shape_error(shipped, size)
@@ -207,7 +207,7 @@ def main(argv):
             # (--new alone) a lab file as it ships: its row kept when the file is still the one it names.
             recorded = manifest.get(name) if manifest is not None else None
             if not os.path.exists(target):
-                problems.append("missing: Olympus/media/honors/%s (bring the lab's files in with --from)" % name)
+                problems.append("missing: ChillZone/media/honors/%s (bring the lab's files in with --from)" % name)
             elif not recorded or recorded[1] != lab or recorded[0] != sha(read(target)):
                 problems.append("%s is not the lab's %s (SHA256SUMS): bring the lab's files in with --from" % (name, lab))
             else:
@@ -220,7 +220,7 @@ def main(argv):
     if os.path.isdir(OUTPUT):
         for extra in sorted(os.listdir(OUTPUT)):
             if extra.endswith(".tga") and extra not in names:
-                problems.append("not an honour's file: Olympus/media/honors/" + extra)
+                problems.append("not an honour's file: ChillZone/media/honors/" + extra)
     for extra in sorted(set(manifest or {}) - names):
         problems.append("SHA256SUMS names a file the honours do not ship: " + extra)
     if problems:

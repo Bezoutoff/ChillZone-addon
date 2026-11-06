@@ -30,7 +30,7 @@ test("Bones board layout: actual shared games footer replaces the repeated table
 	eq(built.y, 400); eq(built.h, 56); eq(p.win:GetWidth(), 800); eq(p.win:GetHeight(), 456)
 	eq(built.wood.tex, games.WOOD.file); eq(built.wood.h, games.BAR.H)
 	eq(built.wallet.coin:IsShown(), false); eq(built.wallet.balance:IsShown(), false, "existing wallet gate stays closed")
-	eq(p.win.table[1].tex, "Interface\\AddOns\\Olympus_Arena\\media\\farkle\\table")
+	eq(p.win.table[1].tex, "Interface\\AddOns\\ChillZone_Arena\\media\\farkle\\table")
 	eq(p.win.table[2].points[2].y, -400); eq(#p.win.table, 2)
 	local geo = c.ns.Arena.ui.FarkleBoard._.geo
 	eq(geo.W, 800); eq(geo.H, 400); eq(geo.SPLIT, 197); eq(geo.TRAY[1], 366); eq(geo.TRAY[2], 31)

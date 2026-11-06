@@ -1,4 +1,4 @@
--- 1.2.4, the author's ask (rankings are not lost): `/oly backup` (Olympus/Backup.lua) left out the
+-- 1.2.4, the author's ask (rankings are not lost): `/cz backup` (ChillZone/Backup.lua) left out the
 -- player's own signed halves of the Bones games and the duels that count, so after a wiped saved
 -- data his client could neither say his games again to the members who missed them nor complete
 -- them. The backup carries them now, and a restore takes each back as his own word (never the
@@ -16,7 +16,7 @@ local function NoErrors(w)
 	end
 end
 local function LoadBackup(w, c)
-	w:As(c, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("Olympus", c.ns) end)
+	w:As(c, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("ChillZone", c.ns) end)
 	c.ns.UI = c.ns.UI or {}
 	return c.ns.Backup
 end
@@ -37,7 +37,7 @@ end
 
 print("1.2.4: the backup carries the player's own halves")
 
-test("1.2.4 backup: a Bones player's own halves: in /oly backup; restored after a wipe, his game is said again and completed from the other player", function()
+test("1.2.4 backup: a Bones player's own halves: in /cz backup; restored after a wipe, his game is said again and completed from the other player", function()
 	local w = FW.New({ compliance = "shipped" })
 	local a, b = w:Player(N.fighterA), w:Player(N.fighterB)
 	w:Group({ a, b })
@@ -74,7 +74,7 @@ test("1.2.4 backup: a Bones player's own halves: in /oly backup; restored after 
 	NoErrors(w)
 end)
 
-test("1.2.4 backup: a fighter's own duel halves: in /oly backup; restored after a wipe, his duel is matched again when the other's half comes", function()
+test("1.2.4 backup: a fighter's own duel halves: in /cz backup; restored after a wipe, his duel is matched again when the other's half comes", function()
 	local w, cast = W3.New({ live = false, world = { compliance = "shipped" } })
 	cast.A.target, cast.B.target = cast.B.name, cast.A.name
 	for _, c in ipairs({ cast.A, cast.B }) do c.globals.UnitRace = function() return "Human", "Human", 1 end end

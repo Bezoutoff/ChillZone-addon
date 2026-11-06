@@ -99,7 +99,7 @@ Issue #50 remains under-specified. Before changing its safety boundary, capture:
    party, or in a raid when the prompt appeared.
 3. Whether the raid conversion happened before or after enabling "Always", and whether the
    player was leader or assistant; record group size and who was already grouped.
-4. The exact dialog/message (or a screenshot), plus the layer line from `/oly status`,
+4. The exact dialog/message (or a screenshot), plus the layer line from `/cz status`,
    including whether it says `auto-paused`.
 5. Whether the behavior survives `/reload`, and whether the prompt was accepted by mouse,
    keyboard, or gamepad.
@@ -113,7 +113,7 @@ Before release, check in the supported WoW client:
    piece leaves, the withdrawal arrives, and sharing again restores the current book.
 3. Queue LQ and LR behind other traffic, cancel or change zone/group, and verify response
    timeouts start after send and invitations from obsolete requests are not auto-accepted.
-4. Move between Olympus guilds and rotate/renumber the channel during pending work. Verify
+4. Move between ChillZone guilds and rotate/renumber the channel during pending work. Verify
    the new guild elects its own peers and old channel chat does not move to a new audience.
 5. Confirm alt guild changes on another client, including stock 1.1.4 and an older 1.1.2 client.
 

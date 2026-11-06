@@ -52,7 +52,7 @@ test("1.2.4 honour letter previews: every family uses the real framed letter wit
 		-- Use the same native-template fixture as the existing framed-letter geometry cases.
 		PreviewFrames(author)
 		-- This older fights-only world does not load the newer core Wanted adapter.
-		w:As(author, function() assert(loadfile(H.ADDON_DIR .. "Wanted.lua"))("Olympus", author.ns) end)
+		w:As(author, function() assert(loadfile(H.ADDON_DIR .. "Wanted.lua"))("ChillZone", author.ns) end)
 		local hn = author.ns.HonorsNet
 		assert(type(hn.PreviewLetter) == "function", "all-family preview is exposed")
 		eq(w:As(cast.A, cast.A.ns.HonorsNet.PreviewLetter, "bones-1"), false, "ordinary members cannot enter the Workshop preview")
@@ -138,7 +138,7 @@ test("1.2.1 the King's letter: never to the King himself: his honour switches on
 	eq(w:As(king, king.ns.HonorsNet.ShowLetter, "donor-top-1"), false, "nor on a click")
 	w:As(king, king.ns.HonorsNet.QueueLetter, "arena-champion")
 	eq(Shown(king), false); eq(#king.ns.HonorsNet.QueuedLetters(), 0, "whatever asks for one")
-	eq(w:As(king, king.ns.HonorsNet.WindowShown), false, "the Olympus window opens none")
+	eq(w:As(king, king.ns.HonorsNet.WindowShown), false, "the ChillZone window opens none")
 	-- The guild master of the King's guild where none is pinned: the same.
 	eq(gm.ns.ArenaProfile.Pick().frame, "donor-top-3")
 	eq(Shown(gm), false); eq(#gm.ns.HonorsNet.Letters(), 0)
@@ -172,7 +172,7 @@ test("1.2.1 the King's letter: once per honour per character: never again when t
 	eq(A.ns.ArenaProfile.Pick().frame, "donor-top-1")
 	eq(Shown(A), false, "no second letter for the place won back")
 	eq(#A.ns.HonorsNet.Letters(), 1, "one letter kept to read again")
-	-- A new honour: its own letter. Escape (or the game's window sweep) is Later: the Olympus
+	-- A new honour: its own letter. Escape (or the game's window sweep) is Later: the ChillZone
 	-- window's open never brings it back.
 	Word({ A, B }, Short(A.name))
 	eq(Shown(A), true, "the month's donor: a new honour, its letter")
@@ -184,7 +184,7 @@ test("1.2.1 the King's letter: once per honour per character: never again when t
 	w:As(A, onHide, letter)
 	eq(#A.ns.HonorsNet.QueuedLetters(), 0, "Escape: as Later")
 	eq(w:As(A, A.ns.HonorsNet.WindowShown), false)
-	eq(Shown(A), false, "not with the Olympus window")
+	eq(Shown(A), false, "not with the ChillZone window")
 	-- A relog (the saved profile kept): nothing again; the honours told are in it.
 	w:Logout(A)
 	w:Login(A)
@@ -275,7 +275,7 @@ test("1.2.1 the King's letter: where the save does not come back (the Forever be
 		eq(P.ns.ArenaProfile.Pick().frame, "donor-top-1", where .. ": his honour switched on")
 		eq(Shown(P), false, where .. ": no letter by itself")
 		eq(#HN.QueuedLetters(), 0, where .. ": none waiting")
-		eq(w:As(P, HN.WindowShown), false, where .. ": nor with the Olympus window")
+		eq(w:As(P, HN.WindowShown), false, where .. ": nor with the ChillZone window")
 		eq(Shown(P), false)
 		local list = HN.Letters()
 		eq(#list, 1, where .. ": kept in the Edit's list"); eq(list[1].key, "donor-top-1"); eq(list[1].read, nil, where .. ": unread")
@@ -369,11 +369,11 @@ end)
 -- The owner on the King's stream (1.2.1): the letter had no window round it, its words ran off the
 -- paper in a small font and its two buttons sat under it. On the harness's widget toolkit (its
 -- templates and anchors, a 1366 x 768 screen), every letter in English and pt-BR: the window is
--- Olympus's (ns.Window: the bronze metal, its plain corner, no portrait ring or logo), the head in
+-- ChillZone's (ns.Window: the bronze metal, its plain corner, no portrait ring or logo), the head in
 -- its title bar, the parchment inside it; the words at the letter font's 15 px (the client's
 -- GetFont and SetFont, as it answers them) wrapped inside the paper, clear of the art; the seal,
 -- the signature and both buttons inside the window and apart.
-test("1.2.1 the King's letter: its window is Olympus's own metal with the parchment inside; the words at 15 px wrapped inside the paper, the seal, signature and both buttons inside the window, every letter in English and pt-BR", function()
+test("1.2.1 the King's letter: its window is ChillZone's own metal with the parchment inside; the words at 15 px wrapped inside the paper, the seal, signature and both buttons inside the window, every letter in English and pt-BR", function()
 	local w, cast = W3.New()
 	-- (One client a language: the letter's window is made once a session, in the game's language.)
 	local CLIENTS = { enUS = cast.A, ptBR = cast.B }
@@ -384,7 +384,7 @@ test("1.2.1 the King's letter: its window is Olympus's own metal with the parchm
 	local pt = {}
 	local savedLocale = GetLocale
 	GetLocale = function() return "ptBR" end
-	local okPt, errPt = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaFightsText.lua"))("Olympus", { L = pt }) end)
+	local okPt, errPt = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaFightsText.lua"))("ChillZone", { L = pt }) end)
 	GetLocale = savedLocale
 	assert(okPt, errPt)
 	local saved = {}
@@ -413,7 +413,7 @@ test("1.2.1 the King's letter: its window is Olympus's own metal with the parchm
 					local where = lang .. " " .. key
 					eq(w:As(A, HN.ShowLetter, key), true, where)
 					local f = HN.LetterFrame()
-					eq(f.template, "DefaultPanelTemplate", where .. ": the Olympus window's metal")
+					eq(f.template, "DefaultPanelTemplate", where .. ": the ChillZone window's metal")
 					eq(f.metal, true); eq(f.NineSlice.layoutType, "ButtonFrameTemplateNoPortrait", where .. ": its plain corner, no ring")
 					eq(f.PortraitContainer, nil, where .. ": no portrait of the window's own")
 					eq(f.TitleContainer.TitleText:GetText(), L.HONOR_LETTER_HEAD, where .. ": the head in its title bar")

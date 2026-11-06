@@ -41,7 +41,7 @@ test("1.2 the money part: the subjects: written and read back; TEST anywhere aft
 	k, ref, t = Mn.ReadSubject("Arena wallet deposit TEST")
 	eq(k, "deposit"); eq(ref, nil); eq(t, true)
 	for _, kind in ipairs({ "payout", "refund", "stake", "remit" }) do eq((Mn.ReadSubject("Arena " .. kind .. " F1")), kind) end
-	eq(Mn.ReadSubject("For the treasury"), nil); eq(Mn.ReadSubject("Olympus arena fee x"), nil); eq(Mn.ReadSubject("Arena dues"), nil)
+	eq(Mn.ReadSubject("For the treasury"), nil); eq(Mn.ReadSubject("ChillZone arena fee x"), nil); eq(Mn.ReadSubject("Arena dues"), nil)
 	eq(Mn.ReadSubject(nil), nil)
 	NoErrors(w)
 end)
@@ -1022,7 +1022,7 @@ test("1.2 the money part: a direct 1v1 whose loser does not pay: his IOU and sig
 	w:Run(60)
 	eq(torvin.Debts.Open()[1].state, "l")
 	w:As(torvin, function() torvin.ns.Alts.Remove(alt.name) end)
-	eq(type(torvin.db.alts.links[alt.name:lower()]), "table", "/oly alt remove keeps the link")
+	eq(type(torvin.db.alts.links[alt.name:lower()]), "table", "/cz alt remove keeps the link")
 	-- He pays: the winner's receipt clears it; the winner now owes 6% of what he received.
 	w:Trade(torvin, selka, { aGives = 5 * G })
 	w:Run(5)
@@ -2196,7 +2196,7 @@ test("1.2 the money part: a bank's ledger in a backup is checked before it is re
 	assert(Edited(function(v) v.seq = -1 end) == nil)
 	-- Pruned entries (before a verified snapshot) leave the rest to check.
 	assert(Edited(function(v) v.entries[1], v.macs[1] = nil, nil end))
-	local toc = assert(io.open(H.ADDON_DIR .. "Olympus.toc")):read("*a")
+	local toc = assert(io.open(H.ADDON_DIR .. "ChillZone.toc")):read("*a")
 	assert(toc:find("\nBackup%.lua") < toc:find("\nWallet%.lua"), "Backup.lua before Wallet.lua")
 	NoErrors(w)
 end)

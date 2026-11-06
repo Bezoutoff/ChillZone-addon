@@ -1,13 +1,13 @@
--- Olympus/Nominees.lua as 1.2.3 ships it (the King's guild's centurions still named on the Throne, the
+-- ChillZone/Nominees.lua as 1.2.3 ships it (the King's guild's centurions still named on the Throne, the
 -- list sent and taken from the King's or a High Councillor's client), for tests/king-centurions.lua:
--- copied unchanged from `git show v1.2.3:Olympus/Nominees.lua`. What a 1.2.4 client sends to end
+-- copied unchanged from `git show v1.2.3:ChillZone/Nominees.lua`. What a 1.2.4 client sends to end
 -- that list must end it on a client of this version. Loaded like the addon loads its files:
--- loadfile("tests/fixtures/nominees-1.2.3.lua")("Olympus", ns).
+-- loadfile("tests/fixtures/nominees-1.2.3.lua")("ChillZone", ns).
 local ADDON, ns = ...
 local L = ns.L
 
 -- The guild masters' nominees (1.1.5, the author's ask after the High Council's yes): the guild
--- master of an Olympus guild names, from Olympus, up to MAX_CENTURIONS centurions and one
+-- master of an ChillZone guild names, from ChillZone, up to MAX_CENTURIONS centurions and one
 -- correspondent per department of the High Council (the named departments of the council's signed
 -- titles list, MAX_DEPTS at most): MAX people in all, members of his own guild. The addon holds the
 -- caps (an eleventh centurion, a second correspondent for a department, someone named twice, a
@@ -17,13 +17,13 @@ local L = ns.L
 -- (GetGuildInfo): nobody outside it can borrow it.
 --
 -- Where (1.1.5, the author's call on seeing the page): a tab of its own, in the Throne's place
--- (King.lua's Build; UI.lua's "throne" key). A guild master of an Olympus guild (not the King's)
+-- (King.lua's Build; UI.lua's "throne" key). A guild master of an ChillZone guild (not the King's)
 -- has it as his Guild tab, his guild's page: the King's Hands page's look and flow (King.lua's HandsLines, the
 -- Throne's parchment and ink), a title, a one-line hint, "+ Name a centurion (your target, or type
 -- a name)", his list with a click that takes the title back (asked first), the departments'
 -- correspondents (the role picker: a line per department, a click names its correspondent) and the
 -- note on how the army learns his list. And
--- `/oly nominees [centurion <name> | correspondent <n> <name> | remove <name>]` (alone: the tab).
+-- `/cz nominees [centurion <name> | correspondent <n> <name> | remove <name>]` (alone: the tab).
 --
 -- The King's own guild (1.1.5, the author's call): no guild master's Guild tab (its master is the King),
 -- but its centurions, up to MAX_CENTURIONS, on the Throne's page (the King, his Steward, his Hands
@@ -39,7 +39,7 @@ local L = ns.L
 -- character the King's guild (Borders.lua's Facts, as for every nominee).
 --
 -- How it travels, as the King's list of Hands (King.lua): the guild master's own client keeps his
--- list (ns.rdb.nominees, under his character) and sends it on the Olympus channel a few seconds
+-- list (ns.rdb.nominees, under his character) and sends it on the ChillZone channel a few seconds
 -- after each change and every EVERY seconds while he is online. Every client takes it only from
 -- that guild's master as the census proves him, the very proof the borders ask for a guild
 -- master's bronze (Borders.lua's Facts): our own guild's from our roster (the server's word),
@@ -59,8 +59,8 @@ local L = ns.L
 -- clients before 1.1.5 have no handler for NM and leave each part unread, nothing counted bad
 -- (Comm.lua). Version 1: a client takes the parts of its own version alone.
 -- The gamepad UI: the borders and marks it gives are off there, as every border (Borders.lua), and
--- its name boxes are Olympus's own dialogs (ns.ShowDialog), never the game's popups.
--- /oly status: his own list, and the lists held here (Nominees.StatusLine).
+-- its name boxes are ChillZone's own dialogs (ns.ShowDialog), never the game's popups.
+-- /cz status: his own list, and the lists held here (Nominees.StatusLine).
 
 local Nominees = {}
 ns.Nominees = Nominees
@@ -130,7 +130,7 @@ local function RosterName(name, anyRealm)
 	return not twice and found or nil
 end
 
--- An Olympus guild's name as a list may give it, or nil.
+-- An ChillZone guild's name as a list may give it, or nil.
 local function GuildName(s)
 	s = tostring(s or ""):gsub("[%c|]", "")
 	if s == "" or #s > 24 or not s:match("^[%w\128-\255 ]+$") or not ns.IsFederation(s) then return nil end
@@ -148,7 +148,7 @@ end
 -- The High Council's six departments (the author's names, 1.1.5): the correspondents' roles, one
 -- each per guild. (The signed titles list names only the departments that have councillors.)
 Nominees.DEPARTMENTS = { "Federal Treasury", "Department of War", "Council of Justice", "Association of Artisanry",
-	"Department of Heritage", "The Missionary Church of Olympus" }
+	"Department of Heritage", "The Missionary Church of ChillZone" }
 Nominees.SHIPPED_DEPARTMENTS = Nominees.DEPARTMENTS
 function Nominees.Departments()
 	local out = {}
@@ -177,7 +177,7 @@ end
 -- Who is the guild's master
 ---------------------------------------------------------------------------
 
--- This character is the guild master of an Olympus guild (the server's rank), and that guild.
+-- This character is the guild master of an ChillZone guild (the server's rank), and that guild.
 local function RealMaster()
 	if ns.IsMember() ~= true then return false end
 	local guild, _, rank = GetGuildInfo("player")
@@ -189,7 +189,7 @@ end
 -- The author's "guild master's view" (1.1.5, his ask: his character is no guild master): from the
 -- Workshop, his section shows as a guild master's would, to see and try it. Nothing it does is
 -- sent (Nominees.Send refuses it): what he names stays on his screen. Since 1.2 it is View as's
--- "Guild Master" (ViewAs.lua): that preview drives it, and /oly nominees view picks it there.
+-- "Guild Master" (ViewAs.lua): that preview drives it, and /cz nominees view picks it there.
 local function ViewAsGM()
 	local V = ns.ViewAs
 	return type(V) == "table" and not V.missing and type(V.Is) == "function" and V.Is("gm") == true
@@ -215,7 +215,7 @@ end
 function Nominees.IsMaster()
 	local real, guild = RealMaster()
 	if real then return real, guild end
-	if Nominees.DevView() then return true, GetGuildInfo("player") or "Olympus" end
+	if Nominees.DevView() then return true, GetGuildInfo("player") or "ChillZone" end
 	return false
 end
 
@@ -862,22 +862,22 @@ end
 function Nominees.Prompt(role, dept, main)
 	if main then
 		if not Nominees.MainNames() then return ns.Print(L.NOMINEES_ONLY_MAIN) end
-		return ns.ShowDialog("OLYMPUS_NOMINEE", L.NOMINEE_ROLE_CENTURION, Nominees.MainGuild(), { role = "centurion", main = true })
+		return ns.ShowDialog("CHILLZONE_NOMINEE", L.NOMINEE_ROLE_CENTURION, Nominees.MainGuild(), { role = "centurion", main = true })
 	end
 	local master, guild = Nominees.IsMaster()
 	if not master then return ns.Print(L.NOMINEES_ONLY_MASTER) end
-	return ns.ShowDialog("OLYMPUS_NOMINEE", Nominees.RoleLabel(role, dept), guild, { role = role, dept = dept })
+	return ns.ShowDialog("CHILLZONE_NOMINEE", Nominees.RoleLabel(role, dept), guild, { role = role, dept = dept })
 end
 -- Asked before a title is taken back (the box's data: his own's name; the King's guild's, a table).
 function Nominees.AskRemove(e, main)
 	if type(e) ~= "table" then return nil end
 	if main then
 		if not Nominees.MainNames() then return nil end
-		return ns.ShowDialog("OLYMPUS_NOMINEE_REMOVE", ns.DisplayName(e.name), L.NOMINEES_MAIN_ROLE:format(Nominees.MainGuild()),
+		return ns.ShowDialog("CHILLZONE_NOMINEE_REMOVE", ns.DisplayName(e.name), L.NOMINEES_MAIN_ROLE:format(Nominees.MainGuild()),
 			{ name = e.name, main = true })
 	end
 	if not Nominees.IsMaster() then return nil end
-	return ns.ShowDialog("OLYMPUS_NOMINEE_REMOVE", ns.DisplayName(e.name), Nominees.RoleLabel(e.role, e.dept), e.name)
+	return ns.ShowDialog("CHILLZONE_NOMINEE_REMOVE", ns.DisplayName(e.name), Nominees.RoleLabel(e.role, e.dept), e.name)
 end
 local function Taken(data, text)
 	data = type(data) == "table" and data or {}
@@ -994,7 +994,7 @@ function Nominees.GuildLines()
 	if master then Nominees.PageLines(lines) end
 	Para(lines, L.GUILD_DEPARTMENT_SCOPE:format(tostring(guild)), INK, { gapAfter = true })
 	local routes = { ["Federal Treasury"] = "treasury", ["Department of War"] = "war", ["Council of Justice"] = "watch",
-		["Association of Artisanry"] = "crafters", ["Department of Heritage"] = "decrees", ["The Missionary Church of Olympus"] = "church" }
+		["Association of Artisanry"] = "crafters", ["Department of Heritage"] = "decrees", ["The Missionary Church of ChillZone"] = "church" }
 	for _, department in ipairs(Nominees.Departments()) do
 		if master or preview or dept == department then
 			local name = not preview and Nominees.Correspondent(guild, department) or nil
@@ -1003,7 +1003,7 @@ function Nominees.GuildLines()
 			local route = routes[department]
 			if department == "Association of Artisanry" or department == "Department of Heritage" then
 				Para(lines, L.GUILD_DEPARTMENT_LIMITED, INK, { indent = 1 })
-			elseif department == "The Missionary Church of Olympus" then
+			elseif department == "The Missionary Church of ChillZone" then
 				Para(lines, L.GUILD_DEPARTMENT_CHURCH, INK, { indent = 1 })
 			end
 			if route then lines[#lines + 1] = Line(L.GUILD_DEPARTMENT_OPEN, INK, { indent = 1,
@@ -1040,7 +1040,7 @@ function Nominees.MainLines(lines)
 	return Para(lines, L.NOMINEES_MAIN_NOTE:format(math.floor(Nominees.FRESH / 3600)), INK)
 end
 
--- /oly status: a guild master's own list, and the lists this client holds, each its master's
+-- /cz status: a guild master's own list, and the lists this client holds, each its master's
 -- (five named, the rest counted).
 function Nominees.StatusLine()
 	local out, held, now = {}, {}, ns.Now()
@@ -1060,7 +1060,7 @@ function Nominees.StatusLine()
 	return #out > 0 and table.concat(out, ", ") or "none"
 end
 
--- `/oly nominees [centurion <name> | correspondent <n> <name> | remove <name>]`: alone, the tab
+-- `/cz nominees [centurion <name> | correspondent <n> <name> | remove <name>]`: alone, the tab
 -- (a guild master's Guild tab; the Throne, with the King's guild's centurions, for the King's people).
 -- A guild master names in his own guild; the King or a councillor, the King's guild's centurions
 -- (no correspondents there). Anyone else is told whose it is.
@@ -1100,7 +1100,7 @@ function Nominees.Slash(rest)
 	ns.Print(L.NOMINEES_USAGE)
 end
 
-StaticPopupDialogs["OLYMPUS_NOMINEE"] = {
+StaticPopupDialogs["CHILLZONE_NOMINEE"] = {
 	text = L.NOMINEES_PROMPT,
 	button1 = OKAY or "OK",
 	button2 = CANCEL or "Cancel",
@@ -1131,7 +1131,7 @@ StaticPopupDialogs["OLYMPUS_NOMINEE"] = {
 	preferredIndex = 3,
 }
 
-StaticPopupDialogs["OLYMPUS_NOMINEE_REMOVE"] = {
+StaticPopupDialogs["CHILLZONE_NOMINEE_REMOVE"] = {
 	text = L.NOMINEES_REMOVE_CONFIRM,
 	button1 = L.NOMINEES_REMOVE_BTN,
 	button2 = CANCEL or "Cancel",

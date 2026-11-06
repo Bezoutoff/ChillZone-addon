@@ -1,10 +1,10 @@
 local ns, test, eq = ...
 local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]perf%.lua$") or "./"
 
--- 1.2.1: the built-in profiler (Olympus/Perf.lua, /oly perf). Players' games stuttered with the
--- addon on while its memory and the CPU shown looked low; the profiler tells which of Olympus's
+-- 1.2.1: the built-in profiler (ChillZone/Perf.lua, /cz perf). Players' games stuttered with the
+-- addon on while its memory and the CPU shown looked low; the profiler tells which of ChillZone's
 -- calls take the time, on their own computers. Each world here is Core.lua loaded into a table of
--- its own (its ns.SafeCall, ns.Fire, events and the /oly dispatcher), the profiler over it, a clock
+-- its own (its ns.SafeCall, ns.Fire, events and the /cz dispatcher), the profiler over it, a clock
 -- that moves only when a call here moves it (w.now, milliseconds) and GetTime (w.t, seconds). The
 -- game's next frame: w.Tick() runs the timers due (C_Timer.After), as the load's end does once.
 -- before(c, Perf): what else the files register after Perf.lua, before INIT. 1.2.3: the Lua heap
@@ -12,13 +12,13 @@ local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]perf%.lua
 -- while w.realHeap), each read of it counted (w.heapReads); the game's figures per addon are
 -- w.addons, each UpdateAddOnMemoryUsage counted (w.updates).
 
-local GLOBALS = { "CreateFrame", "debugprofilestop", "GetTime", "C_Timer", "SLASH_OLYMPUS1", "SLASH_OLYMPUS2", "SLASH_OLYMPUSARENA1",
+local GLOBALS = { "CreateFrame", "debugprofilestop", "GetTime", "C_Timer", "SLASH_CHILLZONE1", "SLASH_CHILLZONE2", "SLASH_CHILLZONEARENA1",
 	"collectgarbage", "UpdateAddOnMemoryUsage", "GetAddOnMemoryUsage" }
-local SLASH = { "OLYMPUS", "OLYMPUSARENA" }
+local SLASH = { "CHILLZONE", "CHILLZONEARENA" }
 
 local function World(db, fn, before)
 	local w = { now = 0, t = 1000, frames = {}, printed = {}, errors = {}, copies = {}, timers = {},
-		heap = 50000, heapReads = 0, updates = 0, addons = { Olympus = 12345.6, Olympus_Arena = 0 } }
+		heap = 50000, heapReads = 0, updates = 0, addons = { ChillZone = 12345.6, ChillZone_Arena = 0 } }
 	local saved, slash = {}, {}
 	for _, k in ipairs(GLOBALS) do saved[k] = rawget(_G, k) end
 	for _, k in ipairs(SLASH) do slash[k] = SlashCmdList[k] end
@@ -52,7 +52,7 @@ local function World(db, fn, before)
 	local c = setmetatable({}, { __index = ns })
 	c.L = setmetatable({}, { __index = ns.L })
 	local ok, err = pcall(function()
-		assert(loadfile(ROOT .. "Olympus/Core.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Core.lua"))("ChillZone", c)
 		for _, f in ipairs(w.frames) do if f.scripts.OnEvent then w.eventFrame = f end end
 		assert(w.eventFrame, "Core.lua's event frame")
 		c.Print = function(msg) w.printed[#w.printed + 1] = tostring(msg) end
@@ -64,14 +64,14 @@ local function World(db, fn, before)
 		c.db = db
 		w.core = c.SafeCall
 		w.mark = #w.frames
-		assert(loadfile(ROOT .. "Olympus/Locales/PerfText.lua"))("Olympus", c)
-		assert(loadfile(ROOT .. "Olympus/Perf.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Locales/PerfText.lua"))("ChillZone", c)
+		assert(loadfile(ROOT .. "ChillZone/Perf.lua"))("ChillZone", c)
 		if before then before(c, c.Perf) end
 		c.Fire("INIT")
 		w.Tick() -- (the load is over: the next frame)
-		-- /oly as the login installs it with mouse and keyboard (Core.lua's own gate here).
+		-- /cz as the login installs it with mouse and keyboard (Core.lua's own gate here).
 		c.Gate.Install("slash")
-		w.slash = SlashCmdList.OLYMPUS
+		w.slash = SlashCmdList.CHILLZONE
 		function w.Frame() local f = w.frames[w.mark + 1]; return f end
 		function w.Draw() local f = w.Frame(); if f and f.scripts.OnUpdate then f.scripts.OnUpdate(f, 0.016) end end
 		function w.Report() return w.copies[#w.copies] and w.copies[#w.copies].text or "" end
@@ -93,14 +93,14 @@ local function KeyStarting(t, prefix)
 	return found
 end
 
-test("1.2.1 profiler: off it installs nothing (ns.SafeCall stays Core.lua's, no frame, nothing saved); /oly perf opens its report in the copy window; on then off puts everything back", function()
+test("1.2.1 profiler: off it installs nothing (ns.SafeCall stays Core.lua's, no frame, nothing saved); /cz perf opens its report in the copy window; on then off puts everything back", function()
 	World({}, function(P, w, c, L)
 		eq(c.SafeCall, w.core, "Core.lua's own ns.SafeCall")
 		eq(#w.frames, w.mark, "no frame made")
 		eq(c.db.perf, nil, "nothing saved")
 		eq(P.IsOn(), false)
 		w.slash("perf")
-		eq(#w.copies, 1, "/oly perf: the report in a copy window")
+		eq(#w.copies, 1, "/cz perf: the report in a copy window")
 		eq(w.copies[1].title, L.PERF_TITLE)
 		eq(w.copies[1].opts.key, "perf")
 		assert(w.Report():find(L.PERF_STATE_NEVER, 1, true), w.Report())
@@ -118,12 +118,12 @@ test("1.2.1 profiler: off it installs nothing (ns.SafeCall stays Core.lua's, no 
 		eq(c.db.perf.on, false)
 		c.SafeCall("perf test off", function() w.now = w.now + 50 end)
 		eq(c.db.perf.stats["perf test off"], nil, "a call while off is not measured")
-		-- An update without a restart: the file is missing and /oly perf says to restart.
+		-- An update without a restart: the file is missing and /cz perf says to restart.
 		c.Perf = nil
 		w.slash("perf on")
 		eq(w.printed[#w.printed], L.RESTART_NEEDED)
 	end)
-	local toc, at, n = assert(io.open(ROOT .. "Olympus/Olympus.toc")):read("*a"), {}, 0
+	local toc, at, n = assert(io.open(ROOT .. "ChillZone/ChillZone.toc")):read("*a"), {}, 0
 	for line in toc:gmatch("[^\r\n]+") do n = n + 1; at[line] = n end
 	assert(at["Perf.lua"] and at["Perf.lua"] > at["Diagnostics.lua"] and at["Perf.lua"] < at["Dialog.lua"], "Perf.lua loads early, after Core.lua's protected calls and the error capture")
 	assert(at["Locales\\PerfText.lua"] and at["Locales\\PerfText.lua"] < at["Core.lua"], "its words with the other locales")
@@ -152,7 +152,7 @@ test("1.2.1 profiler: on, each label and each listener has its own line, the slo
 		eq(p.stats["perf test slow"].max, 120)
 		eq(p.slow[1].label, "perf test slow"); eq(p.slow[1].ms, 120); eq(type(p.slow[1].at), "number")
 		eq(p.slow[2].label, k2)
-		eq(p.frames, 2); eq(p.heavy, 1, "one frame with 168 ms of Olympus's work")
+		eq(p.frames, 2); eq(p.heavy, 1, "one frame with 168 ms of ChillZone's work")
 		eq(p.worst[1].ms, 168); eq(p.worst[1].top, "perf test slow"); eq(p.worst[1].topMs, 120)
 		c.SafeCall("perf test light", function() w.now = w.now + 10 end)
 		w.Draw()
@@ -189,7 +189,7 @@ test("1.2.1 profiler: on, each label and each listener has its own line, the slo
 	end)
 end)
 
-test("1.2.1 profiler: /oly perf reset clears what it measured; on stays on through a /reload, with what it measured; off stays off", function()
+test("1.2.1 profiler: /cz perf reset clears what it measured; on stays on through a /reload, with what it measured; off stays off", function()
 	local db = {}
 	World(db, function(P, w, c, L)
 		w.slash("perf on")
@@ -259,7 +259,7 @@ end)
 
 -- The gamepad pass's client (tests/gamepad.lua: Forever's UI modelled, every reach of the game's
 -- UI recorded): the profiler on from the saved variables, in a whole session with the gamepad UI
--- on, then with mouse and keyboard and its report opened by /oly perf. It touches none of the
+-- on, then with mouse and keyboard and its report opened by /cz perf. It touches none of the
 -- game's frames (its frame is its own) and nothing it does is refused.
 -- The saved variables of a player who answered the login's questions, with the profiler on.
 local function Saved()
@@ -285,12 +285,12 @@ test("1.2.1 profiler in the gamepad pass's client: on from the saved variables i
 		assert(allocated, what .. ": a call's KB measured")
 		assert(gns.Perf.ReportText():find(pad and gns.L.PERF_INPUT_PAD or gns.L.PERF_INPUT_KEYS, 1, true), what .. ": the report says which")
 		if not pad then
-			eq(GPM.TypeSlash(C, "/oly perf"), true, "/oly perf typed")
+			eq(GPM.TypeSlash(C, "/cz perf"), true, "/cz perf typed")
 			local f = gns.UI.CopyFrame("perf")
-			assert(f and f:IsShown(), "the report in Olympus's copy window")
+			assert(f and f:IsShown(), "the report in ChillZone's copy window")
 			assert(f.text:find(gns.L.PERF_TITLE, 1, true), "its text")
 			assert(f.text:find(gns.L.PERF_MEMORY_NOW:match("^(.-)%%s"), 1, true), "the memory now, the game's figures")
-			eq(GPM.TypeSlash(C, "/oly perf off"), true)
+			eq(GPM.TypeSlash(C, "/cz perf off"), true)
 			eq(gns.Perf.IsOn(), false)
 		end
 		GPM.Check(C.ledger, what)
@@ -427,7 +427,7 @@ test("1.2.1 profiler: a label keeps nothing that changes from call to call (a na
 	end)
 end)
 
-test("1.2.1 profiler: /oly help lists /oly perf, so does the README's table of commands, and each of its words has its pt-BR", function()
+test("1.2.1 profiler: /cz help lists /cz perf, so does the README's table of commands, and each of its words has its pt-BR", function()
 	World({}, function(P, w, c, L)
 		local printed, savedPrint = {}, print
 		print = function(s) printed[#printed + 1] = tostring(s) end
@@ -435,17 +435,17 @@ test("1.2.1 profiler: /oly help lists /oly perf, so does the README's table of c
 		print = savedPrint
 		assert(ok, err)
 		assert(rawget(c.L, "HELP_CMD_PERF"), "its line, from PerfText.lua")
-		assert(table.concat(printed, "\n"):find(L.HELP_CMD_PERF, 1, true), "in /oly help")
+		assert(table.concat(printed, "\n"):find(L.HELP_CMD_PERF, 1, true), "in /cz help")
 	end)
 	local readme = assert(io.open(ROOT .. "README.md")):read("*a")
-	assert(readme:find("\n| `/oly perf`", 1, true), "the README's commands")
+	assert(readme:find("\n| `/cz perf`", 1, true), "the README's commands")
 	-- Each word set in English and again for pt-BR, with the same format codes.
 	local function Load(locale)
 		local store, sets = {}, {}
 		local L = setmetatable({}, { __index = store, __newindex = function(_, k, v) sets[k] = (sets[k] or 0) + 1; store[k] = v end })
 		local saved = GetLocale
 		GetLocale = function() return locale end
-		local ok, err = pcall(function() assert(loadfile(ROOT .. "Olympus/Locales/PerfText.lua"))("Olympus", { L = L }) end)
+		local ok, err = pcall(function() assert(loadfile(ROOT .. "ChillZone/Locales/PerfText.lua"))("ChillZone", { L = L }) end)
 		GetLocale = saved
 		assert(ok, err)
 		return store, sets
@@ -539,7 +539,7 @@ test("1.2.3 profiler: a session 1.2.2 measured (tests/fixtures/perf-1.2.2.lua) i
 	end)
 end)
 
-test("1.2.3 profiler: each call's KB (the Lua heap before and after it) by label, total and biggest with its time, the calls inside counted in the outer's, never below 0; the frames whose heap grew 1 MB or more, with Olympus's part and its biggest call; the highest heap; the report lists them, with no name", function()
+test("1.2.3 profiler: each call's KB (the Lua heap before and after it) by label, total and biggest with its time, the calls inside counted in the outer's, never below 0; the frames whose heap grew 1 MB or more, with ChillZone's part and its biggest call; the highest heap; the report lists them, with no name", function()
 	World({}, function(P, w, c, L)
 		WorldTime(w, 1760000000, false, function()
 			local K = c.FormatNumber
@@ -564,13 +564,13 @@ test("1.2.3 profiler: each call's KB (the Lua heap before and after it) by label
 			local kl, ke = KeyStarting(p.stats, "callback PERF_MEM #1"), KeyStarting(p.stats, "event PERF_MEM_EVENT #1")
 			eq(p.stats[kl].kbMax, 2000); eq(p.stats[ke].kbMax, 2024)
 			eq(p.events["callback PERF_MEM"].kb, 2000)
-			-- The frame: the heap grew 1924 KB since the last (300 + 100 - 500 + 2024); Olympus's calls
+			-- The frame: the heap grew 1924 KB since the last (300 + 100 - 500 + 2024); ChillZone's calls
 			-- allocated 2424, the most of it the handler (its listener's inside it).
 			w.Draw()
 			eq(p.jumped, 1); eq(#p.jumps, 1)
 			local j = p.jumps[1]
 			eq(j.kb, 1924); eq(j.heap, 51924); eq(j.ours, 2424); eq(j.top, ke); eq(j.topKb, 2024); eq(j.at, 1760001001)
-			-- A jump none of Olympus's calls made (another addon's), one under 1 MB, a collection.
+			-- A jump none of ChillZone's calls made (another addon's), one under 1 MB, a collection.
 			w.t = w.t + 1
 			w.heap = w.heap + 5000; w.Draw()
 			w.heap = w.heap + 1023; w.Draw()
@@ -613,7 +613,7 @@ test("1.2.3 profiler: each call's KB (the Lua heap before and after it) by label
 			assert(a1 and a2 and a1 < a2, "the spikes first")
 			assert(not text:find("omebank", 1, true), "no name in the report")
 			-- An addon the game has no figure for (its error caught): "?".
-			w.addons.Olympus_Arena = nil
+			w.addons.ChillZone_Arena = nil
 			w.slash("perf")
 			eq(w.updates, 2)
 			assert(w.Report():find(L.PERF_MEMORY_NOW:format("0.0", K(12346), "?", K(w.heap)), 1, true), w.Report())
@@ -715,11 +715,11 @@ test("1.2.3 profiler: off it reads no heap (no wrapper, no OnUpdate) and the gam
 end)
 
 -- (The review of 1.2.3's draft.) The game's figures were measured inside the call that opened the
--- report (/oly perf, its Refresh, its Clear: UI.lua's ns.SafeCall "copy action" and "copy
+-- report (/cz perf, its Refresh, its Clear: UI.lua's ns.SafeCall "copy action" and "copy
 -- second"), so the time UpdateAddOnMemoryUsage took, the profiler's own, was that call's: its
 -- frame heavy, its call among the slowest, each time the report opened. Here the game takes 40 ms
 -- to measure them; the copy window's buttons are called as UI.lua calls them.
-test("1.2.3 profiler: the time the game takes to measure its figures as the report opens is the profiler's own: /oly perf, Refresh and Clear make no heavy frame, no worst frame and no slow call, a call around it keeps its own time, and the report says what the game took", function()
+test("1.2.3 profiler: the time the game takes to measure its figures as the report opens is the profiler's own: /cz perf, Refresh and Clear make no heavy frame, no worst frame and no slow call, a call around it keeps its own time, and the report says what the game took", function()
 	World({}, function(P, w, c, L)
 		WorldTime(w, 1760000000, false, function()
 			local K = c.FormatNumber
@@ -736,8 +736,8 @@ test("1.2.3 profiler: the time the game takes to measure its figures as the repo
 			w.slash("perf")
 			w.Draw()
 			eq(w.updates, 1, "the game's figures measured")
-			eq(p.heavy, 0, "/oly perf: no heavy frame"); eq(#p.worst, 0, "no worst frame")
-			Same(p.slow, slow, "/oly perf: the slowest calls", {})
+			eq(p.heavy, 0, "/cz perf: no heavy frame"); eq(#p.worst, 0, "no worst frame")
+			Same(p.slow, slow, "/cz perf: the slowest calls", {})
 			eq(p.stats["slash perf"].max, 0, "its call without the game's measuring")
 			assert(w.Report():find(L.PERF_MEMORY_NOW:format("40.0", K(12346), "0.0", K(w.heap)), 1, true), "what the game took: " .. w.Report())
 			-- Refresh.
@@ -764,7 +764,7 @@ test("1.2.3 profiler: the time the game takes to measure its figures as the repo
 			end)
 			w.Draw()
 			eq(p.stats["perf around inner"].total, 25); eq(p.stats["perf around"].total, 32)
-			eq(p.heavy, 1, "32 ms of Olympus's own"); eq(p.worst[1].ms, 32); eq(p.worst[1].top, "perf around")
+			eq(p.heavy, 1, "32 ms of ChillZone's own"); eq(p.worst[1].ms, 32); eq(p.worst[1].top, "perf around")
 			-- Off, the report still says what the game took.
 			w.slash("perf off")
 			w.slash("perf")
@@ -823,9 +823,9 @@ test("1.2.3 profiler: going on with a session 1.2.2 measured, the frames whose h
 end)
 
 -- A burst of one error (a player's stutter, with an error the game counted 45 times, and "insecure
--- scripts exceeded execution limits for addon Olympus" naming Bootstrap.lua): the game runs
--- Olympus's error handler for every error of every addon and of its own UI, and the error list
--- (Diagnostics.lua) for each of Olympus's. A repeat must cost them no stack read (debugstack is
+-- scripts exceeded execution limits for addon ChillZone" naming Bootstrap.lua): the game runs
+-- ChillZone's error handler for every error of every addon and of its own UI, and the error list
+-- (Diagnostics.lua) for each of ChillZone's. A repeat must cost them no stack read (debugstack is
 -- among the dearest calls the game has). debugstack here counts its reads and gives `text`.
 local function CountingStack(fn)
 	local saved = rawget(_G, "debugstack")
@@ -842,17 +842,17 @@ test("Error storm: an error the error list already keeps is counted at each repe
 	db.errors, db.log = {}, {}
 	ns.Print = function() end
 	local ok, err = pcall(CountingStack, function(reads)
-		reads.text = "Interface/AddOns/Olympus/ChatMarks.lua:12: in function <Interface/AddOns/Olympus/ChatMarks.lua:10>"
-		for _ = 1, 45 do ns.CaptureError("chat marks", "Interface/AddOns/Olympus/ChatMarks.lua:12: boom") end
+		reads.text = "Interface/AddOns/ChillZone/ChatMarks.lua:12: in function <Interface/AddOns/ChillZone/ChatMarks.lua:10>"
+		for _ = 1, 45 do ns.CaptureError("chat marks", "Interface/AddOns/ChillZone/ChatMarks.lua:12: boom") end
 		eq(#db.errors, 1); eq(db.errors[1].count, 45, "every repeat counted")
 		eq(reads.n, 1, "its stack read once, not at each repeat")
 		eq(db.errors[1].stack, reads.text, "the stack of its first time")
 		-- Another error: its own stack, once.
-		reads.text = "Interface/AddOns/Olympus/UI.lua:5: in function 'Refresh'"
-		for _ = 1, 3 do ns.CaptureError("ui refresh", "Interface/AddOns/Olympus/UI.lua:5: other") end
+		reads.text = "Interface/AddOns/ChillZone/UI.lua:5: in function 'Refresh'"
+		for _ = 1, 3 do ns.CaptureError("ui refresh", "Interface/AddOns/ChillZone/UI.lua:5: other") end
 		eq(reads.n, 2); eq(#db.errors, 2); eq(db.errors[2].stack, reads.text); eq(db.errors[2].count, 3)
-		-- A failure inside /oly key <key>: the key comes out of the stack as out of the message.
-		reads.text = "Interface/AddOns/Olympus/Comm.lua:1: in function 'SetRealmKey' (Quiet Hollow 12)"
+		-- A failure inside /cz key <key>: the key comes out of the stack as out of the message.
+		reads.text = "Interface/AddOns/ChillZone/Comm.lua:1: in function 'SetRealmKey' (Quiet Hollow 12)"
 		for _ = 1, 3 do ns.CaptureError("slash key Quiet Hollow 12", "failed with Quiet Hollow 12") end
 		eq(reads.n, 3)
 		local e = db.errors[3]
@@ -864,7 +864,7 @@ test("Error storm: an error the error list already keeps is counted at each repe
 	if not ok then error(err, 0) end
 end)
 
-test("Error storm: the game's error handler Olympus puts in place (Bootstrap.lua) reads no stack for a repeat: ours counted, another addon's known, one naming no file read once a second at most, a secret one never; each goes on to the game's as it came", function()
+test("Error storm: the game's error handler ChillZone puts in place (Bootstrap.lua) reads no stack for a repeat: ours counted, another addon's known, one naming no file read once a second at most, a secret one never; each goes on to the game's as it came", function()
 	local saved = { get = geterrorhandler, set = seterrorhandler, time = GetTime, secret = rawget(_G, "issecretvalue") }
 	local ok, err = pcall(CountingStack, function(reads)
 		local gave = {}
@@ -878,15 +878,15 @@ test("Error storm: the game's error handler Olympus puts in place (Bootstrap.lua
 		local SECRET = setmetatable({}, { __tostring = function() peeked = peeked + 1; return "a secret value" end })
 		issecretvalue = function(v) return v == SECRET end
 		local b = {}
-		assert(loadfile(ROOT .. "Olympus/Bootstrap.lua"))("Olympus", b)
+		assert(loadfile(ROOT .. "ChillZone/Bootstrap.lua"))("ChillZone", b)
 		assert(current ~= Game, "ours in place with mouse and keyboard")
 		local handler = current
 		local captured = 0
 		b.db = {}
 		b.CaptureError = function() captured = captured + 1 end
 		-- Ours, 45 times: one stack read, every repeat counted (and told to the error list).
-		local mine = "Interface/AddOns/Olympus/ChatMarks.lua:12: attempt to index a nil value"
-		reads.text = "Interface/AddOns/Olympus/Bootstrap.lua:70: in function <Interface/AddOns/Olympus/Bootstrap.lua:69>\n" .. mine
+		local mine = "Interface/AddOns/ChillZone/ChatMarks.lua:12: attempt to index a nil value"
+		reads.text = "Interface/AddOns/ChillZone/Bootstrap.lua:70: in function <Interface/AddOns/ChillZone/Bootstrap.lua:69>\n" .. mine
 		for _ = 1, 45 do handler(mine) end
 		eq(reads.n, 1, "ours: its stack read once"); eq(#b.allErrors, 1); eq(b.allErrors[1].count, 45); eq(captured, 45)
 		-- One naming no addon's file (a C function's, called from Blizzard's chat code): read once in
@@ -902,7 +902,7 @@ test("Error storm: the game's error handler Olympus puts in place (Bootstrap.lua
 		now = now + 0.5
 		handler(blizz); eq(reads.n, 2, "a second later: read again")
 		now = now + 1
-		reads.text = "[C]: in function 'SetText'\nInterface/AddOns/Olympus/Channels.lua:867: in function 'Say'"
+		reads.text = "[C]: in function 'SetText'\nInterface/AddOns/ChillZone/Channels.lua:867: in function 'Say'"
 		handler(blizz)
 		eq(reads.n, 3); eq(#b.allErrors, 2, "our call caused it this time: ours"); eq(b.allErrors[2].msg, blizz)
 		handler(blizz); eq(reads.n, 3, "and counted from then on"); eq(b.allErrors[2].count, 2)

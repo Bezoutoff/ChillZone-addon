@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# Builds dist/Olympus-<version>.zip with Olympus, Olympus_Arena and OlympusSiteAggregate (the
+# Builds dist/ChillZone-<version>.zip with ChillZone, ChillZone_Arena and ChillZoneSiteAggregate (the
 # deliberate, no-upload site reporter); unzip it into World of Warcraft/<flavor>/Interface/AddOns.
 # Every zip also gets a sorted .files.txt manifest and a .sha256 checksum.
 # 1.4.0: OLY_LINK_REPO=<path to the private olympus-network checkout> adds its committed
-#   addon/Olympus_Link folder (Olympus Link, a separate load-on-demand addon) to a release zip, from
+#   addon/ChillZone_Link folder (ChillZone Link, a separate load-on-demand addon) to a release zip, from
 #   that repository's HEAD and only while it is clean and versioned as this release. The public
 #   repository never holds it; without the variable the zip is the three public folders as before.
-#   scripts/package.sh            the release; refused while Olympus/TestBuild.lua exists
+#   scripts/package.sh            the release; refused while ChillZone/TestBuild.lua exists
 #   scripts/package.sh --test N   arena test build N (1-999) of the TOC's version, into dist/testN/
-#                                 and dist/Olympus-<version>-testN.zip; the repository is not touched
+#                                 and dist/ChillZone-<version>-testN.zip; the repository is not touched
 #   scripts/package.sh --release116
-#                                 legacy output path, dist/release116/Olympus-<version>.zip
+#                                 legacy output path, dist/release116/ChillZone-<version>.zip
 #                                 (the same no-wager policy as every other package)
-# A test build: dist/testN/Olympus/TestBuild.lua (ns.TEST_BUILD: its number, the base version, the
-# build time, an expiry 21 days later, the short commit), and only that copy of Olympus.toc edited
-# (its Version and Title, TestBuild.lua after Core.lua). The Olympus Arena module's Version stays
-# the base version, ns.VERSION, which its handoff compares (Olympus_Arena/Handoff.lua).
+# A test build: dist/testN/ChillZone/TestBuild.lua (ns.TEST_BUILD: its number, the base version, the
+# build time, an expiry 21 days later, the short commit), and only that copy of ChillZone.toc edited
+# (its Version and Title, TestBuild.lua after Core.lua). The ChillZone Arena module's Version stays
+# the base version, ns.VERSION, which its handoff compares (ChillZone_Arena/Handoff.lua).
 # Every package: each file bets-only.txt names is left out of the stage and its line out of its
 # folder's TOC (the repository is not touched); every line left in each TOC must name a file of
-# the stage. Shared paths remain refused by the compliance gate (Olympus/Compliance.lua).
+# the stage. Shared paths remain refused by the compliance gate (ChillZone/Compliance.lua).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -41,8 +41,8 @@ clean_source() {
 			*) printf 'package.sh refuses untracked or ignored addon file: %s\n' "$path" >&2; found=true ;;
 		esac
 	done < <(
-		git ls-files -z --others --exclude-standard -- Olympus Olympus_Arena OlympusSiteAggregate
-		git ls-files -z --others --ignored --exclude-standard -- Olympus Olympus_Arena OlympusSiteAggregate
+		git ls-files -z --others --exclude-standard -- ChillZone ChillZone_Arena ChillZoneSiteAggregate
+		git ls-files -z --others --ignored --exclude-standard -- ChillZone ChillZone_Arena ChillZoneSiteAggregate
 	)
 	if $found; then exit 1; fi
 }
@@ -60,7 +60,7 @@ sha256_file() {
 	fi
 }
 
-FOLDERS=(Olympus Olympus_Arena OlympusSiteAggregate)
+FOLDERS=(ChillZone ChillZone_Arena ChillZoneSiteAggregate)
 
 MODE=release
 N=
@@ -79,8 +79,8 @@ elif [ -n "${1:-}" ]; then
 	exit 2
 fi
 
-if [ "$MODE" != test ] && [ -e Olympus/TestBuild.lua ]; then
-	fail "Olympus/TestBuild.lua exists: a release never carries a test build (delete it first)"
+if [ "$MODE" != test ] && [ -e ChillZone/TestBuild.lua ]; then
+	fail "ChillZone/TestBuild.lua exists: a release never carries a test build (delete it first)"
 fi
 clean_source
 
@@ -88,19 +88,19 @@ clean_source
 # silently producing a package that drops the load-on-demand Arena module. The module handoff
 # already requires the two base versions to match at runtime; enforce the same invariant before
 # publishing so a mixed install cannot be created by this script.
-for toc in Olympus/Olympus.toc Olympus_Arena/Olympus_Arena.toc OlympusSiteAggregate/OlympusSiteAggregate.toc; do
-	git cat-file -e "HEAD:$toc" 2>/dev/null || fail "package.sh requires $toc in the Olympus release bundle"
+for toc in ChillZone/ChillZone.toc ChillZone_Arena/ChillZone_Arena.toc ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc; do
+	git cat-file -e "HEAD:$toc" 2>/dev/null || fail "package.sh requires $toc in the ChillZone release bundle"
 done
-VERSION=$(git show HEAD:Olympus/Olympus.toc | awk '/^## Version:/ { sub(/\r$/, "", $3); print $3; exit }')
-ARENA_VERSION=$(git show HEAD:Olympus_Arena/Olympus_Arena.toc | awk '/^## Version:/ { sub(/\r$/, "", $3); print $3; exit }')
-SITE_VERSION=$(git show HEAD:OlympusSiteAggregate/OlympusSiteAggregate.toc | awk '/^## Version:/ { sub(/\r$/, "", $3); print $3; exit }')
-[ -n "$VERSION" ] || fail "package.sh cannot read Olympus/Olympus.toc Version"
-[ -n "$ARENA_VERSION" ] || fail "package.sh cannot read Olympus_Arena/Olympus_Arena.toc Version"
-[ -n "$SITE_VERSION" ] || fail "package.sh cannot read OlympusSiteAggregate/OlympusSiteAggregate.toc Version"
-[ "$ARENA_VERSION" = "$VERSION" ] || fail "package.sh requires one bundle version: Olympus is $VERSION but Olympus_Arena is $ARENA_VERSION"
+VERSION=$(git show HEAD:ChillZone/ChillZone.toc | awk '/^## Version:/ { sub(/\r$/, "", $3); print $3; exit }')
+ARENA_VERSION=$(git show HEAD:ChillZone_Arena/ChillZone_Arena.toc | awk '/^## Version:/ { sub(/\r$/, "", $3); print $3; exit }')
+SITE_VERSION=$(git show HEAD:ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc | awk '/^## Version:/ { sub(/\r$/, "", $3); print $3; exit }')
+[ -n "$VERSION" ] || fail "package.sh cannot read ChillZone/ChillZone.toc Version"
+[ -n "$ARENA_VERSION" ] || fail "package.sh cannot read ChillZone_Arena/ChillZone_Arena.toc Version"
+[ -n "$SITE_VERSION" ] || fail "package.sh cannot read ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc Version"
+[ "$ARENA_VERSION" = "$VERSION" ] || fail "package.sh requires one bundle version: ChillZone is $VERSION but ChillZone_Arena is $ARENA_VERSION"
 case "$SITE_VERSION" in
 	"$VERSION"-site.*) ;;
-	*) fail "package.sh requires the site reporter for Olympus $VERSION: OlympusSiteAggregate is $SITE_VERSION" ;;
+	*) fail "package.sh requires the site reporter for ChillZone $VERSION: ChillZoneSiteAggregate is $SITE_VERSION" ;;
 esac
 
 if ! command -v zip >/dev/null 2>&1; then fail "package.sh requires zip"; fi
@@ -126,8 +126,8 @@ leave_out_bets() {
 		path=${path%$'\r'}
 		case "$path" in ''|'#'*) continue ;; esac
 		case "$path" in
-			Olympus/*.lua|Olympus_Arena/*.lua) ;;
-			*) fail "bets-only.txt: $path is not a Lua file of Olympus or Olympus_Arena" ;;
+			ChillZone/*.lua|ChillZone_Arena/*.lua) ;;
+			*) fail "bets-only.txt: $path is not a Lua file of ChillZone or ChillZone_Arena" ;;
 		esac
 		folder=${path%%/*}
 		file=${path#*/}
@@ -177,7 +177,7 @@ if [ "$MODE" = test ]; then
 	BUILT=$(date +%s)
 	EXPIRES=$((BUILT + 21 * 86400))
 	COMMIT=$(git rev-parse --short HEAD)
-	cat > "$OUT/Olympus/TestBuild.lua" <<LUA
+	cat > "$OUT/ChillZone/TestBuild.lua" <<LUA
 local ADDON, ns = ...
 -- Written by scripts/package.sh --test $N: arena test build $N of $VERSION. Never committed.
 ns.TEST_BUILD = { n = $N, base = "$VERSION", built = $BUILT, expires = $EXPIRES, commit = "$COMMIT", lane = "group" }
@@ -185,28 +185,28 @@ LUA
 	awk -v v="$VERSION-test.$N" -v n="$N" '
 		{ line = $0; sub(/\r$/, "", line) }
 		line ~ /^## Version:/ { print "## Version: " v; next }
-		line ~ /^## Title:/ { print "## Title: |cffe6c35cOlympus|r |cffff4040(arena test " n ")|r"; next }
+		line ~ /^## Title:/ { print "## Title: |cffe6c35cChillZone|r |cffff4040(arena test " n ")|r"; next }
 		{ print }
 		line == "Core.lua" { print "TestBuild.lua" }
-	' "$OUT/Olympus/Olympus.toc" > "$OUT/Olympus/Olympus.toc.test"
-	mv "$OUT/Olympus/Olympus.toc.test" "$OUT/Olympus/Olympus.toc"
-	ZIP="dist/Olympus-$VERSION-test$N.zip"
+	' "$OUT/ChillZone/ChillZone.toc" > "$OUT/ChillZone/ChillZone.toc.test"
+	mv "$OUT/ChillZone/ChillZone.toc.test" "$OUT/ChillZone/ChillZone.toc"
+	ZIP="dist/ChillZone-$VERSION-test$N.zip"
 	write_package "$OUT" "$ZIP"
-	cat > "dist/Olympus-$VERSION-test$N.txt" <<TXT
-Olympus arena test build $N (of $VERSION), commit $COMMIT, expires $(date -r "$EXPIRES" +%Y-%m-%d 2>/dev/null || date -d "@$EXPIRES" +%Y-%m-%d)
+	cat > "dist/ChillZone-$VERSION-test$N.txt" <<TXT
+ChillZone arena test build $N (of $VERSION), commit $COMMIT, expires $(date -r "$EXPIRES" +%Y-%m-%d 2>/dev/null || date -d "@$EXPIRES" +%Y-%m-%d)
 
 For the named testers only: never put it on CurseForge or GitHub.
 1. Quit the game.
-2. Verify the zip against Olympus-$VERSION-test$N.sha256.
-3. In the CurseForge app or WowUp, turn off auto-update for Olympus (or stop managing it).
-4. Keep a copy of WTF/Account/<ACCOUNT>/SavedVariables/Olympus.lua (/oly backup works too).
-5. Delete Interface/AddOns/Olympus, Interface/AddOns/Olympus_Arena and
-   Interface/AddOns/OlympusSiteAggregate, then unzip this zip in
-   Interface/AddOns, so that Interface/AddOns/Olympus/Olympus.toc and
-   Interface/AddOns/Olympus_Arena/Olympus_Arena.toc and
-   Interface/AddOns/OlympusSiteAggregate/OlympusSiteAggregate.toc exist (the folders keep those names).
-6. Start the game: /oly arena status says "arena test build $N".
-Going back: quit, delete all three folders, reinstall Olympus from the app, turn auto-update on again.
+2. Verify the zip against ChillZone-$VERSION-test$N.sha256.
+3. In the CurseForge app or WowUp, turn off auto-update for ChillZone (or stop managing it).
+4. Keep a copy of WTF/Account/<ACCOUNT>/SavedVariables/ChillZone.lua (/cz backup works too).
+5. Delete Interface/AddOns/ChillZone, Interface/AddOns/ChillZone_Arena and
+   Interface/AddOns/ChillZoneSiteAggregate, then unzip this zip in
+   Interface/AddOns, so that Interface/AddOns/ChillZone/ChillZone.toc and
+   Interface/AddOns/ChillZone_Arena/ChillZone_Arena.toc and
+   Interface/AddOns/ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc exist (the folders keep those names).
+6. Start the game: /cz arena status says "arena test build $N".
+Going back: quit, delete all three folders, reinstall ChillZone from the app, turn auto-update on again.
 TXT
 	echo "$ZIP"
 	exit 0
@@ -219,33 +219,33 @@ stage_source "$RELEASE_STAGE"
 leave_out_bets "$RELEASE_STAGE"
 if [ -n "${OLY_LINK_REPO:-}" ]; then
 	git -C "$OLY_LINK_REPO" rev-parse --git-dir >/dev/null 2>&1 || fail "OLY_LINK_REPO is not a git checkout: $OLY_LINK_REPO"
-	if ! git -C "$OLY_LINK_REPO" diff --quiet -- addon/Olympus_Link || ! git -C "$OLY_LINK_REPO" diff --cached --quiet -- addon/Olympus_Link; then
-		fail "OLY_LINK_REPO has uncommitted changes in addon/Olympus_Link"
+	if ! git -C "$OLY_LINK_REPO" diff --quiet -- addon/ChillZone_Link || ! git -C "$OLY_LINK_REPO" diff --cached --quiet -- addon/ChillZone_Link; then
+		fail "OLY_LINK_REPO has uncommitted changes in addon/ChillZone_Link"
 	fi
-	LINK_VERSION=$(git -C "$OLY_LINK_REPO" show HEAD:addon/Olympus_Link/Olympus_Link.toc | awk '/^## Version:/ { sub(/\r$/, "", $3); print $3; exit }')
-	[ "$LINK_VERSION" = "$VERSION" ] || fail "package.sh requires Olympus_Link $VERSION, OLY_LINK_REPO has ${LINK_VERSION:-none}"
+	LINK_VERSION=$(git -C "$OLY_LINK_REPO" show HEAD:addon/ChillZone_Link/ChillZone_Link.toc | awk '/^## Version:/ { sub(/\r$/, "", $3); print $3; exit }')
+	[ "$LINK_VERSION" = "$VERSION" ] || fail "package.sh requires ChillZone_Link $VERSION, OLY_LINK_REPO has ${LINK_VERSION:-none}"
 	LINK_TMP=$(mktemp -d "${TMPDIR:-/tmp}/olympus-link.XXXXXX")
-	git -C "$OLY_LINK_REPO" archive --format=tar HEAD -- addon/Olympus_Link | tar -xf - -C "$LINK_TMP"
-	mv "$LINK_TMP/addon/Olympus_Link" "$RELEASE_STAGE/Olympus_Link"
+	git -C "$OLY_LINK_REPO" archive --format=tar HEAD -- addon/ChillZone_Link | tar -xf - -C "$LINK_TMP"
+	mv "$LINK_TMP/addon/ChillZone_Link" "$RELEASE_STAGE/ChillZone_Link"
 	rm -rf "$LINK_TMP"
-	find "$RELEASE_STAGE/Olympus_Link" \( -name '.DS_Store' -o -name '.gitignore' \) -delete
+	find "$RELEASE_STAGE/ChillZone_Link" \( -name '.DS_Store' -o -name '.gitignore' \) -delete
 	while IFS= read -r entry; do
 		entry=${entry%$'\r'}
 		entry=$(printf '%s' "$entry" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 		case "$entry" in ''|'#'*) continue ;; esac
-		[ -f "$RELEASE_STAGE/Olympus_Link/${entry//\\//}" ] || fail "package.sh: Olympus_Link.toc lists $entry, which is not in the package"
-	done < "$RELEASE_STAGE/Olympus_Link/Olympus_Link.toc"
-	FOLDERS+=(Olympus_Link)
+		[ -f "$RELEASE_STAGE/ChillZone_Link/${entry//\\//}" ] || fail "package.sh: ChillZone_Link.toc lists $entry, which is not in the package"
+	done < "$RELEASE_STAGE/ChillZone_Link/ChillZone_Link.toc"
+	FOLDERS+=(ChillZone_Link)
 fi
 
 if [ "$MODE" = release116 ]; then
 	mkdir -p dist/release116
-	ZIP="dist/release116/Olympus-$VERSION.zip"
+	ZIP="dist/release116/ChillZone-$VERSION.zip"
 	write_package "$RELEASE_STAGE" "$ZIP"
 	echo "$ZIP"
 	exit 0
 fi
 
-ZIP="dist/Olympus-$VERSION.zip"
+ZIP="dist/ChillZone-$VERSION.zip"
 write_package "$RELEASE_STAGE" "$ZIP"
 echo "$ZIP"

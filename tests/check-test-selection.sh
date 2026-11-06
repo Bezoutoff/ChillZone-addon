@@ -5,8 +5,8 @@ cd "$(dirname "$0")/.."
 selection_log=$(mktemp /tmp/olympus-test-selection.XXXXXX)
 trap 'rm -f "$selection_log"' EXIT
 selection_status=0
-env -u OLYMPUS_TEST_ARENA_MODULES -u OLYMPUS_TEST_WATCH_ONLY -u OLYMPUS_TEST_AUTHORITY_ONLY \
-	OLYMPUS_TEST_FILTER='__no_such_olympus_test_selection__' \
+env -u CHILLZONE_TEST_ARENA_MODULES -u CHILLZONE_TEST_WATCH_ONLY -u CHILLZONE_TEST_AUTHORITY_ONLY \
+	CHILLZONE_TEST_FILTER='__no_such_chillzone_test_selection__' \
 	luajit tests/run.lua >"$selection_log" 2>&1 || selection_status=$?
 if [ "$selection_status" -ne 1 ]; then
 	printf 'Empty selection must exit 1; actual runner exited %s.\n' "$selection_status" >&2

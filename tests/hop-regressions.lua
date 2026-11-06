@@ -152,9 +152,9 @@ end)
 test("hop controls: list and status are local; any selects the freshest alternative", function()
 	WithHop(function(w, H)
 		w.see(7)
-		ns.Layers.Receive("Older-Realm", { mapID = 1453, zoneUID = 8, guild = "Olympus" })
+		ns.Layers.Receive("Older-Realm", { mapID = 1453, zoneUID = 8, guild = "ChillZone" })
 		w.clock = w.clock + 10
-		ns.Layers.Receive("Fresh-Realm", { mapID = 1453, zoneUID = 9, guild = "Olympus" })
+		ns.Layers.Receive("Fresh-Realm", { mapID = 1453, zoneUID = 9, guild = "ChillZone" })
 		local before, whispers = #w.sent, #w.whispered
 		H.Command("list"); H.Command("status"); H.Command("bogus"); H.Command("12345")
 		eq(#w.sent, before); eq(#w.whispered, whispers)
@@ -167,12 +167,12 @@ end)
 test("hop controls: explicit UID uses the current zone and cancel never leaves a group", function()
 	WithHop(function(w, H)
 		w.see(7)
-		ns.Layers.Receive("Helper-Realm", { mapID = 1453, zoneUID = 8, guild = "Olympus" })
-		SlashCmdList.OLYMPUS("hop #8")
+		ns.Layers.Receive("Helper-Realm", { mapID = 1453, zoneUID = 8, guild = "ChillZone" })
+		SlashCmdList.CHILLZONE("hop #8")
 		eq(H.State().zoneUID, 8)
 		H.HandleOffer("WHISPER", "Helper-Realm", "LO~1~0~0")
 		w.clock = w.clock + H.WINDOW; H.Tick()
-		SlashCmdList.OLYMPUS("hop cancel")
+		SlashCmdList.CHILLZONE("hop cancel")
 		H.OnInvite("Helper"); eq(w.accepted, 0, "late invite stays manual")
 		eq(H.State().phase, "done"); eq(w.left, 0)
 		w.clock = w.clock + H.ASK_GAP
@@ -184,7 +184,7 @@ end)
 
 test("hop controls: any needs a fresh local reading and skips old remote reports", function()
 	WithHop(function(w, H)
-		ns.Layers.Receive("Helper-Realm", { mapID = 1453, zoneUID = 8, guild = "Olympus" })
+		ns.Layers.Receive("Helper-Realm", { mapID = 1453, zoneUID = 8, guild = "ChillZone" })
 		H.Command("any"); eq(H.State(), nil, "own layer unknown")
 		w.see(7); w.clock = w.clock + H.LAYER_FRESH + 1
 		H.Command("any"); eq(H.State(), nil, "own layer stale")
@@ -195,7 +195,7 @@ end)
 test("hop controls: Realm rows show progress, cancel and the age of layer reports", function()
 	WithHop(function(w, H)
 		w.see(7)
-		ns.Layers.Receive("Helper-Realm", { mapID = 1453, zoneUID = 8, guild = "Olympus" })
+		ns.Layers.Receive("Helper-Realm", { mapID = 1453, zoneUID = 8, guild = "ChillZone" })
 		local function Find(text, right)
 			for _, row in ipairs(ns.Views.Build("realm")) do
 				if (right and row.right == text) or (not right and row.text and row.text:find(text, 1, true)) then return row end
@@ -242,7 +242,7 @@ test("hop regression: a dismissed leave dialog cannot leave after cancellation",
 		w.clock = w.clock + H.JOIN_WAIT; H.Tick()
 		local data = w.popups[#w.popups].data
 		H.Cancel()
-		StaticPopupDialogs.OLYMPUS_HOP_LEAVE.OnAccept(nil, data)
+		StaticPopupDialogs.CHILLZONE_HOP_LEAVE.OnAccept(nil, data)
 		eq(w.left, 0); eq(H.State().phase, "done")
 	end)
 end)
@@ -333,7 +333,7 @@ test("hop adversarial (1.2.0): a stranger on the channel gets no offer, and his 
 		-- an invite; such a claim is anyone's word now, its own test below.)
 		w.strangers["Ally-Realm"] = true
 		local guildOf, level = ns.Moderation.GuildOf, ns.Channels.VerifiedLevel
-		ns.Moderation.GuildOf = function(n) return ns.FullName(n) == "Ally-Realm" and "Olympus III" or guildOf(n) end
+		ns.Moderation.GuildOf = function(n) return ns.FullName(n) == "Ally-Realm" and "ChillZone III" or guildOf(n) end
 		ns.Channels.VerifiedLevel = function(n, g) if ns.FullName(n) == "Ally-Realm" then return 2, true, 1 end return level(n, g) end
 		ns.db.layerAutoInvite = nil
 		local ok, err = pcall(function()
@@ -351,17 +351,17 @@ test("hop adversarial (1.2.0): a stranger on the channel gets no offer, and his 
 end)
 
 -- Review of 1.2.1: a guild named in the sender's own messages (Moderation.GuildOf) is only his
--- word, and anyone on the channel can write "Olympus" into one: Channels.VerifiedLevel answers
+-- word, and anyone on the channel can write "ChillZone" into one: Channels.VerifiedLevel answers
 -- 1, false for it. Not membership: no offer (it tells him who helps on that layer), no window and
 -- no invite, even with Always invite.
-test("hop security (1.2.1): a claimed Olympus guild gets no offer, window or invite, even with Always invite", function()
+test("hop security (1.2.1): a claimed ChillZone guild gets no offer, window or invite, even with Always invite", function()
 	WithHop(function(w, H)
 		w.see(7)
 		w.strangers["Claimer-Realm"] = true
 		local guildOf = ns.Moderation.GuildOf
-		ns.Moderation.GuildOf = function(n) if ns.FullName(n) == "Claimer-Realm" then return "Olympus Claimed" end return guildOf(n) end
+		ns.Moderation.GuildOf = function(n) if ns.FullName(n) == "Claimer-Realm" then return "ChillZone Claimed" end return guildOf(n) end
 		local ok, err = pcall(function()
-			local level, verified = ns.Channels.VerifiedLevel("Claimer-Realm", "Olympus Claimed")
+			local level, verified = ns.Channels.VerifiedLevel("Claimer-Realm", "ChillZone Claimed")
 			eq(level, 1); eq(verified, false, "the channel's own answer: a claim, not verified")
 			ns.db.layerAutoInvite = true
 			H.HandleAsk("CHANNEL", "Claimer-Realm", "LQ~42~1453~7")
@@ -384,8 +384,8 @@ test("hop security (1.2.1): the asker takes no offer from a claimed guild; a ver
 		local guildOf, level = ns.Moderation.GuildOf, ns.Channels.VerifiedLevel
 		ns.Moderation.GuildOf = function(n)
 			local full = ns.FullName(n)
-			if full == "Claimer-Realm" then return "Olympus Claimed" end
-			if full == "Ally-Realm" then return "Olympus III" end
+			if full == "Claimer-Realm" then return "ChillZone Claimed" end
+			if full == "Ally-Realm" then return "ChillZone III" end
 			return guildOf(n)
 		end
 		ns.Channels.VerifiedLevel = function(n, g) if ns.FullName(n) == "Ally-Realm" then return 2, true, 1 end return level(n, g) end
@@ -409,23 +409,23 @@ end)
 -- Review of 1.2.1: Hop.Trusted counted a Lord or Captain the census names, and while signed
 -- enforcement is off (as 1.2.1 ships) two cooperating characters can forge one in their guild's
 -- reports. That trust accepted his invite for the player (AcceptGroup) and let "Always invite" or
--- "For Olympus!" invite him without a click. Now only our roster, signed or pinned people; a
+-- "For ChillZone!" invite him without a click. Now only our roster, signed or pinned people; a
 -- census officer of another guild (Channels.VerifiedLevel's 2, true) still hops by a click.
 local RealTrusted = ns.Hop.Trusted
 local function WithCensusOfficer(w, H, fn)
 	H.Trusted = RealTrusted -- (WithHop puts it back)
 	w.strangers["Officer-Realm"] = true
 	local guildOf, known, guilds = ns.Moderation.GuildOf, ns.Data.KnownRank, ns.rdb.guilds
-	ns.rdb.guilds = { ["Olympus III"] = { total = 40, online = 4, zones = {}, t = w.clock, leader = "Leadperson",
+	ns.rdb.guilds = { ["ChillZone III"] = { total = 40, online = 4, zones = {}, t = w.clock, leader = "Leadperson",
 		leaderOnline = false, officers = { { name = "Officer" } }, top = {} } }
 	-- The census's word that "Officer" is an officer there (two reports, Data.KnownRank).
 	ns.Data.KnownRank = function(n, g, soft)
-		if ns.FullName(n) == "Officer-Realm" and g == "Olympus III" then return 1, 2 end
+		if ns.FullName(n) == "Officer-Realm" and g == "ChillZone III" then return 1, 2 end
 		return known(n, g, soft)
 	end
-	ns.Moderation.GuildOf = function(n) if ns.FullName(n) == "Officer-Realm" then return "Olympus III" end return guildOf(n) end
+	ns.Moderation.GuildOf = function(n) if ns.FullName(n) == "Officer-Realm" then return "ChillZone III" end return guildOf(n) end
 	local ok, err = pcall(function()
-		local level, verified = ns.Channels.VerifiedLevel("Officer-Realm", "Olympus III")
+		local level, verified = ns.Channels.VerifiedLevel("Officer-Realm", "ChillZone III")
 		eq(level, 2); eq(verified, true, "the census verifies him: a member")
 		fn()
 	end)
@@ -433,7 +433,7 @@ local function WithCensusOfficer(w, H, fn)
 	if not ok then error(err, 0) end
 end
 
-test("hop security (1.2.1): Always invite and For Olympus! invite a census officer of another guild only on a click", function()
+test("hop security (1.2.1): Always invite and For ChillZone! invite a census officer of another guild only on a click", function()
 	for _, mode in ipairs({ "always", "king" }) do
 		WithHop(function(w, H)
 			WithCensusOfficer(w, H, function()
@@ -549,9 +549,9 @@ test("hop security (1.2.1): a namesake on another realm is not the helper we ask
 	end)
 end)
 
--- Review of 1.2.1, after 52b7a66: with Always invite or For Olympus! on, a member of another guild
+-- Review of 1.2.1, after 52b7a66: with Always invite or For ChillZone! on, a member of another guild
 -- the addon cannot vouch for gets the window. Two of those windows left unanswered (a helper away
--- from the keyboard, For Olympus!'s very case) paused all helping for 5 minutes, a guildmate's
+-- from the keyboard, For ChillZone!'s very case) paused all helping for 5 minutes, a guildmate's
 -- automatic invite too, and one census officer could keep automatic helpers switched off that way
 -- with two requests every 5 minutes. Such a window's no is still a no to him, never a step towards
 -- the pause: before 52b7a66 he was invited without one, so it could not pause the helper either.
@@ -572,7 +572,7 @@ test("hop security (1.2.1): unanswered windows of members we cannot vouch for ne
 						H.HandleRequest("WHISPER", "Officer-Realm", ("LR~%d"):format(40 + i))
 						eq(#w.popups, i, mode .. ": window " .. i)
 						-- Not answered: its timeout (OnCancel), as Escape or Not now.
-						StaticPopupDialogs.OLYMPUS_HOP_REQUEST.OnCancel(nil, w.popups[i].data)
+						StaticPopupDialogs.CHILLZONE_HOP_REQUEST.OnCancel(nil, w.popups[i].data)
 						eq(w.whispered[#w.whispered], ("Officer-Realm LN~%d"):format(40 + i), mode .. ": still a no to him")
 						w.clock = w.clock + H.HELP_GAP + 1
 					end
@@ -595,7 +595,7 @@ test("hop security (1.2.1): unanswered windows of members we cannot vouch for ne
 			for i = 1, H.DECLINES do
 				H.HandleAsk("CHANNEL", "Officer-Realm", ("LQ~%d~1453~7"):format(40 + i))
 				H.HandleRequest("WHISPER", "Officer-Realm", ("LR~%d"):format(40 + i))
-				StaticPopupDialogs.OLYMPUS_HOP_REQUEST.OnCancel(nil, w.popups[i].data)
+				StaticPopupDialogs.CHILLZONE_HOP_REQUEST.OnCancel(nil, w.popups[i].data)
 				w.clock = w.clock + H.HELP_GAP + 1
 			end
 			eq(H.CanHelp(1453, 7), false, "two unanswered windows: a break")
@@ -609,7 +609,7 @@ end)
 -- Review of 1.2.1, after 395d290: the King's pinned name, his Steward and Hands, and the High
 -- Council (the author's signed list) are the King's or the author's word, not a guild claim.
 -- Channels.VerifiedLevel verifies the King's titles only for his own guild, and a councillor below
--- an officer's rank nowhere, so one who plays in another Olympus guild got no offer, window or
+-- an officer's rank nowhere, so one who plays in another ChillZone guild got no offer, window or
 -- invite, and his offers were dropped. A guild only claimed still counts for nothing.
 test("hop security (1.2.1): a councillor or the King's Hand of another guild still hops; a claimed guild alone does not", function()
 	local function With(fn)
@@ -620,12 +620,12 @@ test("hop security (1.2.1): a councillor or the King's Hand of another guild sti
 			for name in pairs(names) do w.strangers[name] = true end
 			local guildOf, rdb, K, hand = ns.Moderation.GuildOf, ns.rdb, ns.King, ns.King.IsHandName
 			local council = rdb.council
-			ns.Moderation.GuildOf = function(n) if names[ns.FullName(n)] then return "Olympus III" end return guildOf(n) end
+			ns.Moderation.GuildOf = function(n) if names[ns.FullName(n)] then return "ChillZone III" end return guildOf(n) end
 			rdb.council = { names = { councilly = true } }
 			K.IsHandName = function(n) return ns.FullName(n) == "Handy-Realm" end
 			local ok, err = pcall(function()
 				for name in pairs(names) do
-					local level, verified = ns.Channels.VerifiedLevel(name, "Olympus III")
+					local level, verified = ns.Channels.VerifiedLevel(name, "ChillZone III")
 					eq(level, 1); eq(verified, false, name .. ": the channel verifies none of them")
 				end
 				eq(ns.IsHighCouncillor("Councilly-Realm"), true, "the signed council names him")
@@ -671,16 +671,16 @@ test("hop security (1.2.1): a councillor or the King's Hand of another guild sti
 	end)
 end)
 
--- Review of 1.2.1: the texts of Always invite and For Olympus! still promised that every player
+-- Review of 1.2.1: the texts of Always invite and For ChillZone! still promised that every player
 -- who asks is invited without a window, while only the players Hop.Trusted vouches for are (our
 -- guildmates, the King's Steward and Hands). They say so now, and that players of other guilds still
 -- get the window, in both languages.
-test("hop texts (1.2.1): Always invite and For Olympus! say who is invited on his own, and that other guilds still get the window", function()
+test("hop texts (1.2.1): Always invite and For ChillZone! say who is invited on his own, and that other guilds still get the window", function()
 	local root = (debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]hop%-regressions%.lua$")) or "./"
 	local pt = { L = setmetatable({}, { __index = ns.L }) }
 	local savedLocale = GetLocale
 	GetLocale = function() return "ptBR" end
-	local ok, err = pcall(function() assert(loadfile(root .. "Olympus/Locales.lua"))("Olympus", pt) end)
+	local ok, err = pcall(function() assert(loadfile(root .. "ChillZone/Locales.lua"))("ChillZone", pt) end)
 	GetLocale = savedLocale
 	if not ok then error(err, 0) end
 	for _, key in ipairs({ "HOP_KING_PROMPT", "HOP_KING_AUTO", "HOP_AUTO_ON", "HOP_AUTO_TIP", "HOP_AUTO_GROUP_ON" }) do

@@ -1,11 +1,11 @@
 local ns, test, eq, H = ...
 local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]campaign%.lua$") or "./"
-local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "Olympus/", ns = ns })
+local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "ChillZone/", ns = ns })
 local function Client(w, role)
 	local c = w:Role(role)
 	w:As(c, function()
 		c.ns.ViewAs = { Previewing = function() return false end }
-		for _, file in ipairs({ "Locales/CampaignText", "Chronicle", "Campaign" }) do assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua"))("Olympus", c.ns) end
+		for _, file in ipairs({ "Locales/CampaignText", "Chronicle", "Campaign" }) do assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua"))("ChillZone", c.ns) end
 		local b = c.ns.Treasury.Book(); b.opening, b.openedAt = 0, w.clock
 	end)
 	return c
@@ -50,7 +50,7 @@ test("Campaign: actual shared Comm dispatch delivers public campaign and private
 		member.ns.ChatRooms = { RegisterProvider = function() end }
 		local on, login = member.ns.On
 		member.ns.On = function(event, fn) if event == "LOGIN" then login = fn else on(event, fn) end end
-		assert(loadfile(ROOT .. "Olympus/Comm.lua"))("Olympus", member.ns)
+		assert(loadfile(ROOT .. "ChillZone/Comm.lua"))("ChillZone", member.ns)
 		member.ns.On = on
 		assert(login); login() -- register the real native receive events, not the fixture's fake dispatcher
 		local handle = member.ns.Comm.Handle
@@ -60,8 +60,8 @@ test("Campaign: actual shared Comm dispatch delivers public campaign and private
 			if fn == member.ns.Campaign.Handle then campaignType = kind end
 		end
 		-- The real runtime load order: crafting must not replace Campaign's handler.
-		assert(loadfile(ROOT .. "Olympus/Campaign.lua"))("Olympus", member.ns)
-		assert(loadfile(ROOT .. "Olympus/CraftRequests.lua"))("Olympus", member.ns)
+		assert(loadfile(ROOT .. "ChillZone/Campaign.lua"))("ChillZone", member.ns)
+		assert(loadfile(ROOT .. "ChillZone/CraftRequests.lua"))("ChillZone", member.ns)
 		member.ns.rdb.craftRequests = { records = { proof1 = {
 			id = "proof1", requester = member.name, crafter = keeper.name, guild = member.guild, state = "accepted",
 		} }, invites = {} }
@@ -134,7 +134,7 @@ test("Campaign: confirmed receipts require explicit once-only allocation; old gi
 	local saved = World.Copy(keeper.ns.rdb)
 	w:As(keeper, function()
 		keeper.ns.rdb = saved
-		assert(loadfile(ROOT .. "Olympus/Campaign.lua"))("Olympus", keeper.ns)
+		assert(loadfile(ROOT .. "ChillZone/Campaign.lua"))("ChillZone", keeper.ns)
 		local line = keeper.ns.Treasury.Lines()[#keeper.ns.Treasury.Lines()]
 		eq(keeper.ns.Campaign.Allocate(line), false, "reload cannot allocate the same receipt again")
 		keeper.ns.Campaign.Report(true)
@@ -249,7 +249,7 @@ test("Campaign: an unverified or malformed current dues word cannot supply cash 
 	w:Run(2); eq(king.ns.Campaign.State().got, 0); eq(king.ns.Campaign.State().counts[1710], 20)
 end)
 
-test("Campaign: the pinned mail keeper outside an Olympus guild can assign actual receipts locally; only his Treasurer relays that account's aggregate", function()
+test("Campaign: the pinned mail keeper outside an ChillZone guild can assign actual receipts locally; only his Treasurer relays that account's aggregate", function()
 	local w, king, keeper = Setup()
 	local mail = Client(w, "treasurerMail"); mail.guild = nil
 	mail.ns.rdb = keeper.ns.rdb -- actual same-account realm store, as the existing mail book uses
@@ -347,7 +347,7 @@ test("Campaign: fourteen days stops intake; one manual King purchase note closes
 		local baselines = {}; for week, amount in pairs(s.baselines) do baselines[#baselines + 1] = week .. "=" .. amount end
 		C.Handle("CHANNEL", king.name, ("VG~S~%d~%d~%d~%d~%d~0~1710=20~~0~Raid supplies~~%s"):format(s.id, s.rev + 1, s.start, s.finish, s.target, table.concat(baselines, ",")))
 		eq(C.State(), s, "an ended id cannot be reopened")
-		assert(loadfile(ROOT .. "Olympus/Campaign.lua"))("Olympus", member.ns)
+		assert(loadfile(ROOT .. "ChillZone/Campaign.lua"))("ChillZone", member.ns)
 		member.ns.Campaign.Handle("CHANNEL", king.name, w:Sent({ from = king, type = "VG" })[#w:Sent({ from = king, type = "VG" })].msg)
 		eq(#member.ns.rdb.acts, 1, "closure repeats and reload keep one Chronicle entry")
 	end)
@@ -400,7 +400,7 @@ test("Campaign: excluded assigned cash cannot return after row rotation and a la
 	w:As(keeper, function()
 		for _, row in ipairs(keeper.ns.Treasury.Book().lines) do assert(row.jarReceipt ~= e.jarReceipt, "the excluded source row really rotated away") end
 		keeper.ns.rdb = World.Copy(keeper.ns.rdb)
-		assert(loadfile(ROOT .. "Olympus/Campaign.lua"))("Olympus", keeper.ns)
+		assert(loadfile(ROOT .. "ChillZone/Campaign.lua"))("ChillZone", keeper.ns)
 		eq(keeper.ns.rdb.campaignReceipts[keeper.name].allocations[e.jarReceipt].sourceValid, false, "exclusion remains persisted across reload")
 	end)
 	local later = NativeTrade(w, keeper, "Repeat Cash Giver", minimum + 5000)

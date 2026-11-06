@@ -76,9 +76,9 @@ end)
 test("role chat navigation (1.2.3): one listing reads the census's guilds once and a name's rank in each guild once; its rooms are each room's own check's, for masters, officers, correspondents, a treasury clerk and, enforced, another guild's signed master", function()
 	WithRooms(function(w, R, c)
 		c.rdb.guilds = {}
-		for i = 1, 30 do c.rdb.guilds["Olympus " .. i] = { t = w.epoch } end
+		for i = 1, 30 do c.rdb.guilds["ChillZone " .. i] = { t = w.epoch } end
 		local ranks = { ["Master-Realm"] = 0, ["Officer-Realm"] = 1, ["Member-Realm"] = 3, ["Scribe-Realm"] = 3, ["Clerk-Realm"] = 3 }
-		local signed = { ["Olympus 7"] = { ["Abroad-Realm"] = 0, ["Lead7-Realm"] = 0 } }
+		local signed = { ["ChillZone 7"] = { ["Abroad-Realm"] = 0, ["Lead7-Realm"] = 0 } }
 		local asked = {}
 		c.Data = setmetatable({ AuthorizedRank = function(name, guild)
 			asked[name .. " in " .. guild] = (asked[name .. " in " .. guild] or 0) + 1
@@ -95,7 +95,7 @@ test("role chat navigation (1.2.3): one listing reads the census's guilds once a
 		local lists = {
 			[w.guild] = { by = "Master-Realm", names = { ["Scribe-Realm"] = { "correspondent", "Department of War" },
 				["Clerk-Realm"] = { "correspondent", "Federal Treasury" } } },
-			["Olympus 7"] = { by = "Lead7-Realm", names = { ["Abroad-Realm"] = { "correspondent", "Department of War" } } },
+			["ChillZone 7"] = { by = "Lead7-Realm", names = { ["Abroad-Realm"] = { "correspondent", "Department of War" } } },
 		}
 		c.Nominees = {
 			ListOf = function(guild) return lists[guild] end,

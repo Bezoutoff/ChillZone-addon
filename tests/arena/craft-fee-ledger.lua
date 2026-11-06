@@ -74,7 +74,7 @@ test("1.2.1 craft fee desk: with the Wallet off the desk books no made-up word o
 	FeeWordTo(w, c, desk, "fk002", "b", c.name, b.name, "8ow")
 	eq(Rows(desk), 0, "no fee is owed while the Wallet is off: the desk's ledger takes no word of one")
 	-- A mail titled as a fee is still the guild's money in the desk's book, but no fee row.
-	local i = w:Mail(c, desk, 50, "Olympus craft fee fk003")
+	local i = w:Mail(c, desk, 50, "ChillZone craft fee fk003")
 	w:Take(desk, i)
 	eq(Rows(desk), 0, "nor a row for a fee mail")
 	-- The buyer saw the trade and never confirmed: his copy tells the desk nothing.
@@ -137,7 +137,7 @@ test("1.2.1 craft fee desk: a flood cannot wedge a full ledger nor push out othe
 	assert(Entry(desk, "real01"), "the honest buyer's word stays")
 	assert(Entry(desk, "held01"), "the desk's own confirmation stays")
 	eq(Rows(desk), 6)
-	-- Each fee evicted is kept for its return, logged, and counted in /oly status on the desk.
+	-- Each fee evicted is kept for its return, logged, and counted in /cz status on the desk.
 	local led = desk.Craft.FeeLedger()
 	eq(led.evicted, 2)
 	assert(type(led.gone) == "table", "the evicted are kept")
@@ -174,7 +174,7 @@ test("1.2.1 craft fee desk: each sender's fees the desk never confirmed are capp
 	FeeWordTo(w, c, desk, "by003", "b", c.name, b.name, "8ow")
 	assert(Entry(desk, "by003"), "room again once the desk confirmed his others")
 	-- Fee mails for sales no word ever named: FEES_PER_SELLER per payer, never the whole ledger.
-	for n = 1, 4 do w:Take(desk, w:Mail(c, desk, 2, "Olympus craft fee ml00" .. n)) end
+	for n = 1, 4 do w:Take(desk, w:Mail(c, desk, 2, "ChillZone craft fee ml00" .. n)) end
 	eq(Rows(desk, function(e) return e.crafter == c.name and not e.fee end), 3, "his fee mails alone open FEES_PER_SELLER rows at most")
 	eq(Entry(desk, "ml004"), nil)
 	-- Those count with his own words of sales: at his cap, a fourth sale of his is refused...
@@ -216,12 +216,12 @@ test("1.2.1 craft fee desk: a made-up buyer's word never takes the seller's fee 
 	HearsDesk({ a, b, c }, desk)
 	-- b's fee mail for his sale to a reaches the desk before either party's word of it; then c names
 	-- himself the buyer of that sale.
-	w:Take(desk, w:Mail(b, desk, 600, "Olympus craft fee sale01"))
+	w:Take(desk, w:Mail(b, desk, 600, "ChillZone craft fee sale01"))
 	FeeWordTo(w, c, desk, "sale01", "b", c.name, b.name, "7ps")
 	-- Another sale: c's word comes first, then b's mail.
 	w:Run(61)
 	FeeWordTo(w, c, desk, "sale02", "b", c.name, b.name, "7ps")
-	w:Take(desk, w:Mail(b, desk, 600, "Olympus craft fee sale02"))
+	w:Take(desk, w:Mail(b, desk, 600, "ChillZone craft fee sale02"))
 	-- The parties' own words of both sales, the buyer's first.
 	for _, id in ipairs({ "sale01", "sale02" }) do
 		w:Run(61)
@@ -246,7 +246,7 @@ test("1.2.1 craft fee desk: a seller's fee mail on a sale only its buyer named w
 	HearsDesk({ a, b }, desk)
 	for _, id in ipairs({ "sale03", "sale04" }) do
 		FeeWordTo(w, a, desk, id, "b", a.name, b.name, "7ps")
-		w:Take(desk, w:Mail(b, desk, 600, "Olympus craft fee " .. id))
+		w:Take(desk, w:Mail(b, desk, 600, "ChillZone craft fee " .. id))
 		local e = assert(Fee(desk, id, b, a), "the buyer's word")
 		eq(e.paid, 0, "a buyer's word alone takes none of the seller's gold")
 		eq(Fee(desk, id, b).paid, 600, "it waits for the seller's word")
@@ -346,7 +346,7 @@ test("1.2.1 craft fee desk: a fee evicted for room comes back as it was when its
 	local waiting = false
 	for _, x in ipairs(desk.Craft.Debtors().toCheck) do if x.id == "gap01" then waiting = true end end
 	assert(waiting, "not taken as confirmed on the seller's lower word")
-	w:Take(desk, w:Mail(b, desk, 6, "Olympus craft fee gap01"))
+	w:Take(desk, w:Mail(b, desk, 6, "ChillZone craft fee gap01"))
 	eq(Fee(desk, "gap01", b, a).state, "due", "a 6-copper mail pays none of it off")
 	-- Two hours past the first deadline, he is late with the real sale's fee.
 	K.Jump(w, due + 7200 - w.clock)
@@ -365,8 +365,8 @@ test("1.2.1 craft fee desk: the gold on a fee evicted for room is still the sell
 	HearsDesk({ a, b, c, d }, desk)
 	w:As(desk, function() desk.ns.CraftRequests.FEES_MAX = 3 end)
 	-- b's fee mails for two sales come before any word of them; c's word fills the ledger.
-	w:Take(desk, w:Mail(b, desk, 600, "Olympus craft fee ml001"))
-	w:Take(desk, w:Mail(b, desk, 600, "Olympus craft fee ml002"))
+	w:Take(desk, w:Mail(b, desk, 600, "ChillZone craft fee ml001"))
+	w:Take(desk, w:Mail(b, desk, 600, "ChillZone craft fee ml002"))
 	FeeWordTo(w, c, desk, "fk001", "s", a.name, c.name, "h")
 	eq(Rows(desk), 3, "full")
 	-- d's word takes room from b, who holds the most: his oldest mail.
@@ -389,7 +389,7 @@ test("1.2.1 craft fee desk: the gold on a fee evicted for room is still the sell
 	FeeWordTo(w, d, desk, "fk004", "s", a.name, d.name, "h")
 	eq(Fee(desk, "sl001", b, a), nil, "his word evicted")
 	eq(desk.Craft.SettleFee(Fee(desk, "fk003", c, a).key, "waived", "no such sale"), true)
-	w:Take(desk, w:Mail(b, desk, 600, "Olympus craft fee sl001"))
+	w:Take(desk, w:Mail(b, desk, 600, "ChillZone craft fee sl001"))
 	eq(Fee(desk, "sl001", b).paid, 600, "the mail waits on its own")
 	K.Jump(w, 3600)
 	FeeWordTo(w, b, desk, "sl001", "s", a.name, b.name, "7ps")
@@ -484,7 +484,7 @@ test("1.2.1 craft fee desk: a seller's evicted word that the buyer's late word b
 	eq(Fee(desk, "lw001", b, a), nil, "his oldest word evicted")
 	for _, x in ipairs({ Fee(desk, "fk001", c, a), Fee(desk, "fk002", d, a) }) do eq(desk.Craft.SettleFee(x.key, "waived", "no such sale"), true) end
 	-- His fee mail finds no word of his on the ledger: it waits on its own.
-	w:Take(desk, w:Mail(b, desk, 600, "Olympus craft fee lw001"))
+	w:Take(desk, w:Mail(b, desk, 600, "ChillZone craft fee lw001"))
 	eq(Fee(desk, "lw001", b).paid, 600)
 	-- The buyer's word comes late: his seller's word is back with it, and so is his gold.
 	FeeWordTo(w, a, desk, "lw001", "b", a.name, b.name, "7ps")

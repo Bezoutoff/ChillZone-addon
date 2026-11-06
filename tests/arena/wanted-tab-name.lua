@@ -6,7 +6,7 @@ H.test("Wanted tab name: requested label is Wanted in both languages", function(
 		c.globals.GetLocale = function() return locale end
 		local ns = { L = {} }
 		w:As(c, function()
-			assert(loadfile(H.ADDON_DIR .. "Locales.lua"))("Olympus", ns)
+			assert(loadfile(H.ADDON_DIR .. "Locales.lua"))("ChillZone", ns)
 		end)
 		H.eq(ns.L.TAB_WANTED, "Wanted")
 	end

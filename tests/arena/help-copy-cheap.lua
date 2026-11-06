@@ -1,5 +1,5 @@
--- 1.2.1, the help's copy window (Olympus/UI.lua's UI.ShowHelp and UI.ShowCopy): on a slow laptop
--- the in-game timer measured 2.7 s for one opening of the help (the Olympus window's "i"); offline
+-- 1.2.1, the help's copy window (ChillZone/UI.lua's UI.ShowHelp and UI.ShowCopy): on a slow laptop
+-- the in-game timer measured 2.7 s for one opening of the help (the ChillZone window's "i"); offline
 -- it costs under a millisecond, so the time is the client's own work on the window and its text.
 -- The cheaper path for an opening after the first: the help's text is made once a session, the box
 -- keeps a text it shows already (the help opened again sets no text, so the client lays nothing out
@@ -18,7 +18,7 @@ local function check(cond, msg, ...) if not cond then error((msg or "check faile
 local function LoadUI()
 	local uns = setmetatable({}, { __index = H.ns })
 	uns.On = function() end
-	assert(loadfile(H.ADDON_DIR .. "UI.lua"))("Olympus", uns)
+	assert(loadfile(H.ADDON_DIR .. "UI.lua"))("ChillZone", uns)
 	return uns.UI, uns
 end
 -- Counts the box's SetText calls; with `typed`, the box reports its own SetText as the player's
@@ -47,7 +47,7 @@ test("1.2.1 help copy window: its text is made once; opened again it sets no tex
 		local UI = LoadUI()
 		local L = H.ns.L
 		UI.ShowHelp()
-		local box = assert(_G.OlympusCopyFrame, "the help's copy window")
+		local box = assert(_G.ChillZoneCopyFrame, "the help's copy window")
 		eq(box.TitleText:GetText(), L.HELP_TITLE)
 		local help = box.text
 		check(help:find(L.HELP_LINKS, 1, true), "the help in the box")
@@ -75,7 +75,7 @@ test("1.2.1 help copy window: the read-only guard sets the text back once, also 
 	H.WithUI(function()
 		local UI = LoadUI()
 		UI.ShowCopy("A copy", "first")
-		local box = assert(_G.OlympusCopyFrame)
+		local box = assert(_G.ChillZoneCopyFrame)
 		local calls = Count(box.eb, true)
 		UI.ShowCopy("A copy", "second text")
 		local n, deepest = calls()
@@ -114,13 +114,13 @@ local function Timed(uns, catch)
 	local made = CreateFrame
 	CreateFrame = function(kind, name, parent, template)
 		local f = made(kind, name, parent, template)
-		if name == "OlympusCopyFrame" then
+		if name == "ChillZoneCopyFrame" then
 			Note("window made")
 			local show = f.Show
 			rawset(f, "Show", function(self) Note("window shown"); return show(self) end)
-		elseif name == "OlympusCopyScroll" then
+		elseif name == "ChillZoneCopyScroll" then
 			Note("scroll made")
-		elseif kind == "EditBox" and parent and parent.GetName and parent:GetName() == "OlympusCopyScroll" then
+		elseif kind == "EditBox" and parent and parent.GetName and parent:GetName() == "ChillZoneCopyScroll" then
 			Note("box made")
 			local set, focus = f.SetText, f.SetFocus
 			rawset(f, "SetText", function(self, text) Note("text set"); return set(self, text) end)
@@ -137,7 +137,7 @@ test("1.2.1 help copy window: its first opening's parts are timed each on their 
 		local UI, uns = LoadUI()
 		local keys, inside = Timed(uns)
 		UI.ShowHelp()
-		local box = assert(_G.OlympusCopyFrame, "the help's copy window")
+		local box = assert(_G.ChillZoneCopyFrame, "the help's copy window")
 		eq(box:IsShown(), true)
 		eq(box.eb:GetText(), UI.HelpText())
 		local first = keys()
@@ -164,7 +164,7 @@ test("1.2.1 help copy window: a window that fails to be made is caught as its ow
 		local keys = Timed(uns, function(where) caught[#caught + 1] = where end)
 		local made = CreateFrame
 		CreateFrame = function(kind, name, ...)
-			if name == "OlympusCopyScroll" then error("no scroll frame") end
+			if name == "ChillZoneCopyScroll" then error("no scroll frame") end
 			return made(kind, name, ...)
 		end
 		local ok, res = pcall(UI.ShowCopy, "A copy", "text")

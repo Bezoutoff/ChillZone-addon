@@ -1,6 +1,6 @@
 # Shared game records (1.2.4)
 
-Bones and direct duels keep their two original signed result halves in Olympus's core saved
+Bones and direct duels keep their two original signed result halves in ChillZone's core saved
 data, separately for each realm group and faction. Any ordinary holder can relay those halves.
 A receiver normally needs each player's key heard from that player, or an already verified wallet
 claim; one relay never establishes another player's identity. Unknown keys leave a bounded pending
@@ -41,7 +41,7 @@ continue to use the established rating rules.
 
 ## Closing a month
 
-Seven days after a month closes, `/oly arena records` shows that client's unsigned monthly
+Seven days after a month closes, `/cz arena records` shows that client's unsigned monthly
 requests. A request includes the realm group, faction, game type, month, number of players and
 SHA-256 of canonical totals. The author reviews the actual totals before signing it:
 
@@ -53,7 +53,7 @@ This prints a signed seal using the existing council key. It does not change the
 membership, leadership authority or council output. No test reads the author's key: the round
 trip generates a temporary key and removes that temporary folder afterward.
 
-Paste the signed result with `/oly arena records seal`. Anyone can relay a genuine seal and its
+Paste the signed result with `/cz arena records seal`. Anyone can relay a genuine seal and its
 totals, but only the existing author's public key can authorize it. The receiver adopts the totals
 only after their complete text matches the signed hash and row count. Only then can original
 records older than 62 days in that month be compacted; the authenticated monthly totals remain.

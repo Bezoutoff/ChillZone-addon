@@ -1,4 +1,4 @@
--- The Companion's sections for the tabs of affairs (931, Olympus/BridgeAffairs.lua): crafting,
+-- The Companion's sections for the tabs of affairs (931, ChillZone/BridgeAffairs.lua): crafting,
 -- crafters, treasury, decrees, agenda, notices, watch and chatRooms. Each test's name holds
 -- "companion bridge affairs", so `luajit tests/run.lua bridge` and `... companion` run them.
 -- Loaded by tests/run.lua with the Chat tab's world (WithWindow) and the repository's root.
@@ -31,14 +31,14 @@ local function OnlyFields(rows, allowed, what)
 end
 local function Set(list) local s = {} for _, k in ipairs(list) do s[k] = true end return s end
 
--- The section's data through the registry (OlympusBridge.GetSection: a plain copy within its limits).
+-- The section's data through the registry (ChillZoneBridge.GetSection: a plain copy within its limits).
 local function Data(name)
-	local got = OlympusBridge.GetSection(name)
+	local got = ChillZoneBridge.GetSection(name)
 	return got and got.data
 end
 
 ---------------------------------------------------------------------------
--- A world of its own: Bridge.lua's registry fresh (the real OlympusBridge put back after), the
+-- A world of its own: Bridge.lua's registry fresh (the real ChillZoneBridge put back after), the
 -- affairs' file loaded into a namespace over the harness's, with the real OfficerMuster, Chronicle,
 -- Decree and Week where o asks, and stand-ins for the rest. Every module a section reads is off
 -- (false) unless the test gives it. w.now: this computer's clock; w.clock: the server's.
@@ -46,7 +46,7 @@ end
 local function World(fn, o)
 	o = o or {}
 	local w = { now = 1800000000, clock = 1800000007, member = true, accord = true, roles = {}, ranks = {},
-		guild = "Olympus Ember", kingGuild = "Olympus Ember", lordGuild = "Olympus Ember", handlers = {}, kingHandlers = {}, printed = {}, team = false }
+		guild = "ChillZone Ember", kingGuild = "ChillZone Ember", lordGuild = "ChillZone Ember", handlers = {}, kingHandlers = {}, printed = {}, team = false }
 	local c = setmetatable({ me = "Tester-Realm", realm = "Realm", group = "Realm", faction = "Alliance",
 		db = { accord = { v = 1, yes = true, at = 0 } }, rdb = { guilds = {} }, L = setmetatable({}, { __index = ns.L }),
 		DecreePages = {}, RealmPages = {} }, { __index = ns })
@@ -55,7 +55,7 @@ local function World(fn, o)
 	c.Now = function() return w.now end
 	c.AccordAccepted = function() return w.accord end
 	c.IsMember = function() return w.member end
-	c.IsFederation = function(g) return type(g) == "string" and g:find("Olympus", 1, true) ~= nil end
+	c.IsFederation = function(g) return type(g) == "string" and g:find("ChillZone", 1, true) ~= nil end
 	c.IsKingGuild = function(g) return g ~= nil and g == w.kingGuild end
 	c.KingGuildName = function() return w.kingGuild end
 	c.IsKingCharacter = function(n) return Role(n) == "king" end
@@ -95,7 +95,7 @@ local function World(fn, o)
 	c.WatchChat = { Barred = function() return false end, InRoom = function(name) return w.team == true and name == c.me end }
 	for _, m in ipairs({ "CraftRequests", "Crafters", "Treasury", "Decree", "Week", "OfficerMuster", "Chronicle", "HonorsNet",
 		"Watch", "Inspect", "Channels", "ChatRooms", "ChatWindow" }) do c[m] = false end
-	local saved = { bridge = rawget(_G, "OlympusBridge"), guild = GetGuildInfo, inGuild = IsInGuild, time = GetServerTime,
+	local saved = { bridge = rawget(_G, "ChillZoneBridge"), guild = GetGuildInfo, inGuild = IsInGuild, time = GetServerTime,
 		best = C_Map.GetBestMapForUnit, pos = C_Map.GetPlayerMapPosition, info = C_Map.GetMapInfo, chat = C_ChatInfo,
 		members = GetNumGuildMembers }
 	local ok, err = pcall(function()
@@ -109,15 +109,15 @@ local function World(fn, o)
 			if id == 1429 then return { mapID = id, name = "Elwynn Forest", mapType = 3 } end
 			if id == 1453 then return { mapID = id, name = "Stormwind City", mapType = 3 } end
 		end
-		for _, file in ipairs(o.load or {}) do assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua"))("Olympus", c) end
-		OlympusBridge = nil
-		assert(loadfile(ROOT .. "Olympus/Bridge.lua"))("Olympus", c)
-		if o.sections then assert(loadfile(ROOT .. "Olympus/BridgeSections.lua"))("Olympus", c) end
-		assert(loadfile(ROOT .. "Olympus/BridgeAffairs.lua"))("Olympus", c)
-		w.B = OlympusBridge
+		for _, file in ipairs(o.load or {}) do assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua"))("ChillZone", c) end
+		ChillZoneBridge = nil
+		assert(loadfile(ROOT .. "ChillZone/Bridge.lua"))("ChillZone", c)
+		if o.sections then assert(loadfile(ROOT .. "ChillZone/BridgeSections.lua"))("ChillZone", c) end
+		assert(loadfile(ROOT .. "ChillZone/BridgeAffairs.lua"))("ChillZone", c)
+		w.B = ChillZoneBridge
 		fn(w, c)
 	end)
-	OlympusBridge, GetGuildInfo, IsInGuild, GetServerTime = saved.bridge, saved.guild, saved.inGuild, saved.time
+	ChillZoneBridge, GetGuildInfo, IsInGuild, GetServerTime = saved.bridge, saved.guild, saved.inGuild, saved.time
 	C_Map.GetBestMapForUnit, C_Map.GetPlayerMapPosition, C_Map.GetMapInfo, C_ChatInfo = saved.best, saved.pos, saved.info, saved.chat
 	GetNumGuildMembers = saved.members
 	if not ok then error(err, 0) end
@@ -130,20 +130,20 @@ local function Craft(o)
 	local rows = {}
 	for i = 1, o.open or 3 do
 		rows[#rows + 1] = { id = "c" .. i, itemName = "Lionheart Helm " .. i, quantity = i, requester = "Asker" .. i .. "-Realm",
-			guild = "Olympus Ember", state = "open", updated = 1799999000 + i, details = "SECRET DETAILS", quote = { reference = 987654 },
+			guild = "ChillZone Ember", state = "open", updated = 1799999000 + i, details = "SECRET DETAILS", quote = { reference = 987654 },
 			claimNonces = { abc = true }, audit = { { detail = "SECRET AUDIT" } } }
 	end
 	for i = 1, o.own or 2 do
 		rows[#rows + 1] = { id = "m" .. i, itemName = "Flask of the Titans", quantity = 2, requester = "Tester-Realm", crafter = "Maker" .. i .. "-Realm",
-			guild = "Olympus Ember", state = "terms", updated = 1799998000 + i, terms = { unit = 424242, total = 848484, source = "SECRET TERMS" },
-			settlement = { custodian = "Keeper-Realm", rail = "guild" }, chat = { { text = "SECRET CHAT" } }, crafterGuild = "Olympus Ember" }
+			guild = "ChillZone Ember", state = "terms", updated = 1799998000 + i, terms = { unit = 424242, total = 848484, source = "SECRET TERMS" },
+			settlement = { custodian = "Keeper-Realm", rail = "guild" }, chat = { { text = "SECRET CHAT" } }, crafterGuild = "ChillZone Ember" }
 	end
 	for i = 1, o.making or 1 do
 		rows[#rows + 1] = { id = "k" .. i, itemName = "Arcanite Bar", quantity = 5, requester = "Buyer" .. i .. "-Realm", crafter = "Tester-Realm",
-			guild = "Olympus Ember", state = "in_progress", updated = 1799997000 + i, terms = { unit = 1, source = "SECRET TERMS" } }
+			guild = "ChillZone Ember", state = "in_progress", updated = 1799997000 + i, terms = { unit = 1, source = "SECRET TERMS" } }
 	end
 	rows[#rows + 1] = { id = "done", itemName = "Old Deal", quantity = 1, requester = "Tester-Realm", crafter = "Maker-Realm", state = "completed",
-		guild = "Olympus Ember", updated = 1799990000 }
+		guild = "ChillZone Ember", updated = 1799990000 }
 	return { All = function() return rows end, CanFulfill = function(r) return r.id == "c2" end }
 end
 
@@ -152,7 +152,7 @@ end
 ---------------------------------------------------------------------------
 
 test("companion bridge affairs (931): every section of the tabs of affairs is registered at version 1, chatRooms by the name the Companion reads", function()
-	local B = OlympusBridge
+	local B = ChillZoneBridge
 	local names = {}
 	for _, s in ipairs(B.Sections()) do names[s.name] = s.version end
 	for _, name in ipairs(AFFAIRS) do eq(names[name], 1, name) end
@@ -162,17 +162,17 @@ test("companion bridge affairs (931): every section of the tabs of affairs is re
 	eq(select(2, B.RegisterSection("chat rooms", 1, F)), "name")
 	eq(select(2, B.RegisterSection("chatRooms", 1, F)), "taken", "the affairs' file holds it")
 	-- (1.4.0: that the Companion's bridge addon saves each of them is checked in its own repository.)
-	local toc = assert(io.open(ROOT .. "Olympus/Olympus.toc")):read("*a")
+	local toc = assert(io.open(ROOT .. "ChillZone/ChillZone.toc")):read("*a")
 	-- (931: the Companion's section files, BridgeSections.lua's helpers first, then the people tabs'
 	-- file and this one, which needs neither of the other two's sections.)
 	assert(toc:find("\nBridgeSections%.lua\r?\nBridgePeople%.lua\r?\nBridgeAffairs%.lua\r?\n"),
 		"the TOC loads it with the Companion's section files, after BridgeSections.lua and BridgePeople.lua")
 end)
 
-test("companion bridge affairs (931): nothing at all before the Olympus Accord is accepted, nor for a character who is no member", function()
+test("companion bridge affairs (931): nothing at all before the ChillZone Accord is accepted, nor for a character who is no member", function()
 	World(function(w, c)
 		c.CraftRequests = Craft()
-		c.Crafters = { Board = function() return { { name = "Smith-Realm", guild = "Olympus Ember", t = w.now, profs = { { key = "164", name = "Blacksmithing", rank = 300, max = 300, n = 12 } } } } end }
+		c.Crafters = { Board = function() return { { name = "Smith-Realm", guild = "ChillZone Ember", t = w.now, profs = { { key = "164", name = "Blacksmithing", rank = 300, max = 300, n = 12 } } } } end }
 		c.Treasury = { PublicShows = function() return true end, Report = function() return { balance = 5, allIn = 9, allOut = 4, week = 1, donors = 1, t = w.now } end }
 		c.Week = { Entries = function() return {} end }
 		c.Decree = { Active = function() return {} end }
@@ -220,7 +220,7 @@ test("companion bridge affairs (931): crafting carries the board's open cards an
 		local d = assert(Data("crafting"))
 		eq(#d.board, 3); eq(#d.own, 3, "his two requests taken and the one he is making; the completed one left out")
 		local b = d.board[2]
-		eq(b.id, "c2"); eq(b.item, "Lionheart Helm 2"); eq(b.quantity, 2); eq(b.guild, "Olympus Ember")
+		eq(b.id, "c2"); eq(b.item, "Lionheart Helm 2"); eq(b.quantity, 2); eq(b.guild, "ChillZone Ember")
 		-- (The review of 931: the board's line and its opened card name no requester; its search alone
 		-- matches him. The board's rows carry none.)
 		eq(b.requester, nil, "the board names no requester"); assert(not Carries(d.board, "Asker"), "no requester on the board")
@@ -252,10 +252,10 @@ test("companion bridge affairs (931): crafting from the real request store: an o
 		local now = ns.Now()
 		ns.rdb.craftRequests = { invites = {}, records = {
 			cardx = { id = "cardx", requester = "Asker-Realm", itemName = "Thorium Bar", quantity = 4, kind = "c", profession = "",
-				guild = "Olympus II", state = "open", created = now - 60, expires = now + 3600, updated = now - 60, details = "bring ore SECRET",
+				guild = "ChillZone II", state = "open", created = now - 60, expires = now + 3600, updated = now - 60, details = "bring ore SECRET",
 				audit = {}, chat = {}, seenActions = {}, seenChat = {} },
 			mine = { id = "mine", requester = ns.me, crafter = "Maker-Realm", itemName = "Truesilver Rod", quantity = 1, kind = "c", profession = "",
-				guild = "Olympus II", state = "accepted", created = now - 120, expires = now + 3600, updated = now - 30,
+				guild = "ChillZone II", state = "accepted", created = now - 120, expires = now + 3600, updated = now - 30,
 				terms = { unit = 777777, total = 777777, source = "SECRET" }, chat = { { text = "SECRET CHAT" } }, audit = {}, seenActions = {}, seenChat = {} },
 		} }
 		local d = assert(Data("crafting"), "the real registry's crafting section")
@@ -279,7 +279,7 @@ test("companion bridge affairs (931): crafters lists the directory, best skill f
 		for i = 1, 400 do
 			local profs = {}
 			for j = 1, 6 do profs[j] = { key = tostring(160 + j), name = "Prof" .. j, rank = (i % 300) + j, max = 300, n = i, recipes = { { i = 99 } }, secret = "SECRET" } end
-			board[i] = { name = ("Crafter%03d-Realm"):format(i), guild = "Olympus Ember", t = w.now - i, profs = profs }
+			board[i] = { name = ("Crafter%03d-Realm"):format(i), guild = "ChillZone Ember", t = w.now - i, profs = profs }
 		end
 		c.Crafters = { PROFS_MAX = 4, Board = function() return board end,
 			CanonicalProfessionKey = function(key) return key end, ProfessionLabel = function(key, name) return name .. " (" .. key .. ")" end }
@@ -300,10 +300,10 @@ test("companion bridge affairs (931): crafters from the real board, as the tab l
 	local saved = ns.rdb
 	local ok, err = pcall(function()
 		ns.rdb = { guilds = {}, craftersBoard = {
-			["Smith-Realm"] = { guild = "Olympus II", t = ns.Now() - 60, profs = { { key = "164", name = "Blacksmithing", rank = 290, max = 300, n = 41 } } },
+			["Smith-Realm"] = { guild = "ChillZone II", t = ns.Now() - 60, profs = { { key = "164", name = "Blacksmithing", rank = 290, max = 300, n = 41 } } },
 		} }
 		local d = assert(Data("crafters"))
-		eq(#d, 1); eq(d[1].name, "Smith"); eq(d[1].guild, "Olympus II")
+		eq(#d, 1); eq(d[1].name, "Smith"); eq(d[1].guild, "ChillZone II")
 		eq(d[1].professions[1].skill, 290); eq(d[1].professions[1].max, 300); eq(d[1].professions[1].recipes, 41)
 		eq(d[1].professions[1].name, ns.Crafters.ProfessionLabel(ns.Crafters.CanonicalProfessionKey("164", "Blacksmithing"), "Blacksmithing"))
 	end)
@@ -352,11 +352,11 @@ test("companion bridge affairs (931): decrees lists the Decrees tab's decrees as
 	World(function(w, c)
 		w.roles["Royal-Realm"], w.roles["Sage-Realm"], w.ranks["Lord-Realm"] = "king", "council", 0
 		local D1 = w.handlers.D1
-		D1("CHANNEL", "Royal-Realm", ns.Codec.EncodeDecree("ROYAL", 1453, 0.5, 0.25, "Olympus Ember", 0, "Muster at the gates"))
+		D1("CHANNEL", "Royal-Realm", ns.Codec.EncodeDecree("ROYAL", 1453, 0.5, 0.25, "ChillZone Ember", 0, "Muster at the gates"))
 		w.now, w.clock = w.now + 61, w.clock + 61
-		D1("CHANNEL", "Sage-Realm", ns.Codec.EncodeDecree("ARMS", 1429, 0.1, 0.2, "Olympus Ember", 0, ""))
+		D1("CHANNEL", "Sage-Realm", ns.Codec.EncodeDecree("ARMS", 1429, 0.1, 0.2, "ChillZone Ember", 0, ""))
 		w.now, w.clock = w.now + 61, w.clock + 61
-		D1("GUILD", "Lord-Realm", ns.Codec.EncodeDecree("ROYAL", 1429, 0.3, 0.3, "Olympus Ember", 0, "Guild meeting"))
+		D1("GUILD", "Lord-Realm", ns.Codec.EncodeDecree("ROYAL", 1429, 0.3, 0.3, "ChillZone Ember", 0, "Guild meeting"))
 		c.Decree.Preview("ROYAL")
 		eq(#c.Decree.Active(), 4, "the module holds four, the preview among them")
 		local d = assert(Data("decrees"))
@@ -365,13 +365,13 @@ test("companion bridge affairs (931): decrees lists the Decrees tab's decrees as
 		eq(guild.scope, "guild"); eq(guild.role, "guildMaster"); eq(guild.kind, "royal"); eq(guild.text, "Guild meeting")
 		eq(guild.title, c.Decree.Label({ kind = "ROYAL", scope = "guild" }))
 		eq(council.scope, "army"); eq(council.role, "council"); eq(council.kind, "arms"); eq(council.text, nil); eq(council.zone, "Elwynn Forest")
-		eq(royal.role, "crown"); eq(royal.by, "Royal"); eq(royal.guild, "Olympus Ember"); eq(royal.zone, "Stormwind City")
+		eq(royal.role, "crown"); eq(royal.by, "Royal"); eq(royal.guild, "ChillZone Ember"); eq(royal.zone, "Stormwind City")
 		eq(royal.at, 1800000007, "the server's time of its arrival"); eq(royal.expires, 1800000007 + 3600)
 		OnlyFields(d, Set({ "id", "kind", "scope", "role", "title", "zone", "text", "hidden", "by", "guild", "at", "expires" }), "decree")
 		-- Words the player's block terms hide stay hidden, as on the page.
 		w.hide = "secret plan"
 		w.now, w.clock = w.now + 61, w.clock + 61
-		D1("CHANNEL", "Royal-Realm", ns.Codec.EncodeDecree("ROYAL", 1453, 0.6, 0.6, "Olympus Ember", 0, "our secret plan"))
+		D1("CHANNEL", "Royal-Realm", ns.Codec.EncodeDecree("ROYAL", 1453, 0.6, 0.6, "ChillZone Ember", 0, "our secret plan"))
 		local veiled = Data("decrees")[1]
 		eq(veiled.hidden, true); eq(veiled.text, ns.L.FILTER_WORDS_HIDDEN_SHORT); assert(not Carries(Data("decrees"), "secret plan"))
 	end, { load = REAL })
@@ -381,9 +381,9 @@ test("companion bridge affairs (931): on the King's screen while the councillors
 	World(function(w, c)
 		w.roles["Royal-Realm"], w.roles["Sage-Realm"] = "king", "council"
 		local D1 = w.handlers.D1
-		D1("CHANNEL", "Royal-Realm", ns.Codec.EncodeDecree("ROYAL", 1453, 0.5, 0.25, "Olympus Ember", 0, "Crown speaks"))
+		D1("CHANNEL", "Royal-Realm", ns.Codec.EncodeDecree("ROYAL", 1453, 0.5, 0.25, "ChillZone Ember", 0, "Crown speaks"))
 		w.now, w.clock = w.now + 61, w.clock + 61
-		D1("CHANNEL", "Sage-Realm", ns.Codec.EncodeDecree("ROYAL", 1429, 0.1, 0.2, "Olympus Ember", 0, "Council speaks"))
+		D1("CHANNEL", "Sage-Realm", ns.Codec.EncodeDecree("ROYAL", 1429, 0.1, 0.2, "ChillZone Ember", 0, "Council speaks"))
 		local shown = assert(Data("decrees"))
 		eq(#shown, 2); eq(shown[1].role, "council", "the names shown: the council's mark")
 		eq(Data("notices").items[1].kind, "council")
@@ -407,10 +407,10 @@ test("companion bridge affairs (931): notices in the agreed shape: an officer mu
 		w.roles["Royal-Realm"], w.roles["Sage-Realm"], w.roles["Lord-Realm"] = "king", "council", "lord"
 		local OM, D1 = w.handlers.OM, w.handlers.D1
 		local seq = w.clock
-		assert(OM("CHANNEL", "Royal-Realm", ("OM~1~P~A~Realm~%d~%d~Olympus Ember~1429~Defend Goldshire"):format(seq, w.clock)))
-		assert(OM("GUILD", "Lord-Realm", ("OM~1~P~A~Realm~%d~%d~Olympus Ember~1429~Guild raid"):format(seq + 5, w.clock)))
+		assert(OM("CHANNEL", "Royal-Realm", ("OM~1~P~A~Realm~%d~%d~ChillZone Ember~1429~Defend Goldshire"):format(seq, w.clock)))
+		assert(OM("GUILD", "Lord-Realm", ("OM~1~P~A~Realm~%d~%d~ChillZone Ember~1429~Guild raid"):format(seq + 5, w.clock)))
 		w.now, w.clock = w.now + 30, w.clock + 30
-		D1("CHANNEL", "Sage-Realm", ns.Codec.EncodeDecree("ROYAL", 1453, 0.5, 0.5, "Olympus Ember", 0, "Council speaks"))
+		D1("CHANNEL", "Sage-Realm", ns.Codec.EncodeDecree("ROYAL", 1453, 0.5, 0.5, "ChillZone Ember", 0, "Council speaks"))
 		local items = assert(Data("notices")).items
 		eq(#items, 3)
 		local decree, crown, guild = items[1], items[2], items[3]
@@ -418,7 +418,7 @@ test("companion bridge affairs (931): notices in the agreed shape: an officer mu
 		eq(crown.id, ("muster:%d:%s"):format(seq, ns.Fold("Royal-Realm")), "the agreed id: muster:<sequence>:<poster key>")
 		eq(crown.kind, "muster"); eq(crown.role, "crown"); eq(crown.title, "Defend Goldshire"); eq(crown.zone, "Elwynn Forest")
 		eq(crown.withdrawn, false); eq(crown.at, seq); eq(crown.audience, "army"); eq(crown.guild, nil)
-		eq(guild.role, "guildMaster"); eq(guild.guild, "Olympus Ember", "a guild master's muster names his guild"); eq(guild.audience, "guild")
+		eq(guild.role, "guildMaster"); eq(guild.guild, "ChillZone Ember", "a guild master's muster names his guild"); eq(guild.audience, "guild")
 		for _, item in ipairs(items) do
 			assert(#item.title <= 60 and (item.text == nil or (#item.text <= 120 and not item.text:find("\n"))), item.id)
 			for k in pairs(item) do
@@ -443,13 +443,13 @@ test("companion bridge affairs (931): notices carry this character's own letters
 		local letters = {}
 		for i = 1, 40 do letters[i] = { key = "donor-top-" .. (i % 3 + 1), t = 1799000000 + i } end
 		c.HonorsNet = { Letters = function() return letters end,
-			LetterText = function(key) return "Dude,\n\nYou've put more gold into Olympus than almost anyone. That's not a little, that's insane. You're the Patron, keep it.", "Patron of Olympus" end }
+			LetterText = function(key) return "Dude,\n\nYou've put more gold into ChillZone than almost anyone. That's not a little, that's insane. You're the Patron, keep it.", "Patron of ChillZone" end }
 		c.Decree = { Active = function() return {} end }
 		local items = assert(Data("notices")).items
 		eq(#items, 30, "30 at most")
 		eq(items[1].at, 1799000040, "the newest first"); eq(items[30].at, 1799000011)
 		local x = items[1]
-		eq(x.kind, "king"); eq(x.role, "crown"); eq(x.audience, "self", "his alone: never fanned out"); eq(x.title, "Patron of Olympus")
+		eq(x.kind, "king"); eq(x.role, "crown"); eq(x.audience, "self", "his alone: never fanned out"); eq(x.title, "Patron of ChillZone")
 		eq(x.text:sub(1, 30), "Dude, You've put more gold int"); assert(#x.text <= 120 and not x.text:find("\n"))
 		eq(x.id, "letter:donor-top-2:1799000040")
 		-- A Slayer letter's key (Wanted.lua's: a digest, numbers and the Horde player's name) goes by its digest.
@@ -468,16 +468,16 @@ end
 
 test("companion bridge affairs (931): an ended muster keeps its audience and role: a guild master's stays his guild's, the Crown's the army's; another guild's or faction's is no notice", function()
 	World(function(w, c)
-		-- Lord-Realm masters Olympus Ember, which is not the King's guild: his calls reach his guild alone.
-		w.kingGuild = "Olympus"
+		-- Lord-Realm masters ChillZone Ember, which is not the King's guild: his calls reach his guild alone.
+		w.kingGuild = "ChillZone"
 		w.roles["Royal-Realm"], w.roles["Lord-Realm"] = "king", "lord"
 		local OM = w.handlers.OM
 		local seq = w.clock
-		assert(OM("GUILD", "Lord-Realm", ("OM~1~P~A~Realm~%d~%d~Olympus Ember~1429~Guild raid"):format(seq, seq)))
-		assert(OM("CHANNEL", "Royal-Realm", ("OM~1~P~A~Realm~%d~%d~Olympus~1429~Defend Goldshire"):format(seq + 1, seq)))
+		assert(OM("GUILD", "Lord-Realm", ("OM~1~P~A~Realm~%d~%d~ChillZone Ember~1429~Guild raid"):format(seq, seq)))
+		assert(OM("CHANNEL", "Royal-Realm", ("OM~1~P~A~Realm~%d~%d~ChillZone~1429~Defend Goldshire"):format(seq + 1, seq)))
 		local guildId, crownId = ("muster:%d:%s"):format(seq, ns.Fold("Lord-Realm")), ("muster:%d:%s"):format(seq + 1, ns.Fold("Royal-Realm"))
 		local active = ById(assert(Data("notices")).items)
-		eq(active[guildId].audience, "guild"); eq(active[guildId].guild, "Olympus Ember"); eq(active[guildId].role, "guildMaster")
+		eq(active[guildId].audience, "guild"); eq(active[guildId].guild, "ChillZone Ember"); eq(active[guildId].role, "guildMaster")
 		eq(active[crownId].audience, "army"); eq(active[crownId].role, "crown")
 		w.now, w.clock = w.now + 30, w.clock + 30
 		assert(OM("GUILD", "Lord-Realm", ("OM~1~E~A~Realm~%d~%d"):format(seq, seq)))
@@ -486,17 +486,17 @@ test("companion bridge affairs (931): an ended muster keeps its audience and rol
 		local ended = ById(Data("notices").items)
 		local g, k = assert(ended[guildId], "the guild's withdrawn muster"), assert(ended[crownId], "the Crown's withdrawn muster")
 		eq(g.withdrawn, true); eq(g.title, "Guild raid")
-		eq(g.audience, "guild", "his guild's alone, withdrawn as while it stood"); eq(g.guild, "Olympus Ember"); eq(g.role, "guildMaster")
+		eq(g.audience, "guild", "his guild's alone, withdrawn as while it stood"); eq(g.guild, "ChillZone Ember"); eq(g.role, "guildMaster")
 		eq(k.withdrawn, true); eq(k.audience, "army"); eq(k.guild, nil); eq(k.role, "crown")
 		for _, item in pairs(ended) do assert(item.audience, "every notice has its audience: " .. item.id) end
 		-- The acts log is this account's on the realm group: another character of it, in another
 		-- guild, holds the same rows. The guild's call is none of his; the Crown's still reaches him.
-		w.guild = "Olympus II"
+		w.guild = "ChillZone II"
 		ended = ById(Data("notices").items)
 		eq(ended[guildId], nil, "another guild's muster is no notice here")
 		eq(ended[crownId].audience, "army")
 		-- A role lost since: no notice to place.
-		w.guild, w.roles["Lord-Realm"] = "Olympus Ember", nil
+		w.guild, w.roles["Lord-Realm"] = "ChillZone Ember", nil
 		eq(ById(Data("notices").items)[guildId], nil, "its poster no longer that guild's master")
 		-- Nor the other faction's call, on a character of the same account of the other faction.
 		w.roles["Lord-Realm"], c.faction = "lord", "Horde"
@@ -507,7 +507,7 @@ test("companion bridge affairs (931): an ended muster keeps its audience and rol
 		w.roles["Lord-Realm"], w.ranks["Lord-Realm"] = "lord", 0
 		local OM = w.handlers.OM
 		local seq = w.clock
-		assert(OM("CHANNEL", "Lord-Realm", ("OM~1~P~A~Realm~%d~%d~Olympus Ember~1429~Hold the bridge"):format(seq, seq)))
+		assert(OM("CHANNEL", "Lord-Realm", ("OM~1~P~A~Realm~%d~%d~ChillZone Ember~1429~Hold the bridge"):format(seq, seq)))
 		local id = ("muster:%d:%s"):format(seq, ns.Fold("Lord-Realm"))
 		local before = ById(Data("notices").items)[id]
 		eq(before.role, "crown"); eq(before.audience, "army")
@@ -532,12 +532,12 @@ test("companion bridge affairs (931): agenda lists the week as the real module h
 		for i = 1, 26 do
 			local by = i == 1 and "Lord-Realm" or i <= 11 and "Royal-Realm" or i <= 21 and "Stew-Realm" or "Hand-Realm"
 			heard[i] = { id = 1000 + i, by = by, title = "Raid night " .. i, zone = "Molten Core", at = w.now + 3000 + i * 3600,
-				crown = (by == "Royal-Realm" or by == "Stew-Realm") or nil, heardAt = w.now, guild = "Olympus Ember", guildOnly = i == 1 or nil }
+				crown = (by == "Royal-Realm" or by == "Stew-Realm") or nil, heardAt = w.now, guild = "ChillZone Ember", guildOnly = i == 1 or nil }
 		end
 		c.rdb.weekHeard = heard
 		c.Week.Restore(w.now)
 		eq(#c.Week.Entries(w.now), 26, "the module keeps every one of them")
-		w.agenda = { id = 7, title = "Court at the throne", at = w.now + 600, zone = "Stormwind City", by = "Royal-Realm", guild = "Olympus Ember" }
+		w.agenda = { id = 7, title = "Court at the throne", at = w.now + 600, zone = "Stormwind City", by = "Royal-Realm", guild = "ChillZone Ember" }
 		table.insert(c.Week.providers, function()
 			local out = {}
 			for i = 1, 5 do out[i] = { at = w.now + 1800 + i, title = "Arena final " .. i, zone = "Gurubashi", tip = "SECRET TIP" } end
@@ -589,9 +589,9 @@ test("companion bridge affairs (931): watch exists only on a moderation team cli
 	World(function(w, c)
 		c.Watch = WatchStub(w)
 		local players = {}
-		for i = 1, 150 do players[i] = { name = "Seen" .. i .. "-Realm", guild = "Olympus Ember", status = i % 2 == 0 and "NONE" or "GUILD", level = 30, t = w.now, note = "NOTE SECRET", by = "Officer Secret" } end
+		for i = 1, 150 do players[i] = { name = "Seen" .. i .. "-Realm", guild = "ChillZone Ember", status = i % 2 == 0 and "NONE" or "GUILD", level = 30, t = w.now, note = "NOTE SECRET", by = "Officer Secret" } end
 		c.Inspect = { Summary = function() return { players = players, total = 150, counts = { GUILD = 75, NONE = 70, OTHER = 5 } } end,
-			ShameOpen = function() return true end, Shame = function() return { list = { { name = "Bare", guild = "Olympus Ember" } }, t = w.now } end }
+			ShameOpen = function() return true end, Shame = function() return { list = { { name = "Bare", guild = "ChillZone Ember" } }, t = w.now } end }
 		eq(Data("watch"), nil, "a plain member: no watch section at all")
 		w.team = true
 		local d = assert(Data("watch"), "a moderation team client")
@@ -621,7 +621,7 @@ test("companion bridge affairs (931): watch on the King's stream carries the cas
 			PlayerMenu = { Add = function() return true end } }, { __index = c })
 		local dialogs = {}
 		for name, d in pairs(StaticPopupDialogs) do dialogs[name] = d end
-		local loaded, why = pcall(function() assert(loadfile(ROOT .. "Olympus/Watch.lua"))("Olympus", wns) end)
+		local loaded, why = pcall(function() assert(loadfile(ROOT .. "ChillZone/Watch.lua"))("ChillZone", wns) end)
 		for name in pairs(StaticPopupDialogs) do StaticPopupDialogs[name] = dialogs[name] end
 		assert(loaded, why)
 		c.Watch = WatchStub(w)
@@ -667,7 +667,7 @@ test("companion bridge affairs (931): chatRooms lists the Chat tab's rooms this 
 			local d = assert(Data("chatRooms"))
 			local by = {}
 			for _, r in ipairs(d) do by[r.id] = r end
-			assert(by.A, "the Olympus channel"); eq(by.A.kind, "channel"); eq(by.A.room, ns.L.CHAN_ALL); eq(by.A.unread, 0)
+			assert(by.A, "the ChillZone channel"); eq(by.A.kind, "channel"); eq(by.A.room, ns.L.CHAN_ALL); eq(by.A.unread, 0)
 			eq(by.C, nil, "a soldier reads no [Captains]")
 			eq(by.guild.kind, "guild"); eq(by.guild.unread, 2); eq(by.guild.members, 812)
 			OnlyFields(d, Set({ "id", "room", "kind", "members", "unread" }), "room")
@@ -747,20 +747,20 @@ test("companion bridge affairs (931): every section together, full boards, caps 
 		-- The tabs of affairs at their caps and beyond, with the longest strings each field takes.
 		local cards = {}
 		for i = 1, 150 do cards[i] = { id = Long("id" .. i, 24), itemName = Long("Item" .. i, 60), quantity = 1000, requester = Long("Asker" .. i, 40) .. "-Realm",
-			guild = Long("Olympus Guild" .. i, 72), state = "open", updated = w.now } end
+			guild = Long("ChillZone Guild" .. i, 72), state = "open", updated = w.now } end
 		for i = 1, 40 do cards[#cards + 1] = { id = Long("own" .. i, 24), itemName = Long("Own" .. i, 60), quantity = 1000, requester = c.me, crafter = Long("Maker" .. i, 40) .. "-Realm",
-			guild = Long("Olympus Guild", 72), state = "in_progress", updated = w.now } end
+			guild = Long("ChillZone Guild", 72), state = "in_progress", updated = w.now } end
 		c.CraftRequests = { All = function() return cards end, CanFulfill = function() return true end }
 		local board = {}
 		for i = 1, 400 do
 			local profs = {}
 			for j = 1, 4 do profs[j] = { key = tostring(j), name = Long("Profession" .. j, 40), rank = 300, max = 300, n = 250 } end
-			board[i] = { name = Long("Crafter" .. i, 40) .. "-Realm", guild = Long("Olympus Guild" .. i, 72), t = w.now, profs = profs }
+			board[i] = { name = Long("Crafter" .. i, 40) .. "-Realm", guild = Long("ChillZone Guild" .. i, 72), t = w.now, profs = profs }
 		end
 		c.Crafters = { PROFS_MAX = 4, Board = function() return board end }
 		c.Treasury = { PublicShows = function() return true end, Report = function() return { balance = 2147483647, allIn = 2147483647, allOut = 2147483647, week = 2147483647, donors = 1000, t = w.now } end }
 		local decrees = {}
-		for i = 1, 40 do decrees[i] = { kind = "HERALDRY", mapID = 1453, x = i / 100, y = 0.5, guild = Long("Olympus Guild", 72), rank = 0, text = Long("Words" .. i, 500),
+		for i = 1, 40 do decrees[i] = { kind = "HERALDRY", mapID = 1453, x = i / 100, y = 0.5, guild = Long("ChillZone Guild", 72), rank = 0, text = Long("Words" .. i, 500),
 			sender = Long("Sender" .. i, 40) .. "-Realm", t = w.now - i, expires = w.now + 3600 } end
 		c.Decree = { Active = function() return decrees end, Label = function() return Long("TABARD INSPECTION", 60) end }
 		local week = {}
@@ -773,9 +773,9 @@ test("companion bridge affairs (931): every section together, full boards, caps 
 		w.desk, w.canRead = true, true
 		c.Watch = stub
 		local players = {}
-		for i = 1, 2000 do players[i] = { name = Long("Inspected" .. i, 40) .. "-Realm", guild = Long("Olympus Guild", 72), status = "UNCHECKED", level = 60, t = w.now } end
+		for i = 1, 2000 do players[i] = { name = Long("Inspected" .. i, 40) .. "-Realm", guild = Long("ChillZone Guild", 72), status = "UNCHECKED", level = 60, t = w.now } end
 		local shame = {}
-		for i = 1, 300 do shame[i] = { name = Long("Bare" .. i, 40), guild = Long("Olympus Guild", 72) } end
+		for i = 1, 300 do shame[i] = { name = Long("Bare" .. i, 40), guild = Long("ChillZone Guild", 72) } end
 		c.Inspect = { Summary = function() return { players = players, total = 2000, counts = {} } end, ShameOpen = function() return true end,
 			Shame = function() return { list = shame, t = w.now } end }
 		c.Channels = { ORDER = { "A", "C", "L" }, TIERS = { A = { label = "CHAN_ALL" }, C = { label = "CHAN_CAPTAINS" }, L = { label = "CHAN_LORDS" } }, CanUse = function() return true end }
@@ -788,7 +788,7 @@ test("companion bridge affairs (931): every section together, full boards, caps 
 		-- The census's own sections (BridgeSections.lua) at their caps: 256 guilds, the Wanted list,
 		-- the rankings.
 		local guilds = {}
-		for i = 1, 256 do guilds[i] = { name = Long("Olympus Guild" .. i, 72), counted = true, fresh = true,
+		for i = 1, 256 do guilds[i] = { name = Long("ChillZone Guild" .. i, 72), counted = true, fresh = true,
 			g = { total = 1000, online = 300, t = w.now, mine = i == 1, avgLevel = 47.9, realm = "Realm", vouch = { a = true } } } end
 		c.Data = setmetatable({ Summary = function() return { guilds = guilds, seen = {}, total = 250000, characters = 256000, alts = 6000, online = 70000, fresh = 256 } end,
 			AvgTenths = function() return 479 end }, { __index = c.Data })
@@ -808,16 +808,16 @@ test("companion bridge affairs (931): every section together, full boards, caps 
 		for i = 1, 256 do
 			local emissaries = {}
 			for j = 1, 4 do emissaries[j] = { office = Long("Office" .. j, 40), name = Long("Emissary" .. j, 40) } end
-			realm[i] = { name = Long("Olympus Guild" .. i, 72), lord = Long("Lord" .. i, 40), members = 1000, online = 300, avgLevel = 47.9, faction = "Alliance",
+			realm[i] = { name = Long("ChillZone Guild" .. i, 72), lord = Long("Lord" .. i, 40), members = 1000, online = 300, avgLevel = 47.9, faction = "Alliance",
 				realmGroup = Long("Realm", 60), founded = w.now, emissaries = emissaries }
 		end
 		for i = 1, 100 do public[i] = { place = i, name = Long("Pious" .. i, 40), title = Long("Missionary", 40), recruits = 99, points = 999 } end
 		for i = 1, 50 do events[i] = { kind = "duel", at = w.now, a = Long("A" .. i, 40), b = Long("B" .. i, 40), winner = Long("A" .. i, 40), points = 99 } end
-		assert(B.RegisterSection("roster", 1, function() return { guild = "Olympus Guild", members = roster } end, { values = 8000 }))
+		assert(B.RegisterSection("roster", 1, function() return { guild = "ChillZone Guild", members = roster } end, { values = 8000 }))
 		assert(B.RegisterSection("realm", 1, function() return { guilds = realm } end, { values = 8000 }))
 		assert(B.RegisterSection("church", 1, function() return { public = public, own = { title = "Missionary", apostle = "A", missionaries = 3, recruits = 14, points = 140, pending = 2 } } end))
 		assert(B.RegisterSection("games", 1, function() return { events = events, own = { duelsWon = 1, duelsLost = 1, bonesWon = 1, bonesLost = 1, points = 1, place = 1 } } end))
-		assert(B.RegisterSection("profile", 1, function() return { name = "Tester", guild = "Olympus Guild", rank = "Officer", level = 60, class = "Warrior", frame = "rank" } end))
+		assert(B.RegisterSection("profile", 1, function() return { name = "Tester", guild = "ChillZone Guild", rank = "Officer", level = 60, class = "Warrior", frame = "rank" } end))
 
 		local sections, affairs, total = {}, 0, 0
 		local sizes = {}

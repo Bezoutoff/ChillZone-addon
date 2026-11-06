@@ -213,7 +213,7 @@ test("1.2 the markets: every refusal code at the bank (U K E r C O M R W N D A X
 	w.keys[t.b2.name:lower()] = nil
 	Check(t.b2, 1, 1, 100, "E", "no verified key")
 	w.keys[t.b2.name:lower()] = key
-	-- Not eligible at deposit: frozen, no bound GUID, under minLevel, no Olympus guild.
+	-- Not eligible at deposit: frozen, no bound GUID, under minLevel, no ChillZone guild.
 	for _, f in ipairs({ { frozen = true }, { bound = false }, { level = 5 }, { guild = "Moonwhisper Kin" } }) do
 		local a = w:Ledger(t.bank).accounts[t.b2.name:lower()]
 		local saved = { frozen = a.frozen, bound = a.bound, level = a.level, guild = a.guild }

@@ -1,7 +1,7 @@
--- Olympus/Roster.lua as 1.2.2 ships it (its scan made every row anew each minute), for
--- tests/roster.lua: copied unchanged from `git show v1.2.2:Olympus/Roster.lua`. What the 1.2.3 scan
+-- ChillZone/Roster.lua as 1.2.2 ships it (its scan made every row anew each minute), for
+-- tests/roster.lua: copied unchanged from `git show v1.2.2:ChillZone/Roster.lua`. What the 1.2.3 scan
 -- gives a reader must be what this one gives. Loaded like the addon loads its files:
--- loadfile("tests/fixtures/roster-1.2.2.lua")("Olympus", ns).
+-- loadfile("tests/fixtures/roster-1.2.2.lua")("ChillZone", ns).
 local ADDON, ns = ...
 
 -- Reads our own guild roster. Any member (not only officers) sees name, level,
@@ -99,7 +99,7 @@ function Roster.Scan()
 	local everyone = {}
 	local online = {} -- who is online now, for the Realm tab (Views.MembersOf)
 	local byName = {}
-	local rawRealms, servers, sample = {}, {}, nil -- for /oly status (names raw)
+	local rawRealms, servers, sample = {}, {}, nil -- for /cz status (names raw)
 	for i = 1, numTotal do
 		local name, rankName, rankIndex, level, _, zone, _, _, isOnline, _, classFile, _, _, _, _, _, guid = GetGuildRosterInfo(i)
 		if name then
@@ -169,13 +169,13 @@ function Roster.Scan()
 	end)
 	-- The report is persisted locally before it is encoded.  Keep its public top-five rows to the
 	-- three fields the wire actually carries; GUID-derived race and the richer roster-only identity
-	-- fields must remain on Roster.members rather than leaking into OlympusDB through r.top.
+	-- fields must remain on Roster.members rather than leaking into ChillZoneDB through r.top.
 	for i = 1, math.min(5, #everyone) do
 		local member = everyone[i]
 		r.top[i] = { name = member.name, level = member.level, class = member.class }
 	end
 	r.avgLevel = seen > 0 and levelSum / seen or 0
-	Roster.byName, Roster.guild = byName, guild -- (whose roster it is: Olympus Link's "r", Link.lua)
+	Roster.byName, Roster.guild = byName, guild -- (whose roster it is: ChillZone Link's "r", Link.lua)
 	-- Consumers which use the roster as an authority boundary need to distinguish a current
 	-- server snapshot from rows left in memory after a guild/faction/realm-group change.  The
 	-- generation is process-local; together with the identity and timestamp it is only a freshness
@@ -285,7 +285,7 @@ ns.RegisterEvent("PLAYER_GUILD_UPDATE", function(unit)
 	ns.After(2, "guild changed", function()
 		guildChangeQueued = false
 		Roster.RequestScan(true)
-		-- Left an Olympus guild (or joined one): leave the channel, redraw the map and window.
+		-- Left an ChillZone guild (or joined one): leave the channel, redraw the map and window.
 		ns.Comm.CheckMembership()
 		ns.Fire("DATA_CHANGED")
 	end)

@@ -1,8 +1,8 @@
--- Record mode (Record.lua, /oly record): the Guinness attempt's witnesses' own file, its format
+-- Record mode (Record.lua, /cz record): the Guinness attempt's witnesses' own file, its format
 -- (docs/RECORD-FORMAT.md), its hash chain and the sample the offline verifier is built against
 -- (tests/fixtures/record-sample.lua, record-sample-b.lua). Loaded by tests/run.lua.
---   OLYMPUS_RECORD_SAMPLE_WRITE=1  rewrites the two fixtures from what the format gives now
---   OLYMPUS_RECORD_SAMPLE_OUT=DIR  also writes them to DIR (OlympusRecordDB-sample.lua, -b.lua)
+--   CHILLZONE_RECORD_SAMPLE_WRITE=1  rewrites the two fixtures from what the format gives now
+--   CHILLZONE_RECORD_SAMPLE_OUT=DIR  also writes them to DIR (ChillZoneRecordDB-sample.lua, -b.lua)
 local ns, test, eq = ...
 local ROOT = (debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]record%.lua$")) or "./"
 
@@ -20,7 +20,7 @@ local function WriteFile(path, text)
 end
 
 -- The record lines' English (Locales/RecordText.lua) on the harness's table, as the TOC loads it.
-assert(loadfile(ROOT .. "Olympus/Locales/RecordText.lua"))("Olympus", ns)
+assert(loadfile(ROOT .. "ChillZone/Locales/RecordText.lua"))("ChillZone", ns)
 local L = ns.L
 
 -- 2026-10-20 14:00:00 UTC, a quarter hour of the server's clock.
@@ -47,18 +47,18 @@ end
 -- w.step(t) runs the seconds up to t (its timers, its 5-second clock, the server's roster answer one
 -- second after each ask), w.event(name), w.login(), w.logout(), w.slash(text). Every way a message
 -- could leave is counted (w.sent); the game's globals it reads are the world's, put back by w.close().
-local GLOBALS = { "OlympusRecordDB", "GetGuildInfo", "IsInGuild", "GetNumGuildMembers", "GetGuildRosterInfo", "UnitGUID", "BNGetInfo",
+local GLOBALS = { "ChillZoneRecordDB", "GetGuildInfo", "IsInGuild", "GetNumGuildMembers", "GetGuildRosterInfo", "UnitGUID", "BNGetInfo",
 	"InCombatLockdown", "C_GuildInfo", "GuildRoster", "GetBuildInfo", "GetLocale", "C_ChatInfo", "SendChatMessage",
 	"SendAddonMessage", "GetServerTime", "issecretvalue" }
 local function RecordWorld(o)
 	o = o or {}
-	local w = { clock = o.clock or (T14 - 60), combat = false, roster = o.roster or SampleRoster(), guild = o.guild or "Olympus Example",
+	local w = { clock = o.clock or (T14 - 60), combat = false, roster = o.roster or SampleRoster(), guild = o.guild or "ChillZone Example",
 		rank = o.rank or 4, rankName = o.rankName or "Soldier", sent = 0, timers = {}, tickers = {}, events = {}, on = {},
 		prints = {}, copies = {}, asks = 0, askedAt = {}, battleTag = o.battleTag }
 	local saved = {}
 	for _, k in ipairs(GLOBALS) do saved[k] = rawget(_G, k) end
 	local function Count() w.sent = w.sent + 1 end
-	OlympusRecordDB = o.db
+	ChillZoneRecordDB = o.db
 	GetServerTime = function() return w.clock end
 	-- (w.loading: a loading screen's moment, still in the guild but its name not given yet.)
 	GetGuildInfo = function() if w.guild and not w.loading then return w.guild, w.rankName, w.rank end end
@@ -104,7 +104,7 @@ local function RecordWorld(o)
 		UI = { ShowCopy = function(title, text, _, opts) w.copies[#w.copies + 1] = { title = title, text = text, key = opts and opts.key } end },
 	}, { __index = ns })
 	w.ns = rns
-	assert(loadfile(ROOT .. "Olympus/Record.lua"))("Olympus", rns)
+	assert(loadfile(ROOT .. "ChillZone/Record.lua"))("ChillZone", rns)
 	w.R = rns.Record
 	function w.fire(name) for _, fn in ipairs(w.on[name] or {}) do fn() end end
 	function w.event(name, ...) for _, fn in ipairs(w.events[name] or {}) do fn(...) end end
@@ -126,9 +126,9 @@ local function RecordWorld(o)
 	function w.login() w.fire("INIT"); w.fire("LOGIN") end
 	function w.logout() w.event("PLAYER_LOGOUT") end
 	function w.slash(text) w.R.Slash(text) end
-	function w.session() return OlympusRecordDB and OlympusRecordDB.sessions[#OlympusRecordDB.sessions] end
+	function w.session() return ChillZoneRecordDB and ChillZoneRecordDB.sessions[#ChillZoneRecordDB.sessions] end
 	function w.close()
-		local db = OlympusRecordDB
+		local db = ChillZoneRecordDB
 		for _, k in ipairs(GLOBALS) do _G[k] = saved[k] end
 		return db
 	end
@@ -174,8 +174,8 @@ test("record mode: the format's fields, bitmaps and hash rule (SHA-256, the vect
 		eq(seed, "fb8d3cadfb9b6377f6f6ca518a1953bdd8edb24e424ee1aef982ecdc7e638b9f")
 		local tag = R.TagHash("SampleWitness#0000")
 		eq(tag, "973dcf3aa89dd097c64d6764c475996c11ee2aa22b4ec83c542453d341eb76eb", "field 14: the BattleTag's hash")
-		local line = "S|1|1792483200|Witness Example-ClassicBetaPvP|Player-0000-00000001|Olympus Example|4|Soldier|Alliance|ClassicBetaPvP|ClassicBetaPvP|1.2.5.1||" .. tag .. "|16001|1.60.1.70450|enUS"
-		eq(R.Link(seed, line), "b4d70a7f064a26ed45d75604d8a4279db182e0551066bbdd07cb98e4b3e289bf")
+		local line = "S|1|1792483200|Witness Example-ClassicBetaPvP|Player-0000-00000001|ChillZone Example|4|Soldier|Alliance|ClassicBetaPvP|ClassicBetaPvP|1.2.5.1||" .. tag .. "|16001|1.60.1.70450|enUS"
+		eq(R.Link(seed, line), "acef9a0b39304a31aa5704eaba0b03cd3313ce94a4849a4d8b91d7db98bc29dd")
 		eq(R.Hash(""), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "Sign.SHA256 itself")
 	end)
 end)
@@ -186,10 +186,10 @@ test("record mode: off by default, nothing is read, written or sent; the census 
 		w.step(T14 + 20 * 60)
 		eq(#w.tickers, 0, "no clock runs for a player who never turned it on")
 		eq(w.asks, 0, "the roster is never asked for")
-		eq(OlympusRecordDB, nil, "and no saved table is made")
+		eq(ChillZoneRecordDB, nil, "and no saved table is made")
 		eq(w.R.Line(), nil, "no line in the window")
-		w.R.Heard({ guild = "Olympus Heard", total = 900, online = 300, reporterFull = "Reporter One-ClassicBetaPvP" })
-		eq(OlympusRecordDB, nil)
+		w.R.Heard({ guild = "ChillZone Heard", total = 900, online = 300, reporterFull = "Reporter One-ClassicBetaPvP" })
+		eq(ChillZoneRecordDB, nil)
 		w.slash("status")
 		eq(#w.copies, 1, "the status still opens"); eq(w.copies[1].key, "record")
 		assert(w.copies[1].text:find(L.RECORD_STATE_OFF, 1, true), w.copies[1].text)
@@ -206,7 +206,7 @@ test("record mode: on is kept for that character until off; checkpoints at :00, 
 		w.login()
 		w.slash("on")
 		eq(w.prints[1], L.RECORD_ON); eq(#w.copies, 1, "on opens the status")
-		local on = OlympusRecordDB.on["Witness Example-ClassicBetaPvP"]
+		local on = ChillZoneRecordDB.on["Witness Example-ClassicBetaPvP"]
 		eq(on, T14 - 60, "on since the server's time it was typed")
 		local s = w.session()
 		eq(#s.lines, 1, "the session begins at once: its S line")
@@ -222,7 +222,7 @@ test("record mode: on is kept for that character until off; checkpoints at :00, 
 		assert(w.R.Line().text:find("14:45 UTC", 1, true), w.R.Line().text)
 		-- A new session (a /reload) of the same character: still on, from the saved table.
 		w.logout()
-		eq(OlympusRecordDB.saves, 1)
+		eq(ChillZoneRecordDB.saves, 1)
 	end)
 	eq(w.sent, 0, "no message of any kind")
 	local again
@@ -230,14 +230,14 @@ test("record mode: on is kept for that character until off; checkpoints at :00, 
 		w2.login()
 		eq(#w2.tickers, 1, "on again at login: the file came back")
 		w2.step(T14 + 46 * 60)
-		eq(#OlympusRecordDB.sessions, 2)
+		eq(#ChillZoneRecordDB.sessions, 2)
 		local cs = Typed(w2.R, w2.session(), "C")
 		eq(#cs, 1); eq(cs[1][3], tostring(T14 + 45 * 60))
 		w2.slash("status")
 		assert(w2.copies[1].text:find(L.RECORD_LOADED:format(1), 1, true), "it says the game loaded the file back")
 		w2.slash("off")
 		eq(w2.prints[#w2.prints], L.RECORD_OFF)
-		eq(OlympusRecordDB.on["Witness Example-ClassicBetaPvP"], nil)
+		eq(ChillZoneRecordDB.on["Witness Example-ClassicBetaPvP"], nil)
 		local z = Typed(w2.R, w2.session(), "Z")
 		eq(#z, 1); eq(z[1][3], "off")
 		w2.step(T14 + 61 * 60)
@@ -257,7 +257,7 @@ test("record mode: each member is written once (M), then each checkpoint's roste
 		eq(#ms, 8, "the whole roster once")
 		eq(table.concat(ms[4], "|"), "M|4|Member Bravo-ClassicBetaPvP2|Player-0000-00000003|PRIEST|33")
 		local c = Typed(R, s, "C")[1]
-		eq(c[5], "Olympus Example"); eq(c[6], "8"); eq(c[7], "5"); eq(c[8], "8"); eq(c[9], "5")
+		eq(c[5], "ChillZone Example"); eq(c[6], "8"); eq(c[7], "5"); eq(c[8], "8"); eq(c[9], "5")
 		eq(Set(R, c[10]), "1,2,3,4,5,6,7,8"); eq(Set(R, c[11]), "1,2,4,6,7"); eq(c[12], "")
 		-- Charlie levels, Alpha logs in; Echo leaves and Foxtrot joins; a mark, then 14:15.
 		w.roster[5].level, w.roster[3].online = 13, true
@@ -304,9 +304,9 @@ test("record mode: a partial roster is asked again, about 5 s apart, then writte
 		w.guild = nil
 		w.step(T14 + 30)
 		eq(Typed(R, w.session(), "Z")[1][3], "guild", "out of the guild: the session ends")
-		local n = #OlympusRecordDB.sessions
+		local n = #ChillZoneRecordDB.sessions
 		w.step(T14 + 16 * 60)
-		eq(#OlympusRecordDB.sessions, n, "and none begins without a guild")
+		eq(#ChillZoneRecordDB.sessions, n, "and none begins without a guild")
 		w.slash("status")
 		assert(w.copies[#w.copies].text:find(L.RECORD_WAITING, 1, true))
 	end)
@@ -326,7 +326,7 @@ test("record mode: a loading screen's moment (in the guild, its name not given y
 		w.step(T14 + 66) -- (the clock looks every 5 s: one look at least while it lasts)
 		w.loading = false
 		w.step(T14 + 15 * 60 + 5)
-		eq(#OlympusRecordDB.sessions, 1, "the same session goes on")
+		eq(#ChillZoneRecordDB.sessions, 1, "the same session goes on")
 		eq(#Typed(R, s, "Z"), 0, "no end written")
 		eq(#Typed(R, s, "M"), 8, "each member once")
 		local cs = Typed(R, s, "C")
@@ -365,11 +365,11 @@ test("record mode: a roster the game has not given yet is never written as a che
 	end)
 end)
 
--- A regression: record mode began a session in any guild, so a guild outside Olympus could have
--- its roster written (the 09-28 methodology: the addon runs only for members of Olympus guilds).
-test("record mode: only for a member of an Olympus guild: on is refused elsewhere, and a session ends in a guild that is not one", function()
+-- A regression: record mode began a session in any guild, so a guild outside ChillZone could have
+-- its roster written (the 09-28 methodology: the addon runs only for members of ChillZone guilds).
+test("record mode: only for a member of an ChillZone guild: on is refused elsewhere, and a session ends in a guild that is not one", function()
 	local db, w0 = InWorld({ guild = "Plain Example Guild" }, function(w)
-		eq(w.ns.IsFederation("Plain Example Guild"), false, "(the test's other guild is no Olympus guild)")
+		eq(w.ns.IsFederation("Plain Example Guild"), false, "(the test's other guild is no ChillZone guild)")
 		w.login()
 		w.slash("on")
 		eq(w.prints[#w.prints], L.RECORD_NOT_MEMBER)
@@ -385,7 +385,7 @@ test("record mode: only for a member of an Olympus guild: on is refused elsewher
 		w.step(T14 + 5)
 		w.guild = "Plain Example Guild"
 		w.step(T14 + 16 * 60)
-		eq(#OlympusRecordDB.sessions, 1, "none begins in the other guild")
+		eq(#ChillZoneRecordDB.sessions, 1, "none begins in the other guild")
 		eq(Typed(R, w.session(), "Z")[1][3], "guild")
 		for _, line in ipairs(w.session().lines) do eq(line:find("Plain Example", 1, true), nil, line) end
 		w.slash("status")
@@ -400,7 +400,7 @@ test("record mode: the chain verifies; an edited line breaks it at that line; an
 		w.slash("on")
 		w.step(T14 + 16 * 60)
 		w.logout()
-		local s = OlympusRecordDB.sessions[1]
+		local s = ChillZoneRecordDB.sessions[1]
 		eq(s.n, #s.lines, "a logout chains every line")
 		local ok, head, n = R.Verify(s)
 		assert(ok, tostring(head) .. " " .. tostring(n)); eq(head, s.head); eq(n, #s.lines)
@@ -452,34 +452,34 @@ test("record mode: census reports Data.Receive takes are kept once per guild per
 			local text = ns.Codec.EncodeReport({ guild = guild, total = total, online = online, st = w.clock - 2, users = 7 })
 			return ns.Data.Receive(ns.Codec.DecodeReport(text), sender)
 		end
-		eq(Report("Olympus Heard", 900, 300, "Reporter One-ClassicBetaPvP"), true)
-		eq(OlympusRecordDB, nil, "record mode off: nothing kept")
+		eq(Report("ChillZone Heard", 900, 300, "Reporter One-ClassicBetaPvP"), true)
+		eq(ChillZoneRecordDB, nil, "record mode off: nothing kept")
 		w.login()
 		w.slash("on")
 		w.step(T14 + 70)
-		eq(Report("Olympus Heard", 901, 301, "Reporter One-ClassicBetaPvP"), true)
+		eq(Report("ChillZone Heard", 901, 301, "Reporter One-ClassicBetaPvP"), true)
 		w.step(T14 + 250)
-		eq(Report("Olympus Heard", 902, 302, "Reporter One-ClassicBetaPvP"), true, "taken by the census")
+		eq(Report("ChillZone Heard", 902, 302, "Reporter One-ClassicBetaPvP"), true, "taken by the census")
 		w.step(T14 + 15 * 60 + 10)
-		eq(Report("Olympus Heard", 903, 303, "Reporter One-ClassicBetaPvP"), true)
+		eq(Report("ChillZone Heard", 903, 303, "Reporter One-ClassicBetaPvP"), true)
 		local es = Typed(R, w.session(), "E")
 		eq(#es, 2, "the first of each quarter hour")
-		eq(table.concat(es[1], "|"), ("E|%d|%d|Olympus Heard|901|301|7|Reporter One-ClassicBetaPvP"):format(T14 + 70, T14 + 68))
+		eq(table.concat(es[1], "|"), ("E|%d|%d|ChillZone Heard|901|301|7|Reporter One-ClassicBetaPvP"):format(T14 + 70, T14 + 68))
 		eq(es[2][5], "903")
-		eq(OlympusRecordDB.events, 2)
+		eq(ChillZoneRecordDB.events, 2)
 		-- Our own guild's report never comes from the channel, so never from here either.
-		eq(Report("Olympus Example", 50, 5, "Guildmate One-ClassicBetaPvP"), false)
+		eq(Report("ChillZone Example", 50, 5, "Guildmate One-ClassicBetaPvP"), false)
 		eq(#Typed(R, w.session(), "E"), 2)
 		-- The day's limit: counted, not kept; the next UTC day starts afresh.
-		OlympusRecordDB.events = R.EVENTS_PER_DAY
-		eq(Report("Olympus Other", 10, 2, "Reporter Three-ClassicBetaPvP"), true)
+		ChillZoneRecordDB.events = R.EVENTS_PER_DAY
+		eq(Report("ChillZone Other", 10, 2, "Reporter Three-ClassicBetaPvP"), true)
 		eq(#Typed(R, w.session(), "E"), 2)
-		OlympusRecordDB.eventsDay = OlympusRecordDB.eventsDay - 1 -- (as if the full count were yesterday's)
-		eq(Report("Olympus Fourth", 11, 3, "Reporter Four-ClassicBetaPvP"), true)
+		ChillZoneRecordDB.eventsDay = ChillZoneRecordDB.eventsDay - 1 -- (as if the full count were yesterday's)
+		eq(Report("ChillZone Fourth", 11, 3, "Reporter Four-ClassicBetaPvP"), true)
 		eq(#Typed(R, w.session(), "E"), 3, "a new UTC day: kept again")
-		eq(OlympusRecordDB.events, 1)
+		eq(ChillZoneRecordDB.events, 1)
 		w.logout()
-		eq(Typed(R, OlympusRecordDB.sessions[1], "Z")[1][4], "1", "the Z line says how many were not kept")
+		eq(Typed(R, ChillZoneRecordDB.sessions[1], "Z")[1][4], "1", "the Z line says how many were not kept")
 		eq(w.sent, 0)
 	end)
 	ns.Record, ns.rdb.guilds = savedRecord, savedGuilds
@@ -508,8 +508,8 @@ test("record mode: the status is a copy window: what is written, the file to sen
 				assert(text:find(want, 1, true), want)
 			end
 			w.logout()
-			for _, line in ipairs(OlympusRecordDB.sessions[1].lines) do eq(line:find("SampleWitness", 1, true), nil, line) end
-			assert(L.RECORD_FILE:find("SavedVariables\\Olympus.lua", 1, true))
+			for _, line in ipairs(ChillZoneRecordDB.sessions[1].lines) do eq(line:find("SampleWitness", 1, true), nil, line) end
+			assert(L.RECORD_FILE:find("SavedVariables\\ChillZone.lua", 1, true))
 			assert(L.RECORD_SEND:find("/reload", 1, true))
 			assert(text:find("Chain head after", 1, true))
 		end)
@@ -529,10 +529,10 @@ test("record mode: the status is a copy window: what is written, the file to sen
 	assert(L.RECORD_WHAT:find("language", 1, true) and L.RECORD_WHAT:find("test build", 1, true))
 	-- Every line in both languages.
 	local en, pt = {}, {}
-	assert(loadfile(ROOT .. "Olympus/Locales/RecordText.lua"))("Olympus", { L = en })
+	assert(loadfile(ROOT .. "ChillZone/Locales/RecordText.lua"))("ChillZone", { L = en })
 	local savedLocale = GetLocale
 	GetLocale = function() return "ptBR" end
-	local okPt, errPt = pcall(function() assert(loadfile(ROOT .. "Olympus/Locales/RecordText.lua"))("Olympus", { L = pt }) end)
+	local okPt, errPt = pcall(function() assert(loadfile(ROOT .. "ChillZone/Locales/RecordText.lua"))("ChillZone", { L = pt }) end)
 	GetLocale = savedLocale
 	assert(okPt, errPt)
 	local n = 0
@@ -546,18 +546,18 @@ test("record mode: the status is a copy window: what is written, the file to sen
 end)
 
 test("record mode: the source sends nothing; the TOC declares its own SavedVariable and loads its files; Core stands in until a restart", function()
-	local src = assert(ReadFile(ROOT .. "Olympus/Record.lua"))
+	local src = assert(ReadFile(ROOT .. "ChillZone/Record.lua"))
 	local code = src:gsub("%-%-[^\n]*", "")
 	for _, word in ipairs({ "Send", "Comm", "C_ChatInfo", "Whisper", "Channel", "C_Timer", "hooksecurefunc", "SetScript" }) do
 		eq(code:find(word, 1, true), nil, "Record.lua uses no " .. word)
 	end
-	local toc = assert(ReadFile(ROOT .. "Olympus/Olympus.toc"))
-	assert(toc:find("\n## SavedVariables: OlympusDB, OlympusRecordDB\r?\n"), "OlympusRecordDB next to OlympusDB")
+	local toc = assert(ReadFile(ROOT .. "ChillZone/ChillZone.toc"))
+	assert(toc:find("\n## SavedVariables: ChillZoneDB, ChillZoneRecordDB\r?\n"), "ChillZoneRecordDB next to ChillZoneDB")
 	local at, n = {}, 0
 	for line in toc:gmatch("[^\r\n]+") do n = n + 1; at[line] = n end
 	assert(at["Locales\\RecordText.lua"] and at["Locales\\RecordText.lua"] < at["Core.lua"], "its lines with the other languages")
 	assert(at["Record.lua"] and at["Record.lua"] > at["Data.lua"] and at["Record.lua"] > at["Sign.lua"] and at["Record.lua"] > at["UI.lua"])
-	local core = assert(ReadFile(ROOT .. "Olympus/Core.lua"))
+	local core = assert(ReadFile(ROOT .. "ChillZone/Core.lua"))
 	assert(core:find('StandIn("Record", { "Slash" })', 1, true))
 	-- (In the restart list, wherever the other files merged into the release put it: named, not placed.)
 	local restart = core:match('for _, key in ipairs%((%b{})%) do%s+if ns%[key%]%.missing')
@@ -661,11 +661,11 @@ local function Witness(which)
 			w.slash("on")
 			if A then
 				w.step(T14 + 5)
-				Heard(T14 + 70, "Olympus Second", 950, 310, "Sample Reporter-ClassicBetaPvP2")
-				Heard(T14 + 250, "Olympus Second", 951, 312, "Sample Reporter-ClassicBetaPvP2") -- (the same quarter hour: not kept)
+				Heard(T14 + 70, "ChillZone Second", 950, 310, "Sample Reporter-ClassicBetaPvP2")
+				Heard(T14 + 250, "ChillZone Second", 951, 312, "Sample Reporter-ClassicBetaPvP2") -- (the same quarter hour: not kept)
 				-- (The sample's reporters are its own: the census keeps one guild per sender all session.)
 			end
-			Heard(T14 + 300, "Olympus Third", 420, 96, "Sample Herald-ClassicBetaPvP")
+			Heard(T14 + 300, "ChillZone Third", 420, 96, "Sample Herald-ClassicBetaPvP")
 			w.step(T14 + 6 * 60)
 			w.roster[5].level, w.roster[3].online = 13, true
 			if A then
@@ -675,7 +675,7 @@ local function Witness(which)
 			w.step(T14 + 12 * 60)
 			table.remove(w.roster, 8)
 			w.roster[#w.roster + 1] = Member("Member Foxtrot-ClassicBetaPvP", "Player-0000-00000007", "PALADIN", 1, true)
-			Heard(T14 + 16 * 60, "Olympus Second", 955, 330, "Sample Reporter-ClassicBetaPvP2")
+			Heard(T14 + 16 * 60, "ChillZone Second", 955, 330, "Sample Reporter-ClassicBetaPvP2")
 			w.step(T14 + 20 * 60)
 			w.logout()
 		end)
@@ -706,7 +706,7 @@ test("record mode: a 1000-member guild over two days, six sessions and 70 guilds
 			end
 			if w.clock % 170 == 0 then
 				for g = 1, 70 do
-					w.R.Heard({ guild = ("Olympus Guild %02d"):format(g), total = 900 + g, online = 300, users = 9, st = w.clock - 1,
+					w.R.Heard({ guild = ("ChillZone Guild %02d"):format(g), total = 900 + g, online = 300, users = 9, st = w.clock - 1,
 						reporterFull = ("Reporter %02d-ClassicBetaPvP"):format(g) })
 				end
 			end
@@ -737,7 +737,7 @@ test("record mode: a 1000-member guild over two days, six sessions and 70 guilds
 		end
 	end
 	assert(events >= 2 * 96 * 70 and events < 2 * w.R.EVENTS_PER_DAY, "each guild each quarter hour of both days: " .. events)
-	local bytes = #SavedFile({ { "OlympusRecordDB", db } })
+	local bytes = #SavedFile({ { "ChillZoneRecordDB", db } })
 	print(("       two days, 1000 members: %d bytes on disk; the roster's lines alone %d bytes"):format(bytes, rosterBytes))
 	assert(rosterBytes < 1024 * 1024, rosterBytes)
 	assert(bytes < 2 * 1024 * 1024, bytes)
@@ -747,35 +747,35 @@ test("record mode: the sample files (tests/fixtures/record-sample.lua and -b.lua
 	local files = {}
 	for _, which in ipairs({ "A", "B" }) do
 		local db = Witness(which)
-		-- Another SavedVariable in the same file, as Olympus.lua holds OlympusDB too: a verifier skips it.
+		-- Another SavedVariable in the same file, as ChillZone.lua holds ChillZoneDB too: a verifier skips it.
 		local other = { log = { '10-20 13:59:01 ---- session 3, v1.2.5.1 "sample" ----' }, sessions = 3 }
-		files[which] = SavedFile({ { "OlympusDB", other }, { "OlympusRecordDB", db } })
+		files[which] = SavedFile({ { "ChillZoneDB", other }, { "ChillZoneRecordDB", db } })
 	end
 	local names = { A = "record-sample.lua", B = "record-sample-b.lua" }
-	local outNames = { A = "OlympusRecordDB-sample.lua", B = "OlympusRecordDB-sample-b.lua" }
-	local write, out = os.getenv("OLYMPUS_RECORD_SAMPLE_WRITE") == "1", os.getenv("OLYMPUS_RECORD_SAMPLE_OUT")
+	local outNames = { A = "ChillZoneRecordDB-sample.lua", B = "ChillZoneRecordDB-sample-b.lua" }
+	local write, out = os.getenv("CHILLZONE_RECORD_SAMPLE_WRITE") == "1", os.getenv("CHILLZONE_RECORD_SAMPLE_OUT")
 	for which, text in pairs(files) do
 		local path = ROOT .. "tests/fixtures/" .. names[which]
 		if write then WriteFile(path, text) end
 		if out and out ~= "" then WriteFile(out .. "/" .. outNames[which], text) end
-		eq(ReadFile(path), text, names[which] .. " is what the format gives now (OLYMPUS_RECORD_SAMPLE_WRITE=1 rewrites it)")
+		eq(ReadFile(path), text, names[which] .. " is what the format gives now (CHILLZONE_RECORD_SAMPLE_WRITE=1 rewrites it)")
 	end
 	local C = assert(loadfile(ROOT .. "scripts/record-check.lua"))("--module")
 	local R = C.Load()
 	local all = {}
 	for _, which in ipairs({ "A", "B" }) do
 		local parsed = C.Parse(files[which])
-		eq(parsed.OlympusDB.sessions, 3, "the reader reads the other variable too")
-		local sessions = C.Sessions(R, parsed.OlympusRecordDB, names[which])
+		eq(parsed.ChillZoneDB.sessions, 3, "the reader reads the other variable too")
+		local sessions = C.Sessions(R, parsed.ChillZoneRecordDB, names[which])
 		eq(#sessions, 1)
 		local e = sessions[1]
 		assert(e.ok, tostring(e.at) .. ": " .. tostring(e.why))
-		eq(e.head, parsed.OlympusRecordDB.sessions[1].head)
+		eq(e.head, parsed.ChillZoneRecordDB.sessions[1].head)
 		print(("       sample %s: %s, %d lines, chain head %s"):format(which, e.id, e.n, e.head))
 		all[#all + 1] = e
 	end
-	eq(all[1].head, "95bd06d6c5853eaad1af8e9e3d42c6c93cea3e8893226b367b586ba648683344", "witness A's head, as docs/RECORD-FORMAT.md gives it")
-	eq(all[2].head, "d50c51179f068b5bffa0a396a70f33f037f941e6659c4eb0771cbc20cfb8dbf0", "witness B's head, as docs/RECORD-FORMAT.md gives it")
+	eq(all[1].head, "362f64a0f7b762a7123d72708fdcd2b8678b717f9aebe6be85f42d1eec82b566", "witness A's head, as docs/RECORD-FORMAT.md gives it")
+	eq(all[2].head, "b4329ee215d086ddf7bda896dbad8370304e309665fed4c4b17a0534e4272560", "witness B's head, as docs/RECORD-FORMAT.md gives it")
 	local groups = C.Compare(all)
 	eq(#groups, 2, "14:00 (A alone) and 14:15 (both)")
 	eq(groups[2].slot, T14 + 15 * 60); eq(#groups[2].seen, 2); eq(groups[2].agree, true, "the same members and online members, though their numbers differ")
@@ -813,7 +813,7 @@ test("record mode: copies of one session must be identical whatever the files' o
 		added[i] = line
 	end
 	eq(s.lines[16]:sub(1, 2), "E|", "(line 16 of the sample is an E line)")
-	added[#added + 1] = ("C|Q|%d|%d|Olympus Example|8|9|8|9|ff|ff|"):format(T14 + 30 * 60, T14 + 30 * 60 + 2)
+	added[#added + 1] = ("C|Q|%d|%d|ChillZone Example|8|9|8|9|ff|ff|"):format(T14 + 30 * 60, T14 + 30 * 60 + 2)
 	local cutDb, addedDb = Rechained(cut), Rechained(added)
 	eq(R.Verify(cutDb.sessions[1]), true, "a line removed, every hash again: the chain alone cannot tell")
 	local ok, at, why = R.Verify(addedDb.sessions[1])
@@ -843,8 +843,8 @@ test("record mode: copies of one session must be identical whatever the files' o
 	eq(#conflicts, 0); eq(#kept, 1, "the same session in two days' files: kept once")
 	-- The command itself: the edited copy makes it exit 1.
 	local a, b = os.tmpname(), os.tmpname()
-	WriteFile(a, SavedFile({ { "OlympusRecordDB", db } }))
-	WriteFile(b, SavedFile({ { "OlympusRecordDB", cutDb } }))
+	WriteFile(a, SavedFile({ { "ChillZoneRecordDB", db } }))
+	WriteFile(b, SavedFile({ { "ChillZoneRecordDB", cutDb } }))
 	local lua = (arg and arg[-1]) or "luajit"
 	local pipe = assert(io.popen(("%s %sscripts/record-check.lua %s %s; echo \"exit=$?\""):format(lua, ROOT, b, a)))
 	local out = pipe:read("*a")
@@ -880,14 +880,14 @@ test("record mode: record-check counts each witness once per slot, its reading n
 	local paths, args = {}, {}
 	for k, db in ipairs({ first, second, late }) do
 		paths[k] = os.tmpname()
-		WriteFile(paths[k], SavedFile({ { "OlympusRecordDB", db } }))
+		WriteFile(paths[k], SavedFile({ { "ChillZoneRecordDB", db } }))
 		args[k] = paths[k]
 	end
 	local pipe = assert(io.popen(("%s %sscripts/record-check.lua %s; echo \"exit=$?\""):format((arg and arg[-1]) or "luajit", ROOT, table.concat(args, " "))))
 	local out = pipe:read("*a")
 	pipe:close()
 	for _, path in ipairs(paths) do os.remove(path) end
-	assert(out:find("<Olympus Example>  1 witness(es), latest +2s: Witness Example-ClassicBetaPvP 8/5 +2s (2 readings)", 1, true), out)
+	assert(out:find("<ChillZone Example>  1 witness(es), latest +2s: Witness Example-ClassicBetaPvP 8/5 +2s (2 readings)", 1, true), out)
 	assert(out:find("read more than 30 s after the slot, not one instant: Witness Second-ClassicBetaPvP 8/5 +292s", 1, true), out)
 	assert(out:find("exit=0", 1, true), out)
 	-- Two accounts' files of one person (one BattleTag hash) are one witness too.
@@ -923,7 +923,7 @@ test("record mode: a day of 50-minute sessions in a 1000-member guild, with 70 g
 			end
 			if w.clock % 170 == 0 then
 				for g = 1, 70 do
-					w.R.Heard({ guild = ("Olympus Guild %02d"):format(g), total = 900 + g, online = 300, users = 9, st = w.clock - 1,
+					w.R.Heard({ guild = ("ChillZone Guild %02d"):format(g), total = 900 + g, online = 300, users = 9, st = w.clock - 1,
 						reporterFull = ("Reporter %02d-ClassicBetaPvP"):format(g) })
 				end
 			end
@@ -946,7 +946,7 @@ test("record mode: a day of 50-minute sessions in a 1000-member guild, with 70 g
 	eq(#db.sessions, 29)
 	eq(checkpoints, 96, "every quarter hour of the day, each once")
 	assert(lines * 3 < w.R.LINES_MAX, "both days of the attempt fit, with room to spare: " .. lines)
-	local bytes = #SavedFile({ { "OlympusRecordDB", db } })
+	local bytes = #SavedFile({ { "ChillZoneRecordDB", db } })
 	print(("       a day, 29 sessions: %d lines, %d bytes on disk (%.0f a line)"):format(lines, bytes, bytes / lines))
 	-- The limit itself: a full file ends the session, and none begins until the file is sent.
 	InWorld(nil, function(w2)
@@ -959,7 +959,7 @@ test("record mode: a day of 50-minute sessions in a 1000-member guild, with 70 g
 		w2.logout()
 		w2.login()
 		w2.step(T14 + 31 * 60)
-		eq(#OlympusRecordDB.sessions, 1)
+		eq(#ChillZoneRecordDB.sessions, 1)
 		w2.slash("status")
 		assert(w2.copies[#w2.copies].text:find(L.RECORD_FULL:format(12), 1, true))
 	end)
@@ -971,11 +971,11 @@ end)
 ---------------------------------------------------------------------------
 
 local DOC_HEAD = {
-	A = "95bd06d6c5853eaad1af8e9e3d42c6c93cea3e8893226b367b586ba648683344",
-	B = "d50c51179f068b5bffa0a396a70f33f037f941e6659c4eb0771cbc20cfb8dbf0",
+	A = "362f64a0f7b762a7123d72708fdcd2b8678b717f9aebe6be85f42d1eec82b566",
+	B = "b4329ee215d086ddf7bda896dbad8370304e309665fed4c4b17a0534e4272560",
 }
 
--- Olympus/Sign.lua and Olympus/Record.lua loaded as an offline verifier loads them, in a namespace
+-- ChillZone/Sign.lua and ChillZone/Record.lua loaded as an offline verifier loads them, in a namespace
 -- of ns.L alone, with no global but Lua's own library and the bit library Sign.lua reads (as
 -- _G.bit): any other name read or written is recorded in touched, and fails.
 local LUA_ONLY = { "assert", "error", "ipairs", "next", "pairs", "pcall", "rawequal", "rawget", "rawset", "select",
@@ -990,16 +990,16 @@ local function Sandboxed()
 	})
 	local sns = { L = {} }
 	for _, file in ipairs({ "Sign.lua", "Record.lua" }) do
-		local chunk = assert(loadfile(ROOT .. "Olympus/" .. file))
+		local chunk = assert(loadfile(ROOT .. "ChillZone/" .. file))
 		setfenv(chunk, env)
-		chunk("Olympus", sns)
+		chunk("ChillZone", sns)
 	end
 	return sns.Record, sns.Sign.SHA256, touched, sns
 end
--- A committed sample's OlympusRecordDB, read from the file by record-check.lua's reader.
+-- A committed sample's ChillZoneRecordDB, read from the file by record-check.lua's reader.
 local function SampleDb(name)
 	local C = assert(loadfile(ROOT .. "scripts/record-check.lua"))("--module")
-	return C.Parse(assert(ReadFile(ROOT .. "tests/fixtures/" .. name))).OlympusRecordDB
+	return C.Parse(assert(ReadFile(ROOT .. "tests/fixtures/" .. name))).ChillZoneRecordDB
 end
 local function Copied(v)
 	if type(v) ~= "table" then return v end
@@ -1029,21 +1029,21 @@ test("record mode: Record.VerifyFile reads both committed samples: each chain co
 	eq(A.lastHash, DOC_HEAD.A, "witness A's head, as docs/RECORD-FORMAT.md gives it")
 	eq(B.ok, true, tostring(B.why))
 	eq(B.lastHash, DOC_HEAD.B, "witness B's head, as docs/RECORD-FORMAT.md gives it")
-	eq(A.firstHash, "6cac157f898125f1892460687e68b5651d850a922d7633bea5a79ad9731648c4", "the hash after the S line: its mark 1 in the file")
+	eq(A.firstHash, "1201c3e22117522d2b142a32f539156e6b042d743c426582be72be593be33fbd", "the hash after the S line: its mark 1 in the file")
 	eq(A.id, "Player-0000-0000000A:" .. (T14 - 60))
-	eq(A.character, "Witness Example-ClassicBetaPvP"); eq(A.witness, "Player-0000-0000000A"); eq(A.guild, "Olympus Example")
+	eq(A.character, "Witness Example-ClassicBetaPvP"); eq(A.witness, "Player-0000-0000000A"); eq(A.guild, "ChillZone Example")
 	eq(A.battleTagHash, "973dcf3aa89dd097c64d6764c475996c11ee2aa22b4ec83c542453d341eb76eb"); eq(A.start, T14 - 60); eq(A.records, 17)
-	eq(B.character, "Witness Second-ClassicBetaPvP"); eq(B.witness, "Player-0000-0000000B"); eq(B.guild, "Olympus Example")
+	eq(B.character, "Witness Second-ClassicBetaPvP"); eq(B.witness, "Player-0000-0000000B"); eq(B.guild, "ChillZone Example")
 	eq(B.battleTagHash, nil, "B's game gave no BattleTag"); eq(B.start, T14 + 5 * 60); eq(B.records, 13)
 	-- Every C and E line in order: a quarter hour by its slot, a mark by the time it was asked, a census
 	-- report by the quarter hour this client took it in.
 	eq(Seen(A), table.concat({
-		("C|Olympus Example|%d|%d|8|5|nil|10"):format(T14, T14 + 2),
-		("E|Olympus Second|%d|%d|950|310|Sample Reporter-ClassicBetaPvP2|11"):format(T14, T14 + 70),
-		("E|Olympus Third|%d|%d|420|96|Sample Herald-ClassicBetaPvP|12"):format(T14, T14 + 5 * 60),
-		("C|Olympus Example|mark:%d|%d|8|6|nil|13"):format(T14 + 10 * 60, T14 + 10 * 60 + 2),
-		("C|Olympus Example|%d|%d|8|7|nil|15"):format(T14 + 15 * 60, T14 + 15 * 60 + 2),
-		("E|Olympus Second|%d|%d|955|330|Sample Reporter-ClassicBetaPvP2|16"):format(T14 + 15 * 60, T14 + 16 * 60),
+		("C|ChillZone Example|%d|%d|8|5|nil|10"):format(T14, T14 + 2),
+		("E|ChillZone Second|%d|%d|950|310|Sample Reporter-ClassicBetaPvP2|11"):format(T14, T14 + 70),
+		("E|ChillZone Third|%d|%d|420|96|Sample Herald-ClassicBetaPvP|12"):format(T14, T14 + 5 * 60),
+		("C|ChillZone Example|mark:%d|%d|8|6|nil|13"):format(T14 + 10 * 60, T14 + 10 * 60 + 2),
+		("C|ChillZone Example|%d|%d|8|7|nil|15"):format(T14 + 15 * 60, T14 + 15 * 60 + 2),
+		("E|ChillZone Second|%d|%d|955|330|Sample Reporter-ClassicBetaPvP2|16"):format(T14 + 15 * 60, T14 + 16 * 60),
 	}, "\n"))
 	local c, e = A.observations[1], A.observations[2]
 	eq(c.slot, T14); eq(c.rows, 8); eq(c.rowsOnline, 5)
@@ -1081,7 +1081,7 @@ test("record mode: Record.VerifyFile says where an edited sample breaks: an edit
 		return r, r.sessions[1]
 	end
 	-- 14:15's checkpoint (line 15) says 9 members instead of 8.
-	local r, e = Edited(function(lines) lines[15] = lines[15]:gsub("|Olympus Example|8|", "|Olympus Example|9|", 1) end)
+	local r, e = Edited(function(lines) lines[15] = lines[15]:gsub("|ChillZone Example|8|", "|ChillZone Example|9|", 1) end)
 	eq(r.ok, false); eq(e.ok, false); eq(e.brokenAt, 15); eq(e.why, "line 15: its mark is not its hash")
 	eq(e.lastHash ~= DOC_HEAD.A, true, "the head computed again is no longer the published one")
 	eq(e.observations[5].total, 9, "(the edited claim is still read: the session is broken, kept out of the counts)")
@@ -1116,8 +1116,8 @@ test("record mode: Record.VerifyFile never calls any WoW API: Sign.lua and Recor
 	for _, db in ipairs({ A, B, edited, odd }) do R.VerifyFile(db, sha) end
 	eq(R.VerifyFile(A).sessions[1].lastHash, DOC_HEAD.A, "with no sha given: the namespace's own Sign.SHA256")
 	local refused = R.VerifyFile({ format = "olympus-record", version = 2, sessions = A.sessions }, sha)
-	eq(refused.ok, false); eq(refused.why, "no OlympusRecordDB of format 1"); eq(#refused.sessions, 0)
-	eq(R.VerifyFile(nil, sha).why, "no OlympusRecordDB of format 1")
+	eq(refused.ok, false); eq(refused.why, "no ChillZoneRecordDB of format 1"); eq(#refused.sessions, 0)
+	eq(R.VerifyFile(nil, sha).why, "no ChillZoneRecordDB of format 1")
 	local r = R.VerifyFile(odd, sha)
 	eq(#r.sessions, 3, "the repeat left out"); eq(r.duplicates, 1); eq(r.ok, false)
 	eq(r.sessions[2].why, "no lines"); eq(r.sessions[2].brokenAt, 0); eq(r.sessions[3].why, "line 1: the first line is no S line of format 1")
@@ -1141,7 +1141,7 @@ test("record mode: a session that repeats is kept once, by VerifyFile in one fil
 	local r = R.VerifyFile(twice, sha)
 	eq(r.ok, true); eq(#r.sessions, 1); eq(r.duplicates, 1); eq(#r.conflicts, 0)
 	local marked = Copied(db)
-	marked.sessions[1].marks[3] = marked.sessions[1].marks[3]:gsub(":6e", ":7e", 1)
+	marked.sessions[1].marks[3] = marked.sessions[1].marks[3]:gsub(":5a", ":6a", 1)
 	local both = Copied(db)
 	both.sessions[2] = marked.sessions[1]
 	r = R.VerifyFile(both, sha)
@@ -1221,7 +1221,7 @@ test("record mode: Record.Verify refuses a session whose id, marks, n or head ar
 	Is(function(s) s.marks[Index(s, 10)] = "010:" .. h10 end, 0, "a mark that is no mark: 010:" .. h10)
 	Is(function(s) s.n = tostring(s.n) end, 0, "n is not the number of lines", "n as text")
 	-- The lines still come first: a line edited in a session with no head is found at its mark.
-	Is(function(s) s.head = nil; s.lines[15] = s.lines[15]:gsub("|Olympus Example|8|", "|Olympus Example|9|", 1) end, 15, "its mark is not its hash")
+	Is(function(s) s.head = nil; s.lines[15] = s.lines[15]:gsub("|ChillZone Example|8|", "|ChillZone Example|9|", 1) end, 15, "its mark is not its hash")
 	-- Untouched, it verifies, and VerifyFile refuses the file of any of them.
 	eq(Edited(function() end), true)
 	local db = SampleDb("record-sample.lua")
@@ -1269,7 +1269,7 @@ test("record mode: record-check says how many exact repeats of a session it left
 	local db = SampleDb("record-sample.lua")
 	db.sessions[2] = Copied(db.sessions[1])
 	local path = os.tmpname()
-	WriteFile(path, SavedFile({ { "OlympusRecordDB", db } }))
+	WriteFile(path, SavedFile({ { "ChillZoneRecordDB", db } }))
 	local pipe = assert(io.popen(("%s %sscripts/record-check.lua %s; echo \"exit=$?\""):format((arg and arg[-1]) or "luajit", ROOT, path)))
 	local out = pipe:read("*a")
 	pipe:close()
@@ -1300,7 +1300,7 @@ test("record mode: record-verify writes the evidence pack for the samples: 7 onl
 	end
 	assert(Read("figures.csv"):find("2026-10-20 14:15:00,7,1,+2s", 1, true), Read("figures.csv"))
 	local claims = Read("claims.csv")
-	assert(claims:find("Olympus Second,330,955,12,Sample Reporter-ClassicBetaPvP2", 1, true), claims)
+	assert(claims:find("ChillZone Second,330,955,12,Sample Reporter-ClassicBetaPvP2", 1, true), claims)
 	assert(claims:find("read 58 s after T", 1, true), "a report 58 s late is listed, not added")
 	os.execute(("rm -rf %q"):format(out))
 end)

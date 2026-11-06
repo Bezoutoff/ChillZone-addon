@@ -1,4 +1,4 @@
--- 1.1.6, the Missionary Church of Olympus: the guild log, the evidence, the keepers' ledger, the
+-- 1.1.6, the Missionary Church of ChillZone: the guild log, the evidence, the keepers' ledger, the
 -- points and rankings, registrations, transfers, the public view and the top 3.
 -- Run alone: luajit tests/run.lua "1.1.6 Church"
 local ns, test, eq = ...
@@ -9,8 +9,8 @@ local DAY = 86400
 
 local A1, A2 = "Aldric Vane-Realm", "Bera Stone-Realm"
 
--- Two guilds: Aldric (an Apostle, the desk) and his missionary Mira in Olympus Ember with Wes (a
--- plain member, a witness); Bera (an Apostle) and Vik (a plain member) in Olympus Vale. The Head,
+-- Two guilds: Aldric (an Apostle, the desk) and his missionary Mira in ChillZone Ember with Wes (a
+-- plain member, a witness); Bera (an Apostle) and Vik (a plain member) in ChillZone Vale. The Head,
 -- the King and the author are offline unless a test brings them in.
 local function Cast()
 	local w = World.New({ apostles = { A1, A2 } })
@@ -94,7 +94,7 @@ test("1.1.6 Church: not a pair: a join without a Church person's invite, a join 
 	eq(next(w:As(c.a1, c.a1.Count.Led).r), nil)
 end)
 
-test("1.1.6 Church: evidence the keeper refuses: a recruiter with no place, invited before his naming, a non-Olympus guild, bad times, over budget, net-off", function()
+test("1.1.6 Church: evidence the keeper refuses: a recruiter with no place, invited before his naming, a non-ChillZone guild, bad times, over budget, net-off", function()
 	local w, c = Cast()
 	local B = ns.Codec.Base36
 	local hour = math.floor(w.clock / 3600)
@@ -126,23 +126,23 @@ test("1.1.6 Church: evidence the keeper refuses: a recruiter with no place, invi
 	eq(select(2, w:As(c.wes, c.wes.Count.TakeEvidence, "Wes Brook-Realm", Ev("Mira Wells-Realm", "X Y-Realm", World.GUILD, hour, hour))), "not keeper")
 end)
 
-test("1.1.6 Church: new to Olympus: a seen-check from another Olympus guild within 90 days makes a transfer, never credited", function()
+test("1.1.6 Church: new to ChillZone: a seen-check from another ChillZone guild within 90 days makes a transfer, never credited", function()
 	local w, c = Cast()
-	-- Mover was in Olympus Vale until 20 days ago (Vik's roster memory saw him there).
+	-- Mover was in ChillZone Vale until 20 days ago (Vik's roster memory saw him there).
 	Join(w, World.GUILD2, "Mover Man")
 	w:Tick()
 	w:Run(DAY)
 	Leave(w, World.GUILD2, "Mover Man")
 	w:Run(20 * DAY)
 	w:Presence()
-	-- Mira invites him into Olympus Ember; Wes confirms the join.
+	-- Mira invites him into ChillZone Ember; Wes confirms the join.
 	w:LogEvent(World.GUILD, "invite", "Mira Wells", "Mover Man", 3)
 	w:LogEvent(World.GUILD, "join", "Mover Man", nil, 2)
 	Join(w, World.GUILD, "Mover Man")
 	w:Tick()
 	w:ReadLog(c.m1); w:ReadLog(c.wes)
 	eq(StateOf(w, c.a1, "Mover Man", "Mira Wells"), "credited", "confirmed, until the check")
-	-- The desk asks the channel; Vik's client knew him in another Olympus guild.
+	-- The desk asks the channel; Vik's client knew him in another ChillZone guild.
 	Settle(w, 700)
 	eq(#w:Sent(c.a1, "NS", "CHANNEL", "q") >= 1, true, "the desk's seen-check")
 	eq(#w:Sent(c.vik, "NS", "WHISPER", "a") >= 1, true, "the answer from roster memory")
@@ -160,13 +160,13 @@ test("1.1.6 Church: new to Olympus: a seen-check from another Olympus guild with
 	eq(w:As(c.a1, c.a1.Count.Own, Key("Mira Wells"), "a").points, 10)
 end)
 
-test("1.1.6 Church: alts are never credited: the recruiter's own linked character, or a recruit whose linked character was in Olympus", function()
+test("1.1.6 Church: alts are never credited: the recruiter's own linked character, or a recruit whose linked character was in ChillZone", function()
 	local w, c = Cast()
 	w.alts[Key("Mira Wells")] = { "Mira Second-Realm" }
 	w.alts[Key("Mira Second")] = { "Mira Wells-Realm" }
 	w:LogEvent(World.GUILD, "invite", "Mira Wells", "Mira Second", 3)
 	w:LogEvent(World.GUILD, "join", "Mira Second", nil, 2)
-	-- Old Main played in Olympus Ember last month; his new character joins through Mira.
+	-- Old Main played in ChillZone Ember last month; his new character joins through Mira.
 	Join(w, World.GUILD, "Old Main")
 	w:Tick()
 	w:Run(DAY)
@@ -181,7 +181,7 @@ test("1.1.6 Church: alts are never credited: the recruiter's own linked characte
 	w:ReadLog(c.m1); w:ReadLog(c.wes)
 	eq(StateOf(w, c.a1, "Mira Second", "Mira Wells"), "alt", "her own other character")
 	Settle(w, 700)
-	eq(StateOf(w, c.a1, "New Alt", "Mira Wells"), "alt", "a linked character of his was in Olympus")
+	eq(StateOf(w, c.a1, "New Alt", "Mira Wells"), "alt", "a linked character of his was in ChillZone")
 	eq(w:As(c.a1, c.a1.Count.Own, Key("Mira Wells"), "a").points, 0)
 end)
 
@@ -194,7 +194,7 @@ test("1.1.6 Church: a seen-check only from a keeper, answered only with a fact, 
 	-- From the desk, about a name nobody knows: no answer.
 	eq(select(2, w:As(c.wes, c.wes.Count.TakeCheck, A1, "NS~1~q~1~Never Seen~j")), "unknown")
 	-- Unknown check ids, a second answer from one client, more than eight: dropped.
-	eq(select(2, w:As(c.a1, c.a1.Count.TakeAnswer, "Wes Brook-Realm", "NS~1~a~zz~Olympus Ember~1~1~1")), "no check")
+	eq(select(2, w:As(c.a1, c.a1.Count.TakeAnswer, "Wes Brook-Realm", "NS~1~a~zz~ChillZone Ember~1~1~1")), "no check")
 	local expected = { [Key(c.wes.name)] = "roster" }
 	local responders = {}
 	for i = 2, 8 do
@@ -203,9 +203,9 @@ test("1.1.6 Church: a seen-check only from a keeper, answered only with a fact, 
 	end
 	local checks = w:As(c.a1, c.a1.Count.OpenChecks)
 	checks.q1 = { cid = "q1", rid = "x:y", why = "j", sent = w.clock, answers = {}, from = {}, expected = expected }
-	eq(w:As(c.a1, c.a1.Count.TakeAnswer, "Wes Brook-Realm", "NS~1~a~q1~Olympus Ember~1~1~1"), true)
-	eq(select(2, w:As(c.a1, c.a1.Count.TakeAnswer, "Wes Brook-Realm", "NS~1~a~q1~Olympus Ember~1~1~1")), "twice")
-	for i = 2, 8 do w:As(c.a1, c.a1.Count.TakeAnswer, responders[i].name, "NS~1~a~q1~Olympus Ember~1~1~1") end
+	eq(w:As(c.a1, c.a1.Count.TakeAnswer, "Wes Brook-Realm", "NS~1~a~q1~ChillZone Ember~1~1~1"), true)
+	eq(select(2, w:As(c.a1, c.a1.Count.TakeAnswer, "Wes Brook-Realm", "NS~1~a~q1~ChillZone Ember~1~1~1")), "twice")
+	for i = 2, 8 do w:As(c.a1, c.a1.Count.TakeAnswer, responders[i].name, "NS~1~a~q1~ChillZone Ember~1~1~1") end
 	eq(checks.q1, nil, "closed at eight answers")
 	-- The King's client answers no check.
 	eq(select(2, w:As(c.king, c.king.Count.TakeCheck, A1, "NS~1~q~2~Known Guy~j")), "king")
@@ -256,7 +256,7 @@ test("Church seen-check recipients: roster membership and signed keeper or counc
 	eq(#nextCheck.answers, 1)
 end)
 
-test("1.1.6 Church: registrations: counted when the player arrives in an Olympus guild within 14 days; not for one already in Olympus; expired after", function()
+test("1.1.6 Church: registrations: counted when the player arrives in an ChillZone guild within 14 days; not for one already in ChillZone; expired after", function()
 	local w, c = Cast()
 	-- Mira registers a player she brought; another guild's officer invites him (no Church person).
 	eq(w:Act(c.m1, c.m1.Count.Register, "Far Guy"), true)
@@ -266,9 +266,9 @@ test("1.1.6 Church: registrations: counted when the player arrives in an Olympus
 	w:Tick()
 	w:Run(DAY * 2)
 	Settle(w, 700)
-	eq(StateOf(w, c.a1, "Far Guy", "Mira Wells"), "credited", "Vik's client places him in Olympus Vale since the registration")
+	eq(StateOf(w, c.a1, "Far Guy", "Mira Wells"), "credited", "Vik's client places him in ChillZone Vale since the registration")
 	eq(Rec(w, c.a1, "Far Guy", "Mira Wells").g, World.GUILD2)
-	-- Already in Olympus when registered: refused at the check.
+	-- Already in ChillZone when registered: refused at the check.
 	Join(w, World.GUILD2, "Old Hand")
 	w:Tick()
 	w:Run(10 * DAY)
@@ -392,14 +392,14 @@ test("1.1.6 Church: still in after 7 days: +5 then; one who left before keeps th
 	eq(w:As(c.a1, c.a1.Count.Own, Key("Mira Wells"), "a").points, 25, "all time keeps them")
 end)
 
-test("1.1.6 Church: the numbers follow the person across Olympus guilds", function()
+test("1.1.6 Church: the numbers follow the person across ChillZone guilds", function()
 	local w, c = Cast()
 	w:LogEvent(World.GUILD, "invite", "Mira Wells", "Ember Kid", 3)
 	w:LogEvent(World.GUILD, "join", "Ember Kid", nil, 2)
 	Join(w, World.GUILD, "Ember Kid")
 	w:Tick()
 	w:ReadLog(c.m1); w:ReadLog(c.wes)
-	-- Mira moves to Olympus Vale and recruits there; Vik witnesses.
+	-- Mira moves to ChillZone Vale and recruits there; Vik witnesses.
 	c.m1.guild = World.GUILD2
 	w:RefreshRosters()
 	w:Run(120)
@@ -544,7 +544,7 @@ test("1.1.6 Church: the keepers' ledger: a keeper catches up from another; the m
 	Join(w, World.GUILD, "Merge Guy") -- (1.2.1: a guildmate confirms only a recruit Aldric's roster shows)
 	w:As(c.a1, c.a1.Count.TakeEvidence, "Mira Wells-Realm", e1)
 	w:As(c.a1, c.a1.Count.TakeEvidence, "Wes Brook-Realm", e2)
-	-- (1.2.1: Bera, in Olympus Vale, can't vouch for Wes of Olympus Ember: she takes his word from Aldric's
+	-- (1.2.1: Bera, in ChillZone Vale, can't vouch for Wes of ChillZone Ember: she takes his word from Aldric's
 	-- ledger, which did, Count.Push.)
 	eq(select(2, w:As(c.a2, c.a2.Count.TakeEvidence, "Wes Brook-Realm", e2)), "unverified")
 	w:As(c.a2, c.a2.Count.TakeEvidence, "Mira Wells-Realm", e1)
@@ -630,7 +630,7 @@ test("1.1.6 Church: reading the log: never in combat, at most every minute, draw
 	eq(select(2, w:As(c.king, c.king.Count.Read)), "king")
 	-- A plain member reads only where a Church person was heard over GUILD, and then with a chance
 	-- of 2 / his guild's addon users.
-	local lone = w:Client("Lone Wolf", { guild = "Olympus Lone" })
+	local lone = w:Client("Lone Wolf", { guild = "ChillZone Lone" })
 	eq(w:As(lone, lone.Count.MaybeRead, w.clock + 400), false, "no Church person heard in his guild")
 	c.wes.peers = 20
 	c.wes.Count.chance = function() return 0.5 end
@@ -703,8 +703,8 @@ test("1.1.6 Church: the counting's messages fit one message each at their worst 
 	eq(#name, 30)
 	local ev = ("NV~1~w~%s~%s~%s~%s~%s"):format(full, full, guild, big, big)
 	assert(#ev <= 255, #ev)
-	-- (A guild's name is 24 letters at most in game; 48 bytes covers accented ones: an Olympus one reads back.)
-	local rec = { n = name, bn = name, g = ("Olympus " .. ("\195\161"):rep(20)), kind = "g", tc = 4 * 10 ^ 9, tj = 4 * 10 ^ 9, s = 1, t = 1, a = 1, x = 1, c = 1, y = 1, q7 = 3, rq = 4,
+	-- (A guild's name is 24 letters at most in game; 48 bytes covers accented ones: an ChillZone one reads back.)
+	local rec = { n = name, bn = name, g = ("ChillZone " .. ("\195\161"):rep(20)), kind = "g", tc = 4 * 10 ^ 9, tj = 4 * 10 ^ 9, s = 1, t = 1, a = 1, x = 1, c = 1, y = 1, q7 = 3, rq = 4,
 		ws = { Key(name), Key("Bbcdefghijklmno Pqrstuvwxyzabc") }, u = 4 * 10 ^ 9 }
 	local line = w:As(c.a1, c.a1.Count.RecordLine, "x", rec)
 	assert(#line <= 255, #line)
@@ -790,7 +790,7 @@ test("1.1.6 Church: a registration's last check runs even when the desk missed i
 		Settle(w, 700)
 	end
 	eq(Rec(w, c.a1, "Late Arriver", "Mira Wells").rq, 4, "four checks so far")
-	-- He joins Olympus Vale on day 10; nobody's desk ticks on day 14.
+	-- He joins ChillZone Vale on day 10; nobody's desk ticks on day 14.
 	w:Run(3 * DAY)
 	Join(w, World.GUILD2, "Late Arriver")
 	w:Tick()
@@ -798,7 +798,7 @@ test("1.1.6 Church: a registration's last check runs even when the desk missed i
 	eq(StateOf(w, c.a1, "Late Arriver", "Mira Wells"), "expired", "past 14 days with no answer yet")
 	w:Presence()
 	Settle(w, 700)
-	eq(StateOf(w, c.a1, "Late Arriver", "Mira Wells"), "credited", "Vik's client placed him in Olympus Vale since day 10")
+	eq(StateOf(w, c.a1, "Late Arriver", "Mira Wells"), "credited", "Vik's client placed him in ChillZone Vale since day 10")
 	eq(Rec(w, c.a1, "Late Arriver", "Mira Wells").g, World.GUILD2)
 	-- Never one who arrives after the 14 days, nor a check past REG_LATE.
 	eq(w:Act(c.m1, c.m1.Count.Register, "Too Late"), true)
@@ -903,11 +903,11 @@ test("1.1.6 Church: the author's close reaches a desk and a member who missed it
 	eq(#w:Sent(c.a1, "NR", "CHANNEL", "p"), 0, "nothing broadcast after the close")
 	-- A keeper's presence never opens it; the author's does. A plain member's close is nobody's.
 	local B = ns.Codec.Base36
-	w:As(c.wes, c.wes.Church.TakePresence, "CHANNEL", A2, "NK~1~p~A~-~Olympus Vale~1" .. B(w.clock))
+	w:As(c.wes, c.wes.Church.TakePresence, "CHANNEL", A2, "NK~1~p~A~-~ChillZone Vale~1" .. B(w.clock))
 	eq((w:As(c.wes, c.wes.Church.Public)), false, "an Apostle's open is not the author's")
-	w:As(c.wes, c.wes.Church.TakePresence, "CHANNEL", World.AUTHOR, "NK~1~p~W~-~Olympus Ember~1" .. B(w.clock))
+	w:As(c.wes, c.wes.Church.TakePresence, "CHANNEL", World.AUTHOR, "NK~1~p~W~-~ChillZone Ember~1" .. B(w.clock))
 	eq((w:As(c.wes, c.wes.Church.Public)), true)
-	w:As(c.wes, c.wes.Church.TakePresence, "CHANNEL", "Vik Stone-Realm", "NK~1~p~A~-~Olympus Vale~0" .. B(w.clock + 1))
+	w:As(c.wes, c.wes.Church.TakePresence, "CHANNEL", "Vik Stone-Realm", "NK~1~p~A~-~ChillZone Vale~0" .. B(w.clock + 1))
 	eq((w:As(c.wes, c.wes.Church.Public)), true)
 end)
 
@@ -1060,7 +1060,7 @@ test("1.2.1 Church: a reload keeps the ledger when one saved record fails the lo
 	local w, c = Cast()
 	local K = c.a1
 	for i = 1, 5 do Give(w, K, "Kept Rec" .. Letters(i), "Mira Wells", 3) end
-	-- A record of a guild this build no longer counts as Olympus (the council's removed list, the
+	-- A record of a guild this build no longer counts as ChillZone (the council's removed list, the
 	-- signed approved list).
 	w:As(K, K.Count.Led).r["odd guy:mira wells"] = { n = "Odd Guy", bn = "Mira Wells", g = "Plain Guild", kind = "i",
 		tc = w.clock - 7200, tj = w.clock - 3600, ws = { "wes brook" }, u = w.clock }
@@ -1291,7 +1291,7 @@ test("1.2.1 Church: an archived recruit later proven a transfer leaves the count
 		for i = 1, 60 do Give(w, K, "Fill Rec" .. Letters(i), "Nils Ford", 5) end
 		eq(Rec(w, K, "Late Mover", "Mira Wells"), nil, "archived"); eq(Rec(w, K, "Late Stayer", "Mira Wells"), nil, "archived")
 		eq(Joins(w, K, "Mira Wells", "m"), 2)
-		-- The desk's new-to-Olympus check finds him in another Olympus guild: a transfer, on Bera's too.
+		-- The desk's new-to-ChillZone check finds him in another ChillZone guild: a transfer, on Bera's too.
 		eq(w:As(K, K.Count.MergeIn, Key("Late Mover") .. ":" .. Key("Mira Wells"), { c = 1, t = 1 }, true), true)
 		w:Run(5)
 		eq(Joins(w, K, "Mira Wells", "m"), 1); eq(Joins(w, K, "Mira Wells", "a"), 1, "all time too")
@@ -1341,7 +1341,7 @@ end)
 
 -- 1.2.1, the security review: what a keeper takes from whom.
 
--- A log pair as a reporter's client whispers it: invite and join `ago` hours ago, in Olympus Ember.
+-- A log pair as a reporter's client whispers it: invite and join `ago` hours ago, in ChillZone Ember.
 local function PairText(w, inviter, recruit, ago, guild)
 	local B, hour = ns.Codec.Base36, math.floor(w.clock / 3600)
 	return ("NV~1~w~%s-Realm~%s-Realm~%s~%s~%s"):format(inviter, recruit, guild or World.GUILD, B(hour - ago), B(hour - ago))
@@ -1356,7 +1356,7 @@ test("1.2.1 Church: a witness is one the keeper can vouch for in the pair's guil
 	w:Flush()
 	eq(StateOf(w, c.a1, "Made Up", "Mira Wells"), "pending")
 	eq(w:As(c.a1, c.a1.Count.Own, Key("Mira Wells"), "a").points, 0)
-	-- A member of another guild is no witness to an Olympus Ember pair, nor one of the recruit's own characters.
+	-- A member of another guild is no witness to an ChillZone Ember pair, nor one of the recruit's own characters.
 	eq(Take(c.a1, "Vik Stone-Realm", PairText(w, "Mira Wells", "Made Up", 2)), "unverified")
 	w.alts[Key("Wes Kid")] = { "Wes Brook-Realm" }
 	eq(Take(c.a1, "Wes Brook-Realm", PairText(w, "Mira Wells", "Wes Kid", 2)), "recruit")
@@ -1370,8 +1370,8 @@ test("1.2.1 Church: a witness is one the keeper can vouch for in the pair's guil
 	eq(StateOf(w, c.a1, "Real Kid", "Mira Wells"), nil)
 	w:Flush()
 	eq(StateOf(w, c.a2, "Real Kid", "Nils Ford"), "credited", "Aldric, who vouched for Wes, told Bera")
-	-- Bera, in Olympus Vale, vouches for the signed (a High Councillor), Olympus Ember's correspondent and an
-	-- officer the Olympus chats verify there; not for a member they could not.
+	-- Bera, in ChillZone Vale, vouches for the signed (a High Councillor), ChillZone Ember's correspondent and an
+	-- officer the ChillZone chats verify there; not for a member they could not.
 	eq(w:As(c.a2, c.a2.Count.TakeEvidence, World.COUNCILLOR, PairText(w, "Mira Wells", "Sig Ned", 2)), true)
 	eq(StateOf(w, c.a2, "Sig Ned", "Mira Wells"), "credited")
 	eq(w:Act(c.king, c.king.Church.NameCorrespondent, "Cora Penn", World.GUILD), true)
@@ -1593,7 +1593,7 @@ test("1.2.1 Church: a guildmate's word confirms only a recruit the keeper's own 
 	w:ReadLog(c.a1)
 	eq(w:As(c.a1, c.a1.Count.TakeEvidence, "Wes Brook-Realm", PairText(w, "Mira Wells", "Quick Leaver", 2)), true)
 	eq(StateOf(w, c.a1, "Quick Leaver", "Mira Wells"), "credited")
-	-- An officer of Olympus Ember the chats verify only through the census, at Bera's: EVIDENCE_HOUR, not VERIFIED_HOUR.
+	-- An officer of ChillZone Ember the chats verify only through the census, at Bera's: EVIDENCE_HOUR, not VERIFIED_HOUR.
 	c.a2.c.Channels.VerifiedLevel = function(n, g)
 		if Key(n) == Key("Ola Officer") and g == World.GUILD then return 2, true, 1 end
 		return 1, false
@@ -1622,7 +1622,7 @@ test("1.2.1 Church: a registration is dated when a keeper hears it and takes no 
 		eq(StateOf(w, k, "Stolen Kid", "Mira Wells"), "credited", k.name)
 		eq(StateOf(w, k, "Stolen Kid", "Nils Ford"), nil, k.name)
 	end
-	-- Recent Arrival joined Olympus Vale three days ago, no Church person's invite: registered "six days ago", he is no recruit.
+	-- Recent Arrival joined ChillZone Vale three days ago, no Church person's invite: registered "six days ago", he is no recruit.
 	Join(w, World.GUILD2, "Recent Arrival")
 	w:Tick()
 	w:Run(3 * DAY)
@@ -1637,7 +1637,7 @@ end)
 test("1.2.1 Church: no receipt goes to a keeper (one before 1.2.1 counts each line against its budget for him); a keeper's report its own ledger refused is tried again there, then goes to the others", function()
 	local w, c = Cast()
 	w:Presence()
-	-- Bera invites in Olympus Vale; her client reports, Aldric takes it: Mira gets receipts, Bera none.
+	-- Bera invites in ChillZone Vale; her client reports, Aldric takes it: Mira gets receipts, Bera none.
 	w:LogEvent(World.GUILD2, "invite", "Bera Stone", "Vale Rec", 1)
 	w:LogEvent(World.GUILD2, "join", "Vale Rec", nil, 0)
 	Join(w, World.GUILD2, "Vale Rec")
@@ -2562,7 +2562,7 @@ test("global Church ledger: one account with a council and an Apostle character:
 	local line = ("NL~1~p~Mira Wells-Realm~0~0~50000~5000~0~%s"):format(c.a1.Church.B36(w.clock))
 	eq(w:As(council, council.Count.TakeLine, "Dela Moss-Realm", line), true, "a council client keeps its copy")
 	eq(Joins(w, council, "Mira Wells", "a"), 5000, "in its copy")
-	-- The same account's Apostle character logs in (OlympusDB is account-wide; ns.rdb, one realm group's).
+	-- The same account's Apostle character logs in (ChillZoneDB is account-wide; ns.rdb, one realm group's).
 	council.online = false
 	local alt = w:Client(A2, { guild = World.GUILD2, rdb = council.ns.rdb })
 	w:As(alt, alt.ns.Fire, "INIT")

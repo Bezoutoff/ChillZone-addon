@@ -410,7 +410,7 @@ function methods:NoErrors()
 	end
 end
 
-MW.FIGHTER_GUILD = "Olympus Ashvale"
+MW.FIGHTER_GUILD = "ChillZone Ashvale"
 
 function MW.New(opts)
 	local w = World.New(opts)

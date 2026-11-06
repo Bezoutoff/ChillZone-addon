@@ -1,4 +1,4 @@
-# Olympus 1.2.1
+# ChillZone 1.2.1
 
 This correction release contains the completed subset below, not the entire longer-term backlog.
 Automated checks and live multiplayer checks are separate gates; use
@@ -13,8 +13,8 @@ Automated checks and live multiplayer checks are separate gates; use
   empty side strip. A red square with a yellow arrow sits just right of **Sit Down**, shifted
   slightly left while chat is available. The native chat background also fills the join between
   chat and table. Innkeeper practice does not pretend to have a multiplayer room.
-  Authors and test builds can inspect that layout locally with `/oly arena sim boneschat`, then
-  leave by closing the preview or with `/oly arena sim off`. The preview has empty chat tabs
+  Authors and test builds can inspect that layout locally with `/cz arena sim boneschat`, then
+  leave by closing the preview or with `/cz arena sim off`. The preview has empty chat tabs
   and sends no invitations or messages; it is not a multiplayer test. Ordinary test-build pages
   no longer fill empty real lists with invented showcase records.
 - The Chat gear can hide guild labels beside sender names locally. Guild identity remains in
@@ -39,18 +39,18 @@ Automated checks and live multiplayer checks are separate gates; use
 - Invitations through the addon warn about a character blocked from the network, with a reason
   and date. The officer still chooses; native guild invitations are not silently declined.
 - Removing a member from the guild is no longer refused with "Interface action failed because of
-  an AddOn" because an Olympus question was open. With mouse and keyboard, while one of the game's
-  guild windows is open, Olympus asks its questions in its own windows. A question already open
+  an AddOn" because an ChillZone question was open. With mouse and keyboard, while one of the game's
+  guild windows is open, ChillZone asks its questions in its own windows. A question already open
   as a game popup moves there as soon as the guild window (or a member's card) opens, keeping what
   was typed in its box. An officer reported the same failure, now and then, when changing a rank:
-  Olympus also no longer adds its lines to the game's guild roster right-click menu, where the
-  game's own promote, demote, rank and removal are (a guildmate's Olympus lines stay in the other
-  right-click menus and on the Olympus window's rows). The rank case still needs an in-game check.
+  ChillZone also no longer adds its lines to the game's guild roster right-click menu, where the
+  game's own promote, demote, rank and removal are (a guildmate's ChillZone lines stay in the other
+  right-click menus and on the ChillZone window's rows). The rank case still needs an in-game check.
   Escape still closes these questions, now together with the guild window. One limit remains: if
-  an Olympus popup closed while another game popup stayed open, the removal can still be refused
+  an ChillZone popup closed while another game popup stayed open, the removal can still be refused
   until every game popup has closed. The gamepad UI is unchanged.
 - Any member can report a chat line from the Chat tab: right-click another player's line in the
-  Olympus channel, or the name on it, and choose **Report to Olympus**. Any line from the last day
+  ChillZone channel, or the name on it, and choose **Report to ChillZone**. Any line from the last day
   can be reported, not only the 20 newest. The report goes to the online officers of the
   reporter's own guild (the guild master, Captains, appointed Watchers and signed moderators) and
   shows in their Watch under **Reports** and **Cases**. With no officer online it waits on the
@@ -62,21 +62,21 @@ Automated checks and live multiplayer checks are separate gates; use
   King's client is on and gets every report it received since his last one, including one that
   reached it late. The King's client takes a report only from a reporter it already knows in the
   guild he names: the King's own guild by its roster, another guild when his own earlier messages
-  there (his lines in the Olympus chats, for one) spoke for it. A report from anyone else reaches
-  his guild's officers only. It keeps only the lines it heard itself in the Olympus channel, so a
+  there (his lines in the ChillZone chats, for one) spoke for it. A report from anyone else reaches
+  his guild's officers only. It keeps only the lines it heard itself in the ChillZone channel, so a
   case never shows words its player did not write. Per-player and per-guild rate limits apply. A
   councillor never receives a case about himself or a name his player linked, and the King's chat
   names no one. The council's reports and cases have their own sections, apart from the guild's,
-  so an officer on the council, and the King, act on them in Olympus's chats and never with their
+  so an officer on the council, and the King, act on them in ChillZone's chats and never with their
   guild's Watch; an officer can still send his own guild's case to the King for the council's
   vote. With the King's client off, the report waits for it on the reporter's client for a day.
   Multiplayer verification is still needed.
-- The Olympus shortcut is **Shift + the game's guild key** (Shift-J on Forever, where the game
+- The ChillZone shortcut is **Shift + the game's guild key** (Shift-J on Forever, where the game
   binds Y to Legacy and G to Target Last Hostile, so the old Y shortcut never came on there). It is
   read from the player's own guild key binding and falls back to Shift-J when that key has a
   modifier or none is bound. As before it is used only while that key is unbound, saved bindings
-  are never changed, and `/oly hotkey on|off` switches it. A key of the player's own can be set in
-  the game's Key Bindings, under AddOns: **Toggle Olympus**.
+  are never changed, and `/cz hotkey on|off` switches it. A key of the player's own can be set in
+  the game's Key Bindings, under AddOns: **Toggle ChillZone**.
 - **Ask to update** in a player's right-click menu is now only for the author, the King and the
   High Council. A 1.2.1 client ignores an ask from anyone else, which older versions can still
   send. **Check version** stays available to every member.
@@ -93,7 +93,7 @@ Automated checks and live multiplayer checks are separate gates; use
   1.2.0 letter, that release's news comes before 1.2.1. The history keeps each letter separately.
   An empty first-session save no longer causes the letter to reopen on every login. With saved
   history available, a new version can still open its letter once; the help button and
-  `/oly letters` always keep the history accessible.
+  `/cz letters` always keep the history accessible.
 
 ## Reliability and review work
 
@@ -121,7 +121,7 @@ Automated checks and live multiplayer checks are separate gates; use
   bypasses the shipped financial gate.
 - Photo-tour rolls no longer replace the game's global roll function. Innkeeper handoff waits
   for the native conversation to close and keeps the addon-only gamepad route.
-- A bug report's blocked-call stack now starts at the call the game refused, not at the Olympus
+- A bug report's blocked-call stack now starts at the call the game refused, not at the ChillZone
   handler that recorded it. A block kept from an older version no longer heads a newer
   version's report, and the status line names that block's version. This does not change who
   caused a block; it only keeps an old one from appearing current.

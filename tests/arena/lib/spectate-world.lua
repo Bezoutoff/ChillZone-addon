@@ -21,7 +21,7 @@ for i = 1, 8 do TOKENS[#TOKENS + 1] = "nameplate" .. i end
 -- hp, hpMax, power, powerMax, combat (true | false | "secret"), cast = { name, texture, start,
 -- finish (ms), channel }, secret (Forever: the live values secret), secretGuid, npc }),
 -- o.canAttack (true | false | "none" | "secret"), o.items (client -> slot -> { id, link }),
--- o.stats (item id -> GetItemStats's table), o.uncached (item id -> true). Unit functions Olympus
+-- o.stats (item id -> GetItemStats's table), o.uncached (item id -> true). Unit functions ChillZone
 -- must never call (UnitInRange is always secret; TargetUnit, FocusUnit, SetCVar reach into the
 -- game) raise. Returns o (its tables may change later: the game moves on).
 local function Scene(w, c, o)

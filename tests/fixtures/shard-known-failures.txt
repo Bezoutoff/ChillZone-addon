@@ -1,18 +1,18 @@
-/oly status: realm, census, raw names and topology, short, and without the newer realm APIs
+/cz status: realm, census, raw names and topology, short, and without the newer realm APIs
 0.9.1 privacy: the first line in each channel waits for the player's OK (#16)
 1.0.0 OfficerSpy's bridge: a companion hears others' chat lines after the checks, sanitized, and can't break them
 1.0.0 OfficerSpy's bridge: a line the flood guard holds back still reaches a companion, muted or not
-1.0.0 the Crown: a real officer of <Olympus> keeps it for his own guild's members, whatever the census says
+1.0.0 the Crown: a real officer of <ChillZone> keeps it for his own guild's members, whatever the census says
 1.1 bank requests (Fern): a Lord or Captain asks for an item and a count, shown next to the bank; handing it over stays a trade or mail
 1.1 dues (Fern's rule from #33): the dues never switch anyone off: a guild that pays nothing for weeks, and its players under the amount, keep the census, the chats, the decrees and the addon
 1.1 join routing (Fern #20): do not contact holds under load: past ANSWER_MAX a member still tells each asker no, and the Join screen asks again one who never answered before the whisper
 1.1 zones: Outland's total goes on the map above it (Cosmic), Azeroth's continents stay on the Azeroth map
-1.1.1 review: a line written in the window keeps its channel muted in chat, the privacy warning's Send too; /ol typed in chat still unmutes it
-1.1.5 removed guilds: a guild the High Council removed is no Olympus guild whatever its name (any case, stray spaces), its members see the Join screen; the author's approved list lets it back; never the King's guild; the other faction's namesake untouched
+1.1.1 review: a line written in the window keeps its channel muted in chat, the privacy warning's Send too; /czn typed in chat still unmutes it
+1.1.5 removed guilds: a guild the High Council removed is no ChillZone guild whatever its name (any case, stray spaces), its members see the Join screen; the author's approved list lets it back; never the King's guild; the other faction's namesake untouched
 A player's report: no false King, our layer holds against stray creatures, our channel after the game's
 chat lines arrive through CHAT_MSG_ADDON_LOGGED, without our echo or blocked players
 chat lines put together from pieces are never taken as logged, whichever piece came logged
-chat window (1.1.2): every line reaches Chattynator from Olympus/Channels.lua, the addon its tab's filter lets in
+chat window (1.1.2): every line reaches Chattynator from ChillZone/Channels.lua, the addon its tab's filter lets in
 chat window: Chattynator names follow moved tabs and fall back once when removed
 chat window: each channel's lines and our own echo go to the window chosen by its name (#14)
 muted tiers stay out of chat but keep history

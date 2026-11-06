@@ -1,6 +1,6 @@
--- Guinness record attempt: the evidence pack from the witnesses' Olympus.lua files.
+-- Guinness record attempt: the evidence pack from the witnesses' ChillZone.lua files.
 --
---   luajit scripts/record-verify.lua <out-dir> <witness Olympus.lua> [<witness Olympus.lua> ...]
+--   luajit scripts/record-verify.lua <out-dir> <witness ChillZone.lua> [<witness ChillZone.lua> ...]
 --
 -- docs/RECORD-FORMAT.md, section 8. Steps 1 to 7 (reading the files as data, every session's hash
 -- chain, copies of one session, who is one witness, the checkpoints per guild and quarter hour) are
@@ -18,7 +18,7 @@
 --   marks.csv        manual marks, grouped where witnesses marked within MARK_WINDOW seconds
 --   summary.txt      the totals and every problem, in plain words
 -- Exit 1 when a file is refused, a chain breaks or two copies of one session differ.
-local ROOT = os.getenv("OLYMPUS_ROOT") or (arg and arg[0] or ""):match("^(.*)scripts[/\\]record%-verify%.lua$") or "./"
+local ROOT = os.getenv("CHILLZONE_ROOT") or (arg and arg[0] or ""):match("^(.*)scripts[/\\]record%-verify%.lua$") or "./"
 if ROOT ~= "" and not ROOT:find("[/\\]$") then ROOT = ROOT .. "/" end
 
 local function Fail(message)
@@ -28,11 +28,11 @@ end
 
 local outDir = arg[1]
 if not outDir or not arg[2] then
-	Fail("usage: luajit scripts/record-verify.lua <out-dir> <witness Olympus.lua> [...]")
+	Fail("usage: luajit scripts/record-verify.lua <out-dir> <witness ChillZone.lua> [...]")
 end
 
 local checkChunk = loadfile(ROOT .. "scripts/record-check.lua")
-if not checkChunk then Fail("scripts/record-check.lua is not in " .. ROOT .. " (set OLYMPUS_ROOT to the record branch)") end
+if not checkChunk then Fail("scripts/record-check.lua is not in " .. ROOT .. " (set CHILLZONE_ROOT to the record branch)") end
 -- (record-check finds its root from arg[0]; give it its own path while it loads)
 local self0 = arg[0]
 arg[0] = ROOT .. "scripts/record-check.lua"
@@ -40,7 +40,7 @@ local Check = checkChunk("--module")
 local R = Check.Load()
 arg[0] = self0
 local ns = { L = setmetatable({}, { __index = function(_, k) return k end }) }
-assert(loadfile(ROOT .. "Olympus/Sign.lua"))("Olympus", ns)
+assert(loadfile(ROOT .. "ChillZone/Sign.lua"))("ChillZone", ns)
 local SHA256 = ns.Sign.SHA256
 
 local BOUND = Check.BOUND -- seconds after a slot that still count as one instant
@@ -85,10 +85,10 @@ for i = 2, #arg do
 			row.refused = tostring(parsed)
 			problems[#problems + 1] = ("%s: not a SavedVariables file (%s)"):format(path, row.refused)
 		else
-			local sessions, why = Check.Sessions(R, parsed.OlympusRecordDB, path)
+			local sessions, why = Check.Sessions(R, parsed.ChillZoneRecordDB, path)
 			-- The census reports each session heard (E lines), as Record.VerifyFile reads them.
 			local claimsOf = {}
-			for _, v in ipairs(R.VerifyFile(parsed.OlympusRecordDB, nil).sessions) do
+			for _, v in ipairs(R.VerifyFile(parsed.ChillZoneRecordDB, nil).sessions) do
 				local list = {}
 				for _, o in ipairs(v.observations) do
 					if o.kind == "E" then list[#list + 1] = o end

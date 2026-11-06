@@ -1,12 +1,12 @@
--- Olympus/Comm.lua as 0.9.8 and 0.9.9 ship it, for tests/run.lua: copied unchanged from
--- `git show v0.9.8:Olympus/Comm.lua` (the file is the same from 0.9.3 to 0.9.9). The clients of
+-- ChillZone/Comm.lua as 0.9.8 and 0.9.9 ship it, for tests/run.lua: copied unchanged from
+-- `git show v0.9.8:ChillZone/Comm.lua` (the file is the same from 0.9.3 to 0.9.9). The clients of
 -- those versions elect one reporter per guild across realms, put pieces together from the
 -- channel only (never from GUILD) and hand a message to a handler by its type. Loaded like the
--- addon loads its files: loadfile("tests/fixtures/comm-0.9.8.lua")("Olympus", ns).
+-- addon loads its files: loadfile("tests/fixtures/comm-0.9.8.lua")("ChillZone", ns).
 local ADDON, ns = ...
 
 -- GUILD: "hello" pings so members with the addon know each other and elect one reporter.
--- CHANNEL (hidden "OlympusNet"): the elected reporter of each guild broadcasts its summary.
+-- CHANNEL (hidden "ChillZoneNet"): the elected reporter of each guild broadcasts its summary.
 -- Chat lines of the channels (Channels.lua) ride the same hidden channel in a lane of their own.
 
 local Comm = {}
@@ -229,7 +229,7 @@ end
 local function Pump()
 	if not queue[1] and not chatQueue[1] then return end
 	if not ns.IsMember() then
-		wipe(queue) -- outside an Olympus guild the addon sends nothing
+		wipe(queue) -- outside an ChillZone guild the addon sends nothing
 		DropChat()
 		return
 	end
@@ -273,8 +273,8 @@ end
 Comm.Pump = Pump -- for tests
 
 ---------------------------------------------------------------------------
--- The shared channel. Without a key it is the public "OlympusNet". With a realm key (set by
--- an officer with /oly key, then passed to guildmates over GUILD messages, which the server
+-- The shared channel. Without a key it is the public "ChillZoneNet". With a realm key (set by
+-- an officer with /cz key, then passed to guildmates over GUILD messages, which the server
 -- only delivers to members of that guild) the channel gets a name derived from the key and
 -- the key as its password: outsiders can neither find it nor join it, edited code or not.
 ---------------------------------------------------------------------------
@@ -318,7 +318,7 @@ end
 -- another member, so any player with the addon can end up owning it. An owner could /password
 -- it (nobody who logs in afterwards gets in, and the network dies as people relog), /ban or
 -- /ckick players (the King, the Treasurer), make a friend /moderator or give it away with
--- /owner. Olympus never uses these powers against anyone. It follows the channel's notices,
+-- /owner. ChillZone never uses these powers against anyone. It follows the channel's notices,
 -- tells a player who was handed the channel what that means, and while the channel is ours it
 -- only undoes harm (Comm.HealChannel). A channel locked against us is tried again, slower and
 -- slower (Comm.JoinChannel). There is no other name to flee to: whoever locks one name can
@@ -344,7 +344,7 @@ local function GuardFor(name)
 	return guard
 end
 
--- Our channel, whatever form a notice gives its name ("OlympusNet" or "5. OlympusNet").
+-- Our channel, whatever form a notice gives its name ("ChillZoneNet" or "5. ChillZoneNet").
 local function OurChannel(...)
 	local ours = joinedName or Comm.ChannelSpec()
 	if type(ours) ~= "string" then return nil end
@@ -520,7 +520,7 @@ local function Unlocked(g)
 end
 
 -- CHAT_MSG_CHANNEL_NOTICE and CHAT_MSG_CHANNEL_NOTICE_USER: (notice type, player, language,
--- "5. OlympusNet", second player, flags, zone channel id, channel number, "OlympusNet", ...).
+-- "5. ChillZoneNet", second player, flags, zone channel id, channel number, "ChillZoneNet", ...).
 -- With two players (banned, kicked, unbanned) the first is the one it happened to and the
 -- second who did it. Only our channel's notices count.
 function Comm.OnChannelNotice(notice, player, _, channelName, player2, _, _, _, baseName)
@@ -610,7 +610,7 @@ function Comm.OnActionRefused(addon, func)
 	end
 end
 
--- For /oly status: the channel's owner as last seen, our seat, what was seen.
+-- For /cz status: the channel's owner as last seen, our seat, what was seen.
 function Comm.GuardStats()
 	local g, now = guard, ns.Now()
 	local function Size(t) local n = 0 for _ in pairs(t) do n = n + 1 end return n end
@@ -677,7 +677,7 @@ function Comm.RequestKey()
 	if ns.IsMember() and ns.rdb and not ns.rdb.realmKey then Enqueue("GUILD", "K0~", "keyreq") end
 end
 
--- /oly key <secret>: officers seal the channel; guildmates receive the key automatically.
+-- /cz key <secret>: officers seal the channel; guildmates receive the key automatically.
 function Comm.SetRealmKey(secret)
 	if not ns.IsMember() or not ns.Roster.IsOfficer() then
 		ns.Print(ns.L.KEY_OFFICERS_ONLY)
@@ -707,7 +707,7 @@ function Comm.Hello(force)
 	end
 	if not force and before >= 10 and now - lastHello < 600 then return end
 	lastHello = now
-	-- Our realm rides along: guildmates on another realm show in /oly status (topology). So does
+	-- Our realm rides along: guildmates on another realm show in /cz status (topology). So does
 	-- our channel: without the key we can't hear a reporter on the sealed one (MaybeBroadcast).
 	-- And "z" when we share our zone (0.9.1): our guild's reporter may name it then, never
 	-- otherwise. Older versions read the fields before it and ignore the rest.
@@ -1001,7 +1001,7 @@ local function OnAddonMessage(prefix, text, dist, sender, target, zoneChannelID,
 		stats.echo = stats.echo + 1 -- our own message coming back (proves the channel works)
 		return
 	end
-	if not ns.IsMember() then return end -- outside an Olympus guild the addon hears nothing
+	if not ns.IsMember() then return end -- outside an ChillZone guild the addon hears nothing
 	if ns.db.blocked[sender:lower()] then return end
 	if not Comm.Admit(sender, ns.Now()) then return end
 	stats.recv = stats.recv + 1
@@ -1077,11 +1077,11 @@ local function OnAddonMessage(prefix, text, dist, sender, target, zoneChannelID,
 	end
 end
 
--- Outside an Olympus guild the addon stays out of the channel (called when the guild changes).
+-- Outside an ChillZone guild the addon stays out of the channel (called when the guild changes).
 -- Joining is left to the housekeeping ticker, so we never jump ahead of General/Trade at login.
 function Comm.CheckMembership()
 	if ns.IsMember() then
-		-- Joined an Olympus guild after login: ask for the census once we are on the channel.
+		-- Joined an ChillZone guild after login: ask for the census once we are on the channel.
 		if stats.asked == 0 then
 			askTries = 0
 			Comm.AskCensus()
@@ -1090,7 +1090,7 @@ function Comm.CheckMembership()
 	end
 	if joinedName and GetChannelName(joinedName) > 0 then
 		LeaveChannelByName(joinedName)
-		ns.Log("left channel %s: not in an Olympus guild", joinedName)
+		ns.Log("left channel %s: not in an ChillZone guild", joinedName)
 		joinedName, channelIndex = nil, 0
 		wipe(queue)
 		DropChat()

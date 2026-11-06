@@ -6,7 +6,7 @@ local function WithRooms(fn)
 	local globals = { "GetTime", "GetGuildInfo", "UnitClass", "UnitRace", "C_ChatInfo", "C_CreatureInfo", "LOCALIZED_CLASS_NAMES_MALE" }
 	local saved = {}
 	for _, name in ipairs(globals) do saved[name] = _G[name] end
-	local w = { mono = 1000, epoch = 1800000000, guild = "Olympus II", channel = "OlympusNet",
+	local w = { mono = 1000, epoch = 1800000000, guild = "ChillZone II", channel = "ChillZoneNet",
 		jobs = {}, events = {}, nativeEvents = {}, nativeSent = {}, listeners = {}, asked = {}, cancelled = 0, logged = true, attempts = 0,
 		council = {}, stewards = {}, departments = {}, king = "The King-Realm" }
 	local ok, err = pcall(function()
@@ -131,7 +131,7 @@ local function WithRooms(fn)
 		function w.clearJobs() w.jobs, w.attempts, w.rejectAt = {}, 0, nil end
 		function w.advance(seconds) w.mono, w.epoch = w.mono + seconds, w.epoch + seconds end
 
-		assert(loadfile(ROOT .. "Olympus/ChatRooms.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/ChatRooms.lua"))("ChillZone", c)
 		w.ns, w.Rooms = c, c.ChatRooms
 		w.Rooms.Reset()
 		fn(w, w.Rooms, c)
@@ -141,7 +141,7 @@ local function WithRooms(fn)
 end
 
 local function RoomMessage(id, line, words, version, guild, class)
-	return ("M2~%s~%s~%d~%s~%s~%s"):format(version or "1", id, line, class == nil and "WA" or class, guild or "Olympus II", words)
+	return ("M2~%s~%s~%d~%s~%s~%s"):format(version or "1", id, line, class == nil and "WA" or class, guild or "ChillZone II", words)
 end
 
 test("chat Artisanry department: canonical label and signed legacy aliases preserve the room id", function()
@@ -265,12 +265,12 @@ test("chat rooms: the new audiences have separate consent and old or malformed w
 		c.db.chatRooms = nil
 		local sent, why = R.Send("guild", "hello")
 		eq(sent, false); eq(why, "off"); eq(w.asked[1], "chatrooms")
-		eq(c.db.addonChat, true, "the existing Olympus chat consent is independent")
+		eq(c.db.addonChat, true, "the existing ChillZone chat consent is independent")
 		eq(R.Receive("GUILD", "Peer-Realm", RoomMessage("guild", 1, "old", "0"), 1000), false)
 		c.db.chatRooms = true
 		eq(R.Receive("GUILD", "Peer-Realm", RoomMessage("guild", 1, "old", "0"), 1000), false)
 		eq(R.Receive("CHANNEL", "Peer-Realm", RoomMessage("guild", 2, "wrong lane"), 1001), false)
-		eq(R.Receive("GUILD", "Peer-Realm", RoomMessage("guild", 3, "wrong guild", "1", "Olympus III"), 1002), false)
+		eq(R.Receive("GUILD", "Peer-Realm", RoomMessage("guild", 3, "wrong guild", "1", "ChillZone III"), 1002), false)
 		w.logged = false
 		eq(R.Receive("GUILD", "Peer-Realm", RoomMessage("guild", 4, "not logged"), 1003), false)
 		w.logged = true
@@ -279,7 +279,7 @@ test("chat rooms: the new audiences have separate consent and old or malformed w
 	end)
 end)
 
--- (Changed in 1.2.3: its second half, a class room's line refused once the Olympus channel moved,
+-- (Changed in 1.2.3: its second half, a class room's line refused once the ChillZone channel moved,
 -- went with the class rooms; Guild's native transport is unchanged.)
 test("chat rooms: Guild uses native chat, never a hidden addon guild message", function()
 	WithRooms(function(w, R)
@@ -582,7 +582,7 @@ test("chat rooms (1.2.4): a refusal returns its reason before any whisper, and a
 		w.guild = nil
 		ok, why = R.Send("church", "no guild yet")
 		eq(ok, false); eq(why, "guild")
-		w.guild = "Olympus II"
+		w.guild = "ChillZone II"
 		ok, why = R.Send("church", ("x"):rep(R.TEXT_MAX + 40))
 		eq(ok, true, "a long line is cut to the room's length, not refused")
 		eq(#R.History("church"), 2, "both lines shown at Enter"); eq(#R.History("church")[2].text, R.TEXT_MAX)
@@ -636,7 +636,7 @@ end)
 test("chat rooms (CH-04): a reply crosses a role room's whispers with its quote and its whole answer apart", function()
 	WithRooms(function(w, R, c)
 		local cw = setmetatable({ On = function() end, RegisterEvent = function() end }, { __index = ns })
-		assert(loadfile(ROOT .. "Olympus/ChatWindow.lua"))("Olympus", cw)
+		assert(loadfile(ROOT .. "ChillZone/ChatWindow.lua"))("ChillZone", cw)
 		local CW = cw.ChatWindow
 		local me = c.me:lower()
 		w.council[me], w.council["alpha-realm"] = true, true
@@ -678,7 +678,7 @@ test("chat rooms: the Companion's chat record: each room line kept and shown, th
 		eq(#rec, 2)
 		eq(rec[1].tier, "church"); eq(rec[1].sender, "Brother a-Realm"); eq(rec[1].text, "evening, all"); eq(rec[1].isSelf, false)
 		eq(rec[2].text, "a hidden word"); eq(R.History("church")[2].hidden, true, "greyed in its tab, still recorded")
-		-- Refused by Olympus's checks (Channels.Admit: net-off, a timeout, a deleted line's copy): nothing.
+		-- Refused by ChillZone's checks (Channels.Admit: net-off, a timeout, a deleted line's copy): nothing.
 		local admit = c.Channels.Admit
 		for _, why in ipairs({ "netoff", "timeout", "deleted", "rate" }) do
 			c.Channels.Admit = function() return false, why end

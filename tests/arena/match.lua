@@ -131,7 +131,7 @@ test("1.2 matchmaking: a casual duel, end to end: the ask, the answer, the reque
 	w:Run(0)
 	-- The ask: qid 12345 = "9ix"; cont 0; map 1434 = "13u"; no layer; level 60 = "1o", 55..65 =
 	-- "1j".."1t"; the zone's crowd max(1, 0) x 4 = 4, so 600 / 4 = 150, at most 100 = "2s".
-	eq(MW.AM(w, a)[1], "Q~9ix~d~c~Olympus Ember~0~13u~0~1o~1j~1t~z~2s")
+	eq(MW.AM(w, a)[1], "Q~9ix~d~c~ChillZone Ember~0~13u~0~1o~1j~1t~z~2s")
 	eq(w:Sent{ from = a, type = "AM" }[1].dist, "CHANNEL")
 	eq(a.Match.View().line, "Searching nearby...")
 	-- On her card, not in chat as well.
@@ -139,7 +139,7 @@ test("1.2 matchmaking: a casual duel, end to end: the ask, the answer, the reque
 	eq(Printed(a, "Searching nearby..."), 0)
 	-- Parric answers after 0.2 s (the draw 0): findable, in the zone, level 60, a mage (8), duels.
 	w:Run(1)
-	eq(MW.AM(w, b)[1], "O~9ix~f~Olympus Ember~1~1o~8~d~c~0")
+	eq(MW.AM(w, b)[1], "O~9ix~f~ChillZone Ember~1~1o~8~d~c~0")
 	eq(w:Sent{ from = b, type = "AM" }[1].target, a.name)
 	-- The window closes after 4 s: the request, with Lida's cell.
 	w:Run(5)
@@ -157,7 +157,7 @@ test("1.2 matchmaking: a casual duel, end to end: the ask, the answer, the reque
 	eq(MW.Last(w, b, "A"), "A~" .. mid .. "~Y~arena_gurubashi~g~1e~13u~0~0~0~0")
 	-- The opening whisper and the invite, inside the click.
 	eq(#b.said, 1)
-	eq(b.said[1].text, "Hi! Olympus matched us for a casual duel. Meet at Gurubashi Arena, Stranglethorn Vale (30.6, 47.8)? It's about halfway for us both. Reply here, or pick another spot in the Olympus window.")
+	eq(b.said[1].text, "Hi! ChillZone matched us for a casual duel. Meet at Gurubashi Arena, Stranglethorn Vale (30.6, 47.8)? It's about halfway for us both. Reply here, or pick another spot in the ChillZone window.")
 	eq(b.said[1].kind, "WHISPER"); eq(b.said[1].to, "Lida Fenn")
 	eq(b.invited[1], "Lida Fenn")
 	eq(b.said[1].global, nil, "C_ChatInfo.SendChatMessage where the client has it")
@@ -191,11 +191,11 @@ test("1.2 matchmaking: a staked duel: the ask carries no amount, the request the
 	eq(a.Match.Start({ game = "d", kind = "s", lo = 500000, hi = 1000000, level = 0, reach = "z" }), true)
 	w:Run(0)
 	local q = MW.AM(w, a)[1]
-	eq(q, "Q~9ix~d~s~Olympus Ember~0~13u~0~1o~1~2s~z~2s")
+	eq(q, "Q~9ix~d~s~ChillZone Ember~0~13u~0~1o~1~2s~z~2s")
 	assert(not w:ChannelText():find("3uw", 1, true) and not w:ChannelText():find("7ps", 1, true), "no amount on the channel")
 	w:Run(6)
 	-- Parric offers what both want: a duel, staked (his answer names only the overlap).
-	eq(MW.AM(w, b)[1], "O~9ix~f~Olympus Ember~1~1o~8~d~s~0")
+	eq(MW.AM(w, b)[1], "O~9ix~f~ChillZone Ember~1~1o~8~d~s~0")
 	local r = MW.Last(w, a, "R")
 	local mid = r:match("^R~(M[0-9a-z]+)~")
 	eq(r, "R~" .. mid .. "~9ix~d~s~3uw~7ps~1o~1~h~1e~0")
@@ -204,10 +204,10 @@ test("1.2 matchmaking: a staked duel: the ask carries no amount, the request the
 	MW.Answer(w, b, "yes")
 	w:Run(0)
 	eq(MW.Last(w, b, "A"), "A~" .. mid .. "~Y~spot_booty_bay~g~1e~13u~0~3uw~7ps~0")
-	eq(b.said[1].text, "Hi! Olympus matched us for a duel with a stake. Meet at Booty Bay, Stranglethorn Vale (27.0, 77.3)? It's about halfway for us both. The stake is set in the Olympus window only, never in whispers.")
+	eq(b.said[1].text, "Hi! ChillZone matched us for a duel with a stake. Meet at Booty Bay, Stranglethorn Vale (27.0, 77.3)? It's about halfway for us both. The stake is set in the ChillZone window only, never in whispers.")
 	assert(not b.said[1].text:find("%d+g"), "no amount in a whisper")
 	-- The card: the safety line and [Challenge]; no casual-duel line.
-	assert(MW.HasLine(a, "Olympus shows matches and stakes only in this window. Never trade gold outside the challenge."))
+	assert(MW.HasLine(a, "ChillZone shows matches and stakes only in this window. Never trade gold outside the challenge."))
 	assert(not MW.HasLine(a, "Right-click Parric Stowe's portrait and pick Duel."))
 	eq(MW.Buttons(a), "block cancel challenge onway other reply room")
 	eq(a.Match.View().match.lo, 500000); eq(a.Match.View().match.hi, 1000000)
@@ -251,7 +251,7 @@ test("1.2 matchmaking: two searchers agree on the overlap of their stake ranges;
 	w:Run(30)
 	eq(a.Match.Start({ game = "d", kind = "s", lo = 500000, hi = 1000000, level = 0 }), true)
 	w:Run(1)
-	eq(MW.Last(w, b, "O"), "O~9ix~s~Olympus Ember~1~1o~8~d~s~0~g~1e")
+	eq(MW.Last(w, b, "O"), "O~9ix~s~ChillZone Ember~1~1o~8~d~s~0~g~1e")
 	w:Run(5)
 	MW.Answer(w, b, "yes")
 	w:Run(0)
@@ -283,7 +283,7 @@ test("1.2 matchmaking: Bone Throw for practice: an inn, the practice whisper, th
 	-- The Salty Sailor Tavern (-14457, 496.5) is the only inn of the Alliance or neutral ground
 	-- on this continent within 1,500 yd.
 	eq(a.Match.View().match.place.id, "inn_booty_bay")
-	eq(b.said[1].text, "Hi! Olympus matched us for a practice Bones game. Meet at The Salty Sailor Tavern, Stranglethorn Vale (27.0, 77.3)? It's about halfway for us both.")
+	eq(b.said[1].text, "Hi! ChillZone matched us for a practice Bones game. Meet at The Salty Sailor Tavern, Stranglethorn Vale (27.0, 77.3)? It's about halfway for us both.")
 	eq(b.invited[1], "Lida Fenn")
 	eq(MW.Buttons(a), "block cancel onway other reply room table")
 	-- [Open the table]: the Bone Throw tables' create panel, pre-filled, through the screens' ArenaUI.BoneInvite (which
@@ -319,7 +319,7 @@ test("1.2 matchmaking: Either: the seeker's pick, else the one game or kind the 
 	eq(MW.AM(w, a)[1]:match("^Q~9ix~(%a~%a)~"), "e~c")
 	w:Run(6)
 	-- Parric offers Bone Throw only, casual: the request resolves to it.
-	eq(MW.Last(w, b, "O"), "O~9ix~f~Olympus Ember~1~1o~8~b~c~0")
+	eq(MW.Last(w, b, "O"), "O~9ix~f~ChillZone Ember~1~1o~8~b~c~0")
 	assert(MW.Last(w, a, "R"):find("^R~M[0-9a-z]+~9ix~b~c~0~0~"), MW.Last(w, a, "R"))
 	-- Where stakes can be: Wenna searches staked Bone Throw only (10g to 20g); Idris searches
 	-- Either, 5g to 15g; Wenna answers with her one game and kind: Bone Throw, staked, 10g to 15g.
@@ -334,7 +334,7 @@ test("1.2 matchmaking: Either: the seeker's pick, else the one game or kind the 
 	w2:Run(0)
 	eq(MW.AM(w2, c)[1]:match("^Q~9ix~(%a~%a)~"), "e~e")
 	w2:Run(6)
-	eq(MW.Last(w2, d, "O"), "O~9ix~s~Olympus Ember~1~1o~1~b~s~0~g~1e")
+	eq(MW.Last(w2, d, "O"), "O~9ix~s~ChillZone Ember~1~1o~1~b~s~0~g~1e")
 	-- 500 silver = "dw", 1500 = "15o".
 	assert(MW.Last(w2, c, "R"):find("^R~M[0-9a-z]+~9ix~b~s~dw~15o~"), MW.Last(w2, c, "R"))
 	MW.Answer(w2, d, "yes")
@@ -342,7 +342,7 @@ test("1.2 matchmaking: Either: the seeker's pick, else the one game or kind the 
 	-- 1000 silver = "rs".
 	assert(MW.Last(w2, d, "A"):find("~rs~15o~0$"), MW.Last(w2, d, "A"))
 	eq(c.Match.View().match.lo, 100000); eq(c.Match.View().match.hi, 150000)
-	local prefix = "Hi! Olympus matched us for a Bones game. Meet at The"
+	local prefix = "Hi! ChillZone matched us for a Bones game. Meet at The"
 	eq(d.said[1].text:sub(1, #prefix), prefix)
 	MW.NoErrors(w); MW.NoErrors(w2)
 end)
@@ -353,7 +353,7 @@ test("1.2 matchmaking: close by (=): a casual duel under 300 yd of the seeker's 
 	local mid = Matched(w, a, b, CASUAL)
 	eq(MW.Last(w, b, "A"), "A~" .. mid .. "~Y~=~h~1e~13u~0~0~0~0")
 	eq(b.shown[1].a, "Lida Fenn (60 Warrior) wants a casual duel, close by (about 100 yd). Meet right here?")
-	eq(b.said[1].text, "Hi! Olympus matched us for a casual duel. We're close by, so let's meet right here. Once we're grouped we'll see each other on the map.")
+	eq(b.said[1].text, "Hi! ChillZone matched us for a casual duel. We're close by, so let's meet right here. Once we're grouped we'll see each other on the map.")
 	eq(a.Match.View().match.place.id, "=")
 	assert(MW.HasLine(a, "Parric Stowe is close by."))
 	-- On a capital's map it is a place instead: Lida in Stormwind City (1453), both by its gate.
@@ -368,10 +368,10 @@ end)
 test("1.2 matchmaking: the texts: each whisper exact; at most 255 bytes in English and Portuguese with every place's name; no amount; the place's name from its areaID", function()
 	-- Both languages loaded into tables of their own (the Portuguese block under GetLocale "ptBR").
 	local en, pt = {}, {}
-	assert(loadfile(H.ADDON_DIR .. "Locales/ArenaMatchText.lua"))("Olympus", { L = en })
+	assert(loadfile(H.ADDON_DIR .. "Locales/ArenaMatchText.lua"))("ChillZone", { L = en })
 	local savedLocale = GetLocale
 	GetLocale = function() return "ptBR" end
-	local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaMatchText.lua"))("Olympus", { L = pt }) end)
+	local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaMatchText.lua"))("ChillZone", { L = pt }) end)
 	GetLocale = savedLocale
 	assert(ok, err)
 	local SAYS = { "MATCH_SAY_DUEL_CASUAL", "MATCH_SAY_DUEL_STAKED", "MATCH_SAY_BONE_GOLD", "MATCH_SAY_BONE_PRACTICE", "MATCH_SAY_CLOSE",
@@ -396,13 +396,13 @@ test("1.2 matchmaking: the texts: each whisper exact; at most 255 bytes in Engli
 	end
 	assert(longest > 200, "the longest was measured: " .. longest)
 	-- The exact English lines (the design).
-	eq(en.MATCH_SAY_BONE_GOLD, "Hi! Olympus matched us for a Bones game. Meet at {place}, {zone} ({x}, {y})? It's about halfway for us both. The stake is set in the Olympus window only, never in whispers.")
+	eq(en.MATCH_SAY_BONE_GOLD, "Hi! ChillZone matched us for a Bones game. Meet at {place}, {zone} ({x}, {y})? It's about halfway for us both. The stake is set in the ChillZone window only, never in whispers.")
 	eq(en.MATCH_SAY_OTHER, "How about {place}, {zone} ({x}, {y}) instead?")
 	eq(en.MATCH_SAY_WHERE, "How about where I am, {zone} ({x}, {y})?")
 	eq(en.MATCH_SAY_CANCEL, "Sorry, I have to cancel.")
-	eq(en.CONSENT_ARENAFIND_TEXT, "Other Olympus addon users who search for a duel or a Bones game can find you. The addon tells a searching player only that you can be found, your guild, level and class, and whether you are in their zone and on their layer. If you click Let's go, they also get your position within 400 yd, a whisper from you and, when neither of you is in a group, a group invite. Nothing about your position is saved.")
-	eq(en.MATCH_FIRST_LINE, "Searching sends your guild, zone, layer and level on the Olympus channel, which any addon user on this realm can read, and your position within 400 yd to the one player Olympus asks. Nothing about your position is saved.")
-	eq(en.MATCH_CARD_SAFE, "Olympus shows matches and stakes only in this window. Never trade gold outside the challenge.")
+	eq(en.CONSENT_ARENAFIND_TEXT, "Other ChillZone addon users who search for a duel or a Bones game can find you. The addon tells a searching player only that you can be found, your guild, level and class, and whether you are in their zone and on their layer. If you click Let's go, they also get your position within 400 yd, a whisper from you and, when neither of you is in a group, a group invite. Nothing about your position is saved.")
+	eq(en.MATCH_FIRST_LINE, "Searching sends your guild, zone, layer and level on the ChillZone channel, which any addon user on this realm can read, and your position within 400 yd to the one player ChillZone asks. Nothing about your position is saved.")
+	eq(en.MATCH_CARD_SAFE, "ChillZone shows matches and stakes only in this window. Never trade gold outside the challenge.")
 	eq(en.MATCH_RULES_LINE, "Matched players are strangers: use Block and the game's Report.")
 	-- Every English key has its Portuguese line.
 	for k in pairs(en) do assert(pt[k] ~= nil and pt[k] ~= en[k] or k == "MATCH_FIND_BONE" or k == "MATCH_GAME_BONE", "ptBR: " .. k) end
@@ -453,7 +453,7 @@ test("1.2 P1.8: a fixed Bones search keeps its non-level filters, ignores a stal
 	local sent = w:Sent{ from = a, type = "EC" }
 	eq(#sent, 1); eq(sent[1].dist, "WHISPER"); eq(sent[1].target, b.name)
 	eq(#w:Sent{ from = a, type = "EC", dist = "CHANNEL" }, 0, "never on the public lane")
-	eq(a.rdb.chat and a.rdb.chat.A and #a.rdb.chat.A or 0, globalBefore, "never in Olympus public history")
+	eq(a.rdb.chat and a.rdb.chat.A and #a.rdb.chat.A or 0, globalBefore, "never in ChillZone public history")
 	MW.NoErrors(w)
 end)
 
@@ -725,7 +725,7 @@ test("1.2 matchmaking: never matched, both ways: the game's ignore list, a block
 	eq(Hears(function(w, a, b) b.ignored["Lida Fenn"] = true end), false)
 	local answered, kept = Hears(function(w, a, b) a.ignored["Parric Stowe"] = true end)
 	eq(answered, true); eq(kept, 0)
-	-- ns.db.blocked (/oly block's key, the account's: written on another character).
+	-- ns.db.blocked (/cz block's key, the account's: written on another character).
 	eq(Hears(function(w, a, b) b.db.blocked["lida fenn-emberfall"] = true end), false)
 	answered, kept = Hears(function(w, a, b) a.db.blocked["parric stowe-emberfall"] = true end)
 	eq(answered, true); eq(kept, 0)
@@ -787,7 +787,7 @@ test("1.2 matchmaking: never matched: another continent, another zone for a zone
 	w:Run(4)
 	eq(#MW.AM(w, b, a.name), 1)
 	eq(MW.AM(w, a)[2]:match("~(%a)~[0-9a-z]+$"), "c", "the second ask: the continent")
-	eq(MW.Last(w, b, "O"):match("^O~[0-9a-z]+~f~Olympus Ember~(%d)~"), "0", "not in her zone")
+	eq(MW.Last(w, b, "O"):match("^O~[0-9a-z]+~f~ChillZone Ember~(%d)~"), "0", "not in her zone")
 	-- Levels: Parric at 54, outside Lida's 55-65: no answer; with Any level, yes.
 	eq(Hears(nil, { bLevel = 54 }), false)
 	eq(Hears(nil, { bLevel = 54, start = { game = "d", kind = "c", level = 0 } }), true)
@@ -802,9 +802,9 @@ test("1.2 matchmaking: never matched: another continent, another zone for a zone
 	local w4, c, d = Pair({ findable = false })
 	d.level = 50
 	assert(c.Match.Start(CASUAL))
-	w4:As(c, function() c.ns.Arena.Inject("WHISPER", d.name, "AM~L1~O~9ix~f~Olympus Ember~1~1e~8~d~c~0") end)
+	w4:As(c, function() c.ns.Arena.Inject("WHISPER", d.name, "AM~L1~O~9ix~f~ChillZone Ember~1~1e~8~d~c~0") end)
 	eq(c.Match.View().search.answers, 0)
-	w4:As(c, function() c.ns.Arena.Inject("WHISPER", d.name, "AM~L1~O~9ix~f~Olympus Ember~1~1o~8~d~c~0") end)
+	w4:As(c, function() c.ns.Arena.Inject("WHISPER", d.name, "AM~L1~O~9ix~f~ChillZone Ember~1~1o~8~d~c~0") end)
 	eq(c.Match.View().search.answers, 1)
 	-- Games and kinds: Parric found for Bone Throw only; Lida looks for a duel.
 	eq(Hears(function(w5, a5, b5) b5.Match.SetFindable(true, { d = false, b = true }) end), false)
@@ -821,21 +821,21 @@ test("1.2 matchmaking: the member check: a guild outside the federation, a guild
 		w:Run(4)
 		return b.Match.Stats().offers - before
 	end
-	-- Not an Olympus guild.
+	-- Not an ChillZone guild.
 	eq(Ask("Morrow Vale-Emberfall", "Hearthstone Lodge"), 0)
 	-- Another federation guild, vouched once (one guild per sender): answered.
-	eq(Ask("Morrow Vale-Emberfall", "Olympus Ash"), 1)
+	eq(Ask("Morrow Vale-Emberfall", "ChillZone Ash"), 1)
 	-- The same sender now claims a second guild: refused (Data.ClaimGuild).
 	w:Run(11)
-	eq(Ask("Morrow Vale-Emberfall", "Olympus Oak"), 0)
+	eq(Ask("Morrow Vale-Emberfall", "ChillZone Oak"), 0)
 	-- Our own guild's name from someone not in our roster.
-	local x = MW.Client(w, "Hesta Quill", { guild = "Olympus Ash" })
+	local x = MW.Client(w, "Hesta Quill", { guild = "ChillZone Ash" })
 	w:Run(11)
-	eq(Ask(x.name, "Olympus Ember"), 0)
+	eq(Ask(x.name, "ChillZone Ember"), 0)
 	-- From a guildmate: answered.
 	local y = MW.Client(w, "Wenna Crale", {})
 	w:Run(11)
-	eq(Ask(y.name, "Olympus Ember"), 1)
+	eq(Ask(y.name, "ChillZone Ember"), 1)
 	MW.NoErrors(w)
 end)
 
@@ -854,14 +854,14 @@ test("1.2 matchmaking: ranking: the band, searchers first, the same layer, the s
 	-- From Lida at (-13000, 300): cell 17/50 (centre -13000, 200) is 100 yd away, band 1; 16/50
 	-- (-13400, 200) 412 yd, band 1; 14/50 (-14200, 200) 1204 yd, band 2; 0/50 (-19800, 200) 6800
 	-- yd, band 4. A findable player: band 2 in her zone (same 1 or 2), 4 elsewhere (same 0).
-	O(w, a, "Aila Sund-Emberfall", "9ix~s~Olympus Ash~1~1o~1~d~c~0~g~1e")   -- band 1, searcher, another layer
-	O(w, a, "Brenna Holt-Emberfall", "9ix~s~Olympus Ash~2~1o~1~d~c~0~h~1e") -- band 1, searcher, her layer
-	O(w, a, "Cato Brisk-Emberfall", "9ix~s~Olympus Ash~2~1o~1~d~c~0~e~1e")  -- band 2, searcher
-	O(w, a, "Dara Pike-Emberfall", "9ix~f~Olympus Ash~1~1l~1~d~c~0")        -- band 2, findable, level 57
-	O(w, a, "Edda Crow-Emberfall", "9ix~f~Olympus Ash~2~1l~1~d~c~0")        -- band 2, findable, her layer, 57
-	O(w, a, "Fenn Garro-Emberfall", "9ix~f~Olympus Ash~1~1o~1~d~c~0")       -- band 2, findable, level 60
-	O(w, a, "Gil Marsh-Emberfall", "9ix~f~Olympus Ash~0~1o~1~d~c~0")        -- band 4, findable
-	O(w, a, "Hale Dunn-Emberfall", "9ix~s~Olympus Ash~0~1o~1~d~c~0~0~1e")   -- band 4, searcher
+	O(w, a, "Aila Sund-Emberfall", "9ix~s~ChillZone Ash~1~1o~1~d~c~0~g~1e")   -- band 1, searcher, another layer
+	O(w, a, "Brenna Holt-Emberfall", "9ix~s~ChillZone Ash~2~1o~1~d~c~0~h~1e") -- band 1, searcher, her layer
+	O(w, a, "Cato Brisk-Emberfall", "9ix~s~ChillZone Ash~2~1o~1~d~c~0~e~1e")  -- band 2, searcher
+	O(w, a, "Dara Pike-Emberfall", "9ix~f~ChillZone Ash~1~1l~1~d~c~0")        -- band 2, findable, level 57
+	O(w, a, "Edda Crow-Emberfall", "9ix~f~ChillZone Ash~2~1l~1~d~c~0")        -- band 2, findable, her layer, 57
+	O(w, a, "Fenn Garro-Emberfall", "9ix~f~ChillZone Ash~1~1o~1~d~c~0")       -- band 2, findable, level 60
+	O(w, a, "Gil Marsh-Emberfall", "9ix~f~ChillZone Ash~0~1o~1~d~c~0")        -- band 4, findable
+	O(w, a, "Hale Dunn-Emberfall", "9ix~s~ChillZone Ash~0~1o~1~d~c~0~0~1e")   -- band 4, searcher
 	eq(Names(a.Match.Ranked()), "Brenna Aila Cato Edda Fenn Dara Hale Gil")
 	local bands = {}
 	for _, e in ipairs(a.Match.Ranked()) do bands[#bands + 1] = e.band end
@@ -872,8 +872,8 @@ test("1.2 matchmaking: ranking: the band, searchers first, the same layer, the s
 	local c = MW.Client(w2, "Lida Fenn", { pos = SEEKER })
 	c.trusted["Jory Pell-Emberfall"] = true
 	assert(c.Match.Start({ game = "d", kind = "c", level = 0 }))
-	O(w2, c, "Iona Reed-Emberfall", "9ix~f~Olympus Ash~1~1o~1~d~c~1")
-	O(w2, c, "Jory Pell-Emberfall", "9ix~f~Olympus Ash~1~1o~1~d~c~0")
+	O(w2, c, "Iona Reed-Emberfall", "9ix~f~ChillZone Ash~1~1o~1~d~c~1")
+	O(w2, c, "Jory Pell-Emberfall", "9ix~f~ChillZone Ash~1~1o~1~d~c~0")
 	c.draw = 0.1
 	w2:Run(5)
 	eq(c.Match.View().search.asking, "Iona Reed")
@@ -881,8 +881,8 @@ test("1.2 matchmaking: ranking: the band, searchers first, the same layer, the s
 	local d = MW.Client(w3, "Lida Fenn", { pos = SEEKER })
 	d.trusted["Jory Pell-Emberfall"] = true
 	assert(d.Match.Start({ game = "d", kind = "c", level = 0 }))
-	O(w3, d, "Iona Reed-Emberfall", "9ix~f~Olympus Ash~1~1o~1~d~c~1")
-	O(w3, d, "Jory Pell-Emberfall", "9ix~f~Olympus Ash~1~1o~1~d~c~0")
+	O(w3, d, "Iona Reed-Emberfall", "9ix~f~ChillZone Ash~1~1o~1~d~c~1")
+	O(w3, d, "Jory Pell-Emberfall", "9ix~f~ChillZone Ash~1~1o~1~d~c~0")
 	d.draw = 0.5
 	w3:Run(5)
 	eq(d.Match.View().search.asking, "Jory Pell")
@@ -898,8 +898,8 @@ test("1.2 P1.8: Bones uses the supported location signal: a searching player in 
 	assert(a.Match.Start({ game = "b", kind = "c", level = 0, reach = "z" }))
 	-- The wire deliberately has no tavern id. Searchers do carry their coarse cell: h/1e is the
 	-- seeker's own cell (the strongest available same-place signal), e/1e is over 1,000 yd away.
-	O(w, a, "Near Bones-Emberfall", "9ix~s~Olympus Ash~2~1o~1~b~c~0~h~1e")
-	O(w, a, "Far Bones-Emberfall", "9ix~s~Olympus Ash~2~1o~1~b~c~0~e~1e")
+	O(w, a, "Near Bones-Emberfall", "9ix~s~ChillZone Ash~2~1o~1~b~c~0~h~1e")
+	O(w, a, "Far Bones-Emberfall", "9ix~s~ChillZone Ash~2~1o~1~b~c~0~e~1e")
 	local ranked = a.Match.Ranked()
 	eq(ranked[1].o.name, "Near Bones-Emberfall")
 	eq(ranked[1].game, "b")
@@ -1038,13 +1038,13 @@ end)
 test("1.2 matchmaking: pacing: one offer every 10 s, once per asker per 10 min; a sender's asks past 6 in 15 min dropped; 30 answers kept; three searches in 15 min", function()
 	local w = World.New()
 	local b = MW.Client(w, "Parric Stowe", { pos = OTHER, findable = true })
-	-- Asks from players of another Olympus guild, each a new qid (Parric's offers counted: they
+	-- Asks from players of another ChillZone guild, each a new qid (Parric's offers counted: they
 	-- play in no client of this world, so his whispers never arrive).
 	local n = 0
 	local function Ask(from)
 		n = n + 1
 		local before = b.Match.Stats().offers
-		w:As(b, function() b.ns.Arena.Inject("CHANNEL", from .. "-Emberfall", "AM~L1~Q~q" .. n .. "~d~c~Olympus Ash~0~13u~0~1o~1~2s~z~2s") end)
+		w:As(b, function() b.ns.Arena.Inject("CHANNEL", from .. "-Emberfall", "AM~L1~Q~q" .. n .. "~d~c~ChillZone Ash~0~13u~0~1o~1~2s~z~2s") end)
 		w:Run(4)
 		return b.Match.Stats().offers - before
 	end
@@ -1060,7 +1060,7 @@ test("1.2 matchmaking: pacing: one offer every 10 s, once per asker per 10 min; 
 	local heard, dropped = b.Match.Stats().heard, b.Match.Stats().dropped
 	for _ = 1, 7 do
 		n = n + 1
-		w:As(b, function() b.ns.Arena.Inject("CHANNEL", "Pell Ashby-Emberfall", "AM~L1~Q~q" .. n .. "~d~c~Olympus Ash~0~13u~0~1o~1~2s~z~2s") end)
+		w:As(b, function() b.ns.Arena.Inject("CHANNEL", "Pell Ashby-Emberfall", "AM~L1~Q~q" .. n .. "~d~c~ChillZone Ash~0~13u~0~1o~1~2s~z~2s") end)
 	end
 	eq(b.Match.Stats().heard - heard, 7)
 	eq(b.Match.Stats().dropped - dropped, 1)
@@ -1079,7 +1079,7 @@ test("1.2 matchmaking: pacing: one offer every 10 s, once per asker per 10 min; 
 	local w2 = World.New()
 	local s2 = MW.Client(w2, "Lida Fenn", { pos = SEEKER })
 	assert(s2.Match.Start({ game = "d", kind = "c", level = 0 }))
-	for i = 1, 31 do O(w2, s2, ("Kell Amar%s-Emberfall"):format(string.char(96 + i % 26 + 1) .. string.char(96 + math.floor(i / 26) + 1)), "9ix~f~Olympus Ash~1~1o~1~d~c~0") end
+	for i = 1, 31 do O(w2, s2, ("Kell Amar%s-Emberfall"):format(string.char(96 + i % 26 + 1) .. string.char(96 + math.floor(i / 26) + 1)), "9ix~f~ChillZone Ash~1~1o~1~d~c~0") end
 	eq(s2.Match.View().search.answers, 30)
 	MW.NoErrors(w); MW.NoErrors(w2)
 end)
@@ -1091,13 +1091,13 @@ test("1.2 matchmaking: the window: a 3.5-s answer lands in a zone ask's 4-s wind
 	local y = MW.Client(w, "Wenna Crale", { pos = OTHER })
 	assert(a.Match.Start(CASUAL))
 	w:Run(3.5)
-	O(w, a, x.name, "9ix~f~Olympus Ember~1~1o~1~d~c~0")
+	O(w, a, x.name, "9ix~f~ChillZone Ember~1~1o~1~d~c~0")
 	eq(a.Match.View().search.asking, nil, "the window is still open")
 	w:Run(1.5)
 	eq(a.Match.View().search.asking, "Idris Vane")
 	-- Wenna's answer 5 s after the window closed: kept; used once Idris's request lapses (32 s).
 	w:Run(5)
-	O(w, a, y.name, "9ix~f~Olympus Ember~1~1o~1~d~c~0")
+	O(w, a, y.name, "9ix~f~ChillZone Ember~1~1o~1~d~c~0")
 	eq(a.Match.View().search.asking, "Idris Vane")
 	w:Run(28)
 	eq(a.Match.View().search.asking, "Wenna Crale")
@@ -1197,7 +1197,7 @@ test("1.2 matchmaking: one at a time: a player with a popup up answers any other
 	local i3 = MW.Client(w3, "Idris Vane", { pos = OTHER, findable = true })
 	assert(l3.Match.Start(CASUAL))
 	w3:As(l3, function()
-		l3.ns.Arena.Inject("CHANNEL", i3.name, "AM~L1~Q~4~d~c~Olympus Ember~0~13u~0~1o~1j~1t~z~2s")
+		l3.ns.Arena.Inject("CHANNEL", i3.name, "AM~L1~Q~4~d~c~ChillZone Ember~0~13u~0~1o~1j~1t~z~2s")
 	end)
 	w3:Run(6)
 	eq(l3.Match.View().search.asking, "Idris Vane")
@@ -1219,7 +1219,7 @@ test("1.2 matchmaking: Block: from the popup and the card, in one click: ns.db.b
 	eq(MW.Last(w, b, "A"):match("~(%u)$"), "N")
 	eq(Printed(b, "Lida Fenn is blocked."), 1)
 	eq(a.Match.Barred(b.name), "declined", "Lida only saw a no")
-	-- On the card, with a full ignore list: blocked in Olympus only; the match ends with C~c.
+	-- On the card, with a full ignore list: blocked in ChillZone only; the match ends with C~c.
 	local w2, c, d = Pair()
 	local mid = Matched(w2, c, d, CASUAL)
 	c.ignoreFull = true
@@ -1227,7 +1227,7 @@ test("1.2 matchmaking: Block: from the popup and the card, in one click: ns.db.b
 	w2:Run(0)
 	eq(c.db.blocked["parric stowe-emberfall"], true)
 	eq(c.ignored["Parric Stowe"], nil)
-	eq(Printed(c, "Your ignore list is full: blocked in Olympus only."), 1)
+	eq(Printed(c, "Your ignore list is full: blocked in ChillZone only."), 1)
 	eq(MW.Last(w2, c, "C"), "C~" .. mid .. "~c")
 	eq(d.Match.View().state, "idle")
 	eq(d.Match.View().ended.why, "cancel")
@@ -1263,8 +1263,8 @@ test("1.2 matchmaking: Cancel: a click, its whisper and C~c; the other card offe
 end)
 
 -- (The owner's decision, 2026-10-04: every pending conversation opens its own tab on the Chat page,
--- the Olympus window in front, pinned while the matter is open, reopened from the matter's page.
--- Before it the room opened unpinned, under any window in front of Olympus's.)
+-- the ChillZone window in front, pinned while the matter is open, reopened from the matter's page.
+-- Before it the room opened unpinned, under any window in front of ChillZone's.)
 test("1.2 P1.8: a match found opens its room through the one pending-conversation door: the window in front, pinned while the match lives, unpinned at its end; the card reopens it; a fight holds it until its end", function()
 	local w, a, b = Pair()
 	local ha, hb = MatchHost(w, a), MatchHost(w, b)
@@ -1285,7 +1285,7 @@ test("1.2 P1.8: a match found opens its room through the one pending-conversatio
 	assert(MW.Buttons(a):find("room", 1, true), "the card offers the room")
 	MW.Press(w, a, "room")
 	eq(table.concat(ha.calls, ","), ("open %s,raise"):format(key))
-	-- In a fight Olympus opens nothing by itself; the room comes when it ends, while the match lives.
+	-- In a fight ChillZone opens nothing by itself; the room comes when it ends, while the match lives.
 	local w3, e, f = Pair()
 	local he, hf = MatchHost(w3, e), MatchHost(w3, f)
 	assert(e.Match.Start(CASUAL))
@@ -1685,14 +1685,14 @@ test("1.2 matchmaking: the privacy line arenaFind: off until answered, never ope
 	local item
 	for _, it in ipairs(b.Consent.Items()) do if it.key == "arenaFind" then item = it end end
 	assert(item, "the line")
-	eq(L[item.label], "Let other Olympus addon users find me for a duel or a Bones game")
+	eq(L[item.label], "Let other ChillZone addon users find me for a duel or a Bones game")
 	eq(b.Consent.Answer("arenaFind"), nil)
 	eq(select(2, b.Match.Findable()), "off", "nil is off")
 	for _, it in ipairs(b.Consent.Pending()) do assert(it.key ~= "arenaFind", "never waits for an answer") end
 	eq(b.Consent.Choose("arenaFind", true), true)
 	eq(b.Consent.Answer("arenaFind"), true)
 	eq(b.Match.Findable(), true)
-	eq(Printed(b, "Other Olympus addon users can find you for a duel or a Bones game."), 1)
+	eq(Printed(b, "Other ChillZone addon users can find you for a duel or a Bones game."), 1)
 	-- Location off: the line's note, and nobody finds him.
 	b.db.shareLocation = false
 	eq(w:As(b, item.note), L.CONSENT_NEEDS_LOCATION)
@@ -1719,7 +1719,7 @@ test("1.2 matchmaking: weight: a client neither findable nor searching gets 100 
 	local idle = MW.Client(w, "Wenna Crale", {})
 	local before = w:ArenaWeight(idle)
 	for i = 1, 100 do
-		w:As(idle, function() idle.ns.Arena.Inject("CHANNEL", "Morrow Vale-Emberfall", "AM~L1~Q~q" .. i .. "~d~c~Olympus Ash~0~13u~0~1o~1~2s~z~2s") end)
+		w:As(idle, function() idle.ns.Arena.Inject("CHANNEL", "Morrow Vale-Emberfall", "AM~L1~Q~q" .. i .. "~d~c~ChillZone Ash~0~13u~0~1o~1~2s~z~2s") end)
 	end
 	local after = w:ArenaWeight(idle)
 	eq(table.concat(after.events, ","), table.concat(before.events, ","))
@@ -1730,7 +1730,7 @@ test("1.2 matchmaking: weight: a client neither findable nor searching gets 100 
 	-- Findable: the answer's pause runs the ticker, which stops once it went.
 	local b = MW.Client(w, "Parric Stowe", { findable = true })
 	eq(b.Arena.Ticking(), false)
-	w:As(b, function() b.ns.Arena.Inject("CHANNEL", "Morrow Vale-Emberfall", "AM~L1~Q~qq~d~c~Olympus Ash~0~13u~0~1o~1~2s~z~2s") end)
+	w:As(b, function() b.ns.Arena.Inject("CHANNEL", "Morrow Vale-Emberfall", "AM~L1~Q~qq~d~c~ChillZone Ash~0~13u~0~1o~1~2s~z~2s") end)
 	eq(b.Arena.Ticking(), true)
 	w:Run(4)
 	eq(b.Match.Stats().offers, 1)
@@ -1748,7 +1748,7 @@ test("1.2 matchmaking: weight: a client neither findable nor searching gets 100 
 	MW.NoErrors(w)
 end)
 
-test("1.2 matchmaking: the card: built on first use, on the escape list only through ns.EscapeCloses (never with the gamepad UI), buttons 24 px or taller, text 13 px or more; Reply opens Olympus's whisper dialog; pins", function()
+test("1.2 matchmaking: the card: built on first use, on the escape list only through ns.EscapeCloses (never with the gamepad UI), buttons 24 px or taller, text 13 px or more; Reply opens ChillZone's whisper dialog; pins", function()
 	local w, a, b = Pair()
 	eq(a.Match.Card(), nil)
 	-- The pin library (HereBeDragons-Pins) as the client has it: what goes where.
@@ -1764,17 +1764,17 @@ test("1.2 matchmaking: the card: built on first use, on the escape list only thr
 	a.globals.LibStub = function(name) if name == "HereBeDragons-Pins-2.0" then return P end end
 	Matched(w, a, b, CASUAL)
 	local card = MW.Card(a)
-	eq(card.name, "OlympusArenaMatchCard")
+	eq(card.name, "ChillZoneArenaMatchCard")
 	local special = false
-	for _, n in ipairs(a.globals.UISpecialFrames) do if n == "OlympusArenaMatchCard" then special = true end end
+	for _, n in ipairs(a.globals.UISpecialFrames) do if n == "ChillZoneArenaMatchCard" then special = true end end
 	eq(special, true)
 	for key, btn in pairs(card.buttons) do assert((btn.height or 0) >= 24, key .. ": " .. tostring(btn.height)) end
 	for _, fs in ipairs(card.lines) do if fs.shown then assert(fs.font[2] >= 13, "a line at " .. fs.font[2]) end end
 	assert(card.title.font[2] >= 16)
-	-- The popup, as Olympus's own dialog (Dialog.lua, the gamepad UI) draws it: 24 px buttons, and
+	-- The popup, as ChillZone's own dialog (Dialog.lua, the gamepad UI) draws it: 24 px buttons, and
 	-- the client's 14 px white font for its text (GameFontHighlightMed2: SystemFont_Shadow_Med2,
 	-- FRIZQT 14 in Forever's Fonts.xml); tests/run.lua checks Dialog.lua honours both.
-	local def = b.popups.OLYMPUS_ARENA_MATCH
+	local def = b.popups.CHILLZONE_ARENA_MATCH
 	eq(def.buttonHeight, 24); eq(def.textFont, "GameFontHighlightMed2")
 	eq(MW.Buttons(a):find("map", 1, true), nil, "[Show on map] waits for in-game check 21")
 	-- The arena's pin: its map and map position, on the minimap and the world map.
@@ -1791,9 +1791,9 @@ test("1.2 matchmaking: the card: built on first use, on the escape list only thr
 		local d = MW.Client(w2, "Parric Stowe", { pos = OTHER, findable = true })
 		c.globals.LibStub = a.globals.LibStub
 		pins.mini, pins.world = {}, {}
-		-- Parric's dialog is Olympus's own window here (Dialog.lua), from the game's global table of
+		-- Parric's dialog is ChillZone's own window here (Dialog.lua), from the game's global table of
 		-- definitions (the world keeps each client's apart: put back for this one).
-		-- Parric's dialog: Olympus's own window (Dialog.lua, a stand-in recording it here), never
+		-- Parric's dialog: ChillZone's own window (Dialog.lua, a stand-in recording it here), never
 		-- the game's popup.
 		local game = 0
 		d.globals.StaticPopup_Show = function() game = game + 1 end
@@ -1807,9 +1807,9 @@ test("1.2 matchmaking: the card: built on first use, on the escape list only thr
 		assert(d.shown[1].a:find("^Lida Fenn %(60 Warrior%) wants a casual duel"), d.shown[1].a)
 		MW.Answer(w2, d, "yes")
 		w2:Run(0)
-		eq(d.said[1].text:sub(1, 49), "Hi! Olympus matched us for a casual duel. Meet at")
+		eq(d.said[1].text:sub(1, 51), "Hi! ChillZone matched us for a casual duel. Meet at")
 		eq(c.Match.View().state, "match")
-		for _, n in ipairs(c.globals.UISpecialFrames) do assert(n ~= "OlympusArenaMatchCard") end
+		for _, n in ipairs(c.globals.UISpecialFrames) do assert(n ~= "ChillZoneArenaMatchCard") end
 		eq(#pins.mini, 1); eq(#pins.world, 0)
 		MW.NoErrors(w2)
 	end)
@@ -1919,7 +1919,7 @@ test("1.2.6 matchmaking: on the minimap's edge the meeting place's pin is the ga
 	MW.NoErrors(w)
 end)
 
-test("1.2 matchmaking: match.open and /oly arena find: the screens' Find dialog when there, else the card's short sheet the first time (what goes out), with location off its two share buttons", function()
+test("1.2 matchmaking: match.open and /cz arena find: the screens' Find dialog when there, else the card's short sheet the first time (what goes out), with location off its two share buttons", function()
 	local w = World.New()
 	local a = MW.Client(w, "Lida Fenn", { pos = SEEKER })
 	a.companion.state = "missing"
@@ -1933,7 +1933,7 @@ test("1.2 matchmaking: match.open and /oly arena find: the screens' Find dialog 
 	eq(a.Match.View().state, "search")
 	eq(a.db.arenaMatch.seen, true)
 	eq(MW.Card(a).title.text, "Finding an opponent")
-	-- /oly arena find cancel: the search ends.
+	-- /cz arena find cancel: the search ends.
 	w:As(a, function() a.ns.Arena.RunSlash("find cancel") end)
 	eq(a.Match.View().state, "idle")
 	-- Location off: share while searching (off again after), or turn it on.
@@ -1958,7 +1958,7 @@ test("1.2 matchmaking: match.open and /oly arena find: the screens' Find dialog 
 	eq(got, "b")
 	eq(c.Arena.Do("match.open", "d"), true)
 	eq(got, "d")
-	-- Outside an Olympus guild: no.
+	-- Outside an ChillZone guild: no.
 	-- (World:Client's guild = false gives the default guild: taken off here.)
 	local x = MW.Client(w, "Morrow Vale", {})
 	x.guild = nil
@@ -2008,8 +2008,8 @@ test("1.2 matchmaking: the registry: AM in Arena.TYPES, LIVE_EXEMPT, Moderation.
 	-- Sent in L with the live switch off (a match moves nothing).
 	eq(a.Roles.Live(), false)
 	eq(a.Arena.Send("AM", "L", "Q~x"), true)
-	-- /oly arena find status: one line of counts, in the copy pop-up (the owner's rule: what a
-	-- player may copy never goes to chat); matchmaking itself adds no /oly status provider.
+	-- /cz arena find status: one line of counts, in the copy pop-up (the owner's rule: what a
+	-- player may copy never goes to chat); matchmaking itself adds no /cz status provider.
 	local statusLines = #a.ns.statusLines
 	local printed = #a.printed
 	w:As(a, function() a.ns.Arena.RunSlash("find status") end)
@@ -2028,7 +2028,7 @@ test("1.2 matchmaking: late and lost answers: a yes to a request given up gets C
 	-- Nobody answers the dialog, and the game never ends it: 35 s later, a no, and it goes.
 	w:Run(36)
 	eq(MW.Last(w, b, "A"), "A~" .. mid .. "~N")
-	eq(b.hidden[#b.hidden].which, "OLYMPUS_ARENA_MATCH")
+	eq(b.hidden[#b.hidden].which, "CHILLZONE_ARENA_MATCH")
 	eq(b.Match.View().state, "idle")
 	-- A yes that comes after Lida gave up (her Cancel): its match ends there at once.
 	local w2, c, d = Pair()
@@ -2088,7 +2088,7 @@ test("1.2 matchmaking: memory: past 256 senders, the asks, answers and offers ol
 	local w = World.New()
 	local b = MW.Client(w, "Parric Stowe", { findable = true })
 	local function Ask(i)
-		w:As(b, function() b.ns.Arena.Inject("CHANNEL", ("Asker%03d Vale-Emberfall"):format(i), "AM~L1~Q~q" .. i .. "~d~c~Olympus Ash~0~13u~0~1o~1~2s~z~2s") end)
+		w:As(b, function() b.ns.Arena.Inject("CHANNEL", ("Asker%03d Vale-Emberfall"):format(i), "AM~L1~Q~q" .. i .. "~d~c~ChillZone Ash~0~13u~0~1o~1~2s~z~2s") end)
 	end
 	for i = 1, 200 do Ask(i) end
 	w:Run(5)
@@ -2174,7 +2174,7 @@ test("1.2 matchmaking review: the stake checks in the fights part's and the Bone
 	f.Match.SetFindable(true, { d = true, staked = true })
 	assert(e.Match.Start({ game = "d", kind = "e", lo = 500000, hi = 1000000, level = 0 }))
 	w3:Run(6)
-	eq(MW.Last(w3, f, "O"), "O~9ix~f~Olympus Ember~1~1o~1~d~c~0")
+	eq(MW.Last(w3, f, "O"), "O~9ix~f~ChillZone Ember~1~1o~1~d~c~0")
 	assert(MW.Last(w3, e, "R"):find("^R~M[0-9a-z]+~9ix~d~c~0~0~"), MW.Last(w3, e, "R"))
 	-- the Bone Throw tables' inn rule (the design) answers a named guest with a stake ("tavern-rest"): the two are not at
 	-- the inn while matching, and the Bone Throw tables applies it when the table is created: the match goes on.
@@ -2462,7 +2462,7 @@ test("1.2 matchmaking review: the checks no test reached: the answer's range ins
 	MW.NoErrors(w); MW.NoErrors(w2); MW.NoErrors(w3); MW.NoErrors(w4); MW.NoErrors(w5); MW.NoErrors(w6); MW.NoErrors(w7)
 end)
 
-test("1.2 matchmaking review: the card sits under the game's popups and Olympus's dialogs, never over them; it moves when one comes or goes; where the player drags it, it stays", function()
+test("1.2 matchmaking review: the card sits under the game's popups and ChillZone's dialogs, never over them; it moves when one comes or goes; where the player drags it, it stays", function()
 	local w, a, b = Pair()
 	Matched(w, a, b, CASUAL)
 	local card = MW.Card(a)
@@ -2485,17 +2485,17 @@ test("1.2 matchmaking review: the card sits under the game's popups and Olympus'
 	eq(At(a), "TOP StaticPopup1 BOTTOM 0 -8", "not yet")
 	w:As(a, card.scripts.OnUpdate, card, 0.2)
 	eq(At(a), "TOP UIParent TOP 0 -135")
-	-- Olympus's own dialogs (the gamepad UI) stack under the game's popups, in their order: under
+	-- ChillZone's own dialogs (the gamepad UI) stack under the game's popups, in their order: under
 	-- the last of them.
-	local d1, d2 = World.NewFrame("Frame", "OlympusDialog1"), World.NewFrame("Frame", "OlympusDialog2")
+	local d1, d2 = World.NewFrame("Frame", "ChillZoneDialog1"), World.NewFrame("Frame", "ChillZoneDialog2")
 	d1.order, d2.order = 7, 5
-	a.globals.OlympusDialog1, a.globals.OlympusDialog2 = d1, d2
+	a.globals.ChillZoneDialog1, a.globals.ChillZoneDialog2 = d1, d2
 	a.globals.StaticPopup1.shown = true
 	w:Run(2)
-	eq(At(a), "TOP OlympusDialog1 BOTTOM 0 -8")
+	eq(At(a), "TOP ChillZoneDialog1 BOTTOM 0 -8")
 	d1.shown = false
 	w:Run(2)
-	eq(At(a), "TOP OlympusDialog2 BOTTOM 0 -8")
+	eq(At(a), "TOP ChillZoneDialog2 BOTTOM 0 -8")
 	d2.shown = false
 	w:Run(2)
 	eq(At(a), "TOP StaticPopup1 BOTTOM 0 -8")

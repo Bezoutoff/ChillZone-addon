@@ -1,8 +1,8 @@
 local ns, test, eq = ...
 local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]dues%-roster%-checkpoints%.lua$") or "./"
-local MODULE = os.getenv("OLYMPUS_DUESROSTER_PREFIX") or ROOT .. "Olympus/DuesRosterCheckpoints.lua"
+local MODULE = os.getenv("CHILLZONE_DUESROSTER_PREFIX") or ROOT .. "ChillZone/DuesRosterCheckpoints.lua"
 local AUTH = assert(loadfile(ROOT .. "tests/fixtures/dues-roster-authority.lua"))()
-local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "Olympus/", ns = ns })
+local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "ChillZone/", ns = ns })
 local runTest = test
 test = function(name, fn) runTest(name, function() ns.Sign.WithKey(AUTH.N, AUTH.MU, AUTH.K, fn) end) end
 local function Scan(w)
@@ -25,9 +25,9 @@ local function Load(w, c)
 		c.ns.L = setmetatable({}, { __index = ns.L })
 		c.ns.ViewAs = { Previewing = function() return false end }
 		for _, file in ipairs({ "Roster", "Authority", "Data", "Locales/DuesGraceText", "Locales/DuesRosterText", "DuesGrace" }) do
-			assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua"))("Olympus", c.ns)
+			assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua"))("ChillZone", c.ns)
 		end
-		assert(loadfile(MODULE))("Olympus", c.ns)
+		assert(loadfile(MODULE))("ChillZone", c.ns)
 		local C = c.ns.Comm; C.Hash36 = ns.Comm.Hash36; C.Cancel = function() end
 		-- This private-transport world has no census discovery/broadcast simulation.
 		-- LOGIN still exercises the real native roster scan, with no discovered peers.
@@ -51,7 +51,7 @@ local function Setup()
 	local t, king = w:Role("treasurer"), w:Role("king")
 	local gm = w:Role("fighterA", { guild = World.GUILD, rank = 0 })
 	local p = w:Role("bettor1", { guild = World.GUILD, rank = 5 })
-	local foreign = w:Role("fighterB", { guild = "Olympus Willow", rank = 0 })
+	local foreign = w:Role("fighterB", { guild = "ChillZone Willow", rank = 0 })
 	local mail = w:Role("treasurerMail", { guild = t.guild })
 	for _, c in ipairs(w.clients) do Load(w, c) end
 	Scan(w)
@@ -201,7 +201,7 @@ test("Dues roster checkpoints: retained original key and real signatures revalid
 	assert(Window(w, t, gm.guild, week)); gm.online = false
 	w:As(t, function()
 		t.ns.rdb = World.Copy(t.ns.rdb)
-		assert(loadfile(MODULE))("Olympus", t.ns)
+		assert(loadfile(MODULE))("ChillZone", t.ns)
 		eq(t.ns.DuesRosterCheckpoints.ValidatedWindow(gm.guild, week), nil)
 		t.ns.DuesRosterCheckpoints.RecheckSaved()
 	end)
@@ -266,7 +266,7 @@ test("Dues roster checkpoints: legitimate new signed GM starts at revision one d
 	local row = Window(w, t, gm.guild, week + 1); assert(row, Describe(t, nextGM)); eq(row.issuer, nextGM.name)
 	w:As(t, function()
 		local floor = t.ns.rdb.duesRosterCheckpoints.floors[gm.guild]; eq(floor.revision, 1); eq(floor.issuer, nextGM.name)
-		t.ns.rdb = World.Copy(t.ns.rdb); assert(loadfile(MODULE))("Olympus", t.ns); t.ns.DuesRosterCheckpoints.RecheckSaved()
+		t.ns.rdb = World.Copy(t.ns.rdb); assert(loadfile(MODULE))("ChillZone", t.ns); t.ns.DuesRosterCheckpoints.RecheckSaved()
 	end)
 	w:Run(3); assert(Window(w, t, gm.guild, week + 1))
 	w:As(gm, function() eq(gm.ns.DuesRosterCheckpoints.Pump(), false, "old GM can no longer replay its capture") end)
@@ -324,7 +324,7 @@ test("Dues roster checkpoints: rejected signatures free assembly slots, exact si
 	Feed(w, t, gm, text, sig)
 	eq(Window(w, t, gm.guild, week), nil, "genuine contradictory original under one revision invalidates negative coverage")
 	w:As(t, function()
-		t.ns.rdb = World.Copy(t.ns.rdb); assert(loadfile(MODULE))("Olympus", t.ns); t.ns.DuesRosterCheckpoints.RecheckSaved()
+		t.ns.rdb = World.Copy(t.ns.rdb); assert(loadfile(MODULE))("ChillZone", t.ns); t.ns.DuesRosterCheckpoints.RecheckSaved()
 	end)
 	w:Run(2); Feed(w, t, gm, c.text, c.sig)
 	eq(Window(w, t, gm.guild, week), nil, "original replay cannot heal a persisted same-revision conflict")
@@ -337,7 +337,7 @@ test("Dues roster checkpoints: missing native GUID binding keeps retained keys u
 	local c = gm.ns.rdb.duesRosterCheckpoints.own[gm.guild].snapshots[gm.guild .. "|" .. week .. "|B"]
 	t.globals.GetPlayerInfoByGUID, t.globals.UnitTokenFromGUID = nil, function() return nil end
 	w:As(t, function()
-		t.ns.rdb = World.Copy(t.ns.rdb); assert(loadfile(MODULE))("Olympus", t.ns); t.ns.DuesRosterCheckpoints.RecheckSaved()
+		t.ns.rdb = World.Copy(t.ns.rdb); assert(loadfile(MODULE))("ChillZone", t.ns); t.ns.DuesRosterCheckpoints.RecheckSaved()
 		local claim = table.concat({ "DQ", "1", "K", gm.guild, gm.guid, c.pk, c.claim, c.root }, "~")
 		eq(t.ns.DuesRosterCheckpoints.Handle("WHISPER", p.name, claim), false, "a participant forwarding the GM's claim is not the original stamped sender")
 		eq(t.ns.DuesRosterCheckpoints.Handle("WHISPER", gm.name, claim), false, "self-signed key alone cannot replace native GUID identity")
@@ -483,7 +483,7 @@ test("Dues roster checkpoints: pending withdrawal sends nothing while demoted or
 	gm.rank = 1; Scan(w); w:As(gm, function() gm.ns.Fire("DATA_CHANGED") end)
 	Schedules(w, gm, false, false); w:Run(35); eq(Sent(), before, "a fresh native demotion cannot send the pending withdrawal")
 	assert(pending.template and not pending.abandoned, "demotion pauses the bounded original intent instead of fabricating a replacement")
-	gm.rank, gm.guild = 0, "Olympus Willow"; Scan(w); w:As(gm, function() gm.ns.Fire("DATA_CHANGED") end)
+	gm.rank, gm.guild = 0, "ChillZone Willow"; Scan(w); w:As(gm, function() gm.ns.Fire("DATA_CHANGED") end)
 	Schedules(w, gm, false, false); w:Run(35); eq(Sent(), before, "a guild move cannot send under the old guild identity")
 	gm.guild = World.GUILD; Scan(w); w:As(gm, function() gm.ns.Fire("DATA_CHANGED") end)
 	Schedules(w, gm, false, true); w:Run(2); Send(w, gm, 8)

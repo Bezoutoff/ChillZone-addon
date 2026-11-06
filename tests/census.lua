@@ -4,7 +4,7 @@ local ROOT = (debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]census%.
 local Codec = ns.Codec
 
 local function Decode(fields)
-	fields.guild = fields.guild or "Olympus Test"
+	fields.guild = fields.guild or "ChillZone Test"
 	return Codec.DecodeReport(Codec.EncodeReport(fields))
 end
 
@@ -28,7 +28,7 @@ test("census: partial, privacy-suppressed and older reports keep their wire cont
 	local hidden = Codec.Shareable(r, false, nil)
 	local d = assert(Decode(hidden))
 	eq(next(d.zones), nil); eq(d.online, 20)
-	local old = assert(Codec.DecodeReport("R1~Olympus~10~2~Boss~1~2~m1453=2~WA=2~0,2,0,0,0,0,0"))
+	local old = assert(Codec.DecodeReport("R1~ChillZone~10~2~Boss~1~2~m1453=2~WA=2~0,2,0,0,0,0,0"))
 	eq(old.online, 2); eq(old.zones.m1453, 2)
 	local clamped = assert(Decode({ total = 10, online = 20 }))
 	eq(clamped.online, 10, "the existing online clamp remains")
@@ -58,7 +58,7 @@ local function CensusWorld()
 			w.logs[#w.logs + 1] = ok and line or fmt
 		end,
 	}, { __index = ns })
-	assert(loadfile(ROOT .. "Olympus/Data.lua"))("Olympus", dns)
+	assert(loadfile(ROOT .. "ChillZone/Data.lua"))("ChillZone", dns)
 	w.ns, w.D = dns, dns.Data
 	function w.Run()
 		local due = w.timers
@@ -78,23 +78,23 @@ test("global census: a trusted holder restores normalized guild counts to a late
 		w.ns.Alts = nil
 	end
 	source.ns.me = relay
-	source.ns.rdb.guilds["Olympus Dawn"] = {
+	source.ns.rdb.guilds["ChillZone Dawn"] = {
 		total = 987, online = 73, avgLevel = 46.2, t = source.clock, st = source.clock,
 		leader = "Real Leader", officers = { { name = "Real Officer" } }, zones = { m1453 = 10 },
 	}
 	local payload = assert(source.D.GlobalCensusPayload())
-	assert(payload:find("Olympus Dawn,987,73,462", 1, true), "the trusted snapshot carries normalized counts")
+	assert(payload:find("ChillZone Dawn,987,73,462", 1, true), "the trusted snapshot carries normalized counts")
 	assert(late.D.ReceiveGlobalCensus("CHANNEL", relay, payload))
 	eq(next(late.ns.rdb.guilds), nil, "a relay never becomes an authoritative census report")
 	local s = late.D.Summary()
 	eq(s.characters, 987); eq(s.total, 987); eq(s.online, 73); eq(#s.guilds, 1)
-	eq(s.guilds[1].name, "Olympus Dawn"); eq(s.guilds[1].g.relayed, true)
+	eq(s.guilds[1].name, "ChillZone Dawn"); eq(s.guilds[1].g.relayed, true)
 	eq(s.guilds[1].g.leader, nil, "leadership is deliberately not relayed as census authority")
 	late.ns.Church.IsLedgerRelay = function() return false end
 	-- 1.4.0 (the author's witness rule, 10-20 and 11-03): a snapshot of someone who is not a trusted
 	-- relay is no longer refused outright; each of its rows is that person's witness. One witness
 	-- alone changes nothing, here a newer, larger size of the guild.
-	local lone = ("CG~1~S~%d~Olympus Dawn,999,80,462,%d"):format(late.clock, late.clock + 60)
+	local lone = ("CG~1~S~%d~ChillZone Dawn,999,80,462,%d"):format(late.clock, late.clock + 60)
 	eq(late.D.ReceiveGlobalCensus("CHANNEL", "Stranger-Realm", lone), true, "a stranger's snapshot is heard as his witness")
 	eq(late.D.Summary().characters, 987, "one witness alone moves nothing")
 end)
@@ -111,7 +111,7 @@ test("global census: an ordinary late client may ask a trusted holder for the pu
 			return true
 		end,
 	}, { __index = holder.ns.Comm })
-	holder.ns.rdb.guilds["Olympus Dawn"] = {
+	holder.ns.rdb.guilds["ChillZone Dawn"] = {
 		total = 987, online = 73, avgLevel = 46.2, t = holder.clock, st = holder.clock,
 	}
 	assert(holder.D.ReceiveGlobalCensus("CHANNEL", "Latecomer-Realm", "CG~1~Q~2000000000"),
@@ -136,7 +136,7 @@ test("global census: a trusted holder's snapshot really reaches the transport's 
 		holder.ns.Alts = nil
 		-- Enough guilds for a snapshot of several pieces.
 		for i = 1, 30 do
-			holder.ns.rdb.guilds[("Olympus Dawn %02d"):format(i)] = { total = 900 + i, online = 70, avgLevel = 46.2, t = holder.clock, st = holder.clock }
+			holder.ns.rdb.guilds[("ChillZone Dawn %02d"):format(i)] = { total = 900 + i, online = 70, avgLevel = 46.2, t = holder.clock, st = holder.clock }
 		end
 		local cns = FreshComm()
 		local C = cns.Comm
@@ -157,7 +157,7 @@ test("global census: a trusted holder's snapshot really reaches the transport's 
 		eq(C.QueueSize(), 0, "all of it went")
 		eq(#sent, #pieces, "one channel message per piece")
 		for i, m in ipairs(sent) do
-			eq(m.dist, "CHANNEL", "on the Olympus channel")
+			eq(m.dist, "CHANNEL", "on the ChillZone channel")
 			eq(m.msg, pieces[i], "piece " .. i .. " as Codec.Chunk cut it")
 		end
 		-- His trust gone mid-way: the permit, asked before each piece, sends no more of it.
@@ -199,48 +199,48 @@ end
 
 test("global census (1.4.0): two people's agreeing rows confirm a guild on a client that never heard its reporter; one alone does not", function()
 	local w = WitnessWorld()
-	eq(w.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(w, { { "Olympus Dawn", 640 } })), true)
+	eq(w.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(w, { { "ChillZone Dawn", 640 } })), true)
 	eq(w.D.Summary().characters, 0, "one witness")
-	eq(w.D.ReceiveGlobalCensus("CHANNEL", "Second-Realm", Snapshot(w, { { "Olympus Dawn", 644, 50, 300, w.clock - 600 } })), true)
+	eq(w.D.ReceiveGlobalCensus("CHANNEL", "Second-Realm", Snapshot(w, { { "ChillZone Dawn", 644, 50, 300, w.clock - 600 } })), true)
 	local s = w.D.Summary()
 	eq(s.characters, 640, "two people agree (within 5 and half an hour): the newer of the two is taken")
 	eq(s.guilds[1].g.relayed, true, "shown as a relayed row, never as the guild's own report")
-	eq(w.D.GlobalWitnesses("Olympus Dawn"), 2)
+	eq(w.D.GlobalWitnesses("ChillZone Dawn"), 2)
 	eq(next(w.ns.rdb.guilds), nil, "no census authority comes of it")
 end)
 
 test("global census (1.4.0): rows that disagree in size or time, and one person's two characters, confirm nothing", function()
 	local w = WitnessWorld()
-	w.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(w, { { "Olympus Dawn", 640 } }))
-	w.D.ReceiveGlobalCensus("CHANNEL", "Second-Realm", Snapshot(w, { { "Olympus Dawn", 700 } }))
+	w.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(w, { { "ChillZone Dawn", 640 } }))
+	w.D.ReceiveGlobalCensus("CHANNEL", "Second-Realm", Snapshot(w, { { "ChillZone Dawn", 700 } }))
 	eq(w.D.Summary().characters, 0, "640 and 700 are more than max(5, 5%) apart")
 	local far = WitnessWorld()
-	far.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(far, { { "Olympus Dawn", 640, 50, 300, far.clock } }))
-	far.D.ReceiveGlobalCensus("CHANNEL", "Second-Realm", Snapshot(far, { { "Olympus Dawn", 640, 50, 300, far.clock - 31 * 60 } }))
+	far.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(far, { { "ChillZone Dawn", 640, 50, 300, far.clock } }))
+	far.D.ReceiveGlobalCensus("CHANNEL", "Second-Realm", Snapshot(far, { { "ChillZone Dawn", 640, 50, 300, far.clock - 31 * 60 } }))
 	eq(far.D.Summary().characters, 0, "observed more than half an hour apart")
 	local alts = WitnessWorld()
 	alts.ns.Alts = { Group = function(name)
 		if name == "Main-Realm" or name == "Alt-Realm" then return { main = "Main-Realm", members = {} } end
 	end }
-	alts.D.ReceiveGlobalCensus("CHANNEL", "Main-Realm", Snapshot(alts, { { "Olympus Dawn", 640 } }))
-	alts.D.ReceiveGlobalCensus("CHANNEL", "Alt-Realm", Snapshot(alts, { { "Olympus Dawn", 640 } }))
+	alts.D.ReceiveGlobalCensus("CHANNEL", "Main-Realm", Snapshot(alts, { { "ChillZone Dawn", 640 } }))
+	alts.D.ReceiveGlobalCensus("CHANNEL", "Alt-Realm", Snapshot(alts, { { "ChillZone Dawn", 640 } }))
 	eq(alts.D.Summary().characters, 0, "a player's alt is the same witness as his main")
-	alts.D.ReceiveGlobalCensus("CHANNEL", "Other-Realm", Snapshot(alts, { { "Olympus Dawn", 641 } }))
+	alts.D.ReceiveGlobalCensus("CHANNEL", "Other-Realm", Snapshot(alts, { { "ChillZone Dawn", 641 } }))
 	eq(alts.D.Summary().characters, 641, "a second person confirms it")
 end)
 
 test("global census (1.4.0): our own direct row is one witness, so one member's newer agreeing row moves the guild forward", function()
 	local w = WitnessWorld()
-	w.ns.rdb.guilds["Olympus Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock - 1200, st = w.clock - 1200 }
-	w.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(w, { { "Olympus Dawn", 646, 41 } }))
+	w.ns.rdb.guilds["ChillZone Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock - 1200, st = w.clock - 1200 }
+	w.D.ReceiveGlobalCensus("CHANNEL", "First-Realm", Snapshot(w, { { "ChillZone Dawn", 646, 41 } }))
 	local s = w.D.Summary()
 	eq(s.characters, 646, "ours (20 minutes old) and his agree: his newer row is shown")
-	w.D.ReceiveGlobalCensus("CHANNEL", "Second-Realm", Snapshot(w, { { "Olympus Dawn", 900, 41 } }))
+	w.D.ReceiveGlobalCensus("CHANNEL", "Second-Realm", Snapshot(w, { { "ChillZone Dawn", 900, 41 } }))
 	eq(w.D.Summary().characters, 646, "a lone row far from every other changes nothing")
 end)
 
 test("global census (1.4.0): a late client ends with the same totals as the members it heard, whatever the order", function()
-	local rows = { { "Olympus Dawn", 640 }, { "Olympus Dusk", 980 }, { "Olympus Noon", 12, 5 } }
+	local rows = { { "ChillZone Dawn", 640 }, { "ChillZone Dusk", 980 }, { "ChillZone Noon", 12, 5 } }
 	local function Total(order)
 		local w = WitnessWorld()
 		for _, who in ipairs(order) do w.D.ReceiveGlobalCensus("CHANNEL", who, Snapshot(w, rows)) end
@@ -251,7 +251,7 @@ test("global census (1.4.0): a late client ends with the same totals as the memb
 	-- Agreeing rows of the same time but slightly different sizes: every client shows the same one.
 	local function Shown(order)
 		local w = WitnessWorld()
-		for _, e in ipairs(order) do w.D.ReceiveGlobalCensus("CHANNEL", e[1], Snapshot(w, { { "Olympus Dawn", e[2] } })) end
+		for _, e in ipairs(order) do w.D.ReceiveGlobalCensus("CHANNEL", e[1], Snapshot(w, { { "ChillZone Dawn", e[2] } })) end
 		return w.D.Summary().characters
 	end
 	eq(Shown({ { "First-Realm", 640 }, { "Second-Realm", 643 } }), 643)
@@ -268,8 +268,8 @@ test("global census (1.4.0): an ask carries what its client holds; a member answ
 			Send = function(dist, text) w.sent[#w.sent + 1] = { kind = "send", dist = dist, text = text } return true end,
 			SendChunked = function(payload, _, dist) w.sent[#w.sent + 1] = { kind = "chunked", dist = dist, text = payload } return true end,
 		}
-		w.ns.rdb.guilds["Olympus Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock, st = w.clock }
-		w.ns.rdb.guilds["Olympus Dusk"] = { total = 980, online = 70, avgLevel = 31, t = w.clock, st = w.clock }
+		w.ns.rdb.guilds["ChillZone Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock, st = w.clock }
+		w.ns.rdb.guilds["ChillZone Dusk"] = { total = 980, online = 70, avgLevel = 31, t = w.clock, st = w.clock }
 		return w
 	end
 	-- What the ask says.
@@ -285,7 +285,7 @@ test("global census (1.4.0): an ask carries what its client holds; a member answ
 	eq(#h.sent, 2)
 	eq(h.sent[1].text, ("CG~1~C~%d"):format(h.clock), "the claim first")
 	assert(h.sent[2].text:find("^CG~1~S~"), "then the snapshot")
-	assert(h.sent[2].text:find("Olympus Dawn,640,40,300", 1, true) and h.sent[2].text:find("Olympus Dusk,980,70,310", 1, true))
+	assert(h.sent[2].text:find("ChillZone Dawn,640,40,300", 1, true) and h.sent[2].text:find("ChillZone Dusk,980,70,310", 1, true))
 	-- Not behind: no answer.
 	local even = Holder()
 	even.D.ReceiveGlobalCensus("CHANNEL", "Latecomer-Realm", ("CG~1~Q~%d~2~%d"):format(even.clock, even.clock))
@@ -305,7 +305,7 @@ test("global census (1.4.0): an ask carries what its client holds; a member answ
 	local relayed = Holder()
 	relayed.ns.Church.IsLedgerRelay = function(name) return name == "Council-Realm" end
 	relayed.D.ReceiveGlobalCensus("CHANNEL", "Latecomer-Realm", ("CG~1~Q~%d~0~0"):format(relayed.clock))
-	relayed.D.ReceiveGlobalCensus("CHANNEL", "Council-Realm", Snapshot(relayed, { { "Olympus Dawn", 640 } }))
+	relayed.D.ReceiveGlobalCensus("CHANNEL", "Council-Realm", Snapshot(relayed, { { "ChillZone Dawn", 640 } }))
 	relayed.Run()
 	eq(#relayed.sent, 0, "a trusted relay answered")
 	-- Our own claim or ask echoed back by the channel is not someone else's.
@@ -359,7 +359,7 @@ end
 
 test("census groups (1.4.0): our own look at our realm group is kept and carried to another group, where it is said; ours is never said where everyone sees it live", function()
 	local w = GroupWorld("Traveller-Realm")
-	w.ns.rdb.guilds["Olympus Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock, st = w.clock }
+	w.ns.rdb.guilds["ChillZone Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock, st = w.clock }
 	eq(w.D.RecordGroupCensus(), true)
 	local kept = w.ns.db.groupCensus["Alliance|Launchpve"]
 	eq(kept.characters, 640); eq(kept.src, "own"); eq(kept.guilds, 1)
@@ -432,7 +432,7 @@ test("census groups (1.4.0): our own look is kept at logout only after the censu
 	w.ns.RegisterEvent = function(event, fn) if event == "PLAYER_LOGOUT" then onLogout = fn end end
 	w.Fire("LOGIN")
 	assert(onLogout, "a logout handler")
-	w.ns.rdb.guilds["Olympus Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock, st = w.clock }
+	w.ns.rdb.guilds["ChillZone Dawn"] = { total = 640, online = 40, avgLevel = 30, t = w.clock, st = w.clock }
 	w.ns.SafeCall = function(_, fn, ...) return fn(...) end
 	w.ns.Comm = { loginAt = w.clock - 60 }
 	onLogout()
@@ -466,7 +466,7 @@ local function ReportText(fields, st)
 	return Codec.EncodeReport(r)
 end
 local function Echo(changes)
-	local r = { guild = "Olympus Echo", total = 40, online = 6, leader = "Echoboss", leaderOnline = true, users = 3,
+	local r = { guild = "ChillZone Echo", total = 40, online = 6, leader = "Echoboss", leaderOnline = true, users = 3,
 		zones = { m1453 = 2, m1429 = 1 }, classes = { WA = 2, PR = 1 }, levels = { 0, 0, 0, 0, 0, 1, 2 },
 		ranks = { { name = "Boss", count = 1 }, { name = "Captain", count = 2 }, { name = "Member", count = 37 } },
 		officers = { { name = "Echocapt", online = true, days = 0, class = "WA", level = 60, zone = "m1453" } },
@@ -484,9 +484,9 @@ test("census (1.2.3): a sender's report again but for its time is not decoded, a
 	-- censuses are alike in every field of every row.
 	local P, P2 = Echo(), Echo({ online = 5, zones = { m1453 = 2 }, levels = { 0, 0, 0, 0, 0, 1, 1 } })
 	local Q = Echo({ leader = "Usurper", top = { { name = "Usurper", level = 60, class = "WA" } } })
-	local X = Echo({ guild = "Olympus Tide", leader = "Tideboss", officers = {}, top = {} })
-	local Y = Echo({ guild = "Olympus Tide", leader = "Tidefake", officers = {}, top = {} })
-	local OTHER = Echo({ guild = "OLYMPUS ECHO" }) -- (the stored key's other spelling: one more vote)
+	local X = Echo({ guild = "ChillZone Tide", leader = "Tideboss", officers = {}, top = {} })
+	local Y = Echo({ guild = "ChillZone Tide", leader = "Tidefake", officers = {}, top = {} })
+	local OTHER = Echo({ guild = "CHILLZONE ECHO" }) -- (the stored key's other spelling: one more vote)
 	-- { seconds after the first report, sender, report, its server time, what to look for }
 	local steps = {
 		{ 0, "Tidea-Realm", X }, { 1, "Tideb-Realm", X }, -- (votes that will be 30 minutes old later)
@@ -528,13 +528,13 @@ test("census (1.2.3): a sender's report again but for its time is not decoded, a
 		eq(now.fires, old.fires, label .. ": DATA_CHANGED"); eq(#now.timers, #old.timers, label .. ": timers")
 		eq(Alike(now.ns.rdb.guilds, old.ns.rdb.guilds, "guilds"), nil, label)
 		eq(table.concat(now.logs, "\n"), table.concat(old.logs, "\n"), label .. ": log")
-		for _, guild in ipairs({ "Olympus Echo", "Olympus Tide" }) do
+		for _, guild in ipairs({ "ChillZone Echo", "ChillZone Tide" }) do
 			eq(Alike(now.D.Dispute(now.D.Guild(guild), now.clock), old.D.Dispute(old.D.Guild(guild), old.clock), "dispute"), nil, label .. " " .. guild)
 		end
 		eq(now.D.ClaimedGuild(sender), old.D.ClaimedGuild(sender), label .. ": claim")
 	end
 	-- What the fixture went through, so neither census was alike by having nothing in it.
-	local echo, tide = now.ns.rdb.guilds["Olympus Echo"], now.ns.rdb.guilds["Olympus Tide"]
+	local echo, tide = now.ns.rdb.guilds["ChillZone Echo"], now.ns.rdb.guilds["ChillZone Tide"]
 	eq(echo.reporterFull, "Echoa-Realm"); eq(echo.online, 5); eq(echo.st, 1000 + 1990)
 	eq(tide.reporterFull, "Tided-Realm"); eq(tide.t, start + 1950); eq(tide.st, 1000 + 1950)
 	assert(tide.vouch["Tidee-Realm"] and not tide.vouch["Tidea-Realm"], "the outvoted senders' votes kept, the old ones gone")
@@ -562,7 +562,7 @@ test("census (1.2.3): Codec.ReportTime finds field 25 where Codec.DecodeReport r
 	local short = table.concat(Codec.Split(ReportText(Echo(), 99), "~"), "~", 1, 25)
 	local at, stop, t = Codec.ReportTime(short)
 	eq(stop, #short + 1); eq(t, 99); eq(Codec.DecodeReport(short).st, 99); eq(at, #short - 2)
-	eq(Codec.ReportTime("R1~Olympus~10~2~Boss~1~2~m1453=2~WA=2~0,2,0,0,0,0,0"), nil, "older versions: no field 25")
+	eq(Codec.ReportTime("R1~ChillZone~10~2~Boss~1~2~m1453=2~WA=2~0,2,0,0,0,0,0"), nil, "older versions: no field 25")
 	eq(Codec.ReportTime(("~"):rep(30) .. ("x"):rep(Codec.CHUNK * Codec.MAX_CHUNKS)), nil, "a text DecodeReport refuses by its length")
 	eq(Codec.ReportTime(nil), nil)
 end)
@@ -576,7 +576,7 @@ test("census (1.2.3): through Comm's own handler a reporter's report again but f
 		Codec.DecodeReport = function(s) decodes = decodes + 1 return savedDecode(s) end
 		ns.Now = function() return clock end
 		ns.rdb.guilds = {}
-		local P, P2 = Echo({ guild = "Olympus Combo" }), Echo({ guild = "Olympus Combo", online = 5 })
+		local P, P2 = Echo({ guild = "ChillZone Combo" }), Echo({ guild = "ChillZone Combo", online = 5 })
 		local function Send(sender, r, st)
 			local copy = {}
 			for k, v in pairs(r) do copy[k] = v end
@@ -585,16 +585,16 @@ test("census (1.2.3): through Comm's own handler a reporter's report again but f
 		end
 		Send("Combo One-Realm", P, 1)
 		eq(decodes, 1)
-		local row = ns.rdb.guilds["Olympus Combo"]
+		local row = ns.rdb.guilds["ChillZone Combo"]
 		eq(row.reporterFull, "Combo One-Realm"); eq(row.st, 1)
 		clock = clock + 180
 		Send("Combo One-Realm", P, 2)
 		eq(decodes, 1, "the same but for its time: not decoded")
-		eq(ns.rdb.guilds["Olympus Combo"], row, "its row")
+		eq(ns.rdb.guilds["ChillZone Combo"], row, "its row")
 		eq(row.t, clock); eq(row.st, 2); eq(row.vouch["Combo One-Realm"].t, clock, "its vote's time new")
 		clock = clock + 180
 		Send("Combo Two-Realm", P, 3)
-		eq(decodes, 2, "another sender: decoded"); eq(ns.rdb.guilds["Olympus Combo"].reporterFull, "Combo Two-Realm")
+		eq(decodes, 2, "another sender: decoded"); eq(ns.rdb.guilds["ChillZone Combo"].reporterFull, "Combo Two-Realm")
 		clock = clock + 180
 		Send("Combo One-Realm", P, 4)
 		eq(decodes, 3, "his report after another sender's: decoded")
@@ -602,14 +602,14 @@ test("census (1.2.3): through Comm's own handler a reporter's report again but f
 		Send("Combo One-Realm", P, 5)
 		eq(decodes, 3)
 		Send("Combo One-Realm", P2, 6)
-		eq(decodes, 4, "changed: decoded"); eq(ns.rdb.guilds["Olympus Combo"].online, 5)
-		ns.rdb.guilds = {} -- (/oly reset)
+		eq(decodes, 4, "changed: decoded"); eq(ns.rdb.guilds["ChillZone Combo"].online, 5)
+		ns.rdb.guilds = {} -- (/cz reset)
 		Send("Combo One-Realm", P2, 7)
-		eq(decodes, 5, "a reset store: decoded"); eq(ns.rdb.guilds["Olympus Combo"].st, 7)
+		eq(decodes, 5, "a reset store: decoded"); eq(ns.rdb.guilds["ChillZone Combo"].st, 7)
 		eq(cns.Comm.Stats().reports, 7, "every report counted")
 		local lines = 0
 		for _, line in ipairs(ns.db.log) do
-			if line:find("report Olympus Combo from Combo", 1, true) then lines = lines + 1 end
+			if line:find("report ChillZone Combo from Combo", 1, true) then lines = lines + 1 end
 		end
 		eq(lines, 7, "every report taken logged as before")
 	end)
@@ -625,24 +625,24 @@ test("census (1.2.3): the reports kept are one per row: another sender's report 
 		return D.Receive(assert(D.DecodeReport(ReportText(r, st), sender)), sender)
 	end
 	D.MAX_GUILDS = 3
-	for k = 1, 3 do assert(Hear("Keeper" .. k .. "-Realm", Echo({ guild = "Olympus Keep " .. k }), k)) end
+	for k = 1, 3 do assert(Hear("Keeper" .. k .. "-Realm", Echo({ guild = "ChillZone Keep " .. k }), k)) end
 	eq(D.Repeats(), 3)
-	assert(Hear("Keeper9-Realm", Echo({ guild = "Olympus Keep 1" }), 9))
+	assert(Hear("Keeper9-Realm", Echo({ guild = "ChillZone Keep 1" }), 9))
 	eq(D.Repeats(), 3, "the guild's other sender: his report kept, the first one's gone")
-	assert(Hear("Keeper4-Realm", Echo({ guild = "Olympus Keep 4" }), 4))
-	eq(w.ns.rdb.guilds["Olympus Keep 2"], nil, "the report heard longest ago went (Data.Trim)")
+	assert(Hear("Keeper4-Realm", Echo({ guild = "ChillZone Keep 4" }), 4))
+	eq(w.ns.rdb.guilds["ChillZone Keep 2"], nil, "the report heard longest ago went (Data.Trim)")
 	eq(D.Repeats(), 3, "and its sender's with it")
 	local decodes = w.decodes
-	assert(Hear("Keeper2-Realm", Echo({ guild = "Olympus Keep 2" }), 5))
+	assert(Hear("Keeper2-Realm", Echo({ guild = "ChillZone Keep 2" }), 5))
 	eq(w.decodes - decodes, 1, "his row gone: decoded")
 	-- A guild quiet for FRESH: its sender's report goes at the next tick; the others stay.
 	w.clock = w.clock + D.FRESH - 1
-	assert(Hear("Keeper4-Realm", Echo({ guild = "Olympus Keep 4" }), 6))
+	assert(Hear("Keeper4-Realm", Echo({ guild = "ChillZone Keep 4" }), 6))
 	w.clock = w.clock + 2
 	D.Housekeeping()
 	eq(D.Repeats(), 1, "the one heard within FRESH")
 	decodes = w.decodes
-	assert(Hear("Keeper4-Realm", Echo({ guild = "Olympus Keep 4" }), 7))
+	assert(Hear("Keeper4-Realm", Echo({ guild = "ChillZone Keep 4" }), 7))
 	eq(w.decodes - decodes, 0)
 	w.ns.rdb = { guilds = {}, seen = {} } -- (another realm's store)
 	D.Housekeeping()
@@ -656,27 +656,27 @@ test("census (1.2.3): votes past VOUCH_TTL leave the rows at INIT and at logout,
 		local ranks = { ["Oldboss-Realm"] = 0, ["Oldcapt-Realm"] = 1 }
 		local function Vote(age) return { t = now - age, sig = "Oldboss-Realm=0,Oldcapt-Realm=1", ranks = ranks, n = 30 } end
 		return {
-			["Olympus Old"] = { guild = "Olympus Old", t = now - 100, leader = "Oldboss", officers = { { name = "Oldcapt" } },
+			["ChillZone Old"] = { guild = "ChillZone Old", t = now - 100, leader = "Oldboss", officers = { { name = "Oldcapt" } },
 				realm = "Realm", heardOn = "Realm", total = 30, reporterFull = "Fresh One-Realm",
 				vouch = { ["Fresh One-Realm"] = Vote(60), ["Fresh Two-Realm"] = Vote(D.VOUCH_TTL), ["Stale-Realm"] = Vote(D.VOUCH_TTL + 1),
 					["Broken-Realm"] = "x" } },
-			["Olympus Gone"] = { guild = "Olympus Gone", t = now - 7200, leader = "Goneboss", realm = "Realm", heardOn = "Realm",
+			["ChillZone Gone"] = { guild = "ChillZone Gone", t = now - 7200, leader = "Goneboss", realm = "Realm", heardOn = "Realm",
 				total = 10, vouch = { ["Long Ago-Realm"] = Vote(7200) } },
 		}
 	end
 	local function Check(how)
-		local g = w.ns.rdb.guilds["Olympus Old"]
+		local g = w.ns.rdb.guilds["ChillZone Old"]
 		assert(g.vouch["Fresh One-Realm"] and g.vouch["Fresh Two-Realm"], how .. ": the votes still counted stay")
 		eq(g.vouch["Stale-Realm"], nil, how); eq(g.vouch["Broken-Realm"], nil, how)
-		eq(w.ns.rdb.guilds["Olympus Gone"].vouch, nil, how .. ": a row whose votes are all past it keeps none")
+		eq(w.ns.rdb.guilds["ChillZone Gone"].vouch, nil, how .. ": a row whose votes are all past it keeps none")
 	end
 	w.ns.rdb.guilds = Rows()
-	local dispute, rank = D.Dispute(w.ns.rdb.guilds["Olympus Old"], now), { D.KnownRank("Oldcapt-Realm", "Olympus Old") }
+	local dispute, rank = D.Dispute(w.ns.rdb.guilds["ChillZone Old"], now), { D.KnownRank("Oldcapt-Realm", "ChillZone Old") }
 	eq(rank[1], 1, "(the fixture's officer, vouched by the two fresh votes)")
 	w.Fire("INIT")
 	Check("INIT")
-	eq(Alike(D.Dispute(w.ns.rdb.guilds["Olympus Old"], now), dispute, "dispute"), nil)
-	eq(Alike({ D.KnownRank("Oldcapt-Realm", "Olympus Old") }, rank, "rank"), nil)
+	eq(Alike(D.Dispute(w.ns.rdb.guilds["ChillZone Old"], now), dispute, "dispute"), nil)
+	eq(Alike({ D.KnownRank("Oldcapt-Realm", "ChillZone Old") }, rank, "rank"), nil)
 	w.ns.rdb.guilds = Rows()
 	eq(w.events.PLAYER_LOGOUT, nil, "registered at login")
 	w.Fire("LOGIN")
@@ -689,52 +689,52 @@ test("census (1.2.3): a claim CLAIM_TTL old keeps only its guild: Data.ClaimedGu
 	local w = CensusWorld()
 	local D = w.D
 	local t0 = w.clock
-	eq(D.ClaimGuild("Mover-Realm", "Olympus Alpha"), true)
+	eq(D.ClaimGuild("Mover-Realm", "ChillZone Alpha"), true)
 	w.clock = t0 + D.CLAIM_TTL - 1
 	D.Housekeeping()
-	eq(D.ClaimGuild("Mover-Realm", "Olympus Beta"), false, "still bound")
+	eq(D.ClaimGuild("Mover-Realm", "ChillZone Beta"), false, "still bound")
 	w.clock = t0 + D.CLAIM_TTL
 	D.Housekeeping()
-	eq(D.ClaimedGuild("Mover-Realm"), "Olympus Alpha", "his guild still answered (the game's chat marks)")
-	eq(D.ClaimGuild("Mover-Realm", "Olympus Beta"), true, "after CLAIM_TTL quiet")
-	eq(D.ClaimedGuild("Mover-Realm"), "Olympus Beta")
-	eq(D.ClaimGuild("Mover-Realm", "Olympus Alpha"), false, "and now bound to the new one")
+	eq(D.ClaimedGuild("Mover-Realm"), "ChillZone Alpha", "his guild still answered (the game's chat marks)")
+	eq(D.ClaimGuild("Mover-Realm", "ChillZone Beta"), true, "after CLAIM_TTL quiet")
+	eq(D.ClaimedGuild("Mover-Realm"), "ChillZone Beta")
+	eq(D.ClaimGuild("Mover-Realm", "ChillZone Alpha"), false, "and now bound to the new one")
 	-- The King's client on a stream hears thousands of senders (chat lines, census reports, board
 	-- posts, listings). Every old claim still answers, as in 1.2.2, however many: the council copy of
 	-- a report from one quiet since (Watch.CouncilReporter) and the bronze mark of a guild master
 	-- quiet since (Borders.ChatGuilds) need it. One that binds still binds.
 	local heard = 5000
-	for k = 1, heard do eq(D.ClaimGuild("Quiet" .. k .. "-Realm", "Olympus Quiet"), true) end
+	for k = 1, heard do eq(D.ClaimGuild("Quiet" .. k .. "-Realm", "ChillZone Quiet"), true) end
 	w.clock = w.clock + D.CLAIM_TTL
-	eq(D.ClaimGuild("Loud-Realm", "Olympus Loud"), true)
+	eq(D.ClaimGuild("Loud-Realm", "ChillZone Loud"), true)
 	for _ = 1, 3 do -- (a few minute ticks)
 		D.Housekeeping()
 		w.clock = w.clock + 60
 	end
 	local lost = 0
 	for k = 1, heard do
-		if D.ClaimedGuild("Quiet" .. k .. "-Realm") ~= "Olympus Quiet" then lost = lost + 1 end
+		if D.ClaimedGuild("Quiet" .. k .. "-Realm") ~= "ChillZone Quiet" then lost = lost + 1 end
 	end
 	eq(lost, 0, "old claims still answered past thousands of senders")
-	eq(D.ClaimedGuild("Mover-Realm"), "Olympus Beta")
-	eq(D.ClaimedGuild("Loud-Realm"), "Olympus Loud")
-	eq(D.ClaimGuild("Loud-Realm", "Olympus Other"), false, "still bound")
-	eq(D.ClaimGuild("Quiet1-Realm", "Olympus Other"), true, "an old claim binds nobody")
-	eq(D.ClaimedGuild("Quiet1-Realm"), "Olympus Other")
-	eq(D.ClaimedGuild("Quiet2-Realm"), "Olympus Quiet")
+	eq(D.ClaimedGuild("Mover-Realm"), "ChillZone Beta")
+	eq(D.ClaimedGuild("Loud-Realm"), "ChillZone Loud")
+	eq(D.ClaimGuild("Loud-Realm", "ChillZone Other"), false, "still bound")
+	eq(D.ClaimGuild("Quiet1-Realm", "ChillZone Other"), true, "an old claim binds nobody")
+	eq(D.ClaimedGuild("Quiet1-Realm"), "ChillZone Other")
+	eq(D.ClaimedGuild("Quiet2-Realm"), "ChillZone Quiet")
 end)
 
 -- The source Alts module, with only identity/state/event/transport boundaries supplied by
 -- this scene. Claims, revisions, grouping and duplicate counts all run through Alts.lua.
 local function WithAlts(fn)
-	local savedGuild, savedDialog = GetGuildInfo, StaticPopupDialogs.OLYMPUS_ALT_CONFIRM
-	local w = { now = 1800000000, guild = "Olympus Old" }
+	local savedGuild, savedDialog = GetGuildInfo, StaticPopupDialogs.CHILLZONE_ALT_CONFIRM
+	local w = { now = 1800000000, guild = "ChillZone Old" }
 	GetGuildInfo = function() return w.guild end
 	local function Client(me, own)
 		local c = setmetatable({ me = me, realm = "Realm", db = {}, rdb = {}, sent = {}, timers = {}, events = {}, callbacks = {}, changes = 0 }, { __index = ns })
 		c.Now = function() return w.now end
 		c.Data = { ServerTime = c.Now }
-		c.IsMember = function() return type(w.guild) == "string" and w.guild:find("Olympus", 1, true) ~= nil end
+		c.IsMember = function() return type(w.guild) == "string" and w.guild:find("ChillZone", 1, true) ~= nil end
 		c.On = function(event, cb) c.callbacks[event] = cb end
 		c.RegisterEvent = function(event, cb) c.events[event] = cb end
 		c.After = function(delay, label, cb) c.timers[#c.timers + 1] = { delay = delay, label = label, cb = cb } end
@@ -750,10 +750,10 @@ local function WithAlts(fn)
 			c.db.alts = {
 				at = w.now - 10,
 				links = { ["alt guy-realm"] = { name = "Alt Guy-Realm", main = "Main Guy-Realm", at = w.now - 10 } },
-				guilds = { ["alt guy-realm"] = "Olympus Old", ["main guy-realm"] = "Olympus Main" },
+				guilds = { ["alt guy-realm"] = "ChillZone Old", ["main guy-realm"] = "ChillZone Main" },
 			}
 		end
-		assert(loadfile(ROOT .. "Olympus/Alts.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/Alts.lua"))("ChillZone", c)
 		function c.Run(delay)
 			local pending = c.timers
 			c.timers = {}
@@ -764,7 +764,7 @@ local function WithAlts(fn)
 		return c
 	end
 	local ok, err = pcall(function() fn(w, Client) end)
-	GetGuildInfo, StaticPopupDialogs.OLYMPUS_ALT_CONFIRM = savedGuild, savedDialog
+	GetGuildInfo, StaticPopupDialogs.CHILLZONE_ALT_CONFIRM = savedGuild, savedDialog
 	if not ok then error(err, 0) end
 end
 
@@ -782,7 +782,7 @@ end
 test("alts (1.4.0): this account's links of another realm group (the beta's, on a launch realm) take nobody off here", function()
 	WithAlts(function(w, Client)
 		local c = Client("Main Guy-Realm", true)
-		local counted = { ["olympus old"] = true, ["olympus main"] = true }
+		local counted = { ["chillzone old"] = true, ["chillzone main"] = true }
 		c.group = "Realm"
 		eq(c.Alts.Duplicates(counted), 1, "on its own group the pair is one person")
 		assert(c.Alts.Group("Alt Guy-Realm"), "and a group")
@@ -799,26 +799,26 @@ end)
 test("alts: a live guild change revises and sends the claim, refreshing both clients' counts", function()
 	WithAlts(function(w, Client)
 		local c, peer = Client("Alt Guy-Realm", true), Client("Watcher-Realm")
-		peer.Alts.Handle("CHANNEL", "Main Guy-Realm", ("AL~%d~M~Olympus Main~Alt Guy"):format(w.now - 10))
+		peer.Alts.Handle("CHANNEL", "Main Guy-Realm", ("AL~%d~M~ChillZone Main~Alt Guy"):format(w.now - 10))
 		assert(c.Alts.Send(false))
 		local old = c.sent[1].msg
 		peer.Alts.Handle("CHANNEL", c.me, old)
-		eq(GuildOf(c.Alts, c.me), "Olympus Old")
-		eq(GuildOf(peer.Alts, c.me), "Olympus Old")
-		eq(peer.Alts.Duplicates({ ["olympus main"] = true, ["olympus old"] = true }), 1)
-		w.guild = "Olympus New"
+		eq(GuildOf(c.Alts, c.me), "ChillZone Old")
+		eq(GuildOf(peer.Alts, c.me), "ChillZone Old")
+		eq(peer.Alts.Duplicates({ ["chillzone main"] = true, ["chillzone old"] = true }), 1)
+		w.guild = "ChillZone New"
 		assert(c.events.PLAYER_GUILD_UPDATE, "membership changes are observed")("player")
 		c.Run(2)
 		eq(#c.sent, 2, "a guild change does not wait thirty minutes")
 		local changed = c.sent[2].msg
 		assert(Revision(changed) > Revision(old), "a changed guild has a newer revision")
-		eq(GuildOf(c.Alts, c.me), "Olympus New", "own cached group invalidated")
+		eq(GuildOf(c.Alts, c.me), "ChillZone New", "own cached group invalidated")
 		peer.Alts.Handle("CHANNEL", c.me, changed)
-		eq(GuildOf(peer.Alts, c.me), "Olympus New")
-		eq(peer.Alts.Duplicates({ ["olympus main"] = true, ["olympus old"] = true }), 0)
-		eq(peer.Alts.Duplicates({ ["olympus main"] = true, ["olympus new"] = true }), 1)
+		eq(GuildOf(peer.Alts, c.me), "ChillZone New")
+		eq(peer.Alts.Duplicates({ ["chillzone main"] = true, ["chillzone old"] = true }), 0)
+		eq(peer.Alts.Duplicates({ ["chillzone main"] = true, ["chillzone new"] = true }), 1)
 		peer.Alts.Handle("CHANNEL", c.me, old)
-		eq(GuildOf(peer.Alts, c.me), "Olympus New", "a delayed old claim cannot undo the move")
+		eq(GuildOf(peer.Alts, c.me), "ChillZone New", "a delayed old claim cannot undo the move")
 		local revision = c.db.alts.at
 		c.events.PLAYER_GUILD_UPDATE("player"); c.Run(2)
 		eq(c.db.alts.at, revision); eq(#c.sent, 2, "an unchanged guild produces no extra send")
@@ -829,20 +829,20 @@ test("alts: login refresh revises a saved guild before the first claim", functio
 	WithAlts(function(w, Client)
 		local c = Client("Alt Guy-Realm", true)
 		local old = c.db.alts.at
-		w.guild = "Olympus New"
+		w.guild = "ChillZone New"
 		c.callbacks.LOGIN()
 		c.Run(10)
 		assert(c.db.alts.at > old, "login membership change increments the wire revision")
-		eq(GuildOf(c.Alts, c.me), "Olympus New")
+		eq(GuildOf(c.Alts, c.me), "ChillZone New")
 		eq(#c.sent, 0, "login still waits for its channel before sending")
 		c.Run(c.Alts.LOGIN_AFTER)
 		eq(#c.sent, 1)
 		eq(Revision(c.sent[1].msg), c.db.alts.at)
-		assert(c.sent[1].msg:find("~Olympus New~", 1, true))
+		assert(c.sent[1].msg:find("~ChillZone New~", 1, true))
 	end)
 end)
 
-test("alts: leaving updates local membership without sending outside Olympus; rejoining advances again", function()
+test("alts: leaving updates local membership without sending outside ChillZone; rejoining advances again", function()
 	WithAlts(function(w, Client)
 		local c = Client("Alt Guy-Realm", true)
 		assert(c.Alts.Send(true))
@@ -851,9 +851,9 @@ test("alts: leaving updates local membership without sending outside Olympus; re
 		assert(c.events.PLAYER_GUILD_UPDATE)("player"); c.Run(2)
 		eq(GuildOf(c.Alts, c.me), nil)
 		assert(c.db.alts.at > old)
-		eq(#c.sent, 1, "no network claim outside Olympus")
+		eq(#c.sent, 1, "no network claim outside ChillZone")
 		local left = c.db.alts.at
-		w.guild = "Olympus New"
+		w.guild = "ChillZone New"
 		c.events.PLAYER_GUILD_UPDATE("target"); c.Run(2)
 		eq(c.db.alts.at, left, "another unit's event leaves this character alone")
 		c.events.PLAYER_GUILD_UPDATE("player"); c.Run(2)
@@ -867,10 +867,10 @@ test("alts: the send path records a newly observed guild even without a delivere
 		local c = Client("Alt Guy-Realm", true)
 		assert(c.Alts.Send(false))
 		local old = Revision(c.sent[1].msg)
-		w.guild = "Olympus New"
+		w.guild = "ChillZone New"
 		assert(c.Alts.Send(false), "a new guild overrides the ordinary repeat interval")
 		assert(Revision(c.sent[2].msg) > old)
-		eq(c.db.alts.guilds["alt guy-realm"], "Olympus New")
+		eq(c.db.alts.guilds["alt guy-realm"], "ChillZone New")
 		eq(c.Alts.Send(false), false, "repeats remain paced")
 	end)
 end)

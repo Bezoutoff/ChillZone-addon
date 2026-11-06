@@ -1,4 +1,4 @@
--- 1.2.1, Bones' dice picked while the table is busy for a moment (Olympus_Arena/FarkleBoard.lua's
+-- 1.2.1, Bones' dice picked while the table is busy for a moment (ChillZone_Arena/FarkleBoard.lua's
 -- Refresh): a report said a player who picked a 2 and put it back could not roll until he picked it
 -- again. The plain pick and put-back was right offline (farkle-board.lua's "deselecting a
 -- non-scoring die" test); what went wrong was the light. With the mouse on a die he had picked, a

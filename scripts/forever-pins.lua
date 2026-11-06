@@ -1,4 +1,4 @@
--- The gamepad gate's source pins (1.1.5): each registry entry (Olympus/GamepadRegistry.lua) may cite
+-- The gamepad gate's source pins (1.1.5): each registry entry (ChillZone/GamepadRegistry.lua) may cite
 -- the lines of Forever's own UI source its reason rests on, in `pins`, as "file:line what is there"
 -- (what is there: the line's code, or the name it holds before a colon and a note). This script
 -- checks every pin against the client's extracted UI source; a pin that moved or changed means

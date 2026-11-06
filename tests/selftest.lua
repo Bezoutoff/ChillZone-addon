@@ -1,4 +1,4 @@
--- /oly selftest (Olympus/SelfTest.lua): refused outside test builds and for anyone but the author,
+-- /cz selftest (ChillZone/SelfTest.lua): refused outside test builds and for anyone but the author,
 -- never sends while it runs (every send it holds back is counted, and the spies under it see none),
 -- a page that errors is a failed probe and the run goes on, the Back and parchment detectors, the
 -- report's bounds (no BattleTag, no roster name), everything put back, a stop in combat, the last
@@ -9,9 +9,9 @@ local ROOT = (debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]selftest
 local L = ns.L
 local WithUI, LoadUI = H.WithUI, H.LoadUI
 
-assert(loadfile(ROOT .. "Olympus/Locales/SelfTestText.lua"))("Olympus", ns)
+assert(loadfile(ROOT .. "ChillZone/Locales/SelfTestText.lua"))("ChillZone", ns)
 local standIn = ns.SelfTest
-assert(loadfile(ROOT .. "Olympus/SelfTest.lua"))("Olympus", ns)
+assert(loadfile(ROOT .. "ChillZone/SelfTest.lua"))("ChillZone", ns)
 local S = ns.SelfTest
 local TAG = "Selftester#57319"
 
@@ -70,7 +70,7 @@ local function Scene(fn, opts)
 	if not ok then error(err, 0) end
 end
 
--- fn(UI, uns) in a fresh Olympus window (the harness's toolkit), the harness's error capture
+-- fn(UI, uns) in a fresh ChillZone window (the harness's toolkit), the harness's error capture
 -- quiet: a page the test makes fail is the run's to report.
 local function InWindow(fn)
 	WithUI(function()
@@ -105,30 +105,30 @@ end
 
 test("selftest: refused outside a test build and for anyone but the author; in combat, with the gamepad UI, with a privacy question never asked and while it runs it says why", function()
 	Scene(function(w)
-		SlashCmdList.OLYMPUS("selftest")
+		SlashCmdList.CHILLZONE("selftest")
 		eq(w.printed[#w.printed], L.SELFTEST_UNAVAILABLE, "a public build")
-		SlashCmdList.OLYMPUS("selftest status")
+		SlashCmdList.CHILLZONE("selftest status")
 		eq(w.printed[#w.printed], L.SELFTEST_UNAVAILABLE, "its status too")
 		eq(S.Running(), false); eq(ns.db.selftest, nil, "nothing written"); eq(#w.queue, 0, "no frame asked for")
 	end, { test = false })
 	Scene(function(w)
-		SlashCmdList.OLYMPUS("selftest")
+		SlashCmdList.CHILLZONE("selftest")
 		eq(w.printed[#w.printed], L.SELFTEST_UNAVAILABLE, "a test build, but not the author")
 		eq(S.Running(), false); eq(ns.db.selftest, nil); eq(#w.queue, 0)
 	end, { author = false })
 	Scene(function(w)
 		w.combat = true
-		SlashCmdList.OLYMPUS("selftest")
+		SlashCmdList.CHILLZONE("selftest")
 		eq(w.printed[#w.printed], L.SELFTEST_COMBAT, "in combat")
 		eq(S.Running(), false); eq(#w.queue, 0)
 	end)
 	Scene(function(w)
-		SlashCmdList.OLYMPUS("selftest")
+		SlashCmdList.CHILLZONE("selftest")
 		eq(w.printed[#w.printed], L.SELFTEST_PRIVACY_WAITS, "a privacy question never asked: the run would mark it asked")
 		eq(S.Running(), false); eq(#w.queue, 0); eq(ns.db.selftest, nil)
 	end, { privacy = true })
 	Scene(function(w)
-		-- (With the gamepad UI /oly is not even typed: Core.lua's slash gate. Its own refusal too.)
+		-- (With the gamepad UI /cz is not even typed: Core.lua's slash gate. Its own refusal too.)
 		GamepadStyle(true)
 		eq(S.Slash(""), false)
 		GamepadStyle(false)
@@ -137,12 +137,12 @@ test("selftest: refused outside a test build and for anyone but the author; in c
 	end)
 	Scene(function(w)
 		InWindow(function()
-			SlashCmdList.OLYMPUS("selftest")
+			SlashCmdList.CHILLZONE("selftest")
 			eq(S.Running(), true, "the author on a test build: it runs")
 			eq(w.printed[#w.printed], L.SELFTEST_STARTED)
-			SlashCmdList.OLYMPUS("selftest")
+			SlashCmdList.CHILLZONE("selftest")
 			eq(w.printed[#w.printed], L.SELFTEST_BUSY, "once at a time")
-			SlashCmdList.OLYMPUS("selftest stop")
+			SlashCmdList.CHILLZONE("selftest stop")
 			eq(S.Running(), false, "stopped")
 			eq(w.printed[#w.printed], L.SELFTEST_STOPPED)
 			eq(ns.db.selftest.summary.aborted, "stop", "its report says so")
@@ -151,7 +151,7 @@ test("selftest: refused outside a test build and for anyone but the author; in c
 	-- A client updated without a restart: Core.lua's stand-in says to restart.
 	Scene(function(w)
 		ns.SelfTest = standIn
-		local ok, err = pcall(SlashCmdList.OLYMPUS, "selftest")
+		local ok, err = pcall(SlashCmdList.CHILLZONE, "selftest")
 		ns.SelfTest = S
 		assert(ok, err)
 		eq(w.printed[#w.printed], L.RESTART_NEEDED)
@@ -366,8 +366,8 @@ test("selftest: the Companion's own section carries the player's BattleTag on pu
 			InWindow(function()
 				BNConnected = function() return true end
 				BNGetInfo = function() return 1, TAG, nil, "", false, false, false end
-				local savedB = rawget(_G, "OlympusBridge")
-				OlympusBridge = Bridge(case[2])
+				local savedB = rawget(_G, "ChillZoneBridge")
+				ChillZoneBridge = Bridge(case[2])
 				local ok, err = pcall(function()
 					local report = Run(w)
 					local bridge, privacy = ProbeOf(report, "mod.bridge"), ProbeOf(report, "build.privacy")
@@ -376,7 +376,7 @@ test("selftest: the Companion's own section carries the player's BattleTag on pu
 					eq(privacy.result, case[3] and "fail" or "ok", case[1] .. ": " .. privacy.detail)
 					eq((Serialized(report) .. S.ReportText(report)):find("57319", 1, true), nil, case[1] .. ": the tag never in the report")
 				end)
-				OlympusBridge = savedB
+				ChillZoneBridge = savedB
 				if not ok then error(err, 0) end
 			end)
 		end)
@@ -401,7 +401,7 @@ test("selftest: the Arena's own addon is never loaded by a run: its window's che
 				C_AddOns = setmetatable({ LoadAddOn = function() loads = loads + 1 return true end }, { __index = savedAO })
 				rawset(A, "missing", nil)
 				rawset(A, "UILoaded", function() return false end)
-				rawset(A, "LoadUI", function() C_AddOns.LoadAddOn("Olympus_Arena") return false, "early" end)
+				rawset(A, "LoadUI", function() C_AddOns.LoadAddOn("ChillZone_Arena") return false, "early" end)
 				local ownLoad = A.LoadUI
 				rawset(ns, "ArenaHome", { Open = function() return A.LoadUI() == true end })
 				rawset(ns, "ArenaSpectate", { PairFromUnits = function() return { a = "player", b = "focus" } end, Active = function() return false end,
@@ -739,17 +739,17 @@ test("selftest: a loading screen stops it the same way, no copy window after it;
 	end)
 end)
 
-test("selftest: /oly selftest status opens the last report in the copy window; with none it says so", function()
+test("selftest: /cz selftest status opens the last report in the copy window; with none it says so", function()
 	Scene(function(w)
 		local shown
 		local savedUI = ns.UI
 		ns.UI = setmetatable({ ShowCopy = function(title, text, action, opts) shown = { title = title, text = text, opts = opts } end }, { __index = savedUI })
 		local ok, err = pcall(function()
-			SlashCmdList.OLYMPUS("selftest status")
+			SlashCmdList.CHILLZONE("selftest status")
 			eq(w.printed[#w.printed], L.SELFTEST_NO_REPORT); eq(shown, nil)
 			ns.db.selftest = { at = 1800000000, summary = { ok = 3, warn = 1, fail = 0, skip = 2, noBack = { "church/detail:*" } },
 				probes = { { id = "ui.back", result = "warn", detail = "without a Back: church/detail:*" } }, build = {}, client = {} }
-			SlashCmdList.OLYMPUS("selftest status")
+			SlashCmdList.CHILLZONE("selftest status")
 			assert(shown, "shown")
 			eq(shown.opts.key, "selftest"); eq(shown.title, L.SELFTEST_TITLE)
 			eq(shown.text, S.ReportText(ns.db.selftest))
@@ -792,7 +792,7 @@ test("selftest: its lines in English and Portuguese, with the same codes; the TO
 	local savedLocale = GetLocale
 	GetLocale = function() return "ptBR" end
 	local pt = { L = setmetatable({}, { __index = function(_, k) return k end }) }
-	local ok, err = pcall(assert(loadfile(ROOT .. "Olympus/Locales/SelfTestText.lua")), "Olympus", pt)
+	local ok, err = pcall(assert(loadfile(ROOT .. "ChillZone/Locales/SelfTestText.lua")), "ChillZone", pt)
 	GetLocale = savedLocale
 	assert(ok, err)
 	local n = 0
@@ -809,7 +809,7 @@ test("selftest: its lines in English and Portuguese, with the same codes; the TO
 	-- the run. Started and cancelled, it is still the cast the check reads.)
 	assert(L.SELFTEST_STARTED:find("cancel", 1, true), L.SELFTEST_STARTED)
 	assert(rawget(pt.L, "SELFTEST_STARTED"):find("cancelar", 1, true), "its Portuguese")
-	local toc = assert(io.open(ROOT .. "Olympus/Olympus.toc")):read("*a")
+	local toc = assert(io.open(ROOT .. "ChillZone/ChillZone.toc")):read("*a")
 	local lines = {}
 	for line in toc:gmatch("[^\r\n]+") do lines[#lines + 1] = line end
 	local at = {}
@@ -824,5 +824,5 @@ test("selftest: its lines in English and Portuguese, with the same codes; the TO
 	for i = at["Locales\\SelfTestText.lua"] + 1, at["Core.lua"] - 1 do
 		assert(lines[i]:find("^Locales\\"), "with the locales, before Core.lua: " .. lines[i])
 	end
-	assert(assert(io.open(ROOT .. "Olympus/Core.lua")):read("*a"):find('StandIn("SelfTest", { "Slash" })', 1, true), "its stand-in")
+	assert(assert(io.open(ROOT .. "ChillZone/Core.lua")):read("*a"):find('StandIn("SelfTest", { "Slash" })', 1, true), "its stand-in")
 end)

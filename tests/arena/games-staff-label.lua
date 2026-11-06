@@ -12,7 +12,7 @@ for _, choice in ipairs({ { "enUS", "Games (staff)" }, { "ptBR", "Jogos (equipe)
 			w:As(client, function()
 				-- Load the actual locale into this client's real namespace, then render the
 				-- same staff heading that the Games tab consumes; no authorization stand-in.
-				assert(loadfile(H.ADDON_DIR .. "Locales/ArenaHomeText.lua"))("Olympus", client.ns)
+				assert(loadfile(H.ADDON_DIR .. "Locales/ArenaHomeText.lua"))("ChillZone", client.ns)
 				local staff = client == king
 				eq(client.ns.ArenaHome.GamesStaff(), staff)
 				local found = 0

@@ -1,4 +1,4 @@
--- The Blood Arena's meeting places (Olympus/ArenaPlaces.lua, the design): the
+-- The Blood Arena's meeting places (ChillZone/ArenaPlaces.lua, the design): the
 -- places data and its pure functions, on the real functions. Every expected value was worked
 -- out by hand and with a separate script from the client's own tables (Forever 1.60.1.70124:
 -- AreaTable, UiMap, UiMapAssignment, AreaTrigger), never by the module. World positions are in
@@ -8,7 +8,7 @@ local test, eq = H.test, H.eq
 
 local function Load()
 	local ns = {}
-	assert(loadfile(H.ADDON_DIR .. "ArenaPlaces.lua"))("Olympus", ns)
+	assert(loadfile(H.ADDON_DIR .. "ArenaPlaces.lua"))("ChillZone", ns)
 	return ns.Places
 end
 local Places = Load()
@@ -231,7 +231,7 @@ test("1.2 the places data: the module is pure: it loads and every function runs 
 	local chunk = assert(loadfile(H.ADDON_DIR .. "ArenaPlaces.lua"))
 	setfenv(chunk, env)
 	local ns = {}
-	chunk("Olympus", ns)
+	chunk("ChillZone", ns)
 	local P = ns.Places
 	local a, b = Pt(0, -12600, 200), Pt(0, -13800, 600)
 	assert(#P.Fair(a, b, { game = "d", faction = "A", level = 35 }) > 0)
@@ -243,7 +243,7 @@ end)
 
 test("1.2 the places data: the TOC loads ArenaPlaces.lua once, right after Honors.lua (a pure module) and before ArenaNet.lua; it sets ns.Places", function()
 	local toc = {}
-	for line in io.lines(H.ADDON_DIR .. "Olympus.toc") do
+	for line in io.lines(H.ADDON_DIR .. "ChillZone.toc") do
 		local file = line:match("^%s*([%w_\\/]+%.lua)%s*$")
 		if file then toc[#toc + 1] = file end
 	end
@@ -252,7 +252,7 @@ test("1.2 the places data: the TOC loads ArenaPlaces.lua once, right after Honor
 	eq(n, 1)
 	eq(toc[at - 1], "Honors.lua"); eq(toc[at + 1], "ArenaNet.lua")
 	local ns = {}
-	assert(loadfile(H.ADDON_DIR .. "ArenaPlaces.lua"))("Olympus", ns)
+	assert(loadfile(H.ADDON_DIR .. "ArenaPlaces.lua"))("ChillZone", ns)
 	eq(type(ns.Places), "table"); eq(type(ns.Places.Fair), "function"); eq(type(ns.Places.InnAt), "function")
 end)
 

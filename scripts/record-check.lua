@@ -2,12 +2,12 @@
 -- each guild's checkpoints compared across the witnesses' files. The Companion's verifier is the
 -- full tool; this one needs only LuaJIT, for the author to look at the files the day they arrive.
 --
---   luajit scripts/record-check.lua FILE...   each FILE a witness's SavedVariables\Olympus.lua
+--   luajit scripts/record-check.lua FILE...   each FILE a witness's SavedVariables\ChillZone.lua
 --
 -- The files are read as data, never run: a small reader of the table syntax the game writes
 -- (strings, numbers, true/false/nil, tables, "-- [n]" comments). The chains and the lines are
--- checked and read by Olympus/Record.lua's Record.VerifyFile, and the copies of one session
--- compared by its Record.Dedupe (with Olympus/Sign.lua's SHA-256): the same code as the recorder's
+-- checked and read by ChillZone/Record.lua's Record.VerifyFile, and the copies of one session
+-- compared by its Record.Dedupe (with ChillZone/Sign.lua's SHA-256): the same code as the recorder's
 -- and the Companion's, none of its own. Exit 1 when a chain breaks or two copies of one session
 -- differ. Each witness counts once per slot (one file, one character or
 -- one BattleTag hash is one witness), and every reading shows how long after its slot it was read.
@@ -147,8 +147,8 @@ M.NIL = setmetatable({}, { __tostring = function() return "nil" end })
 function M.Load()
 	local ns = { L = setmetatable({}, { __index = function(_, k) return k end }) }
 	_G.bit = _G.bit or require("bit")
-	assert(loadfile(ROOT .. "Olympus/Sign.lua"))("Olympus", ns)
-	assert(loadfile(ROOT .. "Olympus/Record.lua"))("Olympus", ns)
+	assert(loadfile(ROOT .. "ChillZone/Sign.lua"))("ChillZone", ns)
+	assert(loadfile(ROOT .. "ChillZone/Record.lua"))("ChillZone", ns)
 	M.R = ns.Record
 	return ns.Record
 end
@@ -164,7 +164,7 @@ M.BOUND = 30
 -- lists and late = at - slot.
 function M.Sessions(R, db, file)
 	local out = {}
-	local result = R.VerifyFile(db, nil) -- (nil: the SHA-256 of R's own namespace, Olympus/Sign.lua's)
+	local result = R.VerifyFile(db, nil) -- (nil: the SHA-256 of R's own namespace, ChillZone/Sign.lua's)
 	for _, v in ipairs(result.sessions) do
 		local e = { id = v.id, char = v.character, start = v.start, guild = v.guild, tag = v.battleTagHash, file = file,
 			ok = v.ok, head = v.ok and v.lastHash or nil, n = v.ok and v.records or nil, at = v.brokenAt, why = v.why,
@@ -300,7 +300,7 @@ for _, path in ipairs(arg) do
 		print(("%s: %s"):format(path, tostring(parsed)))
 		broken = broken + 1
 	else
-		local sessions, why, repeats = M.Sessions(R, parsed.OlympusRecordDB, path)
+		local sessions, why, repeats = M.Sessions(R, parsed.ChillZoneRecordDB, path)
 		print(("%s: %d session(s)%s%s"):format(path, #sessions, (repeats or 0) > 0 and (", %d exact repeat(s) left out"):format(repeats) or "",
 			why and (" (" .. why .. ")") or ""))
 		for _, e in ipairs(sessions) do

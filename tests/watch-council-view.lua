@@ -22,7 +22,7 @@ local function Client(fn)
 	c.Data = { ServerTime = c.Now }
 	c.FullName = function(name) return name and (name:find("-", 1, true) and name or name .. "-Realm") end
 	c.DisplayName = function(name) return name and name:gsub("%-Realm$", "") end
-	c.IsFederation = function(guild) return guild == "Olympus II" end
+	c.IsFederation = function(guild) return guild == "ChillZone II" end
 	c.IsMember = function() return w.member end
 	c.IsHighCouncillor = function(name) return name == c.me and w.role == "council" end
 	c.IsKingCharacter = function(name) return name == c.me and w.role == "king" end
@@ -32,18 +32,18 @@ local function Client(fn)
 	c.Moderation = { IsKing = c.IsKingCharacter, SelfOff = function() return w.off end,
 		Hides = function() return w.off end, Hidden = function() return w.off end,
 		CharName = c.FullName, Lines = function() return {} end }
-	c.Roster = { complete = true, byName = {}, online = {}, guild = "Olympus II", group = c.group,
+	c.Roster = { complete = true, byName = {}, online = {}, guild = "ChillZone II", group = c.group,
 		faction = c.faction, snapshotAt = w.epoch, generation = 1,
 		RankOf = function(name) return c.Roster.byName[name] end, MyRank = function() return w.rank end }
 	c.Comm = { Handle = function() end, Send = function() w.sent = w.sent + 1 end,
 		Whisper = function() w.sent = w.sent + 1 end }
 	c.King = { IsKing = function() return c.IsKingCharacter(c.me) end,
 		Preview = function() return false end, Register = function() end }
-	GetGuildInfo = function() return "Olympus II", "Member", w.rank end
+	GetGuildInfo = function() return "ChillZone II", "Member", w.rank end
 	IsInGuild = function() return w.member end
 	local ok, why = pcall(function()
 		for _, file in ipairs({ "ViewAs", "Court", "Watch", "Judgment", "WatchChat" }) do
-			assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua"))("Olympus", c)
+			assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua"))("ChillZone", c)
 		end
 		fn(w, c)
 	end)
@@ -90,7 +90,7 @@ test("watch: council view: membership, signed role and sanctions are checked aga
 		w.masked = true
 		eq(W.ShownBy("PrivateOfficer-Realm"), "MASKED", "existing name masking remains active")
 		c.Roster.byName["GuildMaster-Realm"] = 0
-		WC.Store().guildLists[c.Fold("Olympus II")] = { by = "GuildMaster-Realm", heard = w.epoch,
+		WC.Store().guildLists[c.Fold("ChillZone II")] = { by = "GuildMaster-Realm", heard = w.epoch,
 			names = { "PrivateWatcher-Realm" }, justice = "PrivateJustice-Realm" }
 		local text = {}
 		for _, line in ipairs(WC.PageLines()) do text[#text + 1] = line.text or "" end

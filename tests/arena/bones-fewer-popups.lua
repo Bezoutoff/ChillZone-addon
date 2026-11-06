@@ -3,7 +3,7 @@
 -- different players within ten minutes one question asks whether to stop them; the privacy page's
 -- "Bones invitations" line (on until the player says No) refuses them quietly when off, with a
 -- reason the inviter sees. The innkeeper's offer is the quiet line in his conversation; where that
--- line cannot show, his Olympus window opens only for a player who asked for him on the Bones
+-- line cannot show, his ChillZone window opens only for a player who asked for him on the Bones
 -- page, and the privacy page's "Bones at innkeepers" line hides it. On the test world with the
 -- Bones tables' additions (tests/arena/lib/farkle-world.lua). Every name is invented.
 local H = ...
@@ -40,7 +40,7 @@ local function Watch(guest, seen)
 end
 -- A guest and the players who invite him (all at the Goldshire inn, trained unless told). What
 -- the guest's screens would show is counted at their two doors: the invitation's own pop-up
--- (FarkleTable.ShowUI "invite") and Olympus's dialogs (ns.ShowDialog).
+-- (FarkleTable.ShowUI "invite") and ChillZone's dialogs (ns.ShowDialog).
 local function World(o)
 	o = o or {}
 	local w = FW.New({ seed = 11 })
@@ -62,7 +62,7 @@ end
 -- unless the definition sets noCancelOnEscape, then the popup hides (Versions.lua's note; the
 -- dialog has no OnHide of its own).
 local function Answer(w, guest, button)
-	local def = assert(guest.popups.OLYMPUS_BONES_INVITES, "the question's dialog")
+	local def = assert(guest.popups.CHILLZONE_BONES_INVITES, "the question's dialog")
 	w:As(guest, function()
 		if button == "stop" then def.OnAccept(nil, nil)
 		elseif button == "keep" then def.OnCancel(nil, nil, "clicked")
@@ -83,10 +83,10 @@ test("1.2.1 Bones invitations: from a second player within ten minutes, one ques
 	w:Run(120) -- (two minutes later; the first has expired by now)
 	local second = Invite(w, hosts[2], b)
 	eq(#seen.invites, 1, "the second player's: no pop-up of its own")
-	eq(#seen.dialogs, 1, "one question"); eq(seen.dialogs[1].which, "OLYMPUS_BONES_INVITES")
+	eq(#seen.dialogs, 1, "one question"); eq(seen.dialogs[1].which, "CHILLZONE_BONES_INVITES")
 	eq(seen.dialogs[1].text, L.FARKLE_INVITES_ASK:format(2))
-	assert(seen.dialogs[1].text:find("/oly privacy", 1, true), "it says where to turn them back on")
-	local def = b.popups.OLYMPUS_BONES_INVITES
+	assert(seen.dialogs[1].text:find("/cz privacy", 1, true), "it says where to turn them back on")
+	local def = b.popups.CHILLZONE_BONES_INVITES
 	eq(def.button1, L.FARKLE_INVITES_STOP); eq(def.button2, L.FARKLE_INVITES_KEEP)
 	eq(b.ns.FarkleTable.Get(second).state, "invite", "the invitation waits meanwhile")
 	Answer(w, b, "stop")
@@ -142,7 +142,7 @@ test("1.2.1 Bones invitations: Keep them keeps them and shows the waiting invita
 	local waiting = Invite(w2, hosts2[2], b2)
 	Answer(w2, b2, "escape")
 	eq(b2.db.bonesInvites, nil, "not answered")
-	eq(b2.popups.OLYMPUS_BONES_INVITES.noCancelOnEscape, true, "Escape only closes it")
+	eq(b2.popups.CHILLZONE_BONES_INVITES.noCancelOnEscape, true, "Escape only closes it")
 	eq(#seen2.invites, 1, "nothing else pops up")
 	eq(b2.ns.FarkleTable.Get(waiting).state, "invite", "the invitation still waits for its answer")
 	w2:Run(61)
@@ -187,10 +187,10 @@ test("1.2.1 Bones invitations: a player who never played the innkeeper is asked 
 	NoErrors(w)
 end)
 
-test("1.2.1 Bones invitations: off, a matched partner's invitation still comes (the player searched); /oly farkle invites on|off is the same switch", function()
+test("1.2.1 Bones invitations: off, a matched partner's invitation still comes (the player searched); /cz farkle invites on|off is the same switch", function()
 	local w, b, hosts, seen = World()
-	w:As(b, function() SlashCmdList.OLYMPUS("farkle invites off") end)
-	eq(b.db.bonesInvites, false, "/oly farkle invites off")
+	w:As(b, function() SlashCmdList.CHILLZONE("farkle invites off") end)
+	eq(b.db.bonesInvites, false, "/cz farkle invites off")
 	eq(seen.printed[#seen.printed], b.ns.L.FARKLE_INVITES_OFF)
 	rawset(b.ns, "ArenaMatch", { MatchedWith = function(sender) return b.ns.FarkleTable.Same(sender, hosts[1].name) end,
 		Vet = function() return true, "M9" end })
@@ -201,23 +201,23 @@ test("1.2.1 Bones invitations: off, a matched partner's invitation still comes (
 	local other = Invite(w, hosts[2], b)
 	eq(hosts[2].ns.FarkleTable.Get(other).why, "i", "anyone else's: refused")
 	eq(#seen.dialogs, 0)
-	w:As(b, function() SlashCmdList.OLYMPUS("farkle invites on") end)
-	eq(b.db.bonesInvites, true, "/oly farkle invites on")
-	w:As(b, function() SlashCmdList.OLYMPUS("farkle keeper off") end)
-	eq(b.db.bonesKeeper, false, "/oly farkle keeper off")
-	w:As(b, function() SlashCmdList.OLYMPUS("farkle keeper") end)
+	w:As(b, function() SlashCmdList.CHILLZONE("farkle invites on") end)
+	eq(b.db.bonesInvites, true, "/cz farkle invites on")
+	w:As(b, function() SlashCmdList.CHILLZONE("farkle keeper off") end)
+	eq(b.db.bonesKeeper, false, "/cz farkle keeper off")
+	w:As(b, function() SlashCmdList.CHILLZONE("farkle keeper") end)
 	eq(seen.printed[#seen.printed], b.ns.L.FARKLE_KEEPER_OFFER_OFF, "alone, it says which")
 	NoErrors(w)
 end)
 
--- (Review: a wiped saved-data file turned both switches back on unasked: /oly backup did not carry
+-- (Review: a wiped saved-data file turned both switches back on unasked: /cz backup did not carry
 -- their No.) Backup.lua, as the game loads it (before the arena's files), into the guest's client.
 test("1.2.1 Bones switches: a backup carries their No, and only a No: after a wipe a restore turns invitations and the innkeeper's offer off again, quietly", function()
 	local w, b, hosts, seen = World()
-	w:As(b, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("Olympus", b.ns) end)
+	w:As(b, function() assert(loadfile(H.ADDON_DIR .. "Backup.lua"))("ChillZone", b.ns) end)
 	local Bk, L = b.ns.Backup, b.ns.L
-	w:As(b, function() SlashCmdList.OLYMPUS("farkle invites off") end)
-	w:As(b, function() SlashCmdList.OLYMPUS("farkle keeper off") end)
+	w:As(b, function() SlashCmdList.CHILLZONE("farkle invites off") end)
+	w:As(b, function() SlashCmdList.CHILLZONE("farkle keeper off") end)
 	local text = w:As(b, Bk.Export)
 	b.db.bonesInvites, b.db.bonesKeeper = nil, nil -- the wipe
 	eq(w:As(b, b.ns.FarkleTable.InvitesOn), true, "wiped: on again")
@@ -237,7 +237,7 @@ test("1.2.1 Bones switches: a backup carries their No, and only a No: after a wi
 	NoErrors(w)
 end)
 
--- The innkeeper's visit with the Olympus window as his offer (gamepad UI, or a conversation that
+-- The innkeeper's visit with the ChillZone window as his offer (gamepad UI, or a conversation that
 -- cannot hold the Bones line), the window's openings counted; a/ask/talk/relog as that player does.
 local function Keeper()
 	local w = FW.New({ seed = 3, compliance = "shipped" })

@@ -1,7 +1,7 @@
 -- 1.2.1: the King's match search lists only the names the addon can vouch for (ArenaMatch.lua's
 -- answer handler asks Hop.Trusted). The match world stands Hop.Trusted in for each client
 -- (tests/arena/lib/match-world.lua), so this file loads the real Hop.lua into the King's client
--- and checks what that trust is now: a guildmate of his is listed, an officer of another Olympus
+-- and checks what that trust is now: a guildmate of his is listed, an officer of another ChillZone
 -- guild only the census names is not (two cooperating characters can forge that rank while signed
 -- enforcement is off). Every name is invented.
 local H = ...
@@ -22,23 +22,23 @@ test("1.2.1 the King's match search: the real Hop.Trusted lists his guildmate, n
 	local officer = "Orrin Valecourt-Emberfall" -- (plays on no client of this world)
 	king.db.throneLocation = true
 	-- The real Hop in the King's client, in place of the world's stand-in.
-	w:As(king, function() assert(loadfile(H.ADDON_DIR .. "Hop.lua"))("Olympus", king.ns) end)
+	w:As(king, function() assert(loadfile(H.ADDON_DIR .. "Hop.lua"))("ChillZone", king.ns) end)
 	assert(rawget(king.ns, "Hop") and king.ns.Hop.HandleAsk, "the real Hop")
-	-- The King's census names Orrin an officer of <Olympus Ash>, as two of its reports would.
-	king.rdb.guilds["Olympus Ash"] = { total = 40, online = 4, zones = {}, t = w.clock, leader = "Leda Ashgrove",
+	-- The King's census names Orrin an officer of <ChillZone Ash>, as two of its reports would.
+	king.rdb.guilds["ChillZone Ash"] = { total = 40, online = 4, zones = {}, t = w.clock, leader = "Leda Ashgrove",
 		leaderOnline = false, officers = { { name = "Orrin Valecourt" } }, top = {} }
 	king.ns.Data.KnownRank = function(n, g)
-		if king.ns.FullName(n) == officer and g == "Olympus Ash" then return 1, 2 end
+		if king.ns.FullName(n) == officer and g == "ChillZone Ash" then return 1, 2 end
 		return nil
 	end
 	w:As(king, function()
 		eq(king.ns.Hop.Trusted(mate.name), true, "a guildmate: our roster")
 		eq(king.ns.Hop.Trusted(officer), false, "a census rank alone vouches for nobody")
-		eq(king.ns.ArenaMatch.MemberOK(officer, "Olympus Ash"), true, "he passes the member check: only trust drops him")
+		eq(king.ns.ArenaMatch.MemberOK(officer, "ChillZone Ash"), true, "he passes the member check: only trust drops him")
 	end)
 	assert(king.Match.Start({ game = "d", kind = "c", level = 0 }))
 	eq(king.Match.View().search ~= nil, true, "the King's search runs")
-	O(w, king, officer, "9ix~f~Olympus Ash~1~1o~1~d~c~0")
+	O(w, king, officer, "9ix~f~ChillZone Ash~1~1o~1~d~c~0")
 	O(w, king, mate.name, "9ix~f~" .. World.KING_GUILD .. "~1~1o~1~d~c~0")
 	local names = {}
 	for _, e in ipairs(king.Match.Ranked()) do names[#names + 1] = e.o.name end

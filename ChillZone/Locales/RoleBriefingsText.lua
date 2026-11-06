@@ -1,0 +1,328 @@
+local ADDON, ns = ...
+local L = ns.L
+
+-- The duty letters (RoleBriefings.lua): the King's letter for each office a character holds, the
+-- launch letter, the guild master's letter with its checklist and the Apostles' launch letter. Each
+-- is a sober missive on parchment (the author's call of 2026-11-05: medieval and objective, never
+-- the streamer's voice): a salutation, the charge, the mark, the rights, one rule. Short lines,
+-- concrete duties, no jokes, no slang, no exclamation marks. The signature is L.HONOR_LETTER_SIGN,
+-- never repeated in a body. A body is paragraphs split by a blank line; a line that starts with
+-- "- " is one item of a list. %s: the guild's name (or, for a missionary, his network's Apostle),
+-- where a letter has one.
+
+-- The page and its links.
+L.RB_PAGE_TITLE = "Letters for your offices"
+L.RB_PAGE_NOTE = "One letter from the King for each office this character holds, the first time it holds it. They stay here, and under My profile > Letters, to reread."
+L.RB_LINK = "Duty letters"
+L.RB_LINK_PREVIEW = "Duty letters (preview)"
+L.RB_BACK = "< All duty letters"
+L.RB_REALM_BACK = "< Back to the Realm"
+L.RB_NONE = "No letter for an office of this character yet."
+L.RB_READY = "A letter from the King is waiting: %s. Open it with /cz duties, or under My profile > Letters."
+L.RB_HELP = "  /cz duties - reread the King's letters for your offices"
+L.RB_NOT_LIVE = "The duty letters are not out yet."
+L.RB_PREVIEW_HEAD = "Preview: every duty letter"
+L.RB_PREVIEW_NOTE = "For the author and the King: every letter as its holder reads it. A preview saves nothing, sends nothing and marks nothing read, and its buttons do nothing."
+L.RB_PREVIEW_OFF = "Not out yet: nobody gets a letter until the author turns them on."
+L.RB_PREVIEW_LETTER = "Preview: nothing is saved or sent, and the buttons do nothing."
+L.RB_PREVIEW_DEPT = "%s: %s"
+L.RB_WORKSHOP_LINK = "Duty letters: preview every one"
+L.RB_GUILD_TAB_LINK = "Your letter from the King: %d of %d named"
+L.RB_CHURCH_LETTER_LINK = "Your letter from the King"
+L.RB_CHURCH_LETTER_TIP = "Your office's letter: the job, what shows and what it unlocks."
+L.RB_SITE_TITLE = "The gates of ChillZone"
+L.LETTERS_COPY_LINK = "Copy the site link"
+
+-- A letter's buttons.
+L.RB_BTN_THRONE = "The Throne"
+L.RB_BTN_WATCH = "The Watch"
+L.RB_BTN_TREASURY = "Treasury"
+L.RB_BTN_WAR = "War Room"
+L.RB_BTN_CHURCH = "Church"
+L.RB_BTN_CRAFTERS = "Crafters"
+L.RB_BTN_DECREES = "Decrees"
+L.RB_BTN_GUILD = "Guild tab"
+
+-- 1. The launch letter: everyone, the version letter of the launch (RoleBriefings.LAUNCH_VERSION).
+L.RB_LAUNCH_TITLE = "The gates are open"
+L.RB_LAUNCH = "To the army of ChillZone,\n\nThe beta is ended. ChillZone is live.\n\nNot long ago this was a few guilds and an idea. Today it is one army and one realm, and every one of you stands within it.\n\nLittle is new in this version. Every office now receives its own letter, and every guild master a checklist in his. The rest is in your hands.\n\nFern has raised us a guild hall: chillzone.roachcouncil.com. Those in the Discord may sign in there and pass the gates. To Fern, our thanks.\n\nKeep a civil tongue in chat. Help the new. Bring your friends.\n\nPlay well."
+
+-- 2. The guild master's letter, with its checklist (built live by RoleBriefings.lua).
+L.RB_GM_TITLE = "Guild master: name your people"
+L.RB_GM_OPEN = "To the master of a guild of ChillZone,\n\nYou hold a guild of ChillZone. ChillZone is the army; your guild is where its people live.\n\nNo master holds a guild alone, nor should he. Name your people. Each line below opens its step with one click and marks itself done once it is. One title to a person, and only to members of your own guild."
+L.RB_GM_MUST = "To be named"
+L.RB_GM_WORTH = "Also advised"
+L.RB_GM_DONE = "[x] %s"
+L.RB_GM_TODO = "[  ] %s"
+L.RB_GM_JOB = "Job: %s"
+L.RB_GM_SHOWS = "Shows: %s"
+L.RB_GM_UNLOCKS = "Unlocks: %s"
+L.RB_GM_PREVIEW = "(In a guild master's own letter each line ticks itself, and its button opens the step.)"
+L.RB_GM_LEGATES = "Legates (%d of %d)"
+L.RB_GM_LEGATES_JOB = "Each one leads a raid group: himself and up to 39 guildmates who agreed, 40 in all."
+L.RB_GM_LEGATES_SHOWS = "The Legate shield on his portrait, and the same shield by his name."
+L.RB_GM_LEGATES_UNLOCKS = "His group in the War Room (The Realm tab): assign and remove soldiers, raid invites, a private squad chat. The Masters & Legates rooms."
+L.RB_GM_BTN_LEGATE = "Name a Legate"
+L.RB_GM_BTN_NAME = "Name one"
+L.RB_GM_TREASURY = "Federal Treasury correspondent"
+L.RB_GM_TREASURY_JOB = "Keeps your guild's Treasury records and bank sharing in order, with you and the Federal Treasury."
+L.RB_GM_TREASURY_SHOWS = "The Federal Treasury shield on his portrait and by his name."
+L.RB_GM_TREASURY_UNLOCKS = "Your guild's bank stock and its Treasury page. The Federal Treasury room."
+L.RB_GM_WAR = "Department of War correspondent"
+L.RB_GM_WAR_JOB = "Orders your guild's raids and PvP operations."
+L.RB_GM_WAR_SHOWS = "The Department of War shield on his portrait and by his name."
+L.RB_GM_WAR_UNLOCKS = "Officer rights in your War Room: operations, raid groups, posts, after-action records. The Department of War room."
+L.RB_GM_JUSTICE = "Council of Justice correspondent"
+L.RB_GM_JUSTICE_JOB = "Keeps your guild's chat clean, and carries out my judgment when I uphold a case."
+L.RB_GM_JUSTICE_SHOWS = "The Council of Justice shield on his portrait and by his name."
+L.RB_GM_JUSTICE_UNLOCKS = "The whole Watch desk for your guild's members below him. The Council of Justice room."
+L.RB_GM_ARTISANRY = "Association of Artisanry correspondent"
+L.RB_GM_ARTISANRY_JOB = "Brings your crafters together with those who need them."
+L.RB_GM_ARTISANRY_SHOWS = "The Association of Artisanry shield on his portrait and by his name."
+L.RB_GM_ARTISANRY_UNLOCKS = "A link to the Crafters board, and the Artisanry room. No further power yet."
+L.RB_GM_HERALDRY = "Department of Heraldry correspondent"
+L.RB_GM_HERALDRY_JOB = "Keeps your guild's decrees, Agenda and musters, and sees that people attend."
+L.RB_GM_HERALDRY_SHOWS = "The Department of Heraldry shield on his portrait and by his name."
+L.RB_GM_HERALDRY_UNLOCKS = "Every kind of decree and the Agenda, for your guild only. The Heraldry room."
+L.RB_GM_CHURCHDEPT = "Missionary Church correspondent (the Guild tab)"
+L.RB_GM_CHURCHDEPT_JOB = "Your guild's contact with the Church: brings new players in and helps keep the guild full."
+L.RB_GM_CHURCHDEPT_SHOWS = "The Missionary Church shield on his portrait and by his name."
+L.RB_GM_CHURCHDEPT_UNLOCKS = "The title and the department room. The Church's own room and numbers come with the next line."
+L.RB_GM_CHURCH = "Church correspondent (the Church tab)"
+L.RB_GM_CHURCH_JOB = "Answers to the Head of the Church for keeping your guild full. Name the same person as above."
+L.RB_GM_CHURCH_SHOWS = "Nothing on the portrait."
+L.RB_GM_CHURCH_UNLOCKS = "The Church room, the Church tab's numbers, and registering recruits he brought."
+L.RB_GM_BTN_CHURCH = "Open the Church"
+L.RB_GM_WATCHERS = "Watchers"
+L.RB_GM_WATCHERS_TEXT = "Your Captains already hold The Watch. A Watcher holds it too, for your members below him."
+L.RB_GM_BTN_WATCHER = "Name a Watcher"
+L.RB_GM_CHARTER = "Guild charter"
+L.RB_GM_CHARTER_TEXT = "Purpose, language, raid nights and the classes you seek, public for seven days. It helps recruits choose you."
+L.RB_GM_BTN_WRITE = "Write it"
+L.RB_GM_BANK = "Guild bank"
+L.RB_GM_BANK_TEXT = "Open your guild bank once with the addon on: it takes a snapshot and moves nothing. You decide whether the whole guild sees it."
+L.RB_GM_BTN_OPEN = "Open"
+L.RB_GM_GET = "Granted to you as guild master:\n- The bronze wings on your portrait, and the bronze mark by your name.\n- The Guild tab: this list, and every department's page.\n- Calls to Arms, Musters, royal decrees and Tabard inspections for your guild.\n- Your guild's Agenda, and Vox Populi polls for your guild.\n- The Watch for your guild, with your Captains.\n- The Guild Masters, Masters & Legates, Master & Legates and Master & Correspondents rooms."
+L.RB_GM_CLOSE = "One rule: your power ends at your guild's door. Within it, use it well.\n\nGo and build."
+
+-- 3. The High Council, and a paragraph for a councillor's department title.
+L.RB_COUNCIL_TITLE = "The High Council"
+L.RB_COUNCIL = "To a member of the High Council,\n\nYou sit on the High Council. This rank is not earned by play; it is given by choice. Hold it with care.\n\nYour charge: to govern ChillZone with me. To judge, to call the army, to keep the realm.\n\nYour mark: the silver wings on your portrait, and the silver dragon before your name in chat. An icon may follow it, under My profile, Icons.\n\nYour rights:\n- Royal decrees, Tabard inspections, Calls to Arms and Musters for the whole army.\n- The Watch: the council's reports, and a vote on every Judgment. The final word is mine.\n- Up to 10 ChillZone moderators of your own.\n- To name Apostles, and to open the Church's public ranking.\n- To name Legates for the King's guild, on the Throne.\n- The High Council room.\n\nOne rule: you act for ChillZone, not for your guild."
+L.RB_COUNCIL_BADGE = "Your department's shield shows on your portrait too."
+L.RB_COUNCIL_WAR = "You head the Department of War. In your own guild's War Room you stand as an officer. Your department's room holds every guild's War correspondent."
+L.RB_COUNCIL_TREASURY = "You head the Federal Treasury. Your department's room holds the Federal Treasurer and every guild's Treasury correspondent."
+L.RB_COUNCIL_JUSTICE = "You sit on the Council of Justice. I preside over it; in my absence, a High Councillor does. Your department's room holds every guild's Justice correspondent."
+L.RB_COUNCIL_ARTISANRY = "You head the Association of Artisanry. Your department's room holds every guild's Artisanry correspondent. The department's own tools are still to come."
+L.RB_COUNCIL_HERALDRY = "You head the Department of Heraldry. You post the King's Agenda for the whole army. Your department's room holds every guild's Heraldry correspondent."
+L.RB_COUNCIL_CHURCHDEPT = "You head the Church's department. Your department's room holds every guild's Church correspondent, and the Church tab's ranking is open to you."
+
+-- 4. Steward.
+L.RB_STEWARD_TITLE = "My Steward"
+L.RB_STEWARD = "To my Steward,\n\nYou are my Steward. When I am absent, you stand in my place.\n\nYour charge: to keep the Throne in order, in my name.\n\nYour mark: no new frame. Your power lies on the Throne tab.\n\nYour rights:\n- The Throne, acting for the King: roll call, Royal Inspection, the Agenda, Vox Populi, the gates.\n- Hands of your own. You name them, and you may take them back.\n- The treasury's switches and keepers, and the weekly dues amount.\n- Every kind of decree, for the whole army.\n- The Secretariat room, with me.\n\nKept by the Crown: my own Hands, the court, writs and pardons.\n\nOne rule: act as though I am watching, for I will be."
+
+-- 5. Hand.
+L.RB_HAND_TITLE = "Hand of the King"
+L.RB_HAND = "To a Hand of the King,\n\nI have named you a Hand of the King. You wield my tools, in my name.\n\nYour mark: no new frame. The Throne tab opens to you.\n\nYour rights:\n- Summon Lords: a roll call of every Lord and Captain online.\n- Royal Inspection: the army checks the tabards around it.\n- The King's Agenda, and Vox Populi polls.\n- The gates: where new recruits are sent.\n- Calls to Arms and Musters for the whole army.\n\nKept by the Crown: the Hands list, writs, the court and pardons.\n\nOne rule: do not weary the army with calls. Every call you send appears on every screen."
+
+-- 6. Federal Treasurer.
+L.RB_TREASURER_TITLE = "The Federal Treasurer"
+L.RB_TREASURER = "To the Federal Treasurer,\n\nYou are the Federal Treasurer. The gold of ChillZone is held by you, all of it.\n\nYour charge: to keep the treasury honest, and in one book.\n\nYour mark: the Treasurer's dragon frame on your portrait.\n\nYour rights:\n- The Treasury tab and your book: every trade and mail with gold or items is entered by itself, once you consent to share it.\n- The weekly dues, paid to you. Who paid stays private: the King and each guild's Captains see it, never the army.\n- The High Council room and the Federal Treasury room.\n\nWhat you earn at play is yours. It never enters the book.\n\nOne rule: every copper in, every copper out, written in the book."
+
+-- 7. Treasury keeper.
+L.RB_KEEPER_TITLE = "Keeper of the treasury"
+L.RB_KEEPER = "To a keeper of the treasury,\n\nI have named you a keeper of the treasury. The gold is entrusted to you.\n\nYour charge: to hold part of the treasury on your character, beside the Treasurer.\n\nYour mark: no new frame.\n\nYour rights:\n- Your own book on the Treasury tab. Gold and items given to you by trade or mail are counted as donations, by themselves, once you consent to share it.\n- Gold between two keepers is a transfer, never a donation.\n- What you earn at play stays yours. A sale or a purchase is entered as not counted.\n\nThere are five keepers at most, and I may take the office back at any time.\n\nOne rule: donated gold is never yours to spend."
+
+-- 8. Legate.
+L.RB_LEGATE_TITLE = "Legate"
+L.RB_LEGATE = "To a Legate of <%s>,\n\nYou are named a Legate of your guild.\n\nYour charge: to lead a raid group. Yourself and up to 39 guildmates who agreed, 40 in all. Bring them to events, raids and wars.\n\nYour mark: the Legate shield on your portrait, and the same shield by your name.\n\nYour rights:\n- Your group in the War Room (The Realm tab): assign and remove soldiers, invite those online to raid, a private squad chat.\n- The Masters & Legates rooms in Chat.\n\nNothing is done by itself: no guild invite, kick or promotion. Groups are optional, and a soldier may play under another leader.\n\nOne rule: list only those who said yes."
+
+-- 9. The six department correspondents.
+L.RB_CORR_TREASURY_TITLE = "Treasury correspondent"
+L.RB_CORR_TREASURY = "To the Treasury correspondent of <%s>,\n\nYou are named your guild's correspondent to the Federal Treasury.\n\nYour charge: to keep your guild's Treasury records and bank sharing in order, with your guild master and the Federal Treasury.\n\nYour mark: the Federal Treasury shield on your portrait and by your name.\n\nYour rights:\n- Your guild's bank in the addon. Open the guild bank with the addon on and it takes a snapshot. It moves nothing. Your guild master decides whether the whole guild sees it.\n- The Federal Treasury room, and the Master & Correspondents room.\n\nOne rule: the guild's gold is the guild's. Keep the books clean."
+L.RB_CORR_WAR_TITLE = "War correspondent"
+L.RB_CORR_WAR = "To the War correspondent of <%s>,\n\nYou are named your guild's correspondent to the Department of War. The raids are yours to raise.\n\nYour charge: to order your guild's raids and PvP operations, its raid groups and after-action records.\n\nYour mark: the Department of War shield on your portrait and by your name.\n\nYour rights:\n- Officer rights in your guild's War Room (The Realm tab): operations, raid groups, posts, after-action records.\n- The Department of War room, and the Master & Correspondents room.\n\nAll of it within your own guild.\n\nOne rule: plan it, call it, and be there."
+L.RB_CORR_JUSTICE_TITLE = "Justice correspondent"
+L.RB_CORR_JUSTICE = "To the Justice correspondent of <%s>,\n\nYou are named your guild's correspondent to the Council of Justice. You keep the peace.\n\nYour charge: to watch your guild's chat, to settle its troubles, and to work with your guild master and the Council of Justice.\n\nYour mark: the Council of Justice shield on your portrait and by your name.\n\nYour rights:\n- The whole Watch desk (The Watch tab) for your guild's members below you: warnings, timeouts, the watch list, reports.\n- When I uphold a case after the High Council votes, you carry it out in your guild. The addon never kicks anyone by itself.\n- The Council of Justice room.\n\nOne rule: be just. The same rules bind your friends."
+L.RB_CORR_ARTISANRY_TITLE = "Artisanry correspondent"
+L.RB_CORR_ARTISANRY = "To the Artisanry correspondent of <%s>,\n\nYou are named your guild's correspondent to the Association of Artisanry.\n\nYour charge: to help your guildmates find crafters, and to see that requests, materials and supplies reach whoever needs them.\n\nYour mark: the Association of Artisanry shield on your portrait and by your name.\n\nYour rights:\n- The Crafters board, one click from your Guild tab.\n- The Association of Artisanry room, and the Master & Correspondents room.\n\nThe department's own tools are still to come. Until then, you are the one people ask.\n\nOne rule: no one in your guild is left without a craft."
+L.RB_CORR_HERALDRY_TITLE = "Heraldry correspondent"
+L.RB_CORR_HERALDRY = "To the Heraldry correspondent of <%s>,\n\nYou are named your guild's correspondent to the Department of Heraldry. You are the voice of your guild.\n\nYour charge: to keep your guild's decrees, Agenda and musters, and to see that people attend its events and streams.\n\nYour mark: the Department of Heraldry shield on your portrait and by your name.\n\nYour rights:\n- Every decree for your guild: Calls to Arms, Musters, royal decrees, Tabard inspections.\n- Your guild's Agenda.\n- The Department of Heraldry room, and the Master & Correspondents room.\n\nYour guild only. The whole army is the Crown's and the High Council's.\n\nOne rule: sound no false alarm. Call when it matters."
+L.RB_CORR_CHURCHDEPT_TITLE = "Missionary Church correspondent"
+L.RB_CORR_CHURCHDEPT = "To the Missionary Church correspondent of <%s>,\n\nYou are named your guild's correspondent to the Missionary Church.\n\nYour charge: to bring new players in, and to help keep your guild full.\n\nYour mark: the Missionary Church shield on your portrait and by your name.\n\nYour rights: the title, and the department room. No more than that. It tells all who your guild's contact with the Church is.\n\nFor the Church's own room and its recruiting numbers you need a place in the Church as well. Your guild master names the Church correspondent on the Church tab, or an Apostle names you a missionary.\n\nOne rule: bring in true new players. Alts and moves between ChillZone guilds never count."
+
+-- 10. The Church correspondent (the Church tab's place).
+L.RB_CHURCHCORR_TITLE = "Church correspondent"
+L.RB_CHURCHCORR = "To the Church correspondent of <%s>,\n\nYou are named your guild's correspondent to the Church. You answer to the Head of the Church, who is myself.\n\nYour charge: to keep your guild full.\n\nYour mark: no new frame.\n\nYour rights:\n- The Church tab: the ranking, your own numbers, and the people.\n- To register a recruit you brought, up to 15 open at once. He counts for you if he joins an ChillZone guild within 14 days and is new to ChillZone.\n- The Church room in Chat.\n\nYour ranking is days in a row above 950 members, counted from your appointment.\n\nOne rule: grow your guild, but never by drawing people out of another ChillZone guild."
+
+-- 11. Watcher.
+L.RB_WATCHER_TITLE = "Watcher"
+L.RB_WATCHER = "To a Watcher of <%s>,\n\nYour guild master has named you a Watcher of your guild. You help keep its chat clean.\n\nYour charge: to watch your guild's chat, and to step in when someone oversteps.\n\nYour mark: nothing on your portrait.\n\nYour rights: the whole Watch desk (The Watch tab) for your guild's members below you: warnings, timeouts, the watch list, reports and cases.\n\nYou remain a Watcher while your guild master keeps you on his list.\n\nOne rule: warn first. Timeouts rise from there: an hour, a day, a week."
+
+-- 12. ChillZone moderator.
+L.RB_MODERATOR_TITLE = "ChillZone moderator"
+L.RB_MODERATOR = "To an ChillZone moderator,\n\nYou are named an ChillZone moderator. You keep the chats of the whole army clean.\n\nYour charge: to deal with abuse, slurs, spam and scams in the ChillZone chats.\n\nYour mark: nothing on your portrait.\n\nYour rights:\n- The Watch's chat moderation: delete lines and time people out anywhere in ChillZone, other guild masters included. Never the master of <ChillZone>, nor anyone above you.\n- The Watch room, with the High Council, the other moderators and me.\n\nYou keep the office while the one who named you keeps you on his list.\n\nOne rule: what you see within the team stays within the team."
+
+-- 13. Apostle, on being named (RB_APOSTLE_RED only for one who may wear the red cross).
+L.RB_APOSTLE_TITLE = "Apostle"
+L.RB_APOSTLE_1 = "To an Apostle of the Church,\n\nYou are one of the Twelve Apostles of the Missionary Church of ChillZone. There are twelve, and no more.\n\nYour charge: to bring new players into ChillZone, and to build a network of missionaries who do the same.\n\nYour mark: the top three Apostles of the last 30 days wear the Apostles' cross, in the sight of all."
+L.RB_APOSTLE_RED = "In My profile, under Look, there is also a red cross that you alone see."
+L.RB_APOSTLE_2 = "Your rights:\n- Up to 12 missionaries of your own (Church tab, Name, or right-click a player).\n- The Church tab: the ranking, your numbers, the people.\n- The Apostles room and the Church rooms in Chat.\n- While you play, your addon keeps the Church's book for everyone.\n\nOne rule: name those who will truly do the work."
+
+-- 14. Every Apostle at launch.
+L.RB_APOSTLE_LAUNCH_TITLE = "The Church, at launch"
+L.RB_APOSTLE_LAUNCH = "To the Apostles of the Church,\n\nThe game is live. You are one of twelve Apostles in the whole army. Now the Church must earn its name.\n\nYour charge is unchanged: to bring new players into ChillZone, and to raise missionaries who do the same.\n\n- Name missionaries: up to 12 each, on the Church tab (Name) or by right-clicking a player. They name their own, down to five levels below you. 5,000 in the whole Church at most.\n- Points: 10 for each player new to ChillZone who joins through you, 5 more if he is still here 7 days later. Also 25%, 10% and 5% of what your three levels below bring in. One below you may outscore you. That is as it should be.\n- Brought someone another player invited? Register him: he counts if he joins an ChillZone guild within 14 days.\n- The top three Apostles of the last 30 days wear the cross.\n- Has one stopped playing? Remove him. Those he named keep their places.\n\nOne rule: true new players only. Alts and moves between ChillZone guilds never count. Points are in game only, never gold.\n\nKeep your addon on while you play. It keeps the Church's book."
+
+-- 15. Missionary, on being named (%s: his network's Apostle, or the Head of the Church).
+L.RB_MISSIONARY_TITLE = "Missionary"
+L.RB_MISSIONARY = "To a missionary of the Church,\n\nYou are named a missionary of the Church, in %s's network. You are welcome in it.\n\nYour charge: to bring new players into ChillZone.\n\nYour mark: the top three missionaries of the last 30 days wear the shepherd's crook.\n\nYour rights:\n- Invite new players to your guild, and the addon counts it by itself once another player's addon confirms it.\n- Brought someone another player invited? Register him on the Church tab. He counts if he joins an ChillZone guild within 14 days.\n- Up to 12 missionaries of your own, unless you already stand five levels down.\n- The Church tab, the Apostles & Missionaries room and the Church room.\n\nPoints: 10 for each new player, 5 more if he stays 7 days.\n\nOne rule: true new players only. Alts and moves between ChillZone guilds never count."
+
+if GetLocale and GetLocale() == "ptBR" then
+	L.RB_PAGE_TITLE = "Cartas dos seus cargos"
+	L.RB_PAGE_NOTE = "Uma carta do Rei para cada cargo que este personagem ocupa, na primeira vez que ocupa. Elas ficam aqui, e em Meu perfil > Cartas, para reler."
+	L.RB_LINK = "Cartas dos cargos"
+	L.RB_LINK_PREVIEW = "Cartas dos cargos (prévia)"
+	L.RB_BACK = "< Todas as cartas dos cargos"
+	L.RB_REALM_BACK = "< Voltar ao Reino"
+	L.RB_NONE = "Nenhuma carta de cargo para este personagem ainda."
+	L.RB_READY = "Uma carta do Rei está esperando: %s. Abra com /cz duties, ou em Meu perfil > Cartas."
+	L.RB_HELP = "  /cz duties - reler as cartas do Rei para os seus cargos"
+	L.RB_NOT_LIVE = "As cartas dos cargos ainda não saíram."
+	L.RB_PREVIEW_HEAD = "Prévia: todas as cartas dos cargos"
+	L.RB_PREVIEW_NOTE = "Para o autor e o Rei: cada carta como quem ocupa o cargo lê. Uma prévia não salva nada, não envia nada, não marca nada como lido, e os botões dela não fazem nada."
+	L.RB_PREVIEW_OFF = "Ainda não saíram: ninguém recebe carta até o autor ligar."
+	L.RB_PREVIEW_LETTER = "Prévia: nada é salvo nem enviado, e os botões não fazem nada."
+	L.RB_PREVIEW_DEPT = "%s: %s"
+	L.RB_WORKSHOP_LINK = "Cartas dos cargos: prévia de todas"
+	L.RB_GUILD_TAB_LINK = "A sua carta do Rei: %d de %d nomeados"
+	L.RB_CHURCH_LETTER_LINK = "A sua carta do Rei"
+	L.RB_CHURCH_LETTER_TIP = "A carta do seu cargo: a função, o que aparece e o que ele libera."
+	L.RB_SITE_TITLE = "Os portões do ChillZone"
+	L.LETTERS_COPY_LINK = "Copiar o link do site"
+
+	L.RB_BTN_THRONE = "O Trono"
+	L.RB_BTN_WATCH = "The Watch"
+	L.RB_BTN_TREASURY = "Tesouro"
+	L.RB_BTN_WAR = "Sala de Guerra"
+	L.RB_BTN_CHURCH = "Igreja"
+	L.RB_BTN_CRAFTERS = "Artesãos"
+	L.RB_BTN_DECREES = "Decretos"
+	L.RB_BTN_GUILD = "Aba Guilda"
+
+	L.RB_LAUNCH_TITLE = "Os portões estão abertos"
+	L.RB_LAUNCH = "Ao exército de ChillZone,\n\nO beta terminou. O ChillZone está no ar.\n\nHá pouco tempo isto era meia dúzia de guildas e uma ideia. Hoje é um exército e um reino, e cada um de vós está dentro dele.\n\nPouco há de novo nesta versão. Cada cargo recebe agora a sua própria carta, e cada mestre de guilda um checklist na dele. O resto está em vossas mãos.\n\nFern ergueu-nos um salão da guilda: chillzone.roachcouncil.com. Quem está no Discord pode entrar ali e passar os portões. A Fern, o nosso agradecimento.\n\nMantende a cortesia no chat. Ajudai os novos. Trazei os vossos amigos.\n\nJogai bem."
+
+	L.RB_GM_TITLE = "Mestre de guilda: nomeai o vosso pessoal"
+	L.RB_GM_OPEN = "Ao mestre de uma guilda de ChillZone,\n\nTendes uma guilda de ChillZone. O ChillZone é o exército; a vossa guilda é onde o seu povo vive.\n\nNenhum mestre sustenta uma guilda sozinho, nem deveria. Nomeai o vosso pessoal. Cada linha abaixo abre o seu passo com um clique e marca-se por si quando estiver feito. Um título por pessoa, e só a membros da vossa própria guilda."
+	L.RB_GM_MUST = "A nomear"
+	L.RB_GM_WORTH = "Também aconselhado"
+	L.RB_GM_DONE = "[x] %s"
+	L.RB_GM_TODO = "[  ] %s"
+	L.RB_GM_JOB = "Função: %s"
+	L.RB_GM_SHOWS = "Aparece: %s"
+	L.RB_GM_UNLOCKS = "Libera: %s"
+	L.RB_GM_PREVIEW = "(Na carta de um mestre de guilda cada linha se marca sozinha, e o botão dela abre o passo.)"
+	L.RB_GM_LEGATES = "Legates (%d de %d)"
+	L.RB_GM_LEGATES_JOB = "Cada um lidera um grupo de raide: ele e até 39 companheiros de guilda que consentiram, 40 no total."
+	L.RB_GM_LEGATES_SHOWS = "O badge de Legate no retrato dele, e o mesmo badge ao lado do nome."
+	L.RB_GM_LEGATES_UNLOCKS = "O grupo dele na Sala de Guerra (aba O Reino): designar e tirar soldados, convites para a raide, um chat privado do esquadrão. As salas de mestres e legates."
+	L.RB_GM_BTN_LEGATE = "Nomear um Legate"
+	L.RB_GM_BTN_NAME = "Nomear"
+	L.RB_GM_TREASURY = "Correspondente do Tesouro Federal"
+	L.RB_GM_TREASURY_JOB = "Mantém em ordem os registros do Tesouro da guilda e o compartilhamento do banco, convosco e com o Tesouro Federal."
+	L.RB_GM_TREASURY_SHOWS = "O badge do Tesouro Federal no retrato e ao lado do nome."
+	L.RB_GM_TREASURY_UNLOCKS = "O estoque do banco da vossa guilda e a página dela no Tesouro. A sala do Tesouro Federal."
+	L.RB_GM_WAR = "Correspondente do Departamento de Guerra"
+	L.RB_GM_WAR_JOB = "Ordena as raides e as operações JxJ da vossa guilda."
+	L.RB_GM_WAR_SHOWS = "O badge do Departamento de Guerra no retrato e ao lado do nome."
+	L.RB_GM_WAR_UNLOCKS = "Direitos de oficial na vossa Sala de Guerra: operações, grupos de raide, postos, registros pós-operação. A sala do Departamento de Guerra."
+	L.RB_GM_JUSTICE = "Correspondente do Conselho de Justiça"
+	L.RB_GM_JUSTICE_JOB = "Mantém o chat da vossa guilda limpo, e cumpre o meu julgamento quando eu confirmo um caso."
+	L.RB_GM_JUSTICE_SHOWS = "O badge do Conselho de Justiça no retrato e ao lado do nome."
+	L.RB_GM_JUSTICE_UNLOCKS = "A mesa inteira da The Watch para os membros da vossa guilda abaixo dele. A sala do Conselho de Justiça."
+	L.RB_GM_ARTISANRY = "Correspondente da Associação dos Artesãos"
+	L.RB_GM_ARTISANRY_JOB = "Reúne os artesãos da guilda com quem precisa deles."
+	L.RB_GM_ARTISANRY_SHOWS = "O badge da Associação dos Artesãos no retrato e ao lado do nome."
+	L.RB_GM_ARTISANRY_UNLOCKS = "Um atalho para o quadro de Artesãos, e a sala dos Artesãos. Ainda sem poder além desse."
+	L.RB_GM_HERALDRY = "Correspondente do Departamento de Heráldica"
+	L.RB_GM_HERALDRY_JOB = "Cuida dos decretos, da Agenda e das convocações da guilda, e zela para que o povo compareça."
+	L.RB_GM_HERALDRY_SHOWS = "O badge do Departamento de Heráldica no retrato e ao lado do nome."
+	L.RB_GM_HERALDRY_UNLOCKS = "Todo tipo de decreto e a Agenda, só para a vossa guilda. A sala da Heráldica."
+	L.RB_GM_CHURCHDEPT = "Correspondente da Igreja Missionária (a aba Guilda)"
+	L.RB_GM_CHURCHDEPT_JOB = "O contato da vossa guilda com a Igreja: traz gente nova e ajuda a manter a guilda cheia."
+	L.RB_GM_CHURCHDEPT_SHOWS = "O badge da Igreja Missionária no retrato e ao lado do nome."
+	L.RB_GM_CHURCHDEPT_UNLOCKS = "O título e a sala do departamento. A sala e os números da própria Igreja vêm com a próxima linha."
+	L.RB_GM_CHURCH = "Correspondente da Igreja (a aba Igreja)"
+	L.RB_GM_CHURCH_JOB = "Responde ao Chefe da Igreja por manter a vossa guilda cheia. Nomeai a mesma pessoa da linha acima."
+	L.RB_GM_CHURCH_SHOWS = "Nada no retrato."
+	L.RB_GM_CHURCH_UNLOCKS = "A sala da Igreja, os números da aba Igreja, e registrar recrutas que ele trouxe."
+	L.RB_GM_BTN_CHURCH = "Abrir a Igreja"
+	L.RB_GM_WATCHERS = "Watchers"
+	L.RB_GM_WATCHERS_TEXT = "Os vossos oficiais já têm a The Watch. Um Watcher também a tem, para os membros abaixo dele."
+	L.RB_GM_BTN_WATCHER = "Nomear um Watcher"
+	L.RB_GM_CHARTER = "Carta da guilda"
+	L.RB_GM_CHARTER_TEXT = "Propósito, idioma, noites de raide e as classes que procurais, públicos por sete dias. Ajuda os recrutas a escolher-vos."
+	L.RB_GM_BTN_WRITE = "Escrever"
+	L.RB_GM_BANK = "Banco da guilda"
+	L.RB_GM_BANK_TEXT = "Abri o banco da guilda uma vez com o addon ligado: ele tira um retrato do estoque e não mexe em nada. Vós decidis se a guilda inteira o vê."
+	L.RB_GM_BTN_OPEN = "Abrir"
+	L.RB_GM_GET = "O que vos é concedido como mestre da guilda:\n- As asas de bronze no vosso retrato, e a marca de bronze ao lado do vosso nome.\n- A aba Guilda: esta lista, e a página de cada departamento.\n- Chamados às armas, convocações, decretos reais e inspeções de tabard para a vossa guilda.\n- A Agenda da vossa guilda, e enquetes do Vox Populi para a vossa guilda.\n- A The Watch da vossa guilda, com os vossos oficiais.\n- As salas Mestres de guilda, Mestres e legates, Mestre e legates, e Mestre e correspondentes."
+	L.RB_GM_CLOSE = "Uma regra: o vosso poder termina à porta da vossa guilda. Dentro dela, usai-o bem.\n\nIde e construí."
+
+	L.RB_COUNCIL_TITLE = "O Alto Conselho"
+	L.RB_COUNCIL = "A um membro do Alto Conselho,\n\nTendes assento no Alto Conselho. Este posto não se ganha jogando; é dado por escolha. Guardai-o com cuidado.\n\nA vossa incumbência: governar o ChillZone comigo. Julgar, chamar o exército, zelar pelo reino.\n\nO vosso sinal: as asas de prata no vosso retrato, e o dragão prateado antes do vosso nome no chat. Um ícone pode segui-lo, em Meu perfil, Ícones.\n\nOs vossos direitos:\n- Decretos reais, inspeções de tabard, chamados às armas e convocações para o exército inteiro.\n- A The Watch: os relatos do conselho, e um voto em cada Julgamento. A palavra final é minha.\n- Até 10 moderadores do ChillZone vossos.\n- Nomear Apóstolos, e abrir o ranking público da Igreja.\n- Nomear Legates da guilda do Rei, no Trono.\n- A sala do Alto Conselho.\n\nUma regra: agis pelo ChillZone, não pela vossa guilda."
+	L.RB_COUNCIL_BADGE = "O badge do vosso departamento também aparece no vosso retrato."
+	L.RB_COUNCIL_WAR = "Chefiais o Departamento de Guerra. Na Sala de Guerra da vossa própria guilda contais como oficial. A sala do vosso departamento reúne o correspondente de Guerra de cada guilda."
+	L.RB_COUNCIL_TREASURY = "Chefiais o Tesouro Federal. A sala do vosso departamento reúne o Tesoureiro Federal e o correspondente do Tesouro de cada guilda."
+	L.RB_COUNCIL_JUSTICE = "Tendes assento no Conselho de Justiça. Quem o preside sou eu; na minha ausência, um Alto Conselheiro. A sala do vosso departamento reúne o correspondente de Justiça de cada guilda."
+	L.RB_COUNCIL_ARTISANRY = "Chefiais a Associação dos Artesãos. A sala do vosso departamento reúne o correspondente de Artesãos de cada guilda. As ferramentas próprias do departamento ainda estão por vir."
+	L.RB_COUNCIL_HERALDRY = "Chefiais o Departamento de Heráldica. Publicais a Agenda do Rei para o exército inteiro. A sala do vosso departamento reúne o correspondente de Heráldica de cada guilda."
+	L.RB_COUNCIL_CHURCHDEPT = "Chefiais o departamento da Igreja. A sala do vosso departamento reúne o correspondente da Igreja de cada guilda, e o ranking da aba Igreja está aberto a vós."
+
+	L.RB_STEWARD_TITLE = "O meu Senescal"
+	L.RB_STEWARD = "Ao meu Senescal,\n\nSois o meu Senescal. Quando eu estiver ausente, ficais em meu lugar.\n\nA vossa incumbência: manter o Trono em ordem, em meu nome.\n\nO vosso sinal: nenhuma moldura nova. O vosso poder está na aba Trono.\n\nOs vossos direitos:\n- O Trono, agindo pelo Rei: chamada, Inspeção Real, a Agenda, o Vox Populi, os portões.\n- Mãos do Rei vossas. Vós as nomeais, e podeis retirá-las.\n- Os botões e os guardiões do tesouro, e o valor da contribuição semanal.\n- Todo tipo de decreto, para o exército inteiro.\n- A sala do Secretariado, comigo.\n\nReservado à Coroa: as minhas próprias Mãos, a corte, os mandados e os perdões.\n\nUma regra: agi como se eu estivesse olhando, pois estarei."
+
+	L.RB_HAND_TITLE = "Mão do Rei"
+	L.RB_HAND = "A uma Mão do Rei,\n\nNomeei-vos Mão do Rei. Usais as minhas ferramentas, em meu nome.\n\nO vosso sinal: nenhuma moldura nova. A aba Trono abre-se para vós.\n\nOs vossos direitos:\n- Convocar os Lordes: uma chamada de todo Lorde e Capitão online.\n- Inspeção Real: o exército confere os tabards em volta.\n- A Agenda do Rei, e as enquetes do Vox Populi.\n- Os portões: para onde os recrutas novos são enviados.\n- Chamados às armas e convocações para o exército inteiro.\n\nReservado à Coroa: a lista de Mãos, os mandados, a corte e os perdões.\n\nUma regra: não canseis o exército com chamados. Cada chamado vosso aparece na tela de todos."
+
+	L.RB_TREASURER_TITLE = "O Tesoureiro Federal"
+	L.RB_TREASURER = "Ao Tesoureiro Federal,\n\nSois o Tesoureiro Federal. O ouro do ChillZone está em vossas mãos, todo ele.\n\nA vossa incumbência: manter o tesouro honesto, e num livro só.\n\nO vosso sinal: a moldura de dragão do Tesoureiro no vosso retrato.\n\nOs vossos direitos:\n- A aba Tesouro e o vosso livro: cada troca e carta com ouro ou itens entra por si, depois que consentis em compartilhá-lo.\n- A contribuição semanal, paga a vós. Quem pagou fica privado: o Rei e os oficiais de cada guilda veem, o exército nunca.\n- A sala do Alto Conselho e a sala do Tesouro Federal.\n\nO que ganhais jogando é vosso. Nunca entra no livro.\n\nUma regra: cada cobre que entra, cada cobre que sai, escrito no livro."
+
+	L.RB_KEEPER_TITLE = "Guardião do tesouro"
+	L.RB_KEEPER = "A um guardião do tesouro,\n\nNomeei-vos guardião do tesouro. O ouro vos é confiado.\n\nA vossa incumbência: guardar parte do tesouro no vosso personagem, ao lado do Tesoureiro.\n\nO vosso sinal: nenhuma moldura nova.\n\nOs vossos direitos:\n- O vosso próprio livro na aba Tesouro. Ouro e itens que vos dão por troca ou carta contam como doação, por si, depois que consentis em compartilhá-lo.\n- Ouro entre dois guardiões é transferência, nunca doação.\n- O que ganhais jogando continua vosso. Venda ou compra entra como não contada.\n\nSão cinco guardiões no máximo, e posso retirar o cargo a qualquer tempo.\n\nUma regra: ouro doado nunca é vosso para gastar."
+
+	L.RB_LEGATE_TITLE = "Legate"
+	L.RB_LEGATE = "A um Legate de <%s>,\n\nSois nomeado Legate da vossa guilda.\n\nA vossa incumbência: liderar um grupo de raide. Vós e até 39 companheiros de guilda que consentiram, 40 no total. Levai-os aos eventos, raides e guerras.\n\nO vosso sinal: o badge de Legate no vosso retrato, e o mesmo badge ao lado do vosso nome.\n\nOs vossos direitos:\n- O vosso grupo na Sala de Guerra (aba O Reino): designar e tirar soldados, convidar os que estão online para a raide, um chat privado do esquadrão.\n- As salas de mestres e legates no Chat.\n\nNada se faz por si: nenhum convite, expulsão ou promoção na guilda. Os grupos são opcionais, e um soldado pode jogar sob outro líder.\n\nUma regra: listai só quem disse sim."
+
+	L.RB_CORR_TREASURY_TITLE = "Correspondente do Tesouro"
+	L.RB_CORR_TREASURY = "Ao correspondente do Tesouro de <%s>,\n\nSois nomeado correspondente da vossa guilda junto ao Tesouro Federal.\n\nA vossa incumbência: manter em ordem os registros do Tesouro e o compartilhamento do banco da guilda, com o mestre da guilda e o Tesouro Federal.\n\nO vosso sinal: o badge do Tesouro Federal no vosso retrato e ao lado do vosso nome.\n\nOs vossos direitos:\n- O banco da vossa guilda no addon. Abri o banco da guilda com o addon ligado e ele tira um retrato do estoque. Não mexe em nada. O mestre da guilda decide se a guilda inteira o vê.\n- A sala do Tesouro Federal, e a sala de Mestre e correspondentes.\n\nUma regra: o ouro da guilda é da guilda. Mantende os livros limpos."
+	L.RB_CORR_WAR_TITLE = "Correspondente de Guerra"
+	L.RB_CORR_WAR = "Ao correspondente de Guerra de <%s>,\n\nSois nomeado correspondente da vossa guilda junto ao Departamento de Guerra. As raides são vossas para levantar.\n\nA vossa incumbência: ordenar as raides e as operações JxJ da vossa guilda, os grupos de raide e os registros pós-operação.\n\nO vosso sinal: o badge do Departamento de Guerra no vosso retrato e ao lado do vosso nome.\n\nOs vossos direitos:\n- Direitos de oficial na Sala de Guerra da vossa guilda (aba O Reino): operações, grupos de raide, postos, registros pós-operação.\n- A sala do Departamento de Guerra, e a sala de Mestre e correspondentes.\n\nTudo isso dentro da vossa própria guilda.\n\nUma regra: planejai, chamai, e comparecei."
+	L.RB_CORR_JUSTICE_TITLE = "Correspondente de Justiça"
+	L.RB_CORR_JUSTICE = "Ao correspondente de Justiça de <%s>,\n\nSois nomeado correspondente da vossa guilda junto ao Conselho de Justiça. Guardais a paz.\n\nA vossa incumbência: acompanhar o chat da vossa guilda, resolver as suas contendas, e trabalhar com o mestre da guilda e o Conselho de Justiça.\n\nO vosso sinal: o badge do Conselho de Justiça no vosso retrato e ao lado do vosso nome.\n\nOs vossos direitos:\n- A mesa inteira da The Watch (aba The Watch) para os membros da vossa guilda abaixo de vós: avisos, castigos, a lista de vigiados, relatos.\n- Quando eu confirmo um caso depois do voto do Alto Conselho, vós o cumpris na vossa guilda. O addon nunca expulsa ninguém por si.\n- A sala do Conselho de Justiça.\n\nUma regra: sede justo. As mesmas regras valem para os vossos amigos."
+	L.RB_CORR_ARTISANRY_TITLE = "Correspondente dos Artesãos"
+	L.RB_CORR_ARTISANRY = "Ao correspondente dos Artesãos de <%s>,\n\nSois nomeado correspondente da vossa guilda junto à Associação dos Artesãos.\n\nA vossa incumbência: ajudar os companheiros de guilda a achar artesãos, e fazer chegar pedidos, materiais e suprimentos a quem precisa.\n\nO vosso sinal: o badge da Associação dos Artesãos no vosso retrato e ao lado do vosso nome.\n\nOs vossos direitos:\n- O quadro de Artesãos, a um clique da vossa aba Guilda.\n- A sala da Associação dos Artesãos, e a sala de Mestre e correspondentes.\n\nAs ferramentas próprias do departamento ainda estão por vir. Até lá, sois a pessoa a quem se pergunta.\n\nUma regra: ninguém da vossa guilda fica sem um craft."
+	L.RB_CORR_HERALDRY_TITLE = "Correspondente de Heráldica"
+	L.RB_CORR_HERALDRY = "Ao correspondente de Heráldica de <%s>,\n\nSois nomeado correspondente da vossa guilda junto ao Departamento de Heráldica. Sois a voz da vossa guilda.\n\nA vossa incumbência: cuidar dos decretos, da Agenda e das convocações da guilda, e zelar para que o povo compareça aos eventos e às lives.\n\nO vosso sinal: o badge do Departamento de Heráldica no vosso retrato e ao lado do vosso nome.\n\nOs vossos direitos:\n- Todo decreto para a vossa guilda: chamados às armas, convocações, decretos reais, inspeções de tabard.\n- A Agenda da vossa guilda.\n- A sala do Departamento de Heráldica, e a sala de Mestre e correspondentes.\n\nSó a vossa guilda. O exército inteiro é da Coroa e do Alto Conselho.\n\nUma regra: nenhum alarme falso. Chamai quando importa."
+	L.RB_CORR_CHURCHDEPT_TITLE = "Correspondente da Igreja Missionária"
+	L.RB_CORR_CHURCHDEPT = "Ao correspondente da Igreja Missionária de <%s>,\n\nSois nomeado correspondente da vossa guilda junto à Igreja Missionária.\n\nA vossa incumbência: trazer gente nova, e ajudar a manter a vossa guilda cheia.\n\nO vosso sinal: o badge da Igreja Missionária no vosso retrato e ao lado do vosso nome.\n\nOs vossos direitos: o título, e a sala do departamento. Nada além disso. Ele mostra a todos quem é o contato da vossa guilda com a Igreja.\n\nPara a sala da própria Igreja e os seus números de recrutamento, precisais também de um lugar na Igreja. O mestre da guilda nomeia o correspondente da Igreja na aba Igreja, ou um Apóstolo vos nomeia missionário.\n\nUma regra: trazei jogadores novos de verdade. Alts e trocas entre guildas ChillZone nunca contam."
+
+	L.RB_CHURCHCORR_TITLE = "Correspondente da Igreja"
+	L.RB_CHURCHCORR = "Ao correspondente da Igreja de <%s>,\n\nSois nomeado correspondente da vossa guilda junto à Igreja. Respondeis ao Chefe da Igreja, que sou eu.\n\nA vossa incumbência: manter a vossa guilda cheia.\n\nO vosso sinal: nenhuma moldura nova.\n\nOs vossos direitos:\n- A aba Igreja: o ranking, os vossos números, e as pessoas.\n- Registrar um recruta que trouxestes, até 15 em aberto. Ele conta para vós se entrar numa guilda ChillZone em até 14 dias e for novo no ChillZone.\n- A sala da Igreja no Chat.\n\nO vosso ranking é a sequência de dias acima de 950 membros, contada desde a vossa nomeação.\n\nUma regra: fazei a vossa guilda crescer, mas nunca tirando gente de outra guilda ChillZone."
+
+	L.RB_WATCHER_TITLE = "Watcher"
+	L.RB_WATCHER = "A um Watcher de <%s>,\n\nO mestre da vossa guilda nomeou-vos Watcher da guilda. Ajudais a manter o chat dela limpo.\n\nA vossa incumbência: vigiar o chat da guilda, e intervir quando alguém passa do limite.\n\nO vosso sinal: nada no vosso retrato.\n\nOs vossos direitos: a mesa inteira da The Watch (aba The Watch) para os membros da vossa guilda abaixo de vós: avisos, castigos, a lista de vigiados, relatos e casos.\n\nPermaneceis Watcher enquanto o mestre da guilda vos mantiver na lista dele.\n\nUma regra: avisai primeiro. Os castigos sobem a partir daí: uma hora, um dia, uma semana."
+
+	L.RB_MODERATOR_TITLE = "Moderador do ChillZone"
+	L.RB_MODERATOR = "A um moderador do ChillZone,\n\nSois nomeado moderador do ChillZone. Mantendes limpos os chats do exército inteiro.\n\nA vossa incumbência: lidar com abuso, ofensas, spam e golpes nos chats do ChillZone.\n\nO vosso sinal: nada no vosso retrato.\n\nOs vossos direitos:\n- A moderação de chat da The Watch: apagar linhas e dar castigo em qualquer lugar do ChillZone, mestres de outras guildas inclusive. Nunca o mestre da <ChillZone>, nem ninguém acima de vós.\n- A sala The Watch, com o Alto Conselho, os outros moderadores e eu.\n\nGuardais o cargo enquanto quem vos nomeou vos mantiver na lista dele.\n\nUma regra: o que vedes dentro da equipe fica dentro da equipe."
+
+	L.RB_APOSTLE_TITLE = "Apóstolo"
+	L.RB_APOSTLE_1 = "A um Apóstolo da Igreja,\n\nSois um dos Doze Apóstolos da Igreja Missionária de ChillZone. São doze, e não mais.\n\nA vossa incumbência: trazer jogadores novos para o ChillZone, e erguer uma rede de missionários que façam o mesmo.\n\nO vosso sinal: os três melhores Apóstolos dos últimos 30 dias usam a cruz dos Apóstolos, à vista de todos."
+	L.RB_APOSTLE_RED = "Em Meu perfil, em Visual, há também uma cruz vermelha que só vós vedes."
+	L.RB_APOSTLE_2 = "Os vossos direitos:\n- Até 12 missionários vossos (aba Igreja, Nomear, ou clique direito num jogador).\n- A aba Igreja: o ranking, os vossos números, as pessoas.\n- A sala dos Apóstolos e as salas da Igreja no Chat.\n- Enquanto jogais, o vosso addon guarda o livro da Igreja para todos.\n\nUma regra: nomeai quem de fato fará o trabalho."
+
+	L.RB_APOSTLE_LAUNCH_TITLE = "A Igreja, no lançamento"
+	L.RB_APOSTLE_LAUNCH = "Aos Apóstolos da Igreja,\n\nO jogo está no ar. Sois um dos doze Apóstolos do exército inteiro. Agora a Igreja há de fazer jus ao nome.\n\nA vossa incumbência não muda: trazer jogadores novos para o ChillZone, e formar missionários que façam o mesmo.\n\n- Nomeai missionários: até 12 cada um, na aba Igreja (Nomear) ou com clique direito num jogador. Eles nomeiam os seus, até cinco níveis abaixo de vós. A Igreja inteira vai até 5.000.\n- Pontos: 10 por jogador novo no ChillZone que entra por vós, mais 5 se ele ainda estiver aqui 7 dias depois. Mais 25%, 10% e 5% do que trazem os vossos três níveis abaixo. Alguém abaixo pode ultrapassar-vos. Assim deve ser.\n- Trouxestes alguém que outro jogador convidou? Registrai-o: ele conta se entrar numa guilda ChillZone em até 14 dias.\n- Os três melhores Apóstolos dos últimos 30 dias usam a cruz.\n- Alguém parou de jogar? Removei-o. Quem ele nomeou continua no lugar.\n\nUma regra: só jogadores novos de verdade. Alts e trocas entre guildas ChillZone nunca contam. Pontos são só no jogo, nunca ouro.\n\nMantende o addon ligado enquanto jogais. Ele guarda o livro da Igreja."
+
+	L.RB_MISSIONARY_TITLE = "Missionário"
+	L.RB_MISSIONARY = "A um missionário da Igreja,\n\nSois nomeado missionário da Igreja, na rede de %s. Sede bem-vindo a ela.\n\nA vossa incumbência: trazer jogadores novos para o ChillZone.\n\nO vosso sinal: os três melhores missionários dos últimos 30 dias usam o cajado de pastor.\n\nOs vossos direitos:\n- Convidai jogadores novos para a vossa guilda, e o addon conta por si depois que o addon de outro jogador confirmar.\n- Trouxestes alguém que outro jogador convidou? Registrai-o na aba Igreja. Ele conta se entrar numa guilda ChillZone em até 14 dias.\n- Até 12 missionários vossos, a não ser que já estejais cinco níveis abaixo.\n- A aba Igreja, a sala de Apóstolos e missionários, e a sala da Igreja.\n\nPontos: 10 por cada jogador novo, mais 5 se ele ficar 7 dias.\n\nUma regra: só jogadores novos de verdade. Alts e trocas entre guildas ChillZone nunca contam."
+end

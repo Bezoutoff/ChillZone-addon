@@ -1,15 +1,15 @@
 local ns, test, eq = ...
 local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]dues%-grace%.lua$") or "./"
-local MODULE = os.getenv("OLYMPUS_DUESGRACE_PREFIX") or ROOT .. "Olympus/DuesGrace.lua"
-local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "Olympus/", ns = ns })
+local MODULE = os.getenv("CHILLZONE_DUESGRACE_PREFIX") or ROOT .. "ChillZone/DuesGrace.lua"
+local World = assert(loadfile(ROOT .. "tests/arena/lib/world.lua"))({ ROOT = ROOT, ADDON_DIR = ROOT .. "ChillZone/", ns = ns })
 
 local function Load(w, c)
 	w:As(c, function()
 		c.ns.splitNames = true -- the supported Forever surname client
 		c.ns.L = setmetatable({}, { __index = ns.L })
 		c.ns.ViewAs = { Previewing = function() return false end }
-		for _, file in ipairs({ "Roster", "Locales/DuesGraceText" }) do assert(loadfile(ROOT .. "Olympus/" .. file .. ".lua"))("Olympus", c.ns) end
-		assert(loadfile(MODULE))("Olympus", c.ns)
+		for _, file in ipairs({ "Roster", "Locales/DuesGraceText" }) do assert(loadfile(ROOT .. "ChillZone/" .. file .. ".lua"))("ChillZone", c.ns) end
+		assert(loadfile(MODULE))("ChillZone", c.ns)
 		local C = c.ns.Comm
 		C.Hash36 = ns.Comm.Hash36
 		C.Cancel = function() end -- cancellation still invalidates every queued piece's real guard
@@ -157,7 +157,7 @@ test("Dues grace: manual ledger edits are not native proofs, guild switches cann
 	Start(w, t, week)
 	w:As(t, function() t.ns.Treasury.Record(p.name, 1000000, "mail", nil, { guild = p.guild, quiet = true }) end)
 	w:Trade(t, p, { bGives = 1000 })
-	p.guild = "Olympus Willow"; Scan(w); w:Trade(t, p, { bGives = 2000 })
+	p.guild = "ChillZone Willow"; Scan(w); w:Trade(t, p, { bGives = 2000 })
 	local fresh = w:Role("bettor3", { guild = t.guild }); Load(w, fresh); Scan(w)
 	w:As(t, function()
 		local b = t.ns.Treasury.Book(); local proof = b.duesPayerProofs[week][p.name:lower()]
@@ -275,7 +275,7 @@ test("Dues grace: corrected or removed queued week, preview, changed guild and c
 					t.ns.Treasury.Record(target.name, 10000, "mail", nil, { note = t.ns.Dues.Note(week, t.guild), observed = true, quiet = true })
 				end
 			elseif change == "preview" then t.ns.ViewAs.Previewing = function() return true end
-			elseif change == "guild" then t.guild = "Olympus Willow"
+			elseif change == "guild" then t.guild = "ChillZone Willow"
 			else t.ns.Treasury.SetConsent(false) end
 		end)
 		w:Run(10)
@@ -327,7 +327,7 @@ test("Dues grace: malformed native proof containers or payer proof never manufac
 			elseif mode == "week" then b.duesPayerProofs[week] = "bad"
 			elseif mode == "payer" then b.duesPayerProofs[week][key] = "bad"
 			elseif mode == "nan" then b.duesPayerProofs[week][key].copper = 0/0
-			elseif mode == "guild" then b.duesPayerProofs[week][key].guild = "Olympus Willow"
+			elseif mode == "guild" then b.duesPayerProofs[week][key].guild = "ChillZone Willow"
 			elseif mode == "date" then b.duesPayerProofs[week][key].at = math.huge
 			else b.duesPayerProofs[week][key].seq = -1 end
 			eq(t.ns.DuesGrace.Rows(p.name)[1].state, "unknown", mode)
@@ -443,7 +443,7 @@ test("Dues grace: private notice authentication, local opt-out, receiver demotio
 		eq(G.Handle("WHISPER", t.name, msg), true); eq(NoticeCount(w, p), 0)
 		p.ns.rdb.duesPayer[p.name].reminderOff = false
 		eq(G.Handle("WHISPER", t.name, msg), false)
-		p.ns.rdb = World.Copy(p.ns.rdb); assert(loadfile(MODULE))("Olympus", p.ns)
+		p.ns.rdb = World.Copy(p.ns.rdb); assert(loadfile(MODULE))("ChillZone", p.ns)
 		eq(p.ns.DuesGrace.Handle("WHISPER", t.name, msg), false, "the local seen record survives relog")
 		eq(p.ns.Dues.PayerStatus(), "unknown", "a reminder is not a native payment receipt")
 	end)

@@ -17,11 +17,11 @@ local function Setup(w, c, screen, renderer)
 		if peer then return peer.name, peer.rankName, peer.rank, peer.level, "Warrior", "Elwynn Forest", "", "", peer.online, nil, "WARRIOR", nil, nil, nil, nil, nil, peer.guid end
 	end
 	w:As(c, function()
-		assert(loadfile(H.ADDON_DIR .. "Roster.lua"))("Olympus", c.ns)
-		assert(loadfile(H.ADDON_DIR .. "Filter.lua"))("Olympus", c.ns)
-		assert(loadfile(H.ADDON_DIR .. "Views.lua"))("Olympus", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Roster.lua"))("ChillZone", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Filter.lua"))("ChillZone", c.ns)
+		assert(loadfile(H.ADDON_DIR .. "Views.lua"))("ChillZone", c.ns)
 		if renderer ~= "missing" then
-			assert(loadfile(H.ADDON_DIR .. "ChatWindow.lua"))("Olympus", c.ns)
+			assert(loadfile(H.ADDON_DIR .. "ChatWindow.lua"))("ChillZone", c.ns)
 			if renderer == "nil" then
 				-- A failed optional factory must not publish a partly built panel. Authority and all
 				-- game/transport functions remain real; restore this actual factory for the retry.
@@ -124,7 +124,7 @@ test("Bones table chat: Core's actual missing-module stand-in leaves the game us
 	eq(a.ns.Arena.ui.FarkleBoard._.parts().win:IsShown(), true, "the actual game board still renders")
 	eq(w:As(a, a.ns.FarkleTable.View, id).state, "play")
 	w:Run(2); Clean(w)
-	w:As(a, function() assert(loadfile(H.ADDON_DIR .. "ChatWindow.lua"))("Olympus", a.ns) end)
+	w:As(a, function() assert(loadfile(H.ADDON_DIR .. "ChatWindow.lua"))("ChillZone", a.ns) end)
 	assert(w:As(a, a.ns.FarkleTable.ShowUI, "board", id))
 	eq(Frame(a):IsShown(), true)
 	Send(w, a, "The real chat is ready")
@@ -139,7 +139,7 @@ test("Bones table chat: a nil optional factory stays hidden and bounded, then re
 	for _ = 1, 3 do assert(w:As(a, a.ns.FarkleTable.ShowUI, "board", id)) end
 	local count = 0
 	for _, frame in ipairs(a.K.frames) do
-		if frame:GetName() == "OlympusArenaBonesChat" then count = count + 1; eq(frame:IsShown(), false) end
+		if frame:GetName() == "ChillZoneArenaBonesChat" then count = count + 1; eq(frame:IsShown(), false) end
 	end
 	eq(count, 1, "retry reuses one hidden candidate instead of accumulating named frames")
 	eq(board._.parts().win:IsShown(), true)
@@ -396,7 +396,7 @@ test("Bones table chat: gamepad login and both switches use only the actual own 
 	H.WithGamepadUI(true, function()
 		local w, a = Live()
 		local input = Frame(a).conversation.input
-		eq(input.olympusBox, true); eq(input.autoFocus, false); eq(input:HasFocus(), false)
+		eq(input.chillzoneBox, true); eq(input.autoFocus, false); eq(input:HasFocus(), false)
 		eq(input.maxBytes, a.ns.ArenaChat.TEXT_MAX)
 		Send(w, a, "Own gamepad input")
 		eq(input:HasFocus(), false)

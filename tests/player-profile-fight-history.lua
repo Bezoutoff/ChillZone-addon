@@ -3,7 +3,7 @@ local ROOT = debug.getinfo(1, "S").source:sub(2):match("^(.*)tests[/\\]player%-p
 
 local function Fixture(fn)
 	local saved = { profile = ns.ArenaProfile, home = ns.ArenaHome, member = ns.IsMember, hides = ns.Moderation.Hides, player = ns.PlayerProfile }
-	assert(loadfile(ROOT .. "Olympus/PlayerProfile.lua"))("Olympus", ns)
+	assert(loadfile(ROOT .. "ChillZone/PlayerProfile.lua"))("ChillZone", ns)
 	local public, calls = {}, {}
 	ns.IsMember = function() return true end
 	ns.Moderation.Hides = function() return false end

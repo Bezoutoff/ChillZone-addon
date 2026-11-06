@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 # ChillZone: tests/run.lua in parallel shards (a test runs in shard k of N by a hash of its name,
-# OLYMPUS_TEST_SHARD=k/N), a check in about two minutes instead of half an hour.
+# CHILLZONE_TEST_SHARD=k/N), a check in about two minutes instead of half an hour.
 # Some tests lean on what earlier tests left behind, so they fail away from them: those are listed
 # in tests/fixtures/shard-known-failures.txt, and only a failure not on that list fails this run.
-# The full sequential run (luajit tests/run.lua, scripts/check.sh without OLYMPUS_TEST_SHARDS)
+# The full sequential run (luajit tests/run.lua, scripts/check.sh without CHILLZONE_TEST_SHARDS)
 # remains the gate.
-#   bash scripts/test-shards.sh            the check (OLYMPUS_TEST_SHARDS shards, 16 by default)
+#   bash scripts/test-shards.sh            the check (CHILLZONE_TEST_SHARDS shards, 16 by default)
 #   bash scripts/test-shards.sh --record   this run's failures become the known list
-#   OLYMPUS_TEST_SHARDS=16 bash scripts/check.sh   check.sh with this in place of tests/run.lua
+#   CHILLZONE_TEST_SHARDS=16 bash scripts/check.sh   check.sh with this in place of tests/run.lua
 set -euo pipefail
 cd "$(dirname "$0")/.."
-shards=${OLYMPUS_TEST_SHARDS:-16}
+shards=${CHILLZONE_TEST_SHARDS:-16}
 known=tests/fixtures/shard-known-failures.txt
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
 pids=()
 for k in $(seq 0 $((shards - 1))); do
-	OLYMPUS_TEST_SHARD="$k/$shards" luajit tests/run.lua > "$out/$k.txt" 2>&1 &
+	CHILLZONE_TEST_SHARD="$k/$shards" luajit tests/run.lua > "$out/$k.txt" 2>&1 &
 	pids+=($!)
 done
 for pid in "${pids[@]}"; do wait "$pid" || true; done

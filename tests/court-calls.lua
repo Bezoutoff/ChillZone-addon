@@ -23,14 +23,14 @@ local function Bench(fn)
 end
 local function Open(K, id)
 	H.AsSoldier("Visitor")
-	K.HandleCommand("CHANNEL", KING, "T1~C~" .. id .. "~Olympus~1453~Stormwind City")
+	K.HandleCommand("CHANNEL", KING, "T1~C~" .. id .. "~ChillZone~1453~Stormwind City")
 end
 
 test("Court call message: optional text stays with its recipient and authenticated King in the Chronicle after reload", function()
 	Bench(function(w, K, C, Ch)
 		AsKing(); C.Toggle()
 		local id = C.Holding().id
-		C.Request("Visitor-Realm", id, "Olympus II")
+		C.Request("Visitor-Realm", id, "ChillZone II")
 		C.Call("Visitor-Realm", "  Meet\nby~the |gate.  ")
 		eq(#w.whispered, 2, "the legacy call plus its optional note")
 		eq(w.whispered[1].msg, "T5~" .. id, "older clients still receive their unchanged call")
@@ -74,7 +74,7 @@ test("Court call message: untrusted, malformed, expired and duplicate note packe
 		C.HandleCall("WHISPER", KING, note)
 		C.HandleCall("WHISPER", KING, Note(81001, w.clock, "Changed replay"))
 		eq(#Ch.Entries(), 1); eq(Ch.Entries()[1].words, "Please bring your question.")
-		K.HandleCommand("CHANNEL", KING, "T1~Z~81001~Olympus")
+		K.HandleCommand("CHANNEL", KING, "T1~Z~81001~ChillZone")
 		C.HandleCall("WHISPER", KING, note)
 		eq(#Ch.Entries(), 1, "closing a court revokes its live note window, not its history")
 	end)
@@ -83,19 +83,19 @@ end)
 test("Court call message: optional UI prompt rechecks its audience and authority; blank/direct calls and dismissal stay unchanged", function()
 	Bench(function(w, K, C, Ch)
 		AsKing(); C.Toggle()
-		C.Request("Visitor-Realm", C.Holding().id, "Olympus II")
+		C.Request("Visitor-Realm", C.Holding().id, "ChillZone II")
 		local option
 		for _, row in ipairs(C.HomeLines()) do if row.text == ns.L.COURT_NOTE_CALL then option = row end end
 		assert(option and option.onClick, "a separate optional message action leaves the original call intact")
 		option.onClick()
 		local popup = w.popups[#w.popups]
-		eq(popup.name, "OLYMPUS_COURT_NOTE")
+		eq(popup.name, "CHILLZONE_COURT_NOTE")
 		local data = popup.data
 		H.AsSoldier("Visitor"); C.Confirm(data, "Not royal")
 		eq(#w.whispered, 0, "authority is rechecked on accept")
 		AsKing(); C.Prompt("Visitor-Realm")
 		data = w.popups[#w.popups].data
-		C.Toggle(); C.Toggle(); C.Request("Visitor-Realm", C.Holding().id, "Olympus II")
+		C.Toggle(); C.Toggle(); C.Request("Visitor-Realm", C.Holding().id, "ChillZone II")
 		C.Confirm(data, "An old prompt")
 		eq(#w.whispered, 0, "an old prompt cannot call someone in a replacement court")
 		C.Prompt("Visitor-Realm"); data = w.popups[#w.popups].data
@@ -129,13 +129,13 @@ test("Court call message: retained history is bounded and royal words respect th
 	end)
 end)
 
-test("Court call message: gamepad uses Olympus's own optional text window and its actual accept callback", function()
+test("Court call message: gamepad uses ChillZone's own optional text window and its actual accept callback", function()
 	H.WithUI(function()
 		H.WithGamepadUI(true, function(game)
 			Bench(function(w, K, C)
-				AsKing(); C.Toggle(); C.Request("Visitor-Realm", C.Holding().id, "Olympus II")
+				AsKing(); C.Toggle(); C.Request("Visitor-Realm", C.Holding().id, "ChillZone II")
 				C.Prompt("Visitor-Realm")
-				local f = assert(ns.Dialog.Find("OLYMPUS_COURT_NOTE"))
+				local f = assert(ns.Dialog.Find("CHILLZONE_COURT_NOTE"))
 				f.editBox:SetText("Come to the fountain.")
 				f.buttons[1]:Click()
 				eq(#w.whispered, 2)

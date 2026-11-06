@@ -8,7 +8,7 @@ local function WithArrow(fn)
 	w.events = {}
 	local c = setmetatable({ On = function(event, call) w.events[event] = call end, IsMember = function() return w.member end }, { __index = ns })
 	c.Log = function(fmt, ...) w.logs[#w.logs + 1] = string.format(fmt, ...) end
-	assert(loadfile(ROOT .. "Olympus/ArenaPlaces.lua"))("Olympus", c)
+	assert(loadfile(ROOT .. "ChillZone/ArenaPlaces.lua"))("ChillZone", c)
 	for _, p in ipairs(c.Places.list) do if p.id == "inn_goldshire" then w.inn = p end end
 	assert(w.inn)
 	UnitPosition = function() return w.wx, w.wy, 0, w.cont end
@@ -52,7 +52,7 @@ local function WithArrow(fn)
 	function pins:RemoveMinimapIcon(ref, f) w.removes = w.removes + 1; w.removedRef, w.removedFrame = ref, f end
 	c.Pins = function() return pins end
 	local ok, err = pcall(function()
-		assert(loadfile(ROOT .. "Olympus/InnkeeperArrow.lua"))("Olympus", c)
+		assert(loadfile(ROOT .. "ChillZone/InnkeeperArrow.lua"))("ChillZone", c)
 		fn(c.InnkeeperArrow, w, c)
 	end)
 	if c.InnkeeperArrow then c.InnkeeperArrow.Cancel("fixture") end

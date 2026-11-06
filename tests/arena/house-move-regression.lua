@@ -2,8 +2,8 @@ local H = ...
 local FW = assert(loadfile(H.ROOT .. "tests/arena/lib/farkle-world.lua"))(H)
 H.test("House legality regression: actual choices apply on first bank, hot dice and drunk turns", function()
 	local ns = {}
-	assert(loadfile(H.ADDON_DIR .. "Sign.lua"))("Olympus", ns)
-	assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("Olympus", ns)
+	assert(loadfile(H.ADDON_DIR .. "Sign.lua"))("ChillZone", ns)
+	assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("ChillZone", ns)
 	local F = ns.FarkleRules
 	local function Roll(g, dice)
 		local p, _, k = F.Expect(g)
@@ -40,8 +40,8 @@ H.test("House legality regression: actual choices apply on first bank, hot dice 
 end)
 H.test("House target regression: 5000 wins immediately with no answer turn or later AI move", function()
 	local ns = {}
-	assert(loadfile(H.ADDON_DIR .. "Sign.lua"))("Olympus", ns)
-	assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("Olympus", ns)
+	assert(loadfile(H.ADDON_DIR .. "Sign.lua"))("ChillZone", ns)
+	assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("ChillZone", ns)
 	local F = ns.FarkleRules
 	local g = assert(F.New({ target = 5000, first = 1 }))
 	local function Bank(dice)
@@ -91,8 +91,8 @@ end)
 
 H.test("House target regression: banks a target-winning 50 below ordinary risk thresholds", function()
 	local ns = {}
-	assert(loadfile(H.ADDON_DIR .. "Sign.lua"))("Olympus", ns)
-	assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("Olympus", ns)
+	assert(loadfile(H.ADDON_DIR .. "Sign.lua"))("ChillZone", ns)
+	assert(loadfile(H.ADDON_DIR .. "ArenaFarkle.lua"))("ChillZone", ns)
 	local F = ns.FarkleRules
 	local g = assert(F.New({ target = 2000, first = 2 }))
 	local function Roll(p, dice) assert(F.Roll(g, p, F.Encode(dice))) end

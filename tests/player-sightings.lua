@@ -77,7 +77,7 @@ local function WithWorld(fn)
 		function world:Client(name, options)
 			options = options or {}
 			local client = {
-				name = name .. "-Realm", guild = options.guild or "Olympus", mapID = 1453,
+				name = name .. "-Realm", guild = options.guild or "ChillZone", mapID = 1453,
 				x = 0.1234, y = 0.5676, layer = 42, instanceID = 1, units = {}, db = {}, handlers = {},
 				events = {}, listeners = {}, authorized = {}, members = {}, sent = {}, printed = {},
 				member = options.member ~= false, location = options.location ~= false,
@@ -88,7 +88,7 @@ local function WithWorld(fn)
 			c.Normal = function(value) return value end
 			c.IsMember = function() return client.member end
 			c.IsFederation = function(guild)
-				return type(guild) == "string" and guild:lower():find("olympus", 1, true) ~= nil
+				return type(guild) == "string" and guild:lower():find("chillzone", 1, true) ~= nil
 			end
 			c.UnitFullName = function(unit) local u = client.units[unit]; return u and u.name or nil end
 			c.Moderation = {
@@ -126,7 +126,7 @@ local function WithWorld(fn)
 			c.Comm = {
 				Handle = function(kind, call) client.handlers[kind] = call end,
 				ChannelReady = function() return client.ready ~= false end,
-				ChannelName = function() return client.channel or "OlympusNet" end,
+				ChannelName = function() return client.channel or "ChillZoneNet" end,
 				Send = function(dist, msg, _, _, _, done, options) return Queue(dist, nil, msg, done, options) end,
 				Whisper = function(target, msg, _, _, _, done, options)
 					if client.refuseWhisper then
@@ -157,7 +157,7 @@ local function WithWorld(fn)
 			c.Every = function() end
 			c.Print = function(message) client.printed[#client.printed + 1] = message end
 			-- options.source: an older build's module (tests/fixtures), for the wire's compatibility.
-			world:As(client, function() assert(loadfile(ROOT .. (options.source or "Olympus/PlayerSightings.lua")))("Olympus", c) end)
+			world:As(client, function() assert(loadfile(ROOT .. (options.source or "ChillZone/PlayerSightings.lua")))("ChillZone", c) end)
 			return client
 		end
 
@@ -228,7 +228,7 @@ test("player sightings: consent is explicit, off by default and has practical bo
 	WithWorld(function(world)
 		local observer = world:Client("Observer")
 		eq(observer.ns.PlayerSightings.Sharing(), false)
-		-- (7: the wider area scope also reports not-hostile players outside Olympus guilds.)
+		-- (7: the wider area scope also reports not-hostile players outside ChillZone guilds.)
 		eq(observer.ns.PlayerSightings.CONSENT_VERSION, 7)
 		eq(observer.consent.explicit, true)
 		eq(observer.consent.adopt, false, "a direct upgrade must still show this new question once")
@@ -248,11 +248,11 @@ test("player sightings: consent is explicit, off by default and has practical bo
 		observer.consent.set(false)
 		eq(observer.ns.PlayerSightings.Sharing(), false)
 		local language = { L = {} }
-		assert(loadfile(ROOT .. "Olympus/Locales/PlayerSightingsText.lua"))("Olympus", language)
+		assert(loadfile(ROOT .. "ChillZone/Locales/PlayerSightingsText.lua"))("ChillZone", language)
 		for _, words in ipairs({ "at most 64", "in memory", "up to 15 minutes", "never saved",
 			"selected map ID", "five-minute hostile-area search", "at most six",
 			"at most 48 distinct hostile players", "omits your identity and guild", "Authorize all",
-			"A wider area search", "not an Olympus guild", "who have no guild", "never a member of your group",
+			"A wider area search", "not an ChillZone guild", "who have no guild", "never a member of your group",
 			"labelled not hostile",
 			"last-seen information, not continuous tracking" }) do
 			assert(language.L.PLAYER_SIGHTINGS_CONSENT_TEXT:find(words, 1, true), "consent discloses: " .. words)
@@ -624,7 +624,7 @@ test("player sightings: malformed, secret, wrong-lane, instance and unverified d
 		eq(select(2, requester.ns.PlayerSightings.Receive("WHISPER", "Observer-Realm", "PS~Q~1~9~Target-Realm")), "lane")
 		eq(select(2, requester.ns.PlayerSightings.Receive("WHISPER", "Observer-Realm", "PS~R~bad")), "shape")
 		eq(select(2, requester.ns.PlayerSightings.Receive("WHISPER", "Observer-Realm", SECRET)), "secret")
-		local wire = ("PS~R~1~%d~Olympus~1453~123~568~42~0~Target-Realm"):format(id)
+		local wire = ("PS~R~1~%d~ChillZone~1453~123~568~42~0~Target-Realm"):format(id)
 		local tooOld = wire:gsub("~42~0~", "~42~" .. (requester.ns.PlayerSightings.RECENT_TTL + 1) .. "~")
 		for _, malformed in ipairs({
 			wire .. "~gps", wire .. "~exact-unit", wire .. "~exact-group", wire .. "~exact-group~5", wire .. "~nearby~0",
@@ -634,7 +634,7 @@ test("player sightings: malformed, secret, wrong-lane, instance and unverified d
 				"WHISPER", "Observer-Realm", malformed)), "shape", malformed)
 		end
 		eq(select(2, world:As(requester, requester.ns.PlayerSightings.Receive, "WHISPER", "Observer-Realm", wire)), "unverified")
-		requester.members["observer-realm"] = "Olympus"
+		requester.members["observer-realm"] = "ChillZone"
 		requester.instance = true
 		eq(select(2, world:As(requester, requester.ns.PlayerSightings.Receive, "WHISPER", "Observer-Realm", wire)), "stale")
 		requester.instance = false
@@ -732,7 +732,7 @@ test("player sightings: many reporters for one area target cannot starve a disti
 		local started, id = world:As(requester, requester.ns.PlayerSightings.StartArea, 1453)
 		eq(started, true)
 		eq(world:Flush(requester), true, "the area query enters its waiting phase")
-		local famous = ("PS~B~1~%d~Olympus~1453~123~568~42~0~Famous Enemy-Realm~nearby"):format(id)
+		local famous = ("PS~B~1~%d~ChillZone~1453~123~568~42~0~Famous Enemy-Realm~nearby"):format(id)
 		for i = 1, 48 do
 			local a = string.char(65 + math.floor((i - 1) / 26))
 			local b = string.char(65 + (i - 1) % 26)
@@ -749,7 +749,7 @@ test("player sightings: many reporters for one area target cannot starve a disti
 		world.now = world.now + requester.ns.PlayerSightings.RATE_WINDOW + 1
 		local distinctReporter = "ObserverBX-Realm"
 		requester.members[distinctReporter:lower()] = requester.guild
-		local distinct = ("PS~B~1~%d~Olympus~1453~321~654~42~0~Distinct Enemy-Realm~nearby"):format(id)
+		local distinct = ("PS~B~1~%d~ChillZone~1453~321~654~42~0~Distinct Enemy-Realm~nearby"):format(id)
 		local ok, why = world:As(requester, requester.ns.PlayerSightings.Receive,
 			"WHISPER", distinctReporter, distinct)
 		eq(ok, true, why)
@@ -855,7 +855,7 @@ test("player sightings: malformed, unauthorized and wrong-map area traffic fails
 		local started, id = world:As(requester, requester.ns.PlayerSightings.StartArea, 1453)
 		eq(started, true); eq(world:Flush(requester), true)
 		requester.members[observer.name:lower()] = observer.guild
-		local wrongMap = ("PS~B~1~%d~Olympus~1429~123~568~42~0~Enemy-Realm~nearby"):format(id)
+		local wrongMap = ("PS~B~1~%d~ChillZone~1429~123~568~42~0~Enemy-Realm~nearby"):format(id)
 		eq(select(2, world:As(requester, requester.ns.PlayerSightings.Receive,
 			"WHISPER", observer.name, wrongMap)), "request")
 		eq(select(2, world:As(requester, requester.ns.PlayerSightings.StartArea, 0)), "map")
@@ -907,13 +907,13 @@ local function AreaRows(requester, id)
 	return out, n
 end
 
-test("player sightings: the outsiders area scope adds not-hostile players outside Olympus guilds, never an Olympus guild, the observer or the group", function()
+test("player sightings: the outsiders area scope adds not-hostile players outside ChillZone guilds, never an ChillZone guild, the observer or the group", function()
 	WithWorld(function(world)
 		local requester, observer = AreaPair(world)
 		eq(Remembered(world, observer, "Hostile Rider-Realm", { hostile = true }), "unrequested")
 		eq(Remembered(world, observer, "Lone Walker-Realm"), "unrequested", "no guild")
 		eq(Remembered(world, observer, "Far Trader-Realm", { guild = "Silver Hand" }), "unrequested")
-		eq(Remembered(world, observer, "Ember Friend-Realm", { guild = "Olympus Ember" }), "unrequested")
+		eq(Remembered(world, observer, "Ember Friend-Realm", { guild = "ChillZone Ember" }), "unrequested")
 		observer.inGroup = true
 		observer.units.party1 = Player("Party Friend-Realm", { guild = "Silver Hand", guid = "Player-4619-00000444" })
 		eq(Remembered(world, observer, "Party Friend-Realm", { guild = "Silver Hand", guid = "Player-4619-00000444" }), "unrequested")
@@ -944,7 +944,7 @@ test("player sightings: the outsiders area scope adds not-hostile players outsid
 		eq(rows["Hostile Rider-Realm"].hostile, true)
 		eq(rows["Lone Walker-Realm"].hostile, false, "an unguilded player is an outsider")
 		eq(rows["Far Trader-Realm"].hostile, false)
-		eq(rows["Ember Friend-Realm"], nil, "an Olympus guild's player is never reported")
+		eq(rows["Ember Friend-Realm"], nil, "an ChillZone guild's player is never reported")
 		eq(rows["Party Friend-Realm"], nil, "the observer's group is never reported")
 		eq(rows[observer.name], nil)
 
@@ -994,7 +994,7 @@ test("player sightings: a default area request stays hostile-only, and either si
 		observer.units.target = Player("Live Walker-Realm", { guid = "Player-4619-00000888" })
 		eq(select(2, world:As(observer, observer.ns.PlayerSightings.ObserveUnit, "target")), "unrequested",
 			"a hostile request takes no not-hostile player live either")
-		local forged = ("PS~B~1~%d~Olympus~1453~123~568~42~0~Lone Walker-Realm~nearby~o"):format(id)
+		local forged = ("PS~B~1~%d~ChillZone~1453~123~568~42~0~Lone Walker-Realm~nearby~o"):format(id)
 		eq(select(2, world:As(requester, requester.ns.PlayerSightings.Receive, "WHISPER", observer.name, forged)), "scope",
 			"a not-hostile row for a hostile request is refused")
 		eq(select(2, world:As(observer, observer.ns.PlayerSightings.Receive, "CHANNEL", requester.name,
@@ -1138,7 +1138,7 @@ test("player sightings: the requester's own sightings enter its own area request
 		requester.units.target = Player("Exact Stranger-Realm", { guild = "Silver Hand", directPosition = true,
 			mapID = 1453, x = 0.3, y = 0.4, guid = "Player-4619-00003002" })
 		eq(world:As(requester, requester.ns.PlayerSightings.ObserveUnit, "target"), true)
-		requester.units.mouseover = Player("Ember Friend-Realm", { guild = "Olympus Ember", guid = "Player-4619-00003003" })
+		requester.units.mouseover = Player("Ember Friend-Realm", { guild = "ChillZone Ember", guid = "Player-4619-00003003" })
 		world:As(requester, requester.ns.PlayerSightings.ObserveUnit, "mouseover")
 		requester.units.nameplate4 = Player("Far Horde-Realm", { hostile = true, directPosition = true,
 			mapID = 1429, x = 0.2, y = 0.2, guid = "Player-4619-00003004" })
@@ -1147,7 +1147,7 @@ test("player sightings: the requester's own sightings enter its own area request
 		eq(n, 2)
 		eq(rows["Exact Stranger-Realm"].hostile, false, "an outsider, in the scope that asked for one")
 		eq(rows["Exact Stranger-Realm"].kind, "exact-unit"); eq(rows["Exact Stranger-Realm"].own, true)
-		eq(rows["Ember Friend-Realm"], nil, "an Olympus guild's player is never a row")
+		eq(rows["Ember Friend-Realm"], nil, "an ChillZone guild's player is never a row")
 		eq(rows["Far Horde-Realm"], nil, "another map stays out")
 
 		local sentBefore = #world.queue

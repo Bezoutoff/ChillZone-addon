@@ -105,7 +105,7 @@ test("admission: receive budgets follow elapsed time across wall-clock jumps", f
 	local ok, err = pcall(function()
 		GetTime = function() return mono end
 		local root = (arg and arg[0] or ""):match("^(.*)tests[/\\]run%.lua$") or "./"
-		assert(loadfile(root .. "Olympus/Comm.lua"))("Olympus", cns)
+		assert(loadfile(root .. "ChillZone/Comm.lua"))("ChillZone", cns)
 		for _ = 1, 60 do cns.Comm.Outsider("Member-Realm", "Cadmit:1:2:x") end
 		eq(read, 60)
 		wall = wall + 86400

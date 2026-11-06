@@ -1,4 +1,4 @@
--- 1.1.6, the compliance gate (Olympus/Compliance.lua): bets wait for 2.0 and the legal review,
+-- 1.1.6, the compliance gate (ChillZone/Compliance.lua): bets wait for 2.0 and the legal review,
 -- region by region. The gate as it ships allows no wager anywhere; every betting path asks it and
 -- refuses, the arena's wire neither sends nor takes a wager's message (a modified client's
 -- included: here a client given the test row, where.compliance = "open"), the screens grey every
@@ -32,8 +32,8 @@ local function Gate(locale)
 	local saved = GetLocale
 	GetLocale = function() return locale or "enUS" end
 	local ok, err = pcall(function()
-		assert(loadfile(H.ADDON_DIR .. "Locales/ComplianceText.lua"))("Olympus", ns)
-		assert(loadfile(H.ADDON_DIR .. "Compliance.lua"))("Olympus", ns)
+		assert(loadfile(H.ADDON_DIR .. "Locales/ComplianceText.lua"))("ChillZone", ns)
+		assert(loadfile(H.ADDON_DIR .. "Compliance.lua"))("ChillZone", ns)
 	end)
 	GetLocale = saved
 	if not ok then error(err, 0) end
@@ -487,7 +487,7 @@ end
 local function Files116()
 	local gone = {}
 	for _, path in ipairs(BetsOnly()) do
-		local file = path:match("^Olympus/([%w_]+)%.lua$")
+		local file = path:match("^ChillZone/([%w_]+)%.lua$")
 		if file then gone[file] = true end
 	end
 	local out = {}
@@ -501,25 +501,25 @@ test("1.1.6 package: scripts/bets-only.txt names files that only carry wagers' t
 	local listed = BetsOnly()
 	assert(#listed >= 1, "bets-only.txt names a file")
 	local toc = {}
-	for line in io.lines(H.ADDON_DIR .. "Olympus.toc") do toc[(line:gsub("\r$", ""))] = true end
+	for line in io.lines(H.ADDON_DIR .. "ChillZone.toc") do toc[(line:gsub("\r$", ""))] = true end
 	local C = Gate()
 	local arenaToc, without = {}, {}
-	for line in io.lines(H.ROOT .. "Olympus_Arena/Olympus_Arena.toc") do arenaToc[(line:gsub("\r$", ""))] = true end
+	for line in io.lines(H.ROOT .. "ChillZone_Arena/ChillZone_Arena.toc") do arenaToc[(line:gsub("\r$", ""))] = true end
 	for _, path in ipairs(listed) do
-		local inArena = path:match("^Olympus_Arena/(.+%.lua)$")
+		local inArena = path:match("^ChillZone_Arena/(.+%.lua)$")
 		if inArena then
 			-- 1.2.0: a companion file (the lab's animal lottery): in its TOC, never the Lottery's practice.
-			assert(arenaToc[(inArena:gsub("/", "\\"))], path .. " in Olympus_Arena.toc")
+			assert(arenaToc[(inArena:gsub("/", "\\"))], path .. " in ChillZone_Arena.toc")
 			assert(inArena ~= "LotteryBoard.lua", "the Lottery's practice ships")
 			without[inArena] = true
 		end
 	end
 	assert(without["Games/Bicho.lua"], "bets-only.txt names the lab's animal lottery")
 	for _, path in ipairs(listed) do
-		local file = path:match("^Olympus/([%w_]+)%.lua$")
-		assert(file or path:match("^Olympus_Arena/"), path .. ": a file of the core or the companion")
+		local file = path:match("^ChillZone/([%w_]+)%.lua$")
+		assert(file or path:match("^ChillZone_Arena/"), path .. ": a file of the core or the companion")
 		if file then
-		assert(toc[file .. ".lua"], path .. " in Olympus.toc")
+		assert(toc[file .. ".lua"], path .. " in ChillZone.toc")
 		local f = assert(io.open(H.ADDON_DIR .. file .. ".lua"))
 		local code = f:read("*a"):gsub("%-%-[^\n]*", "")
 		f:close()
@@ -703,7 +703,7 @@ test("1.1.6 compliance: no arbiters without a wager: the screens: no Arbiter pag
 			eq(Find(lines, L.ARENA_GAMES_CONSOLE) ~= nil, on, "the King is a public arbiter: his console line")
 		end)
 		w:As(author, function()
-			assert(loadfile(H.ADDON_DIR .. "ViewAs.lua"))("Olympus", author.ns)
+			assert(loadfile(H.ADDON_DIR .. "ViewAs.lua"))("ChillZone", author.ns)
 			local VA = author.ns.ViewAs
 			eq(VA.Offered("arbiter"), on); eq(VA.Set("arbiter"), on, "the Arbiter's preview")
 			assert(VA.Set("my"))
@@ -725,10 +725,10 @@ test("1.2.0 the gate: the Wallet's, the banks' and a debt's fee actions wait for
 	eq(C.Action("wallet.deposit"), true, "the switch on (2.0)"); eq(C.Action("bank.open"), true)
 end)
 
-test("1.2.0 package: the Olympus Arena module without the files bets-only.txt names (the lab's animal lottery) loads clean through the core; the Lottery's practice and Bones are there", function()
+test("1.2.0 package: the ChillZone Arena module without the files bets-only.txt names (the lab's animal lottery) loads clean through the core; the Lottery's practice and Bones are there", function()
 	local without = {}
 	for _, path in ipairs(BetsOnly()) do
-		local inArena = path:match("^Olympus_Arena/(.+%.lua)$")
+		local inArena = path:match("^ChillZone_Arena/(.+%.lua)$")
 		if inArena then without[inArena] = true end
 	end
 	assert(without["Games/Bicho.lua"], "bets-only.txt names the lab's animal lottery")

@@ -32,7 +32,7 @@ end
 local function Files116()
 	local gone = {}
 	for line in io.lines(H.ROOT .. "scripts/bets-only.txt") do
-		local file = line:gsub("\r$", ""):match("^Olympus/([%w_]+)%.lua$")
+		local file = line:gsub("\r$", ""):match("^ChillZone/([%w_]+)%.lua$")
 		if file then gone[file] = true end
 	end
 	local out = {}
@@ -361,7 +361,7 @@ test("1.1.6 games ledger: the privacy page says in one line that game results ar
 	local pt = setmetatable({}, { __index = function(_, k) return k end })
 	local saved = GetLocale
 	GetLocale = function() return "ptBR" end
-	local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaFightsText.lua"))("Olympus", { L = pt }) end)
+	local ok, err = pcall(function() assert(loadfile(H.ADDON_DIR .. "Locales/ArenaFightsText.lua"))("ChillZone", { L = pt }) end)
 	GetLocale = saved
 	if not ok then error(err, 0) end
 	local line = rawget(pt, "CONSENT_GAMES_RECORDED")
@@ -489,7 +489,7 @@ test("1.1.6 games ledger: with the gamepad UI the auditor's page offers its play
 			Duel(w, a, b, a, b)
 			w:Run(5)
 			-- (Opened the way the Arena's button does: with the gamepad UI, 1.1.5's gate installs no typed
-			-- /oly command.)
+			-- /cz command.)
 			w:As(king, function() king.ns.Arena.RunSlash("") end)
 			local UI = king.companion.own.ArenaUI
 			eq(w:As(king, UI.Kit.Gamepad), gamepad)

@@ -1,8 +1,8 @@
 -- 1.2.1 (a player's report: "The popups are becoming annoying. How many times do I need to update my
 -- settings?"): the privacy page (Consent.lua) opens by itself once for each question, never at every
 -- login for a line left unanswered. A line the page showed counts as asked in the saved data, so a
--- new session (the world's Logout and Login: the files load again, OlympusDB kept) does not open it
--- again; the Most Wanted sightings line included. /oly
+-- new session (the world's Logout and Login: the files load again, ChillZoneDB kept) does not open it
+-- again; the Most Wanted sightings line included. /cz
 -- privacy still shows every line. Every name is invented.
 local H = ...
 local test, eq, World = H.test, H.eq, H.World
@@ -16,7 +16,7 @@ end
 -- The real Most Wanted sightings line (Wanted.lua registers it on the page as it loads), loaded
 -- into the client after the world's modules, as the TOC has it after Consent.lua.
 local function LoadWanted(w, c)
-	w:As(c, function() assert(loadfile(H.ADDON_DIR .. "Wanted.lua"))("Olympus", c.ns) end)
+	w:As(c, function() assert(loadfile(H.ADDON_DIR .. "Wanted.lua"))("ChillZone", c.ns) end)
 end
 local function Relog(w, c)
 	w:Logout(c)
@@ -30,7 +30,7 @@ local function Keys(list)
 	return table.concat(out, ",")
 end
 
-test("1.2.1 privacy page: closed with lines unanswered, it never opens by itself again at the next logins; /oly privacy still shows them, off", function()
+test("1.2.1 privacy page: closed with lines unanswered, it never opens by itself again at the next logins; /cz privacy still shows them, off", function()
 	local w = World.New({ compliance = "shipped" })
 	local a = w:Client("Lida Fenn")
 	LoadWanted(w, a)
@@ -57,7 +57,7 @@ test("1.2.1 privacy page: closed with lines unanswered, it never opens by itself
 	-- Unanswered stays off; the player opens the page when he wants.
 	eq(C.Answer("inspection"), nil)
 	page = C.Show()
-	eq(page:IsShown(), true, "/oly privacy: the page, every line on it")
+	eq(page:IsShown(), true, "/cz privacy: the page, every line on it")
 	page:Hide()
 	NoErrors(w)
 end)
@@ -188,7 +188,7 @@ test("1.2.1 privacy page: a new tabard contract asks its two lines once more", f
 	local a = w:Client("Lida Fenn")
 	local function LoadTabards(contract)
 		w:As(a, function()
-			assert(loadfile(H.ADDON_DIR .. "TabardsV2.lua"))("Olympus", a.ns)
+			assert(loadfile(H.ADDON_DIR .. "TabardsV2.lua"))("ChillZone", a.ns)
 			if contract then a.ns.TabardsV2.CONTRACT = contract end
 		end)
 	end
@@ -246,7 +246,7 @@ test("1.2.3 privacy page: an account whose page 1.2.1 showed and was closed unan
 		w:Run(C.LOGIN_WAIT + 125)
 		eq(C.Frame(), nil, "session " .. session .. ": not by itself either")
 	end
-	-- /oly privacy: every line on the page, Authorize all with them.
+	-- /cz privacy: every line on the page, Authorize all with them.
 	local page = C.Show()
 	eq(page:IsShown(), true); eq(page.all:IsShown(), true)
 	page:Hide()
@@ -411,7 +411,7 @@ test("1.2.3 privacy page: after the update each character the account had is not
 	eq(C.Frame(), nil, "nor at its next login")
 	assert(KeeperLine(C), "still unanswered")
 	local page = C.Show()
-	eq(page:IsShown(), true, "/oly privacy: the line on the page")
+	eq(page:IsShown(), true, "/cz privacy: the line on the page")
 	page:Hide()
 	-- A later build's question, at the mail character's first login since the update.
 	C = OnAccount(w, mail, account)

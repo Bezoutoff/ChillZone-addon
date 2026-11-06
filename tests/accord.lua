@@ -1,4 +1,4 @@
--- 1.2.5.1: the Olympus Accord (Olympus/Accord.lua), Olympus's terms of use, and the BattleTag it
+-- 1.2.5.1: the ChillZone Accord (ChillZone/Accord.lua), ChillZone's terms of use, and the BattleTag it
 -- asks for. These tests run the real Accord.lua, Comm.lua, WatchChat.lua and UI.lua against the
 -- harness's stand-ins of the game: Battle.net (BNGetInfo, BNConnected) is stubbed per test and put
 -- back after (a stub proves nothing about the client: the in-game checks are in docs/BETA-TESTING.md).
@@ -16,7 +16,7 @@ local GLOBALS = { "BNGetInfo", "BNConnected", "BNFeaturesEnabledAndConnected", "
 local FIELDS = { "Print", "After", "Every", "Now", "Fire", "KingsScreen", "IsKingCharacter", "RegisterEvent", "me", "ACCORD_VERSION" }
 local COMM = { "Whisper", "Send", "CheckMembership", "JoinSoon", "RequestKey", "Hello", "ChannelName", "QueueRoom", "DeliveredLogged" }
 
--- A scene: this account's Olympus Accord as opts says (opts.accepted: accepted for TAG), the game's
+-- A scene: this account's ChillZone Accord as opts says (opts.accepted: accepted for TAG), the game's
 -- Battle.net (w.bn: up, tag), time (w.Run), what Accord.lua asks of Comm (recorded, never sent:
 -- the transport's own tests use the real Comm), The Watch's chat moderation loaded fresh (its
 -- InRoom: the moderation team; opts.team puts this character on the High Council's list).
@@ -24,7 +24,7 @@ local function Scene(fn, opts)
 	opts = opts or {}
 	local A = ns.Accord
 	local saved = { g = {}, f = {}, c = {}, accord = ns.db.accord, companionAccord = ns.db.companionAccord,
-		companionAttached = OlympusBridge.COMPANION_ATTACHED,
+		companionAttached = ChillZoneBridge.COMPANION_ATTACHED,
 		kingAccount = ns.db.kingAccount, wc = rawget(ns, "WatchChat"), viewAs = rawget(ns, "ViewAs"),
 		council = ns.rdb.council, tags = ns.rdb.battletags, chatMod = ns.rdb.chatMod, claimed = ns.Data.ClaimedGuild,
 		consentAsk = ns.Consent.Ask }
@@ -32,7 +32,7 @@ local function Scene(fn, opts)
 	for _, k in ipairs(FIELDS) do saved.f[k] = rawget(ns, k) end
 	for _, k in ipairs(COMM) do saved.c[k] = ns.Comm[k] end
 	local w = { now = 1800000000, mono = 5000, printed = {}, timers = {}, tickers = {}, fired = {}, whispers = {}, sends = {},
-		calls = {}, events = {}, claims = {}, bn = { up = true, tag = TAG }, channel = "OlympusNet" }
+		calls = {}, events = {}, claims = {}, bn = { up = true, tag = TAG }, channel = "ChillZoneNet" }
 	local ok, err = pcall(function()
 		-- This account's own character, the harness's: in the whole suite an earlier test's identity
 		-- stays behind (AsSoldier's "Soldier-Realm" did), and opts.team names "Tester" on the list.
@@ -73,13 +73,13 @@ local function Scene(fn, opts)
 		ns.rdb.battletags, ns.rdb.chatMod = nil, nil
 		local wns = setmetatable({ On = function() end, RegisterEvent = function() end,
 			Comm = setmetatable({ Handle = function() end }, { __index = ns.Comm }) }, { __index = ns })
-		assert(loadfile(ROOT .. "Olympus/WatchChat.lua"))("Olympus", wns)
+		assert(loadfile(ROOT .. "ChillZone/WatchChat.lua"))("ChillZone", wns)
 		ns.WatchChat = wns.WatchChat
 		A.Reset()
 		ns.db.kingAccount = nil
 		ns.db.accord = opts.accepted and { v = ns.ACCORD_VERSION, yes = true, at = w.now - 100, fp = A.Fp(TAG), told = {} } or nil
 		ns.db.companionAccord = nil
-		OlympusBridge.COMPANION_ATTACHED = opts.companion == true
+		ChillZoneBridge.COMPANION_ATTACHED = opts.companion == true
 		-- Time on, and every timer due runs (in order).
 		function w.Run(sec)
 			local stop = w.mono + (sec or 0)
@@ -109,7 +109,7 @@ local function Scene(fn, opts)
 	for _, k in ipairs(COMM) do ns.Comm[k] = saved.c[k] end
 	ns.db.accord, ns.db.companionAccord, ns.db.kingAccount, ns.WatchChat, ns.ViewAs =
 		saved.accord, saved.companionAccord, saved.kingAccount, saved.wc, saved.viewAs
-	OlympusBridge.COMPANION_ATTACHED = saved.companionAttached
+	ChillZoneBridge.COMPANION_ATTACHED = saved.companionAttached
 	ns.rdb.council, ns.rdb.battletags, ns.rdb.chatMod, ns.Data.ClaimedGuild = saved.council, saved.tags, saved.chatMod, saved.claimed
 	ns.Consent.Ask = saved.consentAsk
 	A.Reset()
@@ -131,7 +131,7 @@ end
 
 -- A BT as the player's client words it (its game account's follow key last, TagFollow.lua).
 local KEY = "5eed00000000a001"
-local function BT(at, guild, tag, key) return ("BT~1~1~%d~%s~%s~%s"):format(at or 1799990000, guild or "Olympus II", tag or TAG, key or KEY) end
+local function BT(at, guild, tag, key) return ("BT~1~1~%d~%s~%s~%s"):format(at or 1799990000, guild or "ChillZone II", tag or TAG, key or KEY) end
 
 test("accord: an account that has not accepted it is no member: nothing is sent (the hello, a line, a whisper, the Join screen's asks), no channel joined, no census election, no recruiting nag", function()
 	local saved = { accord = ns.db.accord, info = C_ChatInfo, join = rawget(_G, "JoinChannelByName"), channel = GetChannelName,
@@ -139,7 +139,7 @@ test("accord: an account that has not accepted it is no member: nothing is sent 
 	for k, v in pairs(StaticPopupDialogs) do saved.dialogs[k] = v end
 	local ok, err = pcall(function()
 		ns.db.accord = nil
-		eq(ns.AccordAccepted(), false); eq(ns.InOlympusGuild(), true, "in an Olympus guild"); eq(ns.IsMember(), false, "but no member")
+		eq(ns.AccordAccepted(), false); eq(ns.InChillZoneGuild(), true, "in an ChillZone guild"); eq(ns.IsMember(), false, "but no member")
 		local cns = H.FreshComm()
 		local sent, joined = {}, {}
 		C_ChatInfo.SendAddonMessage = function(_, msg, dist, to) sent[#sent + 1] = dist .. " " .. msg end
@@ -159,7 +159,7 @@ test("accord: an account that has not accepted it is no member: nothing is sent 
 		eq(why, "left", "a whisper refused")
 		C.SendBatch("GUILD", { "Z9~a", "Z9~b" }, nil, nil, nil, function(okSend, w) why = w end)
 		eq(why, "left")
-		for _, msg in ipairs({ "J1~1", "J3~Olympus II~12~MAGE", "QC~1~A" }) do
+		for _, msg in ipairs({ "J1~1", "J3~ChillZone II~12~MAGE", "QC~1~A" }) do
 			eq(C.WhisperOutside("Somebody", msg), false, "an outsider's ask: " .. msg)
 		end
 		C.Pump()
@@ -174,7 +174,7 @@ test("accord: an account that has not accepted it is no member: nothing is sent 
 		ns.Roster.RequestScan(true); ns.Roster.TryScan()
 		eq(elected, 1, "accepted: it takes part")
 		ns.db.accord = nil
-		-- Recruit's daily nag is for players outside Olympus, never this one.
+		-- Recruit's daily nag is for players outside ChillZone, never this one.
 		local rns, login, printed = nil, {}, {}
 		rns = setmetatable({ On = function(name, f) if name == "LOGIN" then login[#login + 1] = f end end,
 			After = function(_, _, f) f() end, RegisterEvent = function() end, Print = function(m) printed[#printed + 1] = m end,
@@ -182,12 +182,12 @@ test("accord: an account that has not accepted it is no member: nothing is sent 
 			Who = setmetatable({ Listen = function() end }, { __index = ns.Who }) }, { __index = ns })
 		local lastNag = ns.db.lastNag
 		ns.db.lastNag = nil
-		assert(loadfile(ROOT .. "Olympus/Recruit.lua"))("Olympus", rns)
+		assert(loadfile(ROOT .. "ChillZone/Recruit.lua"))("ChillZone", rns)
 		for _, f in ipairs(login) do f() end
-		eq(#printed, 0, "no join-Olympus nag in an Olympus guild")
+		eq(#printed, 0, "no join-ChillZone nag in an ChillZone guild")
 		GetGuildInfo = function() return "Some Other Guild" end
 		for _, f in ipairs(login) do f() end
-		eq(#printed, 1, "outside Olympus: the nag, as before")
+		eq(#printed, 1, "outside ChillZone: the nag, as before")
 		ns.db.lastNag = lastNag
 	end)
 	ns.db.accord, C_ChatInfo, JoinChannelByName, GetChannelName = saved.accord, saved.info, saved.join, saved.channel
@@ -216,7 +216,7 @@ test("accord: before it is accepted the privacy page never asks; I accept keeps 
 			eq(ns.IsMember(), true, "a member now")
 			eq(#w.Fired("ACCORD_CHANGED"), 1); eq(w.Fired("ACCORD_CHANGED")[1][2], true)
 			eq(table.concat(w.calls, " "), "CheckMembership() JoinSoon(inf) RequestKey() Hello(true)",
-				"as when one joins an Olympus guild: the channel at once (its census ask follows), the key, the hello")
+				"as when one joins an ChillZone guild: the channel at once (its census ask follows), the key, the hello")
 			eq(#w.Fired("DATA_CHANGED"), 1)
 			assert(w.Said(L.ACCORD_ACCEPTED:format(ns.ACCORD_VERSION)))
 			eq(A.Frame():IsShown(), false)
@@ -246,7 +246,7 @@ test("accord: the real transport after I accept: the hello goes on GUILD, the ch
 		cns.Consent = { Ask = function() end }
 		cns.Roster = setmetatable({ RequestScan = function() end }, { __index = ns.Roster })
 		BNGetInfo, BNConnected = function() return 1, TAG end, function() return true end
-		assert(loadfile(ROOT .. "Olympus/Accord.lua"))("Olympus", cns)
+		assert(loadfile(ROOT .. "ChillZone/Accord.lua"))("ChillZone", cns)
 		cns.Comm.Hello(true); cns.Comm.Pump()
 		eq(#sent, 0, "nothing before")
 		eq(cns.Accord.Accept(), true)
@@ -267,7 +267,7 @@ test("accord: the real transport after I accept: the hello goes on GUILD, the ch
 	if not ok then error(err, 0) end
 end)
 
-test("accord: no BattleTag to read: I accept stays off and the letter says why (Battle.net down: it tries again by itself and enables it when Battle.net is back); no BNGetInfo, or a tag of another shape: Olympus can't be used here", function()
+test("accord: no BattleTag to read: I accept stays off and the letter says why (Battle.net down: it tries again by itself and enables it when Battle.net is back); no BNGetInfo, or a tag of another shape: ChillZone can't be used here", function()
 	H.WithUI(function()
 		Scene(function(w, A)
 			w.bn.up = false
@@ -344,7 +344,7 @@ test("accord: an account that accepted is never locked out while Battle.net is d
 	end, { accepted = true })
 end)
 
-test("accord: this account's BattleTag changed: Olympus stops (the channel left), the player is told and asked again; accepting again starts it", function()
+test("accord: this account's BattleTag changed: ChillZone stops (the channel left), the player is told and asked again; accepting again starts it", function()
 	H.WithUI(function()
 		Scene(function(w, A)
 			w.bn.tag = "Another#5678"
@@ -364,7 +364,7 @@ test("accord: this account's BattleTag changed: Olympus stops (the channel left)
 	end)
 end)
 
-test("accord: Not now keeps Olympus off and sends nothing; the login's tries leave it for this session, the window's open asks again; no X and never on the escape list, with mouse and keyboard or the gamepad UI", function()
+test("accord: Not now keeps ChillZone off and sends nothing; the login's tries leave it for this session, the window's open asks again; no X and never on the escape list, with mouse and keyboard or the gamepad UI", function()
 	H.WithUI(function()
 		for _, pad in ipairs({ false, true }) do
 			H.WithGamepadUI(pad, function(game)
@@ -373,10 +373,10 @@ test("accord: Not now keeps Olympus off and sends nothing; the login's tries lea
 					w.Run(A.LOGIN_WAIT)
 					local f = A.Frame()
 					assert(f and f:IsShown(), "the letter, LOGIN_WAIT after login")
-					eq(#game.shown, 0, "Olympus's own window, never the game's popup")
-					eq(f:GetName(), "OlympusAccordFrame"); eq(f:GetFrameStrata(), "DIALOG")
+					eq(#game.shown, 0, "ChillZone's own window, never the game's popup")
+					eq(f:GetName(), "ChillZoneAccordFrame"); eq(f:GetFrameStrata(), "DIALOG")
 					eq(f.CloseButton, nil, "no X")
-					for _, name in ipairs(UISpecialFrames or {}) do assert(name ~= "OlympusAccordFrame", "not on the escape list") end
+					for _, name in ipairs(UISpecialFrames or {}) do assert(name ~= "ChillZoneAccordFrame", "not on the escape list") end
 					eq(f.notNow:GetText(), L.ACCORD_NOT_NOW); eq(f.accept:GetText(), L.ACCORD_ACCEPT)
 					eq(f.notNow.points[#f.notNow.points][1], "BOTTOMRIGHT", "the conservative choice on the left")
 					eq(f.accept.points[#f.accept.points][1], "BOTTOMLEFT", "the primary one on the right")
@@ -404,7 +404,7 @@ test("accord: Not now keeps Olympus off and sends nothing; the login's tries lea
 	end)
 end)
 
-test("accord: a new version of the Accord asks again: Olympus off until it is accepted, said once, the new version kept", function()
+test("accord: a new version of the Accord asks again: ChillZone off until it is accepted, said once, the new version kept", function()
 	H.WithUI(function() Scene(function(w, A)
 		ns.ACCORD_VERSION = 2
 		eq(ns.AccordAccepted(), false); eq(ns.IsMember(), false)
@@ -469,10 +469,10 @@ test("accord: the follow key: 16 random hex digits made at the first accept, kep
 	Scene(function(w, A)
 		ns.rdb.council.names.tester = "Tester"
 		eq(A.AskTeam(), true)
-		eq(A.HandleTag("WHISPER", MEMBER, "BT~1~1~5~Olympus II~Old#1"), true, "an earlier build's answer")
+		eq(A.HandleTag("WHISPER", MEMBER, "BT~1~1~5~ChillZone II~Old#1"), true, "an earlier build's answer")
 		local row = ns.rdb.battletags.rows[ns.Fold(MEMBER)]
 		eq(row.tag, "Old#1"); eq(row.key, nil, "kept without a key (tests/tag-follow.lua: no code then)")
-		eq(select(2, A.HandleTag("WHISPER", "Some One-Realm", "BT~1~1~5~Olympus II~Old#1~ABCDEF0123456789")), "shape", "a key not of the shape")
+		eq(select(2, A.HandleTag("WHISPER", "Some One-Realm", "BT~1~1~5~ChillZone II~Old#1~ABCDEF0123456789")), "shape", "a key not of the shape")
 		eq(A.HandleTag("WHISPER", "Some One-Realm", BT(5, nil, "Old#1")), true)
 		eq(ns.rdb.battletags.rows[ns.Fold("Some One-Realm")].key, KEY)
 	end, { accepted = true, team = true })
@@ -510,7 +510,7 @@ test("accord: the team's ask: only a team member's, on the channel, answered onc
 		-- (Changed on purpose, the tag follow's review: the answer ends with this game account's follow
 		-- key, made at the accept; the rest of the word is the same.)
 		eq(A.IsKey(ns.db.accord.key), true, "a follow key made at the accept")
-		eq(job.msg, ("BT~1~1~%d~Olympus II~%s~%s"):format(ns.db.accord.at, TAG, ns.db.accord.key))
+		eq(job.msg, ("BT~1~1~%d~ChillZone II~%s~%s"):format(ns.db.accord.at, TAG, ns.db.accord.key))
 		assert(#job.msg <= 255)
 		local o = job.options
 		local function Permit(to, payload) return o.permit(o.owner, o.key, "WHISPER", to or COUNCILLOR, payload or job.msg) end
@@ -554,7 +554,7 @@ test("accord: the team's ask: only a team member's, on the channel, answered onc
 	end, { accepted = true })
 end)
 
-test("accord: a team client asks on the channel and keeps an answer only when logged, asked lately, well made, from an Olympus guild and not too often; the guild known by the roster, the sender's own messages or his word alone", function()
+test("accord: a team client asks on the channel and keeps an answer only when logged, asked lately, well made, from an ChillZone guild and not too often; the guild known by the roster, the sender's own messages or his word alone", function()
 	Scene(function(w, A)
 		C_ChatInfo = { SendAddonMessageLogged = function() end }
 		ns.Roster.Scan() -- (the harness's guild roster: Member1 to Member1000)
@@ -565,25 +565,25 @@ test("accord: a team client asks on the channel and keeps an answer only when lo
 		eq(#w.sends, 1); eq(w.sends[1].dist, "CHANNEL"); eq(w.sends[1].msg, "BQ~1")
 		w.channel = nil
 		eq(A.AskTeam(), false, "off the channel: no ask")
-		w.channel = "OlympusNet"
+		w.channel = "ChillZoneNet"
 		eq(Why("CHANNEL", MEMBER, BT()), "dist"); eq(Why("GUILD", MEMBER, BT()), "dist")
 		w.logged = false
 		eq(Why("WHISPER", MEMBER, BT()), "unlogged")
 		w.logged = true
-		for _, bad in ipairs({ "BT~1~1~x~Olympus II~" .. TAG, "BT~1~1~5~Olympus II~Tag", "BT~1~1~5~Olympus II~a#1~b", "BT~2~1~5~Olympus II~" .. TAG,
-			"BT~1~1~5~Olympus II~" .. ("a"):rep(70) .. "#1", "BT~1~1~5~Olympus II~" .. TAG .. ("x"):rep(250) }) do
+		for _, bad in ipairs({ "BT~1~1~x~ChillZone II~" .. TAG, "BT~1~1~5~ChillZone II~Tag", "BT~1~1~5~ChillZone II~a#1~b", "BT~2~1~5~ChillZone II~" .. TAG,
+			"BT~1~1~5~ChillZone II~" .. ("a"):rep(70) .. "#1", "BT~1~1~5~ChillZone II~" .. TAG .. ("x"):rep(250) }) do
 			eq(Why("WHISPER", MEMBER, bad), "shape", bad)
 		end
 		eq(Why("WHISPER", MEMBER, BT(nil, "Some Other Guild")), "guild")
 		eq(ns.rdb.battletags == nil or next(ns.rdb.battletags.rows) == nil, true, "nothing kept so far")
-		-- Kept: a guildmate (our roster), one his messages tied to an Olympus guild, one on his word.
+		-- Kept: a guildmate (our roster), one his messages tied to an ChillZone guild, one on his word.
 		eq(A.HandleTag("WHISPER", MEMBER, BT()), true)
-		w.claims["Quiet Mender-Realm"] = "Olympus III"
-		eq(A.HandleTag("WHISPER", "Quiet Mender-Realm", BT(nil, "Olympus III", "Mender#4321")), true)
-		eq(A.HandleTag("WHISPER", "Brisk Lantern-Realm", BT(nil, "Olympus III", "Lantern#7777")), true)
+		w.claims["Quiet Mender-Realm"] = "ChillZone III"
+		eq(A.HandleTag("WHISPER", "Quiet Mender-Realm", BT(nil, "ChillZone III", "Mender#4321")), true)
+		eq(A.HandleTag("WHISPER", "Brisk Lantern-Realm", BT(nil, "ChillZone III", "Lantern#7777")), true)
 		local rows = ns.rdb.battletags.rows
 		eq(rows[ns.Fold(MEMBER)].via, "roster"); eq(rows[ns.Fold("Quiet Mender-Realm")].via, "claim"); eq(rows[ns.Fold("Brisk Lantern-Realm")].via, "self")
-		eq(rows[ns.Fold(MEMBER)].tag, TAG); eq(rows[ns.Fold(MEMBER)].guild, "Olympus II")
+		eq(rows[ns.Fold(MEMBER)].tag, TAG); eq(rows[ns.Fold(MEMBER)].guild, "ChillZone II")
 		eq(#w.Fired("ACCORD_TEAM_CHANGED"), 3)
 		-- The same again soon: refused; another tag: kept, the old one as before.
 		eq(Why("WHISPER", MEMBER, BT()), "rate")
@@ -624,24 +624,24 @@ test("accord: the census's validated sample (Accord.Sample): on a team client th
 		A.HandleTag("WHISPER", MEMBER, BT())
 		A.HandleTag("WHISPER", "Second Alt-Realm", BT())
 		A.HandleTag("WHISPER", "Brisk Lantern-Realm", BT(nil, nil, "Bob#7777"))
-		A.HandleTag("WHISPER", "Far Rider-Realm", BT(nil, "Olympus Far", "Far#4242"))
+		A.HandleTag("WHISPER", "Far Rider-Realm", BT(nil, "ChillZone Far", "Far#4242"))
 		eq(A.Count(), 4)
-		local out = { A.Sample({ ["olympus ii"] = true }) }
+		local out = { A.Sample({ ["chillzone ii"] = true }) }
 		eq(#out, 2); eq(out[1], 3, "characters"); eq(out[2], 2, "accounts: one BattleTag on two characters")
 		eq(type(out[1]), "number"); eq(type(out[2]), "number")
-		out = { A.Sample({ ["olympus ii"] = true, ["olympus far"] = true }) }
+		out = { A.Sample({ ["chillzone ii"] = true, ["chillzone far"] = true }) }
 		eq(out[1], 4); eq(out[2], 3)
 		out = { A.Sample({}) }
 		eq(out[1], 0); eq(out[2], 0)
 		-- The author's role preview: none.
 		ns.ViewAs = { Available = function() return true end, Role = function() return "member" end }
-		out = { A.Sample({ ["olympus ii"] = true }) }
+		out = { A.Sample({ ["chillzone ii"] = true }) }
 		eq(out[1], 0); eq(out[2], 0)
 	end, { accepted = true, team = true })
 	-- An ordinary member's client: nothing counted, even with a store left behind.
 	Scene(function(w, A)
-		ns.rdb.battletags = { v = 1, rows = { ["member7-realm"] = { name = MEMBER, tag = TAG, guild = "Olympus II", last = w.now } } }
-		local c, a = A.Sample({ ["olympus ii"] = true })
+		ns.rdb.battletags = { v = 1, rows = { ["member7-realm"] = { name = MEMBER, tag = TAG, guild = "ChillZone II", last = w.now } } }
+		local c, a = A.Sample({ ["chillzone ii"] = true })
 		eq(c, 0); eq(a, 0)
 	end, { accepted = true })
 end)
@@ -707,7 +707,7 @@ test("accord: the team's page groups one player's characters, the digits hidden 
 	end, { accepted = true, team = true })
 end)
 
-test("accord: never a BattleTag in the log, the errors, the bug report or /oly status", function()
+test("accord: never a BattleTag in the log, the errors, the bug report or /cz status", function()
 	-- (The log keeps its last 400 lines, ns.Log: in the whole suite it is full by now and each new line
 	-- drops the oldest, so its length said nothing of the flows. They get an empty log and error list
 	-- of their own, the harness's put back after.)
@@ -743,7 +743,7 @@ end)
 -- bonitinho, fácil de ler", "com negrito, quando necessário". Its 20 long bullets became short
 -- one-sentence ones (fewer words in all, each bounded below), the key ones in bold; and on the
 -- King's screen no part of the tag shows: a short name cut to four letters was the whole name.)
-test("accord: the letter: Olympus's own bronze window over parchment, the Accord's name in the quest title font, every topic and its short bullets, the key ones bold, the version and its date; the tag masked (Show reveals it a moment), and on the King's screen no part of it, with no Show", function()
+test("accord: the letter: ChillZone's own bronze window over parchment, the Accord's name in the quest title font, every topic and its short bullets, the key ones bold, the version and its date; the tag masked (Show reveals it a moment), and on the King's screen no part of it, with no Show", function()
 	H.WithUI(function()
 		Scene(function(w, A)
 			local f = A.Show("slash")
@@ -767,7 +767,7 @@ test("accord: the letter: Olympus's own bronze window over parchment, the Accord
 			eq(#f.parts, 1 + #A.TOPICS + 2 * n, "a dot beside each bullet")
 			-- Short: one sentence a bullet, the whole letter well under the first draft's 571 words.
 			-- (Changed on purpose, 2026-10-19: the owner asked to drop "unofficial fan addon" and say
-			-- what Olympus is instead, so "What Olympus is" 1.1 names the guilds and what the addon
+			-- what ChillZone is instead, so "What ChillZone is" 1.1 names the guilds and what the addon
 			-- holds, 28 words in English. That one bullet is bounded at 30; every other stays at 22,
 			-- and the letter's bound grows by the same 20 words, 360 to 380.)
 			local total = select(2, L.ACCORD_OPENING:gsub("%S+", ""))
@@ -786,7 +786,7 @@ test("accord: the letter: Olympus's own bronze window over parchment, the Accord
 			-- follows the BattleTag, 5.5, took the place of "It helps spot one player's characters", its
 			-- wording trimmed by one word so the merged letter still fits 389. Then, 2026-10-20, the
 			-- disclosure of the chat record the owner approved, 6.3: with the Companion, staff keep the
-			-- Olympus and guild chats the player sees, to confirm what was said and moderate. Its 21
+			-- ChillZone and guild chats the player sees, to confirm what was said and moderate. Its 21
 			-- words grow the bound to 410, as the moderator protection's bullet grew it; nothing else in
 			-- the letter changed. Its review named the guild chat, which the record takes too, in the
 			-- same 21 words.)
@@ -797,7 +797,7 @@ test("accord: the letter: Olympus's own bronze window over parchment, the Accord
 			-- (Changed on purpose, 2026-10-19: the owner's "sair para o Companion só" became a bullet
 			-- of its own, T5_3, in bold with the in-game promise it qualifies; the 360-word bound
 			-- stays, the letter trimmed elsewhere to fit. Then, the same day, the owner's "botar uma descrição mais
-			-- explicando o que é" made the first topic say what Olympus is, and the bound became 380.)
+			-- explicando o que é" made the first topic say what ChillZone is, and the bound became 380.)
 			local bold = {}
 			for _, p in ipairs(f.parts) do
 				if p.kind == "bullet" and p.bold then bold[#bold + 1] = p.fs:GetText() end
@@ -830,7 +830,7 @@ test("accord: the letter: Olympus's own bronze window over parchment, the Accord
 			eq(f.tagNote:GetText(), L.ACCORD_TAG_HIDDEN_STREAM)
 			f.reveal:Click()
 			eq(f.tag:GetText(), "****#****")
-			-- Accepted, from /oly accord: the date, and Close alone.
+			-- Accepted, from /cz accord: the date, and Close alone.
 			eq(A.Accept(), true)
 			w.king = false
 			f = A.Show("slash")
@@ -842,18 +842,18 @@ test("accord: the letter: Olympus's own bronze window over parchment, the Accord
 	end)
 end)
 
-test("accord: /oly accord shows the letter, accepted or not; /oly privacy shows the Accord first while it waits; the Olympus window opens on the Accord's page and shows the letter", function()
+test("accord: /cz accord shows the letter, accepted or not; /cz privacy shows the Accord first while it waits; the ChillZone window opens on the Accord's page and shows the letter", function()
 	H.WithUI(function()
 		Scene(function(w, A)
-			SlashCmdList.OLYMPUS("accord")
+			SlashCmdList.CHILLZONE("accord")
 			assert(A.Frame() and A.Frame():IsShown())
 			A.Frame():Hide()
-			SlashCmdList.OLYMPUS("privacy")
+			SlashCmdList.CHILLZONE("privacy")
 			assert(A.Frame():IsShown(), "the Accord first"); eq(ns.Consent.Frame() == nil or not ns.Consent.Frame():IsShown(), true)
 			A.Frame().notNow:Click()
 			local UI = H.LoadUI()
 			UI.Toggle()
-			local main = OlympusFrame
+			local main = ChillZoneFrame
 			eq(main:IsShown(), true)
 			eq(UI.PageId(), "accord")
 			eq(main.total:GetText(), L.ACCORD_NAME)
@@ -868,7 +868,7 @@ test("accord: /oly accord shows the letter, accepted or not; /oly privacy shows 
 			eq(ns.IsMember(), true)
 			UI.Refresh()
 			eq(UI.PageId() ~= "accord", true, "its tabs")
-			SlashCmdList.OLYMPUS("accord")
+			SlashCmdList.CHILLZONE("accord")
 			assert(A.Frame():IsShown(), "accepted: shown again"); eq(A.Frame().close:IsShown(), true)
 			A.Frame():Hide()
 			main:Hide()
@@ -876,19 +876,19 @@ test("accord: /oly accord shows the letter, accepted or not; /oly privacy shows 
 	end)
 end)
 
-test("accord: a client updated without a restart (Accord.lua not loaded yet): /oly accord says to restart, Olympus stays off, the window's page says so", function()
+test("accord: a client updated without a restart (Accord.lua not loaded yet): /cz accord says to restart, ChillZone stays off, the window's page says so", function()
 	H.WithUI(function()
 		Scene(function(w, A)
 			local stub = setmetatable({ missing = true, Show = function() ns.Print(L.RESTART_NEEDED) end,
 				Slash = function() ns.Print(L.RESTART_NEEDED) end }, { __index = function() return function() end end })
 			ns.Accord = stub
 			local ok, err = pcall(function()
-				SlashCmdList.OLYMPUS("accord")
+				SlashCmdList.CHILLZONE("accord")
 				assert(w.Said(L.RESTART_NEEDED))
 				eq(ns.IsMember(), false)
 				local UI = H.LoadUI()
 				UI.Toggle()
-				local main = OlympusFrame
+				local main = ChillZoneFrame
 				eq(UI.PageId(), "accord")
 				local found = false
 				for _, r in ipairs(main.views[main.tab].rows or {}) do
@@ -909,8 +909,8 @@ test("accord: its words in English and pt-BR, the same format codes; the name in
 		local savedLocale = GetLocale
 		GetLocale = function() return locale end
 		local ok, err = pcall(function()
-			assert(loadfile(ROOT .. "Olympus/Locales.lua"))("Olympus", lns)
-			assert(loadfile(ROOT .. "Olympus/Locales/AccordText.lua"))("Olympus", lns)
+			assert(loadfile(ROOT .. "ChillZone/Locales.lua"))("ChillZone", lns)
+			assert(loadfile(ROOT .. "ChillZone/Locales/AccordText.lua"))("ChillZone", lns)
 		end)
 		GetLocale = savedLocale
 		if not ok then error(err, 0) end
@@ -918,7 +918,7 @@ test("accord: its words in English and pt-BR, the same format codes; the name in
 	end
 	local en, pt = LoadedL("enUS"), LoadedL("ptBR")
 	local keys = { "ACCORD_NAME", "ACCORD_LOCKED_TITLE", "ACCORD_LOCKED_HINT", "ACCORD_LOCKED_OPEN", "ACCORD_READ", "HELP_ACCORD" }
-	local f = assert(io.open(ROOT .. "Olympus/Locales/AccordText.lua", "rb"))
+	local f = assert(io.open(ROOT .. "ChillZone/Locales/AccordText.lua", "rb"))
 	local src = f:read("*a")
 	f:close()
 	local seen = {}
@@ -932,13 +932,13 @@ test("accord: its words in English and pt-BR, the same format codes; the name in
 		assert(type(pt[k]) == "string" and pt[k] ~= "" and (SAME[k] or pt[k] ~= en[k]), k .. ": pt-BR")
 		eq(Codes(pt[k]), Codes(en[k]), k .. ": format codes")
 	end
-	eq(en.ACCORD_NAME, "The Olympus Accord"); eq(pt.ACCORD_NAME, "O Acordo do Olympus")
+	eq(en.ACCORD_NAME, "The ChillZone Accord"); eq(pt.ACCORD_NAME, "O Acordo do ChillZone")
 	assert(en.ACCORD_SUBTITLE:find("Terms of use", 1, true) and en.ACCORD_OPENING:find("terms of use", 1, true), "it says what it is")
 	assert(pt.ACCORD_SUBTITLE:find("Termos de uso", 1, true))
-	-- What Olympus is (2026-10-19, the owner: not "unofficial", not a fan addon, say what it is):
-	-- the Olympus guilds' own free addon and what it holds; Blizzard's line stays its own bullet.
-	assert(en.ACCORD_T1_1:find("Olympus guilds", 1, true) and en.ACCORD_T1_1:find("census", 1, true), en.ACCORD_T1_1)
-	assert(pt.ACCORD_T1_1:find("guildas Olympus", 1, true) and pt.ACCORD_T1_1:find("censo", 1, true), pt.ACCORD_T1_1)
+	-- What ChillZone is (2026-10-19, the owner: not "unofficial", not a fan addon, say what it is):
+	-- the ChillZone guilds' own free addon and what it holds; Blizzard's line stays its own bullet.
+	assert(en.ACCORD_T1_1:find("ChillZone guilds", 1, true) and en.ACCORD_T1_1:find("census", 1, true), en.ACCORD_T1_1)
+	assert(pt.ACCORD_T1_1:find("guildas ChillZone", 1, true) and pt.ACCORD_T1_1:find("censo", 1, true), pt.ACCORD_T1_1)
 	for _, s in ipairs({ en.ACCORD_T1_1, pt.ACCORD_T1_1 }) do
 		local low = s:lower()
 		for _, word in ipairs({ "unofficial", "fan addon", "fan-made", "não oficial", "fãs" }) do
@@ -953,10 +953,10 @@ test("accord: its words in English and pt-BR, the same format codes; the name in
 	-- (2026-10-19) Where the BattleTag goes: the moderation team in game, and with the Companion
 	-- app the online census, staff only (BridgeSections.lua's self section), in both languages.
 	assert(en.ACCORD_T5_2:find("In game, only the moderation team", 1, true) and pt.ACCORD_T5_2:find("No jogo, só a equipe de moderação", 1, true))
-	for _, must in ipairs({ "Olympus Companion app", "online census", "staff only", "security and control" }) do
+	for _, must in ipairs({ "ChillZone Companion app", "online census", "staff only", "security and control" }) do
 		assert(en.ACCORD_T5_3:find(must, 1, true), "ACCORD_T5_3: " .. must)
 	end
-	for _, must in ipairs({ "Olympus Companion", "censo online", "staff", "segurança e controle" }) do
+	for _, must in ipairs({ "ChillZone Companion", "censo online", "staff", "segurança e controle" }) do
 		assert(pt.ACCORD_T5_3:find(must, 1, true), "pt-BR ACCORD_T5_3: " .. must)
 	end
 	assert(en.ACCORD_TAG_TO:find("staff", 1, true) and pt.ACCORD_TAG_TO:find("staff", 1, true), "the band's note says staff too")
@@ -964,19 +964,19 @@ test("accord: its words in English and pt-BR, the same format codes; the name in
 	-- team alone in game, as with the Companion (the letter's T5_3) the online census gets it too.
 	assert(en.CONSENT_INTRO:find("And in game, your BattleTag goes privately to the moderation team alone", 1, true), "the privacy page: in game")
 	assert(pt.CONSENT_INTRO:find("E no jogo a sua BattleTag vai em privado apenas para a equipe de moderação", 1, true), "pt-BR privacy page: no jogo")
-	-- (2026-10-20) The Companion's chat record (Bridge.lua's OlympusBridge.RegisterChatRecorder, the
+	-- (2026-10-20) The Companion's chat record (Bridge.lua's ChillZoneBridge.RegisterChatRecorder, the
 	-- switch the private Companion bridge looks for): the letter's 6.3 and the privacy page say who
-	-- gets the Olympus chat lines the player sees, his own too, and why, in both languages.
+	-- gets the ChillZone chat lines the player sees, his own too, and why, in both languages.
 	-- (Changed on purpose, the record's review: it takes the game's own guild chat too, through the
-	-- Guild room, guildmates without Olympus included, so both name the guild chat beside Olympus's.)
-	for _, must in ipairs({ "Olympus Companion", "staff keep", "Olympus and guild chats your client receives", "including locally hidden lines", "confirm and moderate" }) do
+	-- Guild room, guildmates without ChillZone included, so both name the guild chat beside ChillZone's.)
+	for _, must in ipairs({ "ChillZone Companion", "staff keep", "ChillZone and guild chats your client receives", "including locally hidden lines", "confirm and moderate" }) do
 		assert(en.ACCORD_T6_3:find(must, 1, true), "ACCORD_T6_3: " .. must)
 	end
-	for _, must in ipairs({ "Olympus Companion", "a staff guarda", "chats recebidos do Olympus e da guilda", "até os ocultos", "conferir e moderar" }) do
+	for _, must in ipairs({ "ChillZone Companion", "a staff guarda", "chats recebidos do ChillZone e da guilda", "até os ocultos", "conferir e moderar" }) do
 		assert(pt.ACCORD_T6_3:find(must, 1, true), "pt-BR ACCORD_T6_3: " .. must)
 	end
-	assert(en.CONSENT_INTRO:find("If you use the Olympus Companion app, it sends every Olympus and guild chat line your client receives, your own and locally hidden lines included, to Olympus's staff, who keep them to confirm what was said and to moderate.", 1, true), "the privacy page: the chat record")
-	assert(pt.CONSENT_INTRO:find("Se você usa o app Olympus Companion, ele manda cada linha dos chats do Olympus e da guilda recebida pelo seu cliente, incluindo as suas e as ocultas por filtros locais, para a staff do Olympus, que as guarda para confirmar o que foi dito e moderar.", 1, true), "pt-BR privacy page: the chat record")
+	assert(en.CONSENT_INTRO:find("If you use the ChillZone Companion app, it sends every ChillZone and guild chat line your client receives, your own and locally hidden lines included, to ChillZone's staff, who keep them to confirm what was said and to moderate.", 1, true), "the privacy page: the chat record")
+	assert(pt.CONSENT_INTRO:find("Se você usa o app ChillZone Companion, ele manda cada linha dos chats do ChillZone e da guilda recebida pelo seu cliente, incluindo as suas e as ocultas por filtros locais, para a staff do ChillZone, que as guarda para confirmar o que foi dito e moderar.", 1, true), "pt-BR privacy page: the chat record")
 	eq(select(2, en.CONSENT_INTRO:gsub("%%s", "")), 1, "the privacy page's intro keeps its one %s")
 	-- Each topic's bullets are the letter's (Accord.TOPICS), in both languages: none past its count.
 	for _, t in ipairs(ns.Accord.TOPICS) do
@@ -987,7 +987,7 @@ test("accord: its words in English and pt-BR, the same format codes; the name in
 	end
 	-- Short in pt-BR too, each bullet within the English letter's caps (30 words for 1.1, 22 for
 	-- every other). (The chat record's review: nothing held the pt-BR bullets, its 6.3 came in at 27
-	-- words and 1.1 at 32; both trimmed, 1.1 by "do Olympus" after "os chats", plain from the line.)
+	-- words and 1.1 at 32; both trimmed, 1.1 by "do ChillZone" after "os chats", plain from the line.)
 	for _, t in ipairs(ns.Accord.TOPICS) do
 		for i = 1, t[2] do
 			local count = select(2, pt["ACCORD_T" .. t[1] .. "_" .. i]:gsub("%S+", ""))
@@ -1002,16 +1002,16 @@ test("accord: its words in English and pt-BR, the same format codes; the name in
 	for k in src:sub(ptAt):gmatch("\n\tL%.(ACCORD_[%w_]+) = ") do ptKeys[#ptKeys + 1] = k end
 	eq(table.concat(ptKeys, " "), table.concat(enKeys, " "), "the pt-BR block has every English key, in order")
 	assert(en.ACCORD_T3_2:find("English", 1, true))
-	local watch = assert(io.open(ROOT .. "Olympus/Watch.lua", "rb")):read("*a")
+	local watch = assert(io.open(ROOT .. "ChillZone/Watch.lua", "rb")):read("*a")
 	assert(watch:find("Watch.TIMEOUTS = { 0, 60 * 60, 24 * 60 * 60, 7 * 24 * 60 * 60 }", 1, true), "the ladder the letter states")
 	assert(watch:find("Watch.WARNING_KEEP = 30 * 86400", 1, true))
-	assert(watch:find("Olympus's chats are in English only", 1, true))
-	-- /oly help names it.
+	assert(watch:find("ChillZone's chats are in English only", 1, true))
+	-- /cz help names it.
 	local lines, savedPrint = {}, print
 	print = function(s) lines[#lines + 1] = tostring(s) end
-	SlashCmdList.OLYMPUS("help")
+	SlashCmdList.CHILLZONE("help")
 	print = savedPrint
-	assert(table.concat(lines, "\n"):find(ns.L.HELP_ACCORD, 1, true), "in /oly help")
+	assert(table.concat(lines, "\n"):find(ns.L.HELP_ACCORD, 1, true), "in /cz help")
 end)
 
 -- 1.2.5.1's review: the fixes after the Accord's first build, each against the real Accord.lua.
@@ -1111,7 +1111,7 @@ test("accord: a client off the moderation team drops its BattleTags: at once on 
 		end
 		A.OnLogin()
 		local tick = false
-		for _, t in ipairs(w.tickers) do if t.where == "olympus accord guard" and t.f == A.Guard then tick = true end end
+		for _, t in ipairs(w.tickers) do if t.where == "chillzone accord guard" and t.f == A.Guard then tick = true end end
 		eq(tick, true, "checked every GUARD_EVERY")
 		assert(Kept())
 		eq(A.Guard(), false, "on the team: kept")
@@ -1175,20 +1175,20 @@ test("accord: on any character of the King's game account, once his own was seen
 	end) end)
 end)
 
-test("accord: in an Olympus guild before the Accord, a members-only refusal says it waits for the Accord (/oly accord), never that he is no member; elsewhere as ever", function()
+test("accord: in an ChillZone guild before the Accord, a members-only refusal says it waits for the Accord (/cz accord), never that he is no member; elsewhere as ever", function()
 	Scene(function(w, A)
-		eq(ns.InOlympusGuild(), true); eq(ns.IsMember(), false)
+		eq(ns.InChillZoneGuild(), true); eq(ns.IsMember(), false)
 		local ok, why = ns.Channels.Send("A", "hello")
 		eq(ok, false); eq(why, "member")
 		assert(w.Said(L.ACCORD_DECLINED), "the Accord named")
 		assert(not w.Said(L.MEMBERS_ONLY))
 		eq(ns.MembersOnlyText(), L.ACCORD_DECLINED)
 		GetGuildInfo = function() return "Some Other Guild" end
-		eq(ns.MembersOnlyText(), L.MEMBERS_ONLY, "outside Olympus")
+		eq(ns.MembersOnlyText(), L.MEMBERS_ONLY, "outside ChillZone")
 	end)
 end)
 
-test("accord: /oly accord forget <name> on a team client drops that player's BattleTag, every character sharing it; elsewhere nothing is kept to drop", function()
+test("accord: /cz accord forget <name> on a team client drops that player's BattleTag, every character sharing it; elsewhere nothing is kept to drop", function()
 	Scene(function(w, A)
 		C_ChatInfo = { SendAddonMessageLogged = function() end }
 		A.AskTeam()
@@ -1196,7 +1196,7 @@ test("accord: /oly accord forget <name> on a team client drops that player's Bat
 		A.HandleTag("WHISPER", "Second Alt-Realm", BT())
 		A.HandleTag("WHISPER", "Brisk Lantern-Realm", BT(nil, nil, "Lantern#7777"))
 		eq(A.Count(), 3)
-		SlashCmdList.OLYMPUS("accord forget " .. MEMBER)
+		SlashCmdList.CHILLZONE("accord forget " .. MEMBER)
 		eq(A.Count(), 1, "both characters of that tag")
 		assert(ns.rdb.battletags.rows[ns.Fold("Brisk Lantern-Realm")], "the other player's kept")
 		assert(w.Said(L.ACCORD_FORGOT:format(2)))
@@ -1233,11 +1233,11 @@ test("accord: a BattleTag kept, dropped or shown redraws The Watch while it show
 	H.WithUI(function() Scene(function(w, A)
 		local uns, listeners = setmetatable({}, { __index = ns }), {}
 		uns.On = function(name, f) listeners[name] = listeners[name] or {}; table.insert(listeners[name], f) end
-		assert(loadfile(ROOT .. "Olympus/UI.lua"))("Olympus", uns)
+		assert(loadfile(ROOT .. "ChillZone/UI.lua"))("ChillZone", uns)
 		ns.UI = uns.UI
 		local UI = uns.UI
 		UI.Toggle()
-		local main = OlympusFrame
+		local main = ChillZoneFrame
 		local calls = 0
 		UI.RefreshSoon = function() calls = calls + 1 end
 		assert(listeners.ACCORD_TEAM_CHANGED, "UI.lua listens")
@@ -1258,7 +1258,7 @@ test("accord: the saved fingerprint keeps one byte: for a known name dozens of f
 		local fp, fits = A.Fp(TAG), 0
 		for n = 1000, 9999 do if A.Fp("Tester#" .. n) == fp then fits = fits + 1 end end
 		assert(fits >= 10, "only " .. fits .. " four-digit numbers fit: the digits come back from the file")
-		local h = ns.Sign.SHA256("OlympusAccord\0" .. ns.Fold(TAG))
+		local h = ns.Sign.SHA256("ChillZoneAccord\0" .. ns.Fold(TAG))
 		ns.db.accord.fp = ("%02x%02x"):format(h:byte(1), h:byte(2))
 		A.OnLogin()
 		eq(ns.db.accord.fp, fp, "its first byte kept")
@@ -1267,8 +1267,8 @@ test("accord: the saved fingerprint keeps one byte: for a known name dozens of f
 	end, { accepted = true })
 end)
 
--- The Companion's "self" section (Olympus/BridgeSections.lua): a separate explicit disclosure
--- controls the player's own character, BattleTag, current Olympus guild, native roles and tabs.
+-- The Companion's "self" section (ChillZone/BridgeSections.lua): a separate explicit disclosure
+-- controls the player's own character, BattleTag, current ChillZone guild, native roles and tabs.
 -- The tag is this account's own and never authority. The real registry copies it; the sidecar's integration
 -- tests are in tests/run.lua.
 local function Strings(v, out, depth)
@@ -1286,7 +1286,7 @@ end
 
 test("accord: the Companion's self section stays anonymous until both accords are accepted; after them it carries this character's native identity and own BattleTag", function()
 	H.WithUI(function() Scene(function(w, A)
-		local B = OlympusBridge
+		local B = ChillZoneBridge
 		local listed
 		for _, s in ipairs(B.Sections()) do if s.name == "self" then listed = s.version end end
 		eq(listed, 1, "registered as self, version 1")
@@ -1294,23 +1294,23 @@ test("accord: the Companion's self section stays anonymous until both accords ar
 			local got = assert(B.GetSection("self"), why)
 			eq(got.name, "self"); eq(got.version, 1)
 			eq(got.data.character, nil); eq(got.data.guild, nil)
-			eq(got.data.olympus, false); eq(#got.data.roles, 0); eq(#got.data.tabs, 0)
+			eq(got.data.chillzone, false); eq(#got.data.roles, 0); eq(#got.data.tabs, 0)
 			return got.data
 		end
 		eq(ns.AccordAccepted(), false)
-		Closed("before the Olympus Accord: an anonymous revocation")
+		Closed("before the ChillZone Accord: an anonymous revocation")
 		ns.db.accord = { v = ns.ACCORD_VERSION - 1, yes = true, at = w.now - 100, fp = A.Fp(TAG), told = {} }
-		Closed("an older Olympus Accord: still anonymous")
+		Closed("an older ChillZone Accord: still anonymous")
 		ns.db.accord = nil
 		eq(A.Accept(), true)
-		Closed("the Olympus Accord alone does not grant Companion disclosure")
+		Closed("the ChillZone Accord alone does not grant Companion disclosure")
 		assert(ns.Consent.Choose("companionAccord", true), "the separate Companion Accord accepts")
 		local d = assert(B.GetSection("self")).data
-		eq(d.character, "Tester-Realm"); eq(d.guild, GetGuildInfo("player")); eq(d.olympus, true)
+		eq(d.character, "Tester-Realm"); eq(d.guild, GetGuildInfo("player")); eq(d.chillzone, true)
 		eq(d.battleTag, TAG); eq(d.accord, ns.ACCORD_VERSION); eq(d.at, w.now)
 		for k, v in pairs(d) do
 			assert(({ character = true, guild = true, battleTag = true, accord = true, at = true,
-				roles = true, olympus = true, tabs = true })[k], "field " .. tostring(k))
+				roles = true, chillzone = true, tabs = true })[k], "field " .. tostring(k))
 			if k == "roles" or k == "tabs" then
 				for _, r in ipairs(v) do assert(type(r) == "string" and #r <= 32, "a capability name") end
 			elseif type(v) == "string" then
@@ -1329,7 +1329,7 @@ test("accord: the Companion's self section stays anonymous until both accords ar
 		Closed("a secret BattleTag is never read")
 		issecretvalue = nil
 		eq(B.GetSection("self").data.battleTag, TAG)
-		-- Asked for the Olympus Accord again (another tag on the account): access closes even while the
+		-- Asked for the ChillZone Accord again (another tag on the account): access closes even while the
 		-- separate Companion answer remains accepted.
 		w.bn.up, w.bn.tag = true, "Other Name#4321"
 		A.Check()
@@ -1340,7 +1340,7 @@ end)
 
 test("accord: the Companion's self section lists this character's own roles for the Companion's tabs: none for a plain member; officer, guildMaster, council, crown and author as he holds them", function()
 	H.WithUI(function() Scene(function(w, A)
-		local B = OlympusBridge
+		local B = ChillZoneBridge
 		eq(A.Accept(), true)
 		assert(ns.Consent.Choose("companionAccord", true))
 		local R, W = ns.Roster, ns.Workshop
@@ -1358,7 +1358,7 @@ test("accord: the Companion's self section lists this character's own roles for 
 			IsInGuild = function() return false end
 			local closed = B.GetSection("self").data
 			eq(closed.guild, nil, "outside a guild: no guild")
-			eq(closed.character, nil); eq(closed.olympus, false)
+			eq(closed.character, nil); eq(closed.chillzone, false)
 			IsInGuild = savedIn
 			R.IsOfficer = function() return true end
 			R.MyRank = function() return 0 end
@@ -1380,14 +1380,14 @@ end)
 test("accord: the Companion's self section carries only this account's own consented BattleTag; every other kept tag stays out of every section, log and screen", function()
 	Scene(function(w, A)
 		C_ChatInfo = { SendAddonMessageLogged = function() end }
-		local B = OlympusBridge
+		local B = ChillZoneBridge
 		assert(ns.Consent.Choose("companionAccord", true))
 		A.AskTeam()
 		eq(A.HandleTag("WHISPER", MEMBER, BT(nil, nil, "Other Player#5678")), true)
 		eq(A.HandleTag("WHISPER", "Brisk Lantern-Realm", BT(nil, nil, "Lantern#7777")), true)
 		-- A row under this very character's name (another addon's answer claiming it): the
 		-- section reads his own game, never the team's store.
-		ns.rdb.battletags.rows[ns.Fold(ns.me)] = { name = ns.me, tag = "Spoofed#9999", guild = "Olympus II", first = w.now, last = w.now }
+		ns.rdb.battletags.rows[ns.Fold(ns.me)] = { name = ns.me, tag = "Spoofed#9999", guild = "ChillZone II", first = w.now, last = w.now }
 		eq(A.Count(), 3)
 		-- (What is logged meanwhile, as ns.Log is called: the saved log is a ring that stops growing.)
 		local printed, logged, realLog = #w.printed, {}, ns.Log
@@ -1423,17 +1423,17 @@ end)
 test("accord: the Companion's self section is an anonymous revocation until the separate Companion Accord is accepted, then only the consented native identity", function()
 	Scene(function(w, A)
 		-- (1.4.0: what the Companion's bridge addon saves at logout is this section, read through
-		-- OlympusBridge; that addon is kept in its own repository, with its own tests.)
-		local function Self() return assert(OlympusBridge.GetSection("self"), "the self section") end
+		-- ChillZoneBridge; that addon is kept in its own repository, with its own tests.)
+		local function Self() return assert(ChillZoneBridge.GetSection("self"), "the self section") end
 		local s = Self()
-		eq(s.data.character, nil); eq(s.data.olympus, false, "before either Accord: an anonymous revocation")
+		eq(s.data.character, nil); eq(s.data.chillzone, false, "before either Accord: an anonymous revocation")
 		eq(A.Accept(), true)
 		s = Self()
-		eq(s.data.character, nil); eq(s.data.olympus, false,
-			"the Olympus Accord alone does not disclose the identity")
+		eq(s.data.character, nil); eq(s.data.chillzone, false,
+			"the ChillZone Accord alone does not disclose the identity")
 		assert(ns.Consent.Choose("companionAccord", true))
 		s = Self()
-		eq(s.version, 1); eq(s.data.character, ns.me); eq(s.data.guild, GetGuildInfo("player")); eq(s.data.olympus, true)
+		eq(s.version, 1); eq(s.data.character, ns.me); eq(s.data.guild, GetGuildInfo("player")); eq(s.data.chillzone, true)
 		eq(s.data.battleTag, TAG); eq(s.data.accord, ns.ACCORD_VERSION); eq(s.data.at, w.now)
 		-- The README's privacy table names it, as the code does it.
 		local function Read(path)
@@ -1447,8 +1447,8 @@ test("accord: the Companion's self section is an anonymous revocation until the 
 			if line:sub(1, 2) == "| " and line:find("`self` section", 1, true) then row = line end
 		end
 		assert(row, "README: the self section's privacy row")
-		for _, must in ipairs({ "Olympus Accord", "Olympus Companion Accord", "character", "BattleTag", "staff", "`OlympusBridge`" }) do
+		for _, must in ipairs({ "ChillZone Accord", "ChillZone Companion Accord", "character", "BattleTag", "staff", "`ChillZoneBridge`" }) do
 			assert(row:find(must, 1, true), "README's self row: " .. must)
 		end
-	end, { companion = true }) -- (the Companion's bridge addon attached, as its load says: OlympusBridge.COMPANION_ATTACHED)
+	end, { companion = true }) -- (the Companion's bridge addon attached, as its load says: ChillZoneBridge.COMPANION_ATTACHED)
 end)

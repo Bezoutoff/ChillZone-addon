@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cleans Bones' table texture, Olympus_Arena/media/games/farkle-table.tga (1024 x 512, 32-bit,
+"""Cleans Bones' table texture, ChillZone_Arena/media/games/farkle-table.tga (1024 x 512, 32-bit,
 uncompressed, bottom-left origin), in place: the same bytes every time it runs (idempotent).
 
 The owner saw thin coloured dashed lines across the table in the arena build. The Frame Lab split
@@ -21,7 +21,7 @@ import struct
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PATH = os.path.join(ROOT, "Olympus_Arena", "media", "games", "farkle-table.tga")
+PATH = os.path.join(ROOT, "ChillZone_Arena", "media", "games", "farkle-table.tga")
 SEAM = (251, 259)  # inclusive, rows from the top
 EDGE = 4
 

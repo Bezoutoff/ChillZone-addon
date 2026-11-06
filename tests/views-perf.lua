@@ -1,6 +1,6 @@
--- 1.2.1, the stutter players reported (it stopped with Olympus off): what the views do while nobody
+-- 1.2.1, the stutter players reported (it stopped with ChillZone off): what the views do while nobody
 -- looks at them. The world map's census refresh with the map closed (Map.lua), the crafters' board
--- each minute (Crafters.lua), and the Olympus Chat tab's redraws (ChatWindow.lua). Counted with
+-- each minute (Crafters.lua), and the ChillZone Chat tab's redraws (ChatWindow.lua). Counted with
 -- spies (timers, the pin library's calls, the moderators' word asked, sorts, bubbles laid out),
 -- never by the clock of this machine.
 local ns, test, eq, h = ...
@@ -24,7 +24,7 @@ local function LoadMap(lib)
 	gns.Gate = setmetatable({ Hooks = function(id, t) w.gate[id] = t end, Install = function() end }, { __index = ns.Gate })
 	local savedLibStub = LibStub
 	LibStub = function(name) if name == "HereBeDragons-Pins-2.0" then return lib end end
-	local ok, err = pcall(function() assert(loadfile(ADDON_DIR .. "Map.lua"))("Olympus", gns) end)
+	local ok, err = pcall(function() assert(loadfile(ADDON_DIR .. "Map.lua"))("ChillZone", gns) end)
 	LibStub = savedLibStub
 	if not ok then error(err, 0) end
 	lib.names[gns.Map] = "Map"
@@ -38,7 +38,7 @@ local function LoadMap(lib)
 	return w
 end
 
-test("1.2.1 performance: the census leaves the closed world map alone (no timer, no pin taken off or put back, only marked); opened, it is drawn once; the map's menu and /oly map still draw at once", function()
+test("1.2.1 performance: the census leaves the closed world map alone (no timer, no pin taken off or put back, only marked); opened, it is drawn once; the map's menu and /cz map still draw at once", function()
 	h.WithMapIcons(function()
 		h.WithGamepadUI(false, function()
 			local lib = h.RecordingPins()
@@ -85,7 +85,7 @@ test("1.2.1 performance: the census leaves the closed world map alone (no timer,
 				eq(Map.dirty, true)
 				w.fire("DATA_CHANGED")
 				eq(#w.timers, 0, "and nothing queued after it")
-				-- Asked for by name with the map closed (its menu, /oly map, Map.SetEnabled): at once.
+				-- Asked for by name with the map closed (its menu, /cz map, Map.SetEnabled): at once.
 				Map.SetEnabled(true)
 				SameLog(lib:Take(), { "worldAll Map", "world+ Map 1453", "world+ Map 1429" }, "Map.SetEnabled draws at once")
 				eq(Map.dirty, false, "and is up to date")
@@ -107,7 +107,7 @@ test("1.2.1 performance: the census leaves the closed world map alone (no timer,
 	end)
 end)
 
--- With the gamepad UI nothing of Olympus's is on the world map: its opening draws nothing there.
+-- With the gamepad UI nothing of ChillZone's is on the world map: its opening draws nothing there.
 test("1.2.1 performance: with the gamepad UI, the world map's opening takes nothing off and puts nothing on it; the census redraws it while open, as before", function()
 	h.WithMapIcons(function()
 		h.WithGamepadUI(true, function()
@@ -149,9 +149,9 @@ end
 test("1.2.1 performance: the crafters' minute tick only forgets the quiet listings: no board built, no moderators' word asked, nothing sorted; the board, built for its page, is the same", function()
 	WithBoard(function(w, Cr)
 		local start = w.clock
-		for i = 1, 10 do Cr.HandleListing("CHANNEL", "Quiet Crafter" .. i .. "-Realm", "W1~Olympus Zeus~197:Tailoring:250:300:12") end
+		for i = 1, 10 do Cr.HandleListing("CHANNEL", "Quiet Crafter" .. i .. "-Realm", "W1~ChillZone Zeus~197:Tailoring:250:300:12") end
 		w.clock = start + 1000
-		for i = 1, 20 do Cr.HandleListing("CHANNEL", "Busy Crafter" .. i .. "-Realm", "W1~Olympus Zeus~164:Blacksmithing:200:300:30") end
+		for i = 1, 20 do Cr.HandleListing("CHANNEL", "Busy Crafter" .. i .. "-Realm", "W1~ChillZone Zeus~164:Blacksmithing:200:300:30") end
 		local M = ns.Moderation
 		local asked, sorts = 0, 0
 		local hides, sort = M.Hides, table.sort
@@ -191,12 +191,12 @@ test("1.2.1 performance: the crafters' minute tick only forgets the quiet listin
 end)
 
 ---------------------------------------------------------------------------
--- The Olympus Chat tab
+-- The ChillZone Chat tab
 ---------------------------------------------------------------------------
 
 local T0 = h.T0
 local function Line(t, sender, text, extra)
-	local e = { t = t, sender = sender, guild = "Olympus II", text = text }
+	local e = { t = t, sender = sender, guild = "ChillZone II", text = text }
 	for k, v in pairs(extra or {}) do e[k] = v end
 	return e
 end
@@ -355,7 +355,7 @@ test("1.2.1 performance: the Chat tab's redraws a change asks for wait ten times
 		local ok, err = pcall(function()
 			-- (WithWindow's tab has no clock; a fresh ChatWindow.lua's reads the client's.)
 			local fresh = setmetatable({ On = function() end, RegisterEvent = function() end }, { __index = ns })
-			assert(loadfile(ADDON_DIR .. "ChatWindow.lua"))("Olympus", fresh)
+			assert(loadfile(ADDON_DIR .. "ChatWindow.lua"))("ChillZone", fresh)
 			debugprofilestop = function() return 1234.5 end
 			eq(fresh.ChatWindow.Clock(), 1234.5, "ChatWindow.Clock reads the client's debugprofilestop")
 			debugprofilestop = nil
