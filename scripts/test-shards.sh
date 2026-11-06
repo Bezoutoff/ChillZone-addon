@@ -11,6 +11,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 shards=${CHILLZONE_TEST_SHARDS:-16}
+if ! [[ $shards =~ ^[1-9][0-9]*$ ]]; then
+	printf 'CHILLZONE_TEST_SHARDS must be a positive integer, not "%s".\n' "$shards" >&2
+	exit 2
+fi
 known=tests/fixtures/shard-known-failures.txt
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
@@ -41,6 +45,10 @@ fi
 if [ -f "$known" ]; then LC_ALL=C sort -u "$known" > "$out/known"; else : > "$out/known"; fi
 unexpected=$(LC_ALL=C comm -23 "$out/failed" "$out/known")
 gone=$(LC_ALL=C comm -13 "$out/failed" "$out/known")
+if [ $((passed + failed)) -eq 0 ]; then
+	printf 'No test ran in any of the %d shards.\n' "$shards" >&2
+	exit 1
+fi
 printf '%d passed, %d failed in %d shards (%d known shard-order failures)\n' "$passed" "$failed" "$shards" "$(wc -l < "$out/known")"
 [ -z "$gone" ] || printf 'Known failures that passed this time (fine):\n%s\n' "$gone"
 if [ -n "$unexpected" ]; then

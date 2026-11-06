@@ -1195,7 +1195,7 @@ end)
 
 test("worst case report still fits the message limits", function()
 	local C = ns.Codec
-	local r = { guild = "ChillZone Longest Na", total = 1000, online = 1000, leader = "Averylongname", leaderOnline = true,
+	local r = { guild = "ChillZone Longest NameH", total = 1000, online = 1000, leader = "Averylongname", leaderOnline = true,
 		users = 999, zones = {}, classes = {}, levels = { 1, 2, 3, 4, 5, 6, 7 }, ranks = {}, officers = {}, top = {},
 		leaderClass = "WARRIOR", leaderLevel = 60, leaderZone = "tThe Temple of Atal'Hakkar",
 		from = ("F"):rep(40), home = ("H"):rep(40) }
@@ -55972,7 +55972,7 @@ do
 		-- 1.4.0, the languages: the Russian file loads on a ruRU client alone (its first line returns on any
 		-- other), whose game fonts are the Cyrillic ones; and the Agenda's Russian day words (Week.DAYS,
 		-- Week.SOON) are keys a typed line is matched against, never drawn. Cyrillic letters there alone:
-		-- every other mark in them keeps to the Western range, as everywhere else. Core.lua too: the release's guild names (<Чиллзон>, <Чиллзон Навсегда>) are keys matched against, never drawn.
+		-- every other mark in them keeps to the Western range, as everywhere else. Core.lua too: the release's guild names (<Чиллзон>, <Чиллзон Навсегда>) are keys matched against the game's own names, and KingGuildName() can display the main guild's name, in the Cyrillic fonts of a Russian client.
 		ALLOWED["ChillZone/Locales/ruRU.lua"], ALLOWED["ChillZone/Week.lua"], ALLOWED["ChillZone/Core.lua"] = {}, {}, {}
 		for cp = 0x0400, 0x04FF do ALLOWED["ChillZone/Locales/ruRU.lua"][cp], ALLOWED["ChillZone/Week.lua"][cp], ALLOWED["ChillZone/Core.lua"][cp] = true, true, true end
 		local ESC = { n = "\n", t = "\t", r = "\r", a = "\a", b = "\b", f = "\f", v = "\v" }

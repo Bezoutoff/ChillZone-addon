@@ -32,6 +32,8 @@ for patch in "$@"; do
 		git apply --reject "$patch.cz" || true
 		printf '\n%s did not apply cleanly. Merge the *.rej hunks by hand, delete the .rej files, then:\n' "${sha:0:7}" >&2
 		printf '  git add -A && git commit -C %s\n' "$sha" >&2
+		git diff --quiet UPSTREAM.md || printf 'UPSTREAM.md has rows not committed yet: commit it first (git commit -m "Record ported upstream commits" UPSTREAM.md).\n' >&2
+		printf 'After that commit, add this row to UPSTREAM.md:\n  | %s | <git rev-parse --short HEAD> | %s |\n' "${sha:0:7}" "$(sed -n 's/^Subject: \(\[PATCH[^]]*\] \)\{0,1\}//p' "$patch" | head -n 1)" >&2
 		exit 1
 	fi
 	printf '| %s | %s | %s |\n' "${sha:0:7}" "$(git rev-parse --short HEAD)" "$(git log -1 --format=%s)" >> UPSTREAM.md
