@@ -45,7 +45,7 @@ L.RB_BTN_GUILD = "Guild tab"
 
 -- 1. The launch letter: everyone, the version letter of the launch (RoleBriefings.LAUNCH_VERSION).
 L.RB_LAUNCH_TITLE = "The gates are open"
-L.RB_LAUNCH = "To the army of ChillZone,\n\nThe beta is ended. ChillZone is live.\n\nNot long ago this was a few guilds and an idea. Today it is one army and one realm, and every one of you stands within it.\n\nLittle is new in this version. Every office now receives its own letter, and every guild master a checklist in his. The rest is in your hands.\n\nFern has raised us a guild hall: chillzone.roachcouncil.com. Those in the Discord may sign in there and pass the gates. To Fern, our thanks.\n\nKeep a civil tongue in chat. Help the new. Bring your friends.\n\nPlay well."
+L.RB_LAUNCH = "To the army of ChillZone,\n\nThe beta is ended. ChillZone is live.\n\nNot long ago this was a few guilds and an idea. Today it is one army and one realm, and every one of you stands within it.\n\nLittle is new in this version. Every office now receives its own letter, and every guild master a checklist in his. The rest is in your hands.\n\nKeep a civil tongue in chat. Help the new. Bring your friends.\n\nPlay well."
 
 -- 2. The guild master's letter, with its checklist (built live by RoleBriefings.lua).
 L.RB_GM_TITLE = "Guild master: name your people"
@@ -209,7 +209,7 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.RB_BTN_GUILD = "Aba Guilda"
 
 	L.RB_LAUNCH_TITLE = "Os portões estão abertos"
-	L.RB_LAUNCH = "Ao exército de ChillZone,\n\nO beta terminou. O ChillZone está no ar.\n\nHá pouco tempo isto era meia dúzia de guildas e uma ideia. Hoje é um exército e um reino, e cada um de vós está dentro dele.\n\nPouco há de novo nesta versão. Cada cargo recebe agora a sua própria carta, e cada mestre de guilda um checklist na dele. O resto está em vossas mãos.\n\nFern ergueu-nos um salão da guilda: chillzone.roachcouncil.com. Quem está no Discord pode entrar ali e passar os portões. A Fern, o nosso agradecimento.\n\nMantende a cortesia no chat. Ajudai os novos. Trazei os vossos amigos.\n\nJogai bem."
+	L.RB_LAUNCH = "Ao exército de ChillZone,\n\nO beta terminou. O ChillZone está no ar.\n\nHá pouco tempo isto era meia dúzia de guildas e uma ideia. Hoje é um exército e um reino, e cada um de vós está dentro dele.\n\nPouco há de novo nesta versão. Cada cargo recebe agora a sua própria carta, e cada mestre de guilda um checklist na dele. O resto está em vossas mãos.\n\nMantende a cortesia no chat. Ajudai os novos. Trazei os vossos amigos.\n\nJogai bem."
 
 	L.RB_GM_TITLE = "Mestre de guilda: nomeai o vosso pessoal"
 	L.RB_GM_OPEN = "Ao mestre de uma guilda de ChillZone,\n\nTendes uma guilda de ChillZone. O ChillZone é o exército; a vossa guilda é onde o seu povo vive.\n\nNenhum mestre sustenta uma guilda sozinho, nem deveria. Nomeai o vosso pessoal. Cada linha abaixo abre o seu passo com um clique e marca-se por si quando estiver feito. Um título por pessoa, e só a membros da vossa própria guilda."

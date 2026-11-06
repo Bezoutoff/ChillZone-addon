@@ -4,13 +4,13 @@
 
 **The whole ChillZone network in one window, inside World of Warcraft: Forever.**
 
-ChillZone is a family of guilds on WoW: Forever (Alliance): <Чиллзон> and <Чиллзон Навсегда>. In
+ChillZone is a family of guilds on WoW: Forever (Alliance): «Чиллзон» and «Чиллзон Навсегда». In
 game each player only sees the roster of their own guild; this addon adds up every ChillZone guild
 live, in a window that looks like Blizzard's Guild window and docks right next to it.
 
 ChillZone is a fork of [Olympus](https://github.com/dnl-gentile/olympus-addon) (MIT). The rest of
 this manual is Olympus's with the names changed. Where it differs: the guilds are those the code
-names (<Чиллзон>, the King's, and <Чиллзон Навсегда>) and those the author's signed list adds, never
+names («Чиллзон», the King's, and «Чиллзон Навсегда») and those the author's signed list adds, never
 a guild for a word in its name; the King, the Treasurer and the author are named by that signed
 list alone; the logo is ChillZone's. See UPSTREAM.md for the commits taken from Olympus since.
 

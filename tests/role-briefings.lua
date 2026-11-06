@@ -203,7 +203,7 @@ test("role briefings: every letter is the King's, a sober missive signed - The K
 		RB.Preview("launch")
 		local launch = Flat(Text(RB.Page()))
 		assert(launch:find("The beta is ended. ChillZone is live.", 1, true), launch)
-		assert(launch:find("chillzone.roachcouncil.com", 1, true), "the site in the words")
+		assert(not launch:find("roachcouncil", 1, true), "no guild-hall site in the words")
 	end)
 end)
 
@@ -688,7 +688,7 @@ test("role briefings: every letter's words in pt-BR too, in the same sober voice
 			eq(hit, nil, "pt-BR: never the streamer's voice: " .. key .. ": " .. word)
 		end
 	end
-	assert(pt.L.RB_LAUNCH:find("chillzone.roachcouncil.com", 1, true))
+	assert(not pt.L.RB_LAUNCH:find("roachcouncil", 1, true))
 end)
 
 test("role briefings: the 1.4.0 release writes its own launch letter (the dev's, to the King and the army): RegisterLaunch keeps it, LIVE or not; its own signature and the site's link to copy", function()
