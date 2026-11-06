@@ -155,11 +155,10 @@ function Verify.Trusted(name)
 	return type(W) == "table" and type(W.IsAuthorName) == "function" and W.IsAuthorName(name) == true
 end
 
--- The guilds that need no verification, in this one place: the King's guild. The guilds the
--- author's signed list approves are not exempt (their guild masters verify too); to exempt them,
--- add `or ns.IsApprovedGuild(guild)` here.
+-- The guilds that need no verification, in this one place: the King's guild and the guilds the addon
+-- ships with or the author's signed list approves (ChillZone: its network is an exact list of guilds).
 function Verify.Exempt(guild)
-	return ns.IsKingGuild(guild) == true
+	return ns.IsKingGuild(guild) == true or ns.IsApprovedGuild(guild) == true
 end
 
 -- A guild's census row, by its name in any case.
