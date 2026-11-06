@@ -1474,12 +1474,15 @@ Data.GROUP_COUNT = 48 * 60 * 60     -- counted in the totals this long after it 
 Data.GROUP_WINDOW = 2 * 60 * 60     -- two people's looks agree within this...
 Data.GROUP_SHARE = 0.10             -- ...and within max(WITNESS_SLACK, this share)
 Data.GROUP_MAX = 64                 -- groups kept per faction
-Data.GROUP_SAY_AFTER = 90           -- after login, and then every GROUP_SAY_EVERY (with a spread)
+Data.GROUP_SAY_AFTER = 20           -- channel/relay startup, then a small spread
 Data.GROUP_SAY_EVERY = 30 * 60
-Data.GROUP_SAY_SPREAD = 5 * 60
+Data.GROUP_SAY_SPREAD = 20
+Data.GROUP_SEND_GAP = 65            -- one atomic origin after the relay's 60-second trickle refill
 Data.GROUP_SAY_MAX = 24             -- rows in one word
 Data.BETA_REALMS = { ClassicBetaPvP = true, ClassicBetaPvP2 = true }
 local groupHeard = {}   -- [key] = the newest look at that group heard on our channel (this session)
+local portableCursor, portableSent, legacySent = 0, {}, -math.huge
+local groupTicker = false
 local groupWitness = {} -- [key] = { [person] = row }: the witnesses heard this session
 
 local function GroupStore(which)
@@ -1791,18 +1794,26 @@ function Data.SayGroupCensus()
 	if ns.QuietPresence and ns.QuietPresence() then return false end
 	if not GlobalTrusted(ns.me) and not GlobalMember() then return false end
 	local now = ns.Now()
-	local payload = Data.PortablePayload and Data.PortablePayload(now) or nil
-	payload = payload or Data.GroupCensusPayload(now)
+	local payload, origin, index, observed
+	if Data.PortablePayload then payload, origin, index, observed = Data.PortablePayload(now, true) end
+	if not payload and now - legacySent >= Data.GROUP_SAY_EVERY then payload = Data.GroupCensusPayload(now) end
 	if not payload then return false end
 	local trusted = GlobalTrusted(ns.me)
-	local key = "census-groups"
-	return ns.Comm.SendChunked(payload, false, "CHANNEL", nil, { owner = Data, key = key,
+	local key = "census-groups" .. (origin and ":" .. origin or "")
+	local accepted = ns.Comm.SendChunked(payload, false, "CHANNEL", nil, { owner = Data, key = key,
 		permit = function(_, guardKey, dist, target)
 			if guardKey ~= key or dist ~= "CHANNEL" or target ~= nil then return false, "lane" end
 			if trusted and not GlobalTrusted(ns.me) then return false, "trust" end
 			if not trusted and not GlobalMember() then return false, "member" end
 			return true
 		end }) == true
+	if accepted then
+		if origin then
+			portableSent[origin] = { at = now, observed = observed }
+			portableCursor = index
+		else legacySent = now end
+	end
+	return accepted
 end
 
 function Data.ReceiveGroupCensus(dist, sender, text)
@@ -2120,7 +2131,6 @@ end
 -- an ordinary forwarder can transport a report but cannot become another vote.
 -- Unknown originals remain visible, dated and uncounted. Existing authenticated
 -- direct observations still use TakeGroup's trust/corroboration policy.
-local portableCursor = 0
 -- One logical chunk is atomic under the ordinary relay's trickle. With two
 -- chunks a busy reporter could receive the first and lose the second forever.
 -- The complete aggregate always fits; only whole detail rows use spare bytes.
@@ -2143,6 +2153,9 @@ local function PortableTrim(now)
 		return a.key < b.key
 	end)
 	for i = Data.GROUP_MAX + 1, #order do store[order[i].key] = nil end
+	local present = {}
+	for _, e in pairs(store) do present[GroupKey(e.faction, e.group)] = true end
+	for origin in pairs(portableSent) do if not present[origin] then portableSent[origin] = nil end end
 end
 local function PortableKeep(observer, row, wire, own)
 	local key = GroupKey(row.faction, row.group) .. "|" .. (PersonKey(observer) or observer:lower())
@@ -2173,14 +2186,24 @@ function Data.CapturePortable(row)
 	PortableKeep(observer, row, head .. table.concat(parts, ";"), true)
 	return true
 end
-function Data.PortablePayload(now)
-	PortableTrim(now or ns.Now())
+function Data.PortablePayload(now, sending)
+	now = now or ns.Now()
+	PortableTrim(now)
 	local store, keys = PortableStore(), {}
 	for key, e in pairs(store) do if Listed(e.group) then keys[#keys + 1] = key end end
 	if #keys == 0 then return nil end
 	table.sort(keys)
-	portableCursor = portableCursor % #keys + 1
-	return store[keys[portableCursor]].wire
+	for offset = 1, #keys do
+		local index = (portableCursor + offset - 1) % #keys + 1
+		local e = store[keys[index]]
+		local origin = GroupKey(e.faction, e.group)
+		local previous = portableSent[origin]
+		local localOrigin = e.group == GroupField(ns.group) and e.faction == OurFaction()
+		if not sending then return e.wire end
+		if not localOrigin and (not previous or now - previous.at >= Data.GROUP_SAY_EVERY or e.observed > previous.observed) then
+			return e.wire, origin, index, e.observed
+		end
+	end
 end
 function Data.ReceivePortable(sender, text)
 	if #text > Data.PORTABLE_MAX_BYTES then return false end
@@ -2215,6 +2238,13 @@ local function SaySoon()
 	ns.After(math.random(0, Data.GROUP_SAY_SPREAD), "census groups", function()
 		ns.SafeCall("census groups", Data.SayGroupCensus)
 		ns.SafeCall("census group details", Data.SayGroupDetails)
+		if not groupTicker then
+			groupTicker = true
+			-- Retry a refused admission without skipping it; accepted foreign origins take turns.
+			-- Per-origin windows prevent unchanged observations becoming a minute-by-minute broadcast.
+			ns.Every(Data.GROUP_SEND_GAP, "census groups", Data.SayGroupCensus)
+			ns.Every(Data.GROUP_SAY_EVERY, "census group details", Data.SayGroupDetails)
+		end
 	end)
 end
 
@@ -2244,13 +2274,12 @@ ns.On("INIT", function()
 	-- (1.4.0) Once more after the evening's first minutes, when more of the army is on.
 	ns.After(20 + Data.GLOBAL_ASK_AGAIN, "global census ask again", Data.AskGlobalCensus)
 	ns.Every(Data.GLOBAL_ASK_EVERY, "global census ask", Data.AskGlobalCensus)
-	-- (1.4.0) Every server's numbers: heard, said after login and every half hour (spread), and our
-	-- own look kept at logout (and by the census page's sampler).
+	-- Every server's numbers: foreign origins leave promptly in bounded turns after login;
+	-- unchanged origins repeat at most once per half hour. Own looks are kept at logout/sampling.
 	if ns.Comm and ns.Comm.Handle then ns.Comm.Handle("CX", Data.ReceiveGroupCensus) end
 	PruneGroups(now)
 	PruneDetails(now)
 	ns.After(Data.GROUP_SAY_AFTER, "census groups", SaySoon)
-	ns.Every(Data.GROUP_SAY_EVERY, "census groups", SaySoon)
 end)
 
 -- Tonight's count (1.1, Fern's #16): this client's own view of the evening, from the reports it
