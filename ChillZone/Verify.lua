@@ -423,9 +423,21 @@ local function Relative(name)
 	return name
 end
 
+-- Exact decision evidence; a start's earliest time is independent of who forwarded it.
+-- Receipt times and snapshot creation times never establish coverage.
+local function CoverageKey(kind, at, guild, gm, by)
+	local fields = { kind, at, Key(guild) }
+	if kind ~= "T" then
+		fields[#fields + 1] = Key(ns.FullName(gm))
+		fields[#fields + 1] = Key(ns.FullName(by))
+	end
+	return table.concat(fields, "|")
+end
+
 -- A verifier's client's answer: every word it holds, the newest first, then the starts (the
--- unverified guilds' first, the oldest first), bounded. And how many rows.
-function Verify.Payload(now)
+-- unverified guilds' first, the oldest first), bounded. And how many rows; with coverage supplied,
+-- whether that received snapshot contains every row this answer would actually send.
+function Verify.Payload(now, coverage)
 	now = now or Verify.Clock()
 	local s = Store()
 	local words, starts = {}, {}
@@ -447,24 +459,27 @@ function Verify.Payload(now)
 		return Key(a.e.guild) < Key(b.e.guild)
 	end)
 	local head = ("GV~%d~S~%d~"):format(Verify.PROTOCOL, now)
-	local out, bytes = {}, #head
-	local function Add(row)
+	local out, bytes, covered = {}, #head, coverage ~= nil
+	local function Add(row, key)
 		if #out >= Verify.MAX_ROWS then return false end
 		local extra = #row + (#out > 0 and 1 or 0)
 		if bytes + extra > Verify.MAX_BYTES then return false end
 		out[#out + 1], bytes = row, bytes + extra
+		if coverage and not coverage[key] then covered = false end
 		return true
 	end
 	for _, e in ipairs(words) do
-		if not Add(("%s,%d,%s,%s,%s"):format(e.k, e.at, e.guild, Relative(e.gm), Relative(e.by))) then break end
+		if not Add(("%s,%d,%s,%s,%s"):format(e.k, e.at, e.guild, Relative(e.gm), Relative(e.by)),
+			coverage and CoverageKey(e.k, e.at, e.guild, e.gm, e.by)) then break end
 	end
 	for _, x in ipairs(starts) do
-		if not Add(("T,%d,%s,%s"):format(x.e.at, x.e.guild, Relative(type(x.e.by) == "string" and x.e.by or ns.FullName(ns.me)))) then break end
+		if not Add(("T,%d,%s,%s"):format(x.e.at, x.e.guild, Relative(type(x.e.by) == "string" and x.e.by or ns.FullName(ns.me))),
+			coverage and CoverageKey("T", x.e.at, x.e.guild)) then break end
 	end
-	return head .. table.concat(out, ";"), #out
+	return head .. table.concat(out, ";"), #out, covered
 end
 
-local lastSent, heardRelay, pending = -math.huge, -math.huge, false
+local lastSent, pending = -math.huge, false
 function Verify.SendSnapshot()
 	if Quiet() or not ns.IsMember() or not Verify.Trusted(ns.me) then return false end
 	local payload, n = Verify.Payload()
@@ -483,8 +498,8 @@ function Verify.SendSnapshot()
 	return ok
 end
 
--- An ask heard: a verifier's client with different contents answers after 2-9 s, unless another verifier's
--- answer came meanwhile.
+-- An ask heard: a verifier's client with different contents answers after 2-9 s, unless another
+-- verifier delivered every row we would send. A smaller answer must not silence missing decisions.
 local function AnswerAsk(body, now)
 	if Quiet() or not ns.IsMember() or not Verify.Trusted(ns.me) then return true end
 	if pending or now - lastSent < Verify.ANSWER_GAP then return true end
@@ -498,11 +513,15 @@ local function AnswerAsk(body, now)
 	if fingerprint and fingerprint == theirFingerprint then return true end
 	-- A legacy ask cannot prove that it holds our words, even with equal counts.
 	-- ANSWER_GAP and the delayed/coalesced answer still bound recovery traffic.
-	pending = true
-	local heardAt = heardRelay
+	local request = {}
+	pending = request
 	ns.After(Verify.random(2, 9), "verify answer", function()
 		pending = false
-		if heardRelay > heardAt or Verify.Clock() - lastSent < Verify.ANSWER_GAP then return end
+		if Verify.Clock() - lastSent < Verify.ANSWER_GAP then return end
+		if request.coverage then
+			local _, _, covered = Verify.Payload(nil, request.coverage)
+			if covered then return end
+		end
 		Verify.SendSnapshot()
 	end)
 	return true
@@ -549,6 +568,7 @@ function Verify.Handle(dist, sender, text)
 		end
 		local realm = ns.RealmOf(sender)
 		local count, changed, bad = 0, false, false
+		local coverage = pending and {} -- only while answering; at most MAX_ROWS received entries
 		for row in rows:gmatch("[^;]+") do
 			if count >= Verify.MAX_ROWS then bad = true break end
 			count = count + 1
@@ -557,6 +577,7 @@ function Verify.Handle(dist, sender, text)
 				at, guild, gm, by = TimeField(at), GuildField(guild), NameField(gm, realm), NameField(by, realm)
 				if at and guild and gm and by then
 					if Take(k, at, guild, gm, by, now) then changed = true end
+					if coverage then coverage[CoverageKey(k, at, guild, gm, by)] = true end
 				else
 					bad = true
 				end
@@ -565,12 +586,13 @@ function Verify.Handle(dist, sender, text)
 				sat, sguild, sby = TimeField(sat), GuildField(sguild), NameField(sby, realm)
 				if sat and sguild and sby then
 					if TakeStart(sguild, sat, sby, now) then changed = true end
+					if coverage then coverage[CoverageKey("T", sat, sguild)] = true end
 				else
 					bad = true
 				end
 			end
 		end
-		heardRelay = now
+		if pending and not bad then pending.coverage = coverage end
 		if changed then Changed() end
 		if bad then stats.bad = stats.bad + 1 end
 		return not bad

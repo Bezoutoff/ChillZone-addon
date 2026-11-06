@@ -131,6 +131,82 @@ end)
 -- Who approves
 ---------------------------------------------------------------------------
 
+-- Competing legitimate verifiers may hold different parts of the saved decisions.
+-- A smaller, faster answer must not silence the holder of the missing original words.
+local function RecoveryCoverage(kind, fullExpected)
+	World(function(w)
+		local full = w.Client(HC, HEARTH, 3)
+		local fast = w.Client(HC2, ROGUES, 3)
+		local member = w.Client(MEMBER, GUILD, 3)
+		full.Verify.random = function(_, b) return b end
+		w.Census(GUILD, "Bram Hollow", 120)
+		w.Census(OTHER, "Corin Ash", 80)
+		local function Word(c, k, guild, gm, at)
+			eq(w.As(c, c.Verify.Handle, "CHANNEL", HC, ("GV~1~%s~%d~%s~%s"):format(k, at, guild, gm)), true)
+		end
+		local function Start(c, at)
+			eq(w.As(c, c.Verify.Handle, "CHANNEL", HC,
+				("GV~1~S~%d~T,%d,%s,%s"):format(w.now, at, OTHER, HC)), true)
+		end
+		Word(full, "A", GUILD, GM, T0 - 100)
+		Word(fast, "A", GUILD, GM, T0 - 100)
+		if kind == "start" then
+			Start(full, T0 - 90); Start(fast, T0 - 50)
+		else
+			Word(full, kind == "revocation" and "R" or "A", OTHER, GM2, T0 - 80)
+			if kind ~= "subset" then
+				Word(fast, "A", OTHER, GM2, kind == "revocation" and T0 - 95 or T0 - 80)
+			end
+			if kind == "superset" then Word(fast, "A", ROGUES, FORGER, T0 - 70) end
+		end
+		w.As(member, member.Verify.Ask)
+		w.now = T0 + 2; w.Run() -- the smaller/equal/larger fast answer reaches everyone
+		eq(fast.Verify.Stats().answered, 1)
+		w.now = T0 + 9; w.Run()
+		eq(full.Verify.Stats().answered, fullExpected, "only a covering snapshot suppresses the pending answer")
+		if kind == "start" then
+			eq(w.As(member, member.Verify.Start, OTHER), T0 - 90, "the earliest original start reaches the requester")
+			eq(w.As(full, full.Verify.Start, OTHER), T0 - 90, "the newer snapshot never resets the clock")
+		elseif kind == "revocation" then
+			local _, info = w.Status(member, OTHER)
+			eq(info.revoked.at, T0 - 80, "a newer original revocation reaches the requester")
+			eq(info.revoked.by, HC)
+		else
+			local status, info = w.Status(member, OTHER)
+			eq(status, "verified"); eq(info.entry.at, T0 - 80); eq(info.entry.by, HC)
+			if kind == "superset" then eq(w.Status(member, ROGUES), "verified") end
+		end
+		for _, p in ipairs(w.sent) do
+			if p.msg:match("^GV~1~S~") then assert(#p.msg <= full.Verify.MAX_BYTES, "existing byte budget retained") end
+		end
+		if kind == "subset" then
+			for _ = 1, 5 do w.As(full, full.Verify.Handle, "CHANNEL", MEMBER, "GV~1~Q~0~0~0") end
+			w.now = T0 + 20; w.Run()
+			eq(full.Verify.Stats().answered, 1, "duplicate asks retain the 180-second answer budget")
+			w.now = T0 + 9 + full.Verify.ANSWER_GAP
+			for _ = 1, 5 do w.As(full, full.Verify.Handle, "CHANNEL", MEMBER, "GV~1~Q~0~0~0") end
+			w.now = w.now + 9; w.Run()
+			eq(full.Verify.Stats().answered, 2, "later repeated asks coalesce to one answer")
+		end
+	end)
+end
+
+test("verify: recovery coverage retains a richer answer after a smaller snapshot and keeps its send budget", function()
+	RecoveryCoverage("subset", 1)
+end)
+test("verify: recovery coverage suppresses an answer already delivered by an equal snapshot", function()
+	RecoveryCoverage("equal", 0)
+end)
+test("verify: recovery coverage suppresses an answer already delivered by a superset snapshot", function()
+	RecoveryCoverage("superset", 0)
+end)
+test("verify: recovery coverage delivers the latest revocation after an older approval snapshot", function()
+	RecoveryCoverage("revocation", 1)
+end)
+test("verify: recovery coverage delivers the earliest start without resetting its original clock", function()
+	RecoveryCoverage("start", 1)
+end)
+
 test("verify: an approval is taken only from the King, a High Councillor or the author; a member's forged word or relay is refused", function()
 	World(function(w)
 		local hc = w.Client(HC, HEARTH, 3)
