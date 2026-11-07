@@ -11,7 +11,7 @@ if code ~= "frFR" then return end
 ns.Locale("frFR", {
 	LETTER_1_5_3_TITLE = "Les rappels restent réservés aux chefs de guilde",
 	LETTER_1_5_3_HEAD = "Les rappels restent réservés aux chefs de guilde",
-	LETTER_1_5_3 = "Version 1.5.3.\n\n- Les avertissements aux membres après expiration du délai sont suspendus.\n- Les rappels aux chefs de guilde et au Haut Conseil continuent ; les délais et validations restent en place.\n\nMettez ChillZone à jour et rechargez l’interface. Les anciennes versions conservent leurs avertissements.",
+	LETTER_1_5_3 = "Version 1.5.3.\n\n- Les avertissements aux membres après expiration du délai sont suspendus.\n- Les rappels aux chefs de guilde et au Haut Conseil continuent ; les délais et validations restent en place.\n\nMettez ChillZone à jour et rechargez l'interface. Les anciennes versions conservent leurs avertissements.",
 	MAPNAME_EDIT = "Modifier la carte",
 	MAPNAME_DONE = "Terminer",
 	MAPNAME_PICK = "Cliquez sur un nom de lieu. Cliquez sur un autre nom imprimé pour y placer une étiquette partagée.",

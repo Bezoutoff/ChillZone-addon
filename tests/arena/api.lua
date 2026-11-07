@@ -1479,7 +1479,9 @@ test("Queen identity: signed exact name only, reserved, consented, guild-bound a
 	eq(select(2, Do(w, viewer, a, "GetQueenIdentity")), "refused")
 	w:As(viewer, C.Choose, "api:mappins", true)
 	local guild = viewer.guild
-	viewer.guild = "Not ChillZone"
+	-- (ChillZone, the port of 1.5.2: the original's "Not Olympus" is outside by its name rule's
+	-- "against" words; the test identity's whole-word rule takes "Not ChillZone" in, so a plain stranger.)
+	viewer.guild = "Stormwind Traders"
 	eq(select(2, Do(w, viewer, a, "GetQueenIdentity")), "guild")
 	viewer.guild = guild
 	w:Run(API.RATE_WINDOW + 1)

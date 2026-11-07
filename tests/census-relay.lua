@@ -172,8 +172,10 @@ test("census scope relay: two large ordinary-origin observations cross the same 
 		Census(O)
 		for _, rules in ipairs({ "PvE", "RP" }) do
 			O.group, O.me = "Forever" .. rules, "Observer" .. rules .. "-Realm"
+			-- (ChillZone, the port of 1.5.2: "Olympus Lengthy Guild <i>" became two letters longer than the
+			-- game's 24-letter guild names, so Codec.LongGuild refused them all; "Gld" keeps the original's length.)
 			for i = 1, 20 do
-				O.rdb.guilds["ChillZone Lengthy Guild " .. i] = { total = 50, online = 10, t = O.clock - 60,
+				O.rdb.guilds["ChillZone Lengthy Gld " .. i] = { total = 50, online = 10, t = O.clock - 60,
 					from = "CAMWOWUS1Realm1" .. rules }
 			end
 			assert(O.Data.RecordGroupCensus())
@@ -231,8 +233,10 @@ test("census scope relay: a multi-part scoped snapshot survives the relay fanout
 		odeliver("WHISPER", relay .. "-Realm", "RY~")
 		Census(O)
 		local total = 0
+		-- (ChillZone, the port of 1.5.2: "ChillZone Origin Guild 10" to 12 passed the game's 24-letter cap
+		-- and were refused, 183 of 678 lost; "Gld" keeps the original's length.)
 		for i = 1, 12 do
-			O.rdb.guilds["ChillZone Origin Guild " .. i] = { total = 50 + i, online = 10, t = O.clock - 60, from = "CAMWOWUS1Realm8PvP" }
+			O.rdb.guilds["ChillZone Origin Gld " .. i] = { total = 50 + i, online = 10, t = O.clock - 60, from = "CAMWOWUS1Realm8PvP" }
 			total = total + 50 + i
 		end
 		assert(#O.Data.GlobalCensusPayload() > O.Codec.CHUNK, "exercise several independently relayed chunks")

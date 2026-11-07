@@ -62727,7 +62727,9 @@ end)()
 	test("1.4.0: the version, the TOC's files in order, the new message types in Comm.lua's list", function()
 		eq(ns.VERSION, "1.5.3") -- the release has one identity in both folders
 		local toc = assert(ReadFile(ADDON_DIR .. "ChillZone.toc"))
-		assert(toc:find("## Version: 1.5.2", 1, true))
+		-- (ChillZone, the port of 1.5.3: the original's hotfix raised the TOC and ns.VERSION to 1.5.3 and left
+		-- this line at 1.5.2; both folders say 1.5.3.)
+		assert(toc:find("## Version: 1.5.3", 1, true))
 		eq(ns.Workshop.Newer("1.4.0", "1.3.3"), true, "the launch release is newer")
 		eq(ns.Workshop.Newer("1.3.3", "1.4.0"), false)
 		eq(ns.Workshop.Newer("1.4.1", "1.4.0"), true, "the next patch remains newer")
