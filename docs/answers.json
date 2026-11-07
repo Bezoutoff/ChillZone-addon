@@ -321,8 +321,8 @@
         "Can an old version count differently?",
         "My friend is on an older version, is that why?"
       ],
-      "answer": "Yes. Older versions miss things newer ones handle, like approved guilds, hidden guilds and linked alts, so their totals drift. Update in the CurseForge app or WowUp, then restart the game.",
-      "in_game": "Yes: older versions miss things like approved guilds, hidden guilds and linked alts. Update in CurseForge or WowUp and restart the game.",
+      "answer": "Yes. Older versions miss things newer ones handle, like approved guilds, hidden guilds and linked alts, so their totals drift. Update from GitHub (the releases page), then restart the game.",
+      "in_game": "Yes: older versions miss things like approved guilds, hidden guilds and linked alts. Update from GitHub (releases page) and restart the game.",
       "sources": [
         "L.BEHIND_TIP",
         "Data.lua:302,446"
@@ -486,8 +486,8 @@
         "What's the 'Update ChillZone' line?",
         "It says a new version is out"
       ],
-      "answer": "The author's addon announces each release in game. If yours is older, you get a line at the bottom of the Census and one in chat. Update in the CurseForge app or WowUp, then restart the game.",
-      "in_game": "A newer ChillZone is out. Update in the CurseForge app or WowUp, then restart the game.",
+      "answer": "The author's addon announces each release in game. If yours is older, you get a line at the bottom of the Census and one in chat. Update from GitHub (the releases page), then restart the game.",
+      "in_game": "A newer ChillZone is out. Update from GitHub (the releases page), then restart the game.",
       "notes": "Shows only after this client heard the author's presence with a /cz released mark.",
       "sources": [
         "Workshop.lua:648-677",
@@ -1613,9 +1613,9 @@
         "How do I install ChillZone?",
         "Where do I get the addon?"
       ],
-      "answer": "Get ChillZone Guild in the CurseForge app or WowUp and pick your Forever (beta) game install, not Classic Era. Then restart the game. By hand: unzip it so you end up with Interface > AddOns > ChillZone > ChillZone.toc.",
-      "in_game": "Get ChillZone Guild in the CurseForge app or WowUp (pick the Forever install), then restart the game.",
-      "link": "https://www.curseforge.com/wow/addons/olympus-guild",
+      "answer": "Get ChillZone Guild from GitHub (the releases page) and pick your Forever (beta) game install, not Classic Era. Then restart the game. By hand: unzip it so you end up with Interface > AddOns > ChillZone > ChillZone.toc.",
+      "in_game": "Get ChillZone Guild from GitHub (releases page) for the Forever install, then restart the game.",
+      "link": "https://github.com/Bezoutoff/ChillZone-addon/releases",
       "sources": [
         "README.md:1292-1316"
       ]
@@ -1628,8 +1628,8 @@
         "How do I update?",
         "I updated but nothing changed"
       ],
-      "answer": "Update ChillZone Guild in the CurseForge app or WowUp, then close and reopen the game: a /reload won't load a new version properly. /cz status shows your version on its first line.",
-      "in_game": "Update in the CurseForge app or WowUp, then close and reopen the game (a /reload isn't enough).",
+      "answer": "Update ChillZone Guild from GitHub (the releases page), then close and reopen the game: a /reload won't load a new version properly. /cz status shows your version on its first line.",
+      "in_game": "Update from GitHub (the releases page), then close and reopen the game (a /reload isn't enough).",
       "sources": [
         "L.WORKSHOP_UPDATE_POPUP",
         "L.BEHIND_TIP"
@@ -1658,8 +1658,8 @@
         "Do I have to update?",
         "My version is old, does it matter?"
       ],
-      "answer": "Please do. Older versions drop what newer ones send, so your census can look off and your guild can look broken to everyone else. Update in the CurseForge app or WowUp, then restart the game.",
-      "in_game": "Please update: old versions drop what new ones send, and your guild can look broken to others. CurseForge or WowUp, then restart.",
+      "answer": "Please do. Older versions drop what newer ones send, so your census can look off and your guild can look broken to everyone else. Update from GitHub (the releases page), then restart the game.",
+      "in_game": "Please update: old versions drop what new ones send, and your guild can look broken to others. GitHub releases, then restart.",
       "notes": "No minimum version is enforced anywhere.",
       "sources": [
         "L.BEHIND_TIP"
@@ -1687,7 +1687,7 @@
         "I got a window saying the author asks me to update",
         "Is the update popup legit?"
       ],
-      "answer": "If it says the author of the addon asks you, it's real: only his character can send it, and only when your version is older than the one he released. Update in the CurseForge app or WowUp, then restart. /cz rollcall off stops his. One naming a player is that player's ask.",
+      "answer": "If it says the author of the addon asks you, it's real: only his character can send it, and only when your version is older than the one he released. Update from GitHub (the releases page), then restart. /cz rollcall off stops his. One naming a player is that player's ask.",
       "in_game": "If it says the author asks, it's real: only his character can send it, and only if you're behind. Update and restart. /cz rollcall off stops his.",
       "sources": [
         "Workshop.lua:146-148,516,534-553 (V3 carries Workshop.Latest(), his running build)",
@@ -1703,7 +1703,7 @@
         "Where do I report a bug?",
         "How do I send the author an error?"
       ],
-      "answer": "Open the ChillZone window, click the help button left of the X, then Report a bug. Copy the text to GitHub or a CurseForge comment. If the author is online, that window also has a button that sends it straight to him in game.",
+      "answer": "Open the ChillZone window, click the help button left of the X, then Report a bug. Copy the text to GitHub. If the author is online, that window also has a button that sends it straight to him in game.",
       "in_game": "ChillZone window, help button (left of the X), Report a bug. If the author's online there's a button to send it to him.",
       "link": "https://github.com/dnl-gentile/olympus-addon/issues",
       "notes": "/cz bug opens the same report. Players who send it to the author see 'got your bug report' once he has it; at most one every 10 minutes.",
@@ -1778,7 +1778,7 @@
         "Does it work on Classic Era or Anniversary?",
         "Which game versions does ChillZone support?"
       ],
-      "answer": "It's built for WoW: Forever, and also tested on Classic Era and TBC Anniversary. Pick the right game install in the CurseForge app.",
+      "answer": "It's built for WoW: Forever, and also tested on Classic Era and TBC Anniversary. Pick the right game install when you install it.",
       "in_game": "Built for WoW: Forever, also tested on Classic Era and Anniversary.",
       "sources": [
         "README.md:29-31",
@@ -1842,8 +1842,8 @@
         "A window says someone asks me to update ChillZone",
         "A player asked me to update, is that legit?"
       ],
-      "answer": "A player saw your ChillZone is older than the one they know (the window names them; the author's own says it's the author). Update in the CurseForge app or WowUp, then restart the game. Don't remind me hides these asks for 7 days (on the beta, until you log out).",
-      "in_game": "A player saw your ChillZone is older. Update in CurseForge or WowUp and restart; Don't remind me hides these for 7 days (on the beta until you log out).",
+      "answer": "A player saw your ChillZone is older than the one they know (the window names them; the author's own says it's the author). Update from GitHub (the releases page), then restart the game. Don't remind me hides these asks for 7 days (on the beta, until you log out).",
+      "in_game": "A player saw your ChillZone is older. Update from GitHub (releases page) and restart; Don't remind me hides these for 7 days (on the beta until you log out).",
       "notes": "Only the author's ask opens the official update window; see help-author-update-popup. Never from a player you block, ignore or the moderators took off, and never naming a version the author hasn't released.",
       "sources": [
         "Versions.lua HandleAsk"
@@ -1901,7 +1901,7 @@
         "How do I get someone to install ChillZone?",
         "What's Tell them about ChillZone?"
       ],
-      "answer": "Right-click them: when their addon didn't answer Check version, pick Tell them about ChillZone. A whisper with the CurseForge link opens (to get it, or update an old one) for you to edit, and nothing goes out until you press Send.",
+      "answer": "Right-click them: when their addon didn't answer Check version, pick Tell them about ChillZone. A whisper with the GitHub releases link opens (to get it, or update an old one) for you to edit, and nothing goes out until you press Send.",
       "in_game": "Right-click them, Check version, then Tell them about ChillZone: a whisper with the link opens, and you send it yourself.",
       "sources": [
         "Versions.lua"

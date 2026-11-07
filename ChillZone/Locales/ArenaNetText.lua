@@ -9,9 +9,9 @@ local L = ns.L
 -- The test build (scripts/package.sh --test N) and its expiry.
 L.ARENA_TEST_LINE = "Arena test build %d of %s · built %s · expires %s · lane: %s · commit %s"
 L.ARENA_TEST_LOGIN = "ChillZone arena test build %d: the arena runs in your raid or party only, and nothing counts. /cz arena status"
-L.ARENA_TEST_EXPIRED = "This arena test build expired: install ChillZone from CurseForge. The rest of ChillZone works as before."
+L.ARENA_TEST_EXPIRED = "This arena test build expired: install ChillZone from GitHub (the releases page). The rest of ChillZone works as before."
 L.ARENA_TEST_NO_GROUP = "Arena test build: the arena works only in a raid or a party. Nothing was sent."
-L.ARENA_TEST_BEHIND = "ChillZone %s is out: replace this arena test build with the release (CurseForge or your addon app), then restart the game."
+L.ARENA_TEST_BEHIND = "ChillZone %s is out: replace this arena test build with the release (GitHub releases or your addon app), then restart the game."
 L.WORKSHOP_NO_RELEASED = "No released version is marked (/cz released): nobody is asked to update from an arena test build."
 
 -- The kill switch, the sim.
@@ -109,9 +109,9 @@ L.RECORDS_SEAL_BAD = "ChillZone: that is no seal this client takes (its signatur
 if GetLocale and GetLocale() == "ptBR" then
 	L.ARENA_TEST_LINE = "Versão de teste da arena %d da %s · feita %s · expira %s · canal: %s · commit %s"
 	L.ARENA_TEST_LOGIN = "Versão de teste da arena %d do ChillZone: a arena funciona só na sua raide ou grupo, e nada conta. /cz arena status"
-	L.ARENA_TEST_EXPIRED = "Esta versão de teste da arena expirou: instale o ChillZone pelo CurseForge. O resto do ChillZone funciona como antes."
+	L.ARENA_TEST_EXPIRED = "Esta versão de teste da arena expirou: instale o ChillZone pelo GitHub (página de lançamentos). O resto do ChillZone funciona como antes."
 	L.ARENA_TEST_NO_GROUP = "Versão de teste da arena: a arena só funciona numa raide ou num grupo. Nada foi enviado."
-	L.ARENA_TEST_BEHIND = "O ChillZone %s já saiu: troque esta versão de teste da arena pela oficial (CurseForge ou seu app de addons) e reinicie o jogo."
+	L.ARENA_TEST_BEHIND = "O ChillZone %s já saiu: troque esta versão de teste da arena pela oficial (GitHub ou seu app de addons) e reinicie o jogo."
 	L.WORKSHOP_NO_RELEASED = "Nenhuma versão lançada marcada (/cz released): ninguém é chamado a atualizar a partir de uma versão de teste da arena."
 	L.ARENA_OFF = "A Arena de Sangue está desligada nesta conta: nada dela é enviado, mostrado ou guardado. /cz arena on liga de novo."
 	L.ARENA_ON = "A Arena de Sangue está ligada."

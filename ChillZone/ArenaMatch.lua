@@ -2500,6 +2500,9 @@ local ACTIONS = {
 
 -- A font string or a button's label at 13 px at least.
 local function AtLeast(fs, px)
+	-- (ChillZone) Texts in another language than the client's (Russian on an English client): its font
+	-- may be a family whose raw path (GetFont) is the Latin member alone, so the size stays the client's.
+	if ns.TextLocale and GetLocale and ns.TextLocale() ~= GetLocale() then return end
 	if not (fs and fs.GetFont and fs.SetFont) then return end
 	local ok, path, size, flags = pcall(fs.GetFont, fs)
 	if ok and type(path) == "string" and type(size) == "number" and size < px then fs:SetFont(path, px, flags) end

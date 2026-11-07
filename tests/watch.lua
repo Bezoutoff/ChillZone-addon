@@ -1219,9 +1219,9 @@ test("watch: Report to ChillZone from the right-click menu: a category, a note a
 	end)
 end)
 
--- 1.1.6: ChillZone's chats are in English only, so "not in English" is a report of its own: the first
+-- 1.1.6: ChillZone's chats are in Russian and English only, so "not in Russian or English" is a report of its own: the first
 -- question's third answer, More, asks again between it and "something else" (Cancel too).
-test("watch: ChillZone's chats are in English only: More asks between not in English and something else; that report reaches the case as such", function()
+test("watch: ChillZone's chats are in Russian and English only: More asks between not in Russian or English and something else; that report reaches the case as such", function()
 	WithWatch(function(w, W, c)
 		w.setRank(c.me, 3); w.setRank("Captain One-Realm", 1); w.online(c.me, "Captain One-Realm")
 		w.chat.A = { { sender = SPAMMER, t = w.epoch - 100, text = "hola a todos, vendo oro" } }

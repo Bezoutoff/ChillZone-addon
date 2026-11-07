@@ -7,8 +7,8 @@ local ROOT = assert(extra and extra.ROOT, "tests/run.lua hands ROOT to this file
 local ADDON = ROOT .. "ChillZone/"
 
 local LANGS = { deDE = "deDE", esES = "esES", esMX = "esES", frFR = "frFR", itIT = "itIT", ruRU = "ruRU" }
--- Lines whispered to another player stay English, the network's own language: the one who reads
--- them may not share the sender's. Every language file leaves them out.
+-- Lines whispered to another player: Russian is the network's own language (the launch), so the
+-- Russian file carries them (Task 22); the other language files leave them out, English as before.
 local WHISPERS = { MENTOR_TO_CAPTAIN = true, MENTOR_TO_RECRUIT = true, JOIN_POINT_TEXT = true,
 	CHARTER_LETTER_TEXT = true, VERSION_ASK_WHISPER = true, WANTED_THANK_TEXT = true,
 	-- (1.4.0, the guild verification: the guild master's whisper to a verifier, the ask to the High
@@ -55,15 +55,58 @@ test("languages (1.4.0): each language file takes every line it carries, nearly 
 	end
 end)
 
-test("languages (1.4.0): lines whispered to another player stay English in every language", function()
+test("languages (1.4.0): lines whispered to another player are Russian in ruRU and stay English in the other languages", function()
 	local n = 0
+	local ru = Load("ruRU")
 	for k, v in pairs(english.L) do
 		if type(v) == "string" and Whisper(k) then
 			n = n + 1
-			for code, file in pairs(LANGS) do eq(Load(code).L[k], v, file .. " " .. k) end
+			for code, file in pairs(LANGS) do
+				if code == "ruRU" then
+					assert(ru.L[k] ~= v and ru.L[k]:find("[\208\209]"), file .. " " .. k .. " is Russian")
+				else
+					eq(Load(code).L[k], v, file .. " " .. k)
+				end
+			end
 		end
 	end
 	assert(n >= 10, "whispered lines: " .. n)
+end)
+
+-- Task 22 fix 1: Cyrillic is two bytes a letter, and these lines are sent without a player pressing
+-- anything: a whisper edit box takes 256 bytes (UI.WhisperText), Say() cuts at 255 (ns.Cut)
+-- and SendChatMessage drops the rest. Each ruRU line fits 255 bytes with worst-case placeholders.
+test("languages (Task 22): the Russian lines sent to other players fit 255 bytes with the longest names", function()
+	local ru = Load("ruRU")
+	local NAME = ("Ж"):rep(24)                  -- a 24-letter Cyrillic name: 48 bytes
+	local GUILD = "Чиллзон Навсегда"            -- 31 bytes
+	local URL = "https://github.com/Bezoutoff/ChillZone-addon/releases" -- 53 bytes
+	assert(#URL == 53 and #GUILD == 31 and #NAME == 48)
+	local ARGS = {
+		CHARTER_LETTER_TEXT = { NAME, NAME }, JOIN_POINT_TEXT = { NAME },
+		MENTOR_TO_CAPTAIN = { NAME, NAME }, MENTOR_TO_RECRUIT = { NAME, NAME },
+		VERIFY_WHISPER_TEXT = { NAME, "ABCDEFGHIJKL" }, VERIFY_ASK_TEXT = { NAME, "ABCDEFGHIJKL" },
+		VERIFY_NUDGE_TEXT = { NAME }, VERSION_ASK_WHISPER = { "1.10.10", "1.10.10", URL },
+		WANTED_THANK_TEXT = {},
+	}
+	local WORDS = { place = ("П"):rep(15), zone = ("З"):rep(10), x = "99", y = "99", game = "" }
+	local checked = 0
+	for k in pairs(english.L) do
+		if Whisper(k) and not k:match("^MATCH_SAY_GAME_") then
+			local text = assert(ru.L[k], k)
+			if k:match("^MATCH_SAY_") then
+				-- {place}: 30 bytes, {zone}: 20 bytes (15 and 10 Cyrillic letters); {game}: the longer of the two game words.
+				local game = #ru.L.MATCH_SAY_GAME_BONE > #ru.L.MATCH_SAY_GAME_DUEL and ru.L.MATCH_SAY_GAME_BONE or ru.L.MATCH_SAY_GAME_DUEL
+				text = text:gsub("{(%w+)}", function(w) return w == "game" and game or assert(WORDS[w], w) end)
+			else
+				local args = assert(ARGS[k], "arguments for " .. k)
+				text = text:format(unpack(args))
+			end
+			assert(#text <= 255, ("ruRU %s is %d bytes (255 at most): %s"):format(k, #text, text))
+			checked = checked + 1
+		end
+	end
+	assert(checked == 19, "lines checked: " .. checked)
 end)
 
 test("languages (1.4.0): an English or Portuguese game builds no other language's table", function()

@@ -43,7 +43,7 @@ Watch.TIMEOUTS = { 0, 60 * 60, 24 * 60 * 60, 7 * 24 * 60 * 60 }
 Watch.MAX_TIMEOUT = Watch.TIMEOUTS[#Watch.TIMEOUTS]
 -- 1.1.6: the players' reports (MR) and the Reports and Cases pages.
 Watch.REPORT_CATEGORIES = { A = "WATCH_REPORT_CAT_A", S = "WATCH_REPORT_CAT_S", E = "WATCH_REPORT_CAT_E", O = "WATCH_REPORT_CAT_O" }
--- Abuse or slurs, spam or scams, not in English (ChillZone's chats are in English only), something else.
+-- Abuse or slurs, spam or scams, not in Russian or English (ChillZone's chats are in Russian and English only), something else.
 Watch.REPORT_ORDER = { "A", "S", "E", "O" }
 Watch.REPORT_NOTE_MAX = 80
 Watch.REPORT_LINES = 3            -- the reported player's newest ChillZone-chat lines this client kept, at most
@@ -3364,7 +3364,7 @@ StaticPopupDialogs["CHILLZONE_WATCH_REPORT_WHAT"] = {
 	timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
 }
 
--- More: not in English, or something else (and Cancel).
+-- More: not in Russian or English, or something else (and Cancel).
 StaticPopupDialogs["CHILLZONE_WATCH_REPORT_MORE"] = {
 	text = L.WATCH_REPORT_MORE_PROMPT,
 	button1 = L.WATCH_REPORT_CAT_E,

@@ -410,8 +410,9 @@ end)
 --   isSelf true for the player's own line, once one of its sends left (a line none of whose sends
 --          left is never recorded, whether it goes from the view or, a squad leader's alone, stays);
 --          false for everyone else's.
--- Nothing until the ChillZone Accord is accepted at its current version. The Accord's letter
--- (ACCORD_T6_3), the privacy page (CONSENT_INTRO) and README's Privacy table say so: this
+-- Nothing until the ChillZone Accord is accepted at its current version. The privacy page
+-- (CONSENT_INTRO) and README's Privacy table say so (the Accord's letter did as ACCORD_T6_3 until its
+-- 2026-11-07 shortening, ChillZone having no Companion): this
 -- function's existence is what the private Companion bridge looks for, so it ships with them.
 -- RECORDERS_MAX at most; a recorder that errors is skipped and stops nothing (nor does anything
 -- here: ns.RecordChat throws nothing back). RegisterChatObserver above stays as it was.

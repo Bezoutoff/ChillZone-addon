@@ -186,7 +186,7 @@ local function WireName(s)
 	s = ns.Normal(s)
 	local short, realm = s:match("^([^%-]+)%-([^%-]+)$")
 	short = short or s
-	if #short > 30 or not short:match("^[%a\128-\255]+ ?[%a\128-\255]*$") then return nil end
+	if #short > 90 or select(2, short:gsub("[^\128-\191]", "")) > 30 or not short:match("^[%a\128-\255]+ ?[%a\128-\255]*$") then return nil end
 	if realm and (#realm > 40 or not realm:match("^[%w\128-\255]+$")) then return nil end
 	return ns.FullName(short, realm)
 end

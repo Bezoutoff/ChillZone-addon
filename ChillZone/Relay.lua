@@ -14,9 +14,11 @@ ns.Relay = Relay
 --   hop 2  relay -> reporters   RM~<f>~<origin>~<text>   by whisper, one per guild (its reporter)
 --   hop 3  reporter -> guild    RG~<f>~<origin>~<text>   over GUILD, once, to everyone there
 --
--- The relays are the signed High Council's characters, the author's, the King and the Treasurer:
--- names every client holds from the signed list, so a guild that just arrived knows whom to
--- whisper. A client picks one relay (its guild's name decides which, changing every PICK_WINDOW so
+-- The relays are the network's pinned relay characters (the guild master and the officers, by the
+-- owner's choice: LAUNCH_PINS, in the code, so a guild that just arrived knows whom to whisper)
+-- and, once the signed list has reached a client, its High Council's, author's, King's and
+-- Treasurer's characters. A relay's own client is its relay, and pings the other relays every
+-- PEERS_EVERY, so that what it hears goes across to them (RX, 1.4.6). Any other client picks one relay (its guild's name decides which, changing every PICK_WINDOW so
 -- the load spreads), pings it once (RP) and expects an answer (RA): a relay that does not answer
 -- (offline, or an older version that cannot; the answer is RY: RA is the Records' ask) is left out for DEAD_FOR and the next one is picked;
 -- the server's "No player named X" names an offline one at once. The relays know each guild's
@@ -29,8 +31,8 @@ ns.Relay = Relay
 -- whisper travels in Codec's pieces (the assemblers put RL, RM and RG together like any other).
 --
 -- Trust: the server stamps every hop's sender. A relay is believed about the origin because it is
--- a signed councillor's, the author's, the King's or the Treasurer's character (RM from anyone else
--- is dropped); a reporter is believed by its guild because it is a guildmate (GUILD). Nothing here
+-- a signed councillor's, author's, King's or Treasurer's character, or one of the pinned relay
+-- characters (RM from anyone else is dropped); a reporter is believed by its guild because it is a guildmate (GUILD). Nothing here
 -- lets a stranger speak as the King: his words still reach the guilds only through those clients.
 -- Off Forever (the beta, Era, Anniversary) nothing here runs and the channel works as before.
 
@@ -52,9 +54,22 @@ Relay.REPORTER_FOR = 600     -- a relay keeps a reporter this long past its last
 Relay.SEEN_FOR = 300         -- a message taken is remembered this long (a second copy counts once)
 Relay.SEEN_MAX = 2000
 Relay.MAX_RELAYS = 40
--- ChillZone's relays, by the owner's choice (2026-11-06): the guild master and an officer, in both
--- families until the realm's ruleset is known.
-Relay.LAUNCH_PINS = { ForeverPvE = { "Вован Дубан", "Татарин Уфимский" }, ForeverPvP = { "Вован Дубан", "Татарин Уфимский" } }
+Relay.PEERS_EVERY = 300      -- a relay's client pings the other relays this often (so its words go across, RX)
+-- ChillZone's relays, by the owner's choice (2026-11-06): the guild master and the officers. The
+-- owner's guilds play in the PvP family (owner, 2026-11-06), so they are pinned there alone.
+Relay.LAUNCH_PINS = { ForeverPvP = {
+	"Вован Дубан",
+	"Wipe Copium",
+	"Татарин Уфимский",
+	"Peepo Ingore",
+	"Vladimir Goyda",
+	"Гулдан Казмодан",
+	"Сундук Открою",
+	"Yara Pimaru",
+	"Джейн Джинджер",
+	"Наруто Узумаки",
+	"Метал Чел",
+} }
 -- (1.5.0) Words every client says on the channel on its own clock (the channel's hello H3, the
 -- census ask Q1, the lists' ask HQ, positions P1, the Wanted list's ask W4, verification asks GV)
 -- are heard by the relay and answered from there, but never fanned out: with 46 guilds registered
@@ -86,6 +101,7 @@ local pinged = {}    -- relay name (lower) -> when we pinged it, while an answer
 local reporters = {} -- (on a relay) guild name (lower) -> { name = "First Surname-Realm", t = when }
 local seen = {}      -- origin .. "|" .. text -> when
 local seenCount = 0
+local fanned, fannedCount = {}, 0 -- (on a relay) origin .. "|" .. text -> when it went to our reporters and across
 local pending = {}   -- (1.4.4) what waits for the first relay to answer: { parts, logged, done, key, urgent, options }
 local holding = false -- a timer runs to send what waits anyway after PING_WAIT
 local flushing = false
@@ -131,7 +147,8 @@ function Relay.Names(withSelf)
 	if ns.AuthorCharacters then for _, n in ipairs((ns.AuthorCharacters())) do Add(n) end end
 	if ns.KingCharacter then Add(ns.KingCharacter()) end
 	-- (1.4.6) A client with no signed list yet (a guild nobody handed it to) must still find a
-	-- relay to get it from: the launch's author and King, by code, on their Forever family alone.
+	-- relay to get it from: the network's pinned relay characters (the guild master and the officers,
+	-- by the owner's choice), by code, on their Forever family alone.
 	local family = ns.ForeverFamily and ns.ForeverFamily(ns.realm)
 	if family then for _, p in ipairs(Relay.LAUNCH_PINS[family] or {}) do Add(p) end end
 	if ns.TreasurerPins then for _, n in ipairs((ns.TreasurerPins())) do Add(n) end end
@@ -150,21 +167,23 @@ local function Hash(text)
 	for i = 1, #text do h = (h * 33 + text:byte(i)) % 2147483647 end
 	return h
 end
--- The relay this client whispers to now, and whether it is sure: among the relays that answered
--- a ping within VERIFIED_FOR (our own client counts, when it is a relay: no whisper needed), the
--- one our guild's name and the window pick, sure; with none answered yet, the same among those
--- not left out, not sure (Out then holds the message and pings them all); nil without any (then
--- the channel, as before).
+-- The relay this client whispers to now, and whether it is sure. A relay's client: itself, sure (no
+-- whisper needed). Any other: among the relays that answered a ping within VERIFIED_FOR, the one
+-- our guild's name and the window pick, sure; with none answered yet, the same among those not
+-- left out, not sure (Out then holds the message and pings them all); nil without any (then the
+-- channel, as before).
 function Relay.Pick()
 	if not Relay.On() then return nil end
 	local now = Now()
-	local mine = ns.ShortName(ns.me or ""):lower()
+	-- A relay's client is its own relay: its words reach its reporters and go across from here (never to
+	-- another relay, which keeps the NO_FORWARD words it hears to itself).
+	if Relay.IsRelay(ns.me) then return ns.ShortName(ns.me), true end
 	local live, answered = {}, {}
 	for _, n in ipairs(Relay.Names(true)) do
 		local key = n:lower()
 		if (offline[key] or 0) <= now then
 			live[#live + 1] = n
-			if key == mine or now - (verified[key] or -math.huge) < Relay.VERIFIED_FOR then answered[#answered + 1] = n end
+			if now - (verified[key] or -math.huge) < Relay.VERIFIED_FOR then answered[#answered + 1] = n end
 		end
 	end
 	local pool = #answered > 0 and answered or live
@@ -339,6 +358,16 @@ local function Seen(origin, text)
 	seen[key] = now
 	return false
 end
+-- (On a relay) Fanned out once: a word by its origin and text went to our reporters and across.
+-- Apart from Seen: a relay that took the word over GUILD first still hands it on.
+local function Fanned(origin, body)
+	local now, key = Now(), Lower(origin) .. "|" .. body
+	if fanned[key] and now - fanned[key] < Relay.SEEN_FOR then return true end
+	if fannedCount >= Relay.SEEN_MAX then wipe(fanned) fannedCount = 0 end
+	if not fanned[key] then fannedCount = fannedCount + 1 end
+	fanned[key] = now
+	return false
+end
 
 -- The last hop on this client: the message as if it had come on the channel from its origin.
 local function Deliver(origin, text, logged)
@@ -354,6 +383,13 @@ ToGuild = function(flag, origin, text)
 	local pieces = Envelope("RG", "RG~" .. flag .. "~" .. origin .. "~" .. text)
 	if #pieces == 1 then return ns.Comm.Send("GUILD", pieces[1], nil, false, false) ~= false end
 	return ns.Comm.SendBatch("GUILD", pieces, nil, nil, false) ~= false
+end
+
+-- What a forward's queue key names of its word: its kind (a newer word of that kind takes a waiting
+-- one's place), or for one piece of a longer word its whole header, C<id>:<i>:<n> (no piece takes
+-- another's place: keyed by their first letters, a word's pieces left as its last piece alone).
+local function KeyPart(body)
+	return body:match("^(C%w+:%d+:%d+):") or body:sub(1, 2)
 end
 
 -- A word to every guild's reporter we hold (ours included: delivered here and handed to our
@@ -377,7 +413,7 @@ local function ToReporters(flag, origin, body, sender)
 				-- A word that is not a chat line is keyed by its origin, kind and reporter: a newer
 				-- census of the same guild takes the waiting one's place in the queue (Comm's keyed
 				-- jobs), so a busy relay sends the latest, never a backlog.
-				local key = flag ~= "L" and ("relay " .. r.name .. " " .. Lower(origin) .. " " .. body:sub(1, 2)) or nil
+				local key = flag ~= "L" and ("relay " .. r.name .. " " .. Lower(origin) .. " " .. KeyPart(body)) or nil
 				if #pieces == 1 then ns.Comm.Whisper(r.name, pieces[1], key, false, false)
 				else ns.Comm.SendBatch("WHISPER", pieces, key, r.name, false) end
 			else
@@ -392,18 +428,19 @@ local function ToReporters(flag, origin, body, sender)
 end
 
 -- (1.4.6) The same word to every other relay that answered us lately (RX), each to hand to its
--- own reporters. The origin, when it is a relay itself, is not sent its own word.
+-- own reporters; never to one left out since (the server named it offline). The origin, when it
+-- is a relay itself, is not sent its own word.
 local function Across(flag, origin, body)
 	local now = Now()
 	local mine, from = ns.ShortName(ns.me or ""):lower(), ns.ShortName(origin):lower()
 	local pieces
 	for _, name in ipairs(Relay.Names(false)) do
 		local key = name:lower()
-		if key ~= mine and key ~= from and now - (verified[key] or -math.huge) < Relay.VERIFIED_FOR then
+		if key ~= mine and key ~= from and (offline[key] or 0) <= now and now - (verified[key] or -math.huge) < Relay.VERIFIED_FOR then
 			pieces = pieces or Envelope("RX", "RX~" .. flag .. "~" .. origin .. "~" .. body)
 			stats.across = (stats.across or 0) + 1
 			Quiet(name)
-			local key = flag ~= "L" and ("across " .. name .. " " .. from .. " " .. body:sub(1, 2)) or nil
+			local key = flag ~= "L" and ("across " .. name .. " " .. from .. " " .. KeyPart(body)) or nil
 			if #pieces == 1 then ns.Comm.Whisper(name, pieces[1], key, false, false)
 			else ns.Comm.SendBatch("WHISPER", pieces, key, name, false) end
 		end
@@ -431,7 +468,7 @@ function Relay.HandleIn(dist, sender, text)
 		return true
 	end
 	local origin = ns.FullName(sender)
-	local fresh = not seen[Lower(origin) .. "|" .. body]
+	local fresh = not Fanned(origin, body)
 	if Relay.NO_FORWARD[body:sub(1, 2)] and origin ~= ns.me then
 		stats.kept = (stats.kept or 0) + 1
 		Deliver(origin, body, flag == "L") -- (heard and answered here, fanned out to nobody)
@@ -454,7 +491,7 @@ function Relay.HandleAcross(dist, sender, text)
 	if not flag then return false end
 	if not Relay.IsRelay(sender) or not Relay.IsRelay(ns.me) then stats.dropped = stats.dropped + 1 return false end
 	verified[ns.ShortName(sender):lower()] = Now()
-	if seen[Lower(origin) .. "|" .. body] then return true end
+	if Fanned(origin, body) then return true end
 	ToReporters(flag, origin, body, sender)
 	return true
 end
@@ -565,11 +602,17 @@ ns.On("LOGIN", function()
 	pcall(ns.RegisterEvent, "CHAT_MSG_SYSTEM", function(text) ns.SafeCall("relay not found", Relay.NotFound, text) end)
 	QuietLines()
 	if ns.Every then ns.Every(Relay.GLOBAL_EVERY, "relay global census", function() ns.SafeCall("relay global", Relay.SendGlobal) end) end
+	if ns.Every then ns.Every(Relay.PEERS_EVERY, "relay peers", function()
+		-- (Quiet presence, Core.lua: no ping, which names us online to the others, as no global census.)
+		if Relay.On() and Relay.IsRelay(ns.me) and not (ns.QuietPresence and ns.QuietPresence()) then
+			ns.SafeCall("relay peers", Relay.Sweep)
+		end
+	end) end
 end)
 
 -- Tests: a clean slate.
 function Relay.Reset()
-	wipe(offline); wipe(verified); wipe(pinged); wipe(reporters); wipe(seen); wipe(pending); wipe(budget)
-	seenCount, lastRegister, holding, flushing, lastGlobal = 0, -math.huge, false, false, -math.huge
+	wipe(offline); wipe(verified); wipe(pinged); wipe(reporters); wipe(seen); wipe(pending); wipe(budget); wipe(fanned)
+	seenCount, fannedCount, lastRegister, holding, flushing, lastGlobal = 0, 0, -math.huge, false, false, -math.huge
 	for k in pairs(stats) do stats[k] = 0 end
 end

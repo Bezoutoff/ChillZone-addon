@@ -789,8 +789,10 @@ test("accord: the letter: ChillZone's own bronze window over parchment, the Acco
 			-- ChillZone and guild chats the player sees, to confirm what was said and moderate. Its 21
 			-- words grow the bound to 410, as the moderator protection's bullet grew it; nothing else in
 			-- the letter changed. Its review named the guild chat, which the record takes too, in the
-			-- same 21 words.)
-			assert(total <= 410, "the letter is " .. total .. " words")
+			-- same 21 words. Then, 2026-11-07, the owner allowed English beside Russian in ChillZone's
+			-- chats, 3.2: its two more words, "or English", grow the bound to 412. The same day the owner
+			-- asked for a shorter letter: five topics and 17 bullets, 226 words; the bound comes down to 230.)
+			assert(total <= 230, "the letter is " .. total .. " words")
 			-- Bold where it matters: who gets the BattleTag (the moderation team in game, the
 			-- Companion's census staff), that no other player sees it, and Blizzard's rules first, a
 			-- deep red ink and doubled strokes (the dot too); the other bullets in the plain ink.
@@ -798,13 +800,16 @@ test("accord: the letter: ChillZone's own bronze window over parchment, the Acco
 			-- of its own, T5_3, in bold with the in-game promise it qualifies; the 360-word bound
 			-- stays, the letter trimmed elsewhere to fit. Then, the same day, the owner's "botar uma descrição mais
 			-- explicando o que é" made the first topic say what ChillZone is, and the bound became 380.)
+			-- (Changed on purpose, 2026-11-07, the shortened letter: Blizzard's rules first joined "not
+			-- made by Blizzard" as 1.2; the BattleTag's way and keeping are 4.1, no other player sees
+			-- it is 4.2; the Companion's bullet left with the Companion, which ChillZone has not: 3 bold.)
 			local bold = {}
 			for _, p in ipairs(f.parts) do
 				if p.kind == "bullet" and p.bold then bold[#bold + 1] = p.fs:GetText() end
 				if p.kind == "bullet" and not p.bold then eq(p.fs.textColor[1], 0.18, "plain ink") end
 			end
-			eq(#bold, 4)
-			for _, key in ipairs({ "ACCORD_T2_1", "ACCORD_T5_2", "ACCORD_T5_3", "ACCORD_T5_4" }) do
+			eq(#bold, 3)
+			for _, key in ipairs({ "ACCORD_T1_2", "ACCORD_T4_1", "ACCORD_T4_2" }) do
 				local found = false
 				for _, text in ipairs(bold) do if text == L[key] then found = true end end
 				assert(found, key .. " in bold")
@@ -945,36 +950,30 @@ test("accord: its words in English and pt-BR, the same format codes; the name in
 			assert(not low:find(word, 1, true), word .. " in: " .. s)
 		end
 	end
-	eq(en.ACCORD_T1_2, "Not made or endorsed by Blizzard Entertainment.")
-	eq(pt.ACCORD_T1_2, "Não é feito nem endossado pela Blizzard Entertainment.")
-	-- The rules it states are the code's: the ladder, the 30 days, English only, no stakes, 180 days.
-	assert(en.ACCORD_T4_2:find("1 hour, 24 hours and 7 days", 1, true) and en.ACCORD_T4_2:find("30 days", 1, true))
-	eq(ns.Accord.KEEP, 180 * 86400); assert(en.ACCORD_T5_2:find("180 days", 1, true))
-	-- (2026-10-19) Where the BattleTag goes: the moderation team in game, and with the Companion
-	-- app the online census, staff only (BridgeSections.lua's self section), in both languages.
-	assert(en.ACCORD_T5_2:find("In game, only the moderation team", 1, true) and pt.ACCORD_T5_2:find("No jogo, só a equipe de moderação", 1, true))
-	for _, must in ipairs({ "ChillZone Companion app", "online census", "staff only", "security and control" }) do
-		assert(en.ACCORD_T5_3:find(must, 1, true), "ACCORD_T5_3: " .. must)
-	end
-	for _, must in ipairs({ "ChillZone Companion", "censo online", "staff", "segurança e controle" }) do
-		assert(pt.ACCORD_T5_3:find(must, 1, true), "pt-BR ACCORD_T5_3: " .. must)
-	end
+	-- (Changed on purpose, 2026-11-07, the shortened letter: Blizzard's rules first joined "not made by
+	-- Blizzard" in one bullet, 1.2.)
+	eq(en.ACCORD_T1_2, "Not made or endorsed by Blizzard; Blizzard's EULA and Code of Conduct come before these rules.")
+	eq(pt.ACCORD_T1_2, "Não é feito nem endossado pela Blizzard; o EULA e o Código de Conduta da Blizzard vêm antes destas regras.")
+	-- The rules it states are the code's: the ladder, the 30 days, Russian and English only, no stakes, 180 days.
+	assert(en.ACCORD_T3_2:find("1 hour, 24 hours and 7 days", 1, true) and en.ACCORD_T3_2:find("30 days", 1, true))
+	eq(ns.Accord.KEEP, 180 * 86400); assert(en.ACCORD_T4_1:find("180 days", 1, true))
+	-- (2026-10-19) Where the BattleTag goes: the moderation team in game, in both languages.
+	-- (Changed on purpose, 2026-11-07: the shortened letter has no Companion bullet, ChillZone having
+	-- no Companion app; the privacy page below still names it, as BridgeSections.lua's self section
+	-- stays in the code.)
+	assert(en.ACCORD_T4_1:find("only the moderation team gets it", 1, true) and pt.ACCORD_T4_1:find("só a equipe de moderação a recebe", 1, true))
 	assert(en.ACCORD_TAG_TO:find("staff", 1, true) and pt.ACCORD_TAG_TO:find("staff", 1, true), "the band's note says staff too")
 	-- The privacy page that opens right after I accept (Consent.lua) says the same: the moderation
-	-- team alone in game, as with the Companion (the letter's T5_3) the online census gets it too.
+	-- team alone in game, as with the Companion the online census gets it too.
 	assert(en.CONSENT_INTRO:find("And in game, your BattleTag goes privately to the moderation team alone", 1, true), "the privacy page: in game")
 	assert(pt.CONSENT_INTRO:find("E no jogo a sua BattleTag vai em privado apenas para a equipe de moderação", 1, true), "pt-BR privacy page: no jogo")
 	-- (2026-10-20) The Companion's chat record (Bridge.lua's ChillZoneBridge.RegisterChatRecorder, the
-	-- switch the private Companion bridge looks for): the letter's 6.3 and the privacy page say who
-	-- gets the ChillZone chat lines the player sees, his own too, and why, in both languages.
+	-- switch the private Companion bridge looks for): the privacy page says who gets the ChillZone
+	-- chat lines the player sees, his own too, and why, in both languages.
 	-- (Changed on purpose, the record's review: it takes the game's own guild chat too, through the
-	-- Guild room, guildmates without ChillZone included, so both name the guild chat beside ChillZone's.)
-	for _, must in ipairs({ "ChillZone Companion", "staff keep", "ChillZone and guild chats your client receives", "including locally hidden lines", "confirm and moderate" }) do
-		assert(en.ACCORD_T6_3:find(must, 1, true), "ACCORD_T6_3: " .. must)
-	end
-	for _, must in ipairs({ "ChillZone Companion", "a staff guarda", "chats recebidos do ChillZone e da guilda", "até os ocultos", "conferir e moderar" }) do
-		assert(pt.ACCORD_T6_3:find(must, 1, true), "pt-BR ACCORD_T6_3: " .. must)
-	end
+	-- Guild room, guildmates without ChillZone included, so it names the guild chat beside ChillZone's.)
+	-- (Changed on purpose, 2026-11-07: the letter's 6.3 said it too until the owner's shortened letter
+	-- left out the Companion, which ChillZone has not; the privacy page's line below stays.)
 	assert(en.CONSENT_INTRO:find("If you use the ChillZone Companion app, it sends every ChillZone and guild chat line your client receives, your own and locally hidden lines included, to ChillZone's staff, who keep them to confirm what was said and to moderate.", 1, true), "the privacy page: the chat record")
 	assert(pt.CONSENT_INTRO:find("Se você usa o app ChillZone Companion, ele manda cada linha dos chats do ChillZone e da guilda recebida pelo seu cliente, incluindo as suas e as ocultas por filtros locais, para a staff do ChillZone, que as guarda para confirmar o que foi dito e moderar.", 1, true), "pt-BR privacy page: the chat record")
 	eq(select(2, en.CONSENT_INTRO:gsub("%%s", "")), 1, "the privacy page's intro keeps its one %s")
@@ -1001,11 +1000,11 @@ test("accord: its words in English and pt-BR, the same format codes; the name in
 	for k in src:sub(1, ptAt):gmatch("\nL%.(ACCORD_[%w_]+) = ") do enKeys[#enKeys + 1] = k end
 	for k in src:sub(ptAt):gmatch("\n\tL%.(ACCORD_[%w_]+) = ") do ptKeys[#ptKeys + 1] = k end
 	eq(table.concat(ptKeys, " "), table.concat(enKeys, " "), "the pt-BR block has every English key, in order")
-	assert(en.ACCORD_T3_2:find("English", 1, true))
+	assert(en.ACCORD_T2_2:find("only Russian and English", 1, true))
 	local watch = assert(io.open(ROOT .. "ChillZone/Watch.lua", "rb")):read("*a")
 	assert(watch:find("Watch.TIMEOUTS = { 0, 60 * 60, 24 * 60 * 60, 7 * 24 * 60 * 60 }", 1, true), "the ladder the letter states")
 	assert(watch:find("Watch.WARNING_KEEP = 30 * 86400", 1, true))
-	assert(watch:find("ChillZone's chats are in English only", 1, true))
+	assert(watch:find("ChillZone's chats are in Russian and English only", 1, true))
 	-- /cz help names it.
 	local lines, savedPrint = {}, print
 	print = function(s) lines[#lines + 1] = tostring(s) end
@@ -1451,4 +1450,47 @@ test("accord: the Companion's self section is an anonymous revocation until the 
 			assert(row:find(must, 1, true), "README's self row: " .. must)
 		end
 	end, { companion = true }) -- (the Companion's bridge addon attached, as its load says: ChillZoneBridge.COMPANION_ATTACHED)
+end)
+
+-- ChillZone's launch audit (2026-11-07, B5): the letter's headings, its title and its band were sized
+-- again from their font's raw path (GetFont, then SetFont at that path). Where the client's font is a
+-- family (Russian texts on an English client), that path is its Latin member alone, and the Russian
+-- words may draw as squares. While the texts' language is not the client's, the size stays the
+-- client's. Fails before: SetFont called on an English client with the Russian texts.
+test("accord: the letter's sizes are set from the font's own path only where the texts' language is the client's; Russian texts on an English client keep the client's font", function()
+	local saved = { locale = rawget(_G, "GetLocale"), text = rawget(ns, "TEXT_LOCALE") }
+	-- The sizes the letter set (font strings that answer GetFont), the texts and the client as given.
+	local function Sized(text, client)
+		local sizes = {}
+		ns.TEXT_LOCALE = text
+		GetLocale = function() return client end
+		H.WithUI(function() Scene(function(w, A)
+			local make = CreateFrame
+			CreateFrame = function(...)
+				local f = make(...)
+				local fontString = f.CreateFontString
+				f.CreateFontString = function(self, ...)
+					local fs = fontString(self, ...)
+					fs.GetFont = function() return "Fonts\\MORPHEUS.TTF", 10, "" end
+					fs.SetFont = function(_, _, px) sizes[#sizes + 1] = px return true end
+					return fs
+				end
+				return f
+			end
+			ChillZoneAccordFrame = nil
+			A.Reset() -- (a letter of its own, built now)
+			local ok, err = pcall(A.Show, "slash")
+			CreateFrame = make
+			if not ok then error(err, 0) end
+			A.Hide()
+		end) end)
+		return sizes
+	end
+	local ok, err = pcall(function()
+		eq(#Sized("ruRU", "enUS"), 0, "Russian texts on an English client: the client's font, never its path")
+		assert(#Sized("enUS", "enUS") > 0, "the client's own language: sized as before")
+		assert(#Sized(nil, "ruRU") > 0, "no text language of its own (the client's): sized as before")
+	end)
+	ns.TEXT_LOCALE, GetLocale = saved.text, saved.locale
+	if not ok then error(err, 0) end
 end)

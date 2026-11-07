@@ -465,6 +465,34 @@ test("verify: the King's guild needs no verification; the gate switch off change
 	end)
 end)
 
+-- ChillZone's launch audit (2026-11-07, A3): the network is an exact list of guilds, and nobody can
+-- verify a guild master before a signed list exists, so a guild the addon ships approved (<Чиллзон
+-- Навсегда> in a release; the tests' identity ships CHILLZONER) got a prompt that led nowhere on day
+-- one, its members the "find another guild" notice and its master a hold after 48 hours. Fails
+-- before: "overdue", told, held, on the verifiers' list.
+test("verify: a guild the addon ships approved is exempt like the King's", function()
+	World(function(w)
+		local APPROVED = "CHILLZONER"
+		local gm = w.Client(GM, APPROVED, 0)
+		local hc = w.Client(HC, HEARTH, 3)
+		local member = w.Client(MEMBER, APPROVED, 3)
+		w.Census(APPROVED, "Bram Hollow", 120)
+		w.Census(GUILD, "Corin Ash", 40)
+		for _, c in ipairs({ gm, hc, member }) do w.As(c, c.Verify.Login) end
+		w.now = T0 + 60 * H
+		eq(ns.IsApprovedGuild(APPROVED), true, "shipped approved"); eq(ns.IsKingGuild(APPROVED), false, "not the King's")
+		eq(w.Status(member, APPROVED), "exempt"); eq(w.Status(hc, APPROVED), "exempt")
+		eq(w.As(gm, gm.Verify.Mine), nil, "its guild master is told nothing")
+		eq(w.As(member, member.Verify.Mine), nil, "nor its members")
+		eq(w.As(gm, gm.Verify.Tick), false); eq(w.As(member, member.Verify.Tick), false)
+		eq(#gm.copies, 0); eq(#member.copies, 0)
+		eq(w.As(member, member.MasterHeld, APPROVED), false, "his own powers never wait")
+		eq(w.As(gm, gm.MasterHeld, APPROVED), false)
+		for _, r in ipairs((w.As(hc, hc.Verify.Pending))) do assert(r.guild ~= APPROVED, "not on the verifiers' list") end
+		eq(w.Status(member, GUILD), "overdue", "a guild ours by its name alone is verified as before")
+	end)
+end)
+
 test("verify: being pending or verified grants no council status, role or verifier's power", function()
 	World(function(w)
 		local gm = w.Client(GM, GUILD, 0)

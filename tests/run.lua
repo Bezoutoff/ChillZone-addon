@@ -6877,6 +6877,10 @@ local function RelayWorld(me, guild)
 	cns.me, cns.splitNames = me, true
 	cns.rdb = { council = { names = { ["max ran"] = "Max Ran", ["hildryn payne"] = "Hildryn Payne" }, realm = "Realm" } }
 	cns.KingCharacter, cns.TreasurerPins, cns.AuthorCharacters = function() return nil end, function() return {} end, function() return {} end
+	-- Relay.lua's own login handler and tickers, kept for a test to run (hooks.login, hooks.every[where]).
+	local hooks = { login = {}, every = {} }
+	cns.On = function(name, fn) if name == "LOGIN" then hooks.login[#hooks.login + 1] = fn end end
+	cns.Every = function(_, where, fn) hooks.every[where] = fn return { Cancel = function() end } end
 	assert(loadfile(ADDON_DIR .. "Relay.lua"))("ChillZone", cns)
 	cns.Relay.Reset()
 	local sent, heard = {}, {}
@@ -6886,7 +6890,7 @@ local function RelayWorld(me, guild)
 	cns.Comm.Handle("M1", function(dist, sender, text) heard[#heard + 1] = { dist = dist, sender = sender, text = text, logged = cns.Comm.DeliveredLogged() } end)
 	local function Pump(n) for _ = 1, n or 30 do cns.Comm.Pump() end end
 	local function Sent(prefix) local out = {} for _, x in ipairs(sent) do if x.msg:sub(1, #prefix) == prefix then out[#out + 1] = x end end return out end
-	return cns, Deliver, sent, heard, Pump, Sent
+	return cns, Deliver, sent, heard, Pump, Sent, hooks
 end
 
 test("1.4.3 the relay: where names split, a channel message goes to the picked signed relay by whisper (RL), pinged once; a chat line goes logged; the relay registers reporters (RR), forwards to each guild's reporter (RM) and hears it itself; a reporter takes it once and hands it to its guild (RG); a guildmate takes it once; a stranger's RM is dropped", function()
@@ -7222,6 +7226,149 @@ test("1.4.6 the relay: a word heard by one relay goes across to every other rela
 		rdeliver("WHISPER", "Max Ran-Realm", "RL~P~X1~from max")
 		rpump()
 		eq(#rsentOf("RX~"), 0, "not back to its origin")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
+-- ChillZone's launch audit (2026-11-07, A1): with two pinned relays online, each relay's client
+-- picked itself and pinged nobody, so the relays never answered each other, nothing went across
+-- (RX) and each guild heard only the guilds registered with its own relay. Two relays in one guild
+-- also hear a word over GUILD first, and that kept it from going across (seen). Fails before: no
+-- peers ticker; with it alone, a relay that answered sends its own words to the other relay, and
+-- the word heard over GUILD first goes across nowhere.
+test("ChillZone launch, the relay: two relays online ping each other on their own timer (PEERS_EVERY), each its own relay, so a word one of them hears goes across (RX) to the other and on to that one's reporter; a word both heard first over GUILD goes across all the same", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild, add = rawget(_G, "ChatFrame_AddMessageEventFilter"),
+		notFound = rawget(_G, "ERR_CHAT_PLAYER_NOT_FOUND_S") }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "ChillZone II", "Member", 3 end
+		ChatFrame_AddMessageEventFilter = function() end
+		-- Relays A (Hildryn) and B (Max) in one guild; X (Zed Far) the reporter registered with A,
+		-- Y (Far Away) the one registered with B. Each client sends through its own C_ChatInfo.
+		local A, adeliver, _, aheard, apump, asentOf, ahooks = RelayWorld("Hildryn Payne-Realm", "ChillZone II")
+		local ainfo = C_ChatInfo
+		local _, bdeliver, _, bheard, bpump, bsentOf, bhooks = RelayWorld("Max Ran-Realm", "ChillZone II")
+		local binfo = C_ChatInfo
+		local _, ydeliver, _, yheard, ypump, ysentOf = RelayWorld("Far Away-Realm", "ChillZone Far")
+		local yinfo = C_ChatInfo
+		local function On(info, fn, ...) C_ChatInfo = info return fn(...) end
+		On(ainfo, adeliver, "WHISPER", "Zed Far-Realm", "RL~P~RR~ChillZone Zeus")
+		On(binfo, bdeliver, "WHISPER", "Far Away-Realm", "RL~P~RR~ChillZone Far")
+		-- Each relay's login starts its peers ticker; each tick pings the other relay, which answers.
+		for _, fn in ipairs(ahooks.login) do On(ainfo, fn) end
+		for _, fn in ipairs(bhooks.login) do On(binfo, fn) end
+		local atick, btick = ahooks.every["relay peers"], bhooks.every["relay peers"]
+		assert(atick and btick, "a relay's client pings the other relays on a timer")
+		-- (Quiet presence: no ping, which would name this client online, as no global census of it.)
+		A.QuietPresence = function() return true end
+		On(ainfo, atick); On(ainfo, apump)
+		eq(#asentOf("RL~P~RP~"), 0, "quiet presence: the ticker pings nobody")
+		A.QuietPresence = nil
+		On(binfo, btick); On(binfo, bpump)
+		local ping = bsentOf("RL~P~RP~")
+		eq(#ping, 1, "B pings A"); eq(ping[1].target, "Hildryn Payne")
+		On(ainfo, adeliver, "WHISPER", "Max Ran-Realm", ping[1].msg); On(ainfo, apump)
+		local ry = asentOf("RY~")
+		eq(#ry, 1, "A answers"); eq(ry[1].target, "Max Ran")
+		On(binfo, bdeliver, "WHISPER", "Hildryn Payne-Realm", ry[1].msg)
+		On(ainfo, atick); On(ainfo, apump)
+		ping = asentOf("RL~P~RP~")
+		eq(#ping, 1, "A pings B"); eq(ping[1].target, "Max Ran")
+		On(binfo, bdeliver, "WHISPER", "Hildryn Payne-Realm", ping[1].msg); On(binfo, bpump)
+		ry = bsentOf("RY~")
+		eq(#ry, 1, "B answers"); eq(ry[1].target, "Hildryn Payne")
+		On(ainfo, adeliver, "WHISPER", "Max Ran-Realm", ry[1].msg)
+		-- Whoever else answered, a relay's client is its own relay, whatever guild's pick it is.
+		for _, g in ipairs({ "ChillZone II", "ChillZone Zeus", "ChillZone Far", "ChillZone V", "ChillZone Dads", "ChillZone Prime" }) do
+			GetGuildInfo = function() return g, "Member", 3 end
+			local pick, sure = A.Relay.Pick()
+			eq(pick, "Hildryn Payne", g); eq(sure, true, g)
+		end
+		GetGuildInfo = function() return "ChillZone II", "Member", 3 end
+		-- A word reaching A: to X, across to B, and from B on to Y, who hands it to his guild.
+		On(ainfo, adeliver, "WHISPER", "Orig Inal-Realm", "RL~P~X1~hello"); On(ainfo, apump)
+		eq(#asentOf("RM~"), 1); eq(asentOf("RM~")[1].target, "Zed Far")
+		local rx = asentOf("RX~")
+		eq(#rx, 1, "across to B"); eq(rx[1].target, "Max Ran"); eq(rx[1].msg, "RX~P~Orig Inal-Realm~X1~hello")
+		On(binfo, bdeliver, "WHISPER", "Hildryn Payne-Realm", rx[1].msg); On(binfo, bpump)
+		local rm = bsentOf("RM~")
+		eq(#rm, 1, "on to B's reporter"); eq(rm[1].target, "Far Away"); eq(rm[1].msg, "RM~P~Orig Inal-Realm~X1~hello")
+		eq(#bsentOf("RX~"), 0, "never across again")
+		On(yinfo, ydeliver, "WHISPER", "Max Ran-Realm", rm[1].msg); On(yinfo, ypump)
+		eq(#yheard, 1); eq(yheard[1].sender, "Orig Inal-Realm"); eq(yheard[1].text, "X1~hello")
+		eq(#ysentOf("RG~"), 1, "and on to Y's guild")
+		-- A chat line of the relays' own guild: both relays take its sender's hand-over over GUILD
+		-- first, then A takes it by hop 1. It goes across all the same, and on to Y.
+		local line = "M1~A~ChillZone II~1~~hi all"
+		On(ainfo, adeliver, "GUILD", "Orig Inal-Realm", "RG~L~Orig Inal-Realm~" .. line)
+		On(binfo, bdeliver, "GUILD", "Orig Inal-Realm", "RG~L~Orig Inal-Realm~" .. line)
+		eq(aheard[#aheard].text, line); eq(bheard[#bheard].text, line)
+		local na, nb = #aheard, #bheard
+		On(ainfo, adeliver, "WHISPER", "Orig Inal-Realm", "RL~L~" .. line); On(ainfo, apump)
+		rx = asentOf("RX~L~")
+		eq(#rx, 1, "across though A heard it over GUILD first"); eq(rx[1].target, "Max Ran"); eq(rx[1].msg, "RX~L~Orig Inal-Realm~" .. line)
+		On(binfo, bdeliver, "WHISPER", "Hildryn Payne-Realm", rx[1].msg); On(binfo, bpump)
+		rm = bsentOf("RM~L~")
+		eq(#rm, 1, "on to Y though B heard it over GUILD first"); eq(rm[1].target, "Far Away"); eq(rm[1].msg, "RM~L~Orig Inal-Realm~" .. line)
+		eq(#aheard, na, "A took it once"); eq(#bheard, nb, "B took it once")
+		On(yinfo, ydeliver, "WHISPER", "Max Ran-Realm", rm[1].msg)
+		eq(yheard[#yheard].text, line); eq(yheard[#yheard].logged, true)
+		-- B logs off and the server names him to A ("No player named ..."): nothing goes across to
+		-- him from then on, though his last answer is recent (each whisper would draw that line again);
+		-- his next answer brings him back.
+		ERR_CHAT_PLAYER_NOT_FOUND_S = "No player named '%s' is currently playing."
+		A.Treasury = ns.Treasury
+		eq(A.Relay.NotFound("No player named 'Max Ran' is currently playing."), true)
+		On(ainfo, adeliver, "WHISPER", "Orig Inal-Realm", "RL~P~X1~after"); On(ainfo, apump)
+		eq(#asentOf("RM~P~Orig Inal-Realm~X1~after"), 1, "still to A's reporter")
+		eq(#asentOf("RX~P~Orig Inal-Realm~X1~after"), 0, "never across to a relay the server named offline")
+		On(ainfo, adeliver, "WHISPER", "Max Ran-Realm", "RY~")
+		On(ainfo, adeliver, "WHISPER", "Orig Inal-Realm", "RL~P~X1~back"); On(ainfo, apump)
+		eq(#asentOf("RX~P~Orig Inal-Realm~X1~back"), 1, "across again once he answers")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	ChatFrame_AddMessageEventFilter, ERR_CHAT_PLAYER_NOT_FOUND_S = saved.add, saved.notFound
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
+-- ChillZone's launch audit, its review (2026-11-07): a relay's queued forwards were keyed by the
+-- word's first two letters, which for a piece of a longer word are "C" and the first digit of its
+-- id: the pieces of one word took each other's place in the queue, and a relay's own word of
+-- several pieces (the King's signed lists, the Throne's lists: he is a relay) reached the other
+-- guilds' reporters, and the other relays, as its last piece alone. Fails before: one piece each.
+test("ChillZone launch, the relay: a relay's own word of several pieces reaches a remote reporter and the other relay whole, each piece queued apart", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "ChillZone II", "Member", 3 end
+		-- Relay A (Hildryn) with Zed's guild's reporter registered and relay B (Max) answered.
+		local A, adeliver, _, _, apump, asentOf = RelayWorld("Hildryn Payne-Realm", "ChillZone II")
+		local ainfo = C_ChatInfo
+		local _, zdeliver, _, zheard = RelayWorld("Zed Far-Realm", "ChillZone Zeus")
+		local zinfo = C_ChatInfo
+		local _, bdeliver, _, bheard = RelayWorld("Max Ran-Realm", "ChillZone II")
+		local binfo = C_ChatInfo
+		local function On(info, fn, ...) C_ChatInfo = info return fn(...) end
+		On(ainfo, adeliver, "WHISPER", "Zed Far-Realm", "RL~P~RR~ChillZone Zeus")
+		On(ainfo, adeliver, "WHISPER", "Max Ran-Realm", "RY~")
+		-- A's own module says a word too long for one piece "on the channel".
+		local word = "X1~" .. ("w"):rep(300)
+		eq(On(ainfo, A.Comm.SendChunked, word, false, "CHANNEL"), true)
+		On(ainfo, apump)
+		local rm, rx = asentOf("RM~"), asentOf("RX~")
+		eq(#rm, 2, "both pieces to the reporter"); eq(#rx, 2, "both pieces across")
+		assert(rm[1].msg ~= rm[2].msg and rx[1].msg ~= rx[2].msg, "two pieces, not one twice")
+		for _, m in ipairs(rm) do eq(m.target, "Zed Far"); On(zinfo, zdeliver, "WHISPER", "Hildryn Payne-Realm", m.msg) end
+		eq(#zheard, 1); eq(zheard[1].sender, "Hildryn Payne-Realm"); eq(zheard[1].text, word, "the reporter takes it whole")
+		for _, m in ipairs(rx) do eq(m.target, "Max Ran"); On(binfo, bdeliver, "WHISPER", "Hildryn Payne-Realm", m.msg) end
+		eq(#bheard, 1); eq(bheard[1].text, word, "the other relay takes it whole")
 	end)
 	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
 	C_ChatInfo = nil
@@ -60801,7 +60948,7 @@ end)()
 						eq(Shown(), 1); eq(#game.shown, 0, "never the game's popup"); eq(#w.popups, 0)
 						-- (No released version heard from the author: no number of theirs is shown.)
 						eq(notices[1], L.VERSION_NOTICE_ANY:format("Cid", "1.1.0"))
-						assert(notices[1]:find("CurseForge", 1, true), "where to update")
+						assert(notices[1]:find("GitHub", 1, true), "where to update")
 						local d = ns.Dialog.Find("CHILLZONE_UPDATE_ASKED")
 						d.buttons[1]:Click()
 						local letter = V.LetterFrame()

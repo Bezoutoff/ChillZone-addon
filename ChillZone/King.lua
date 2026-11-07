@@ -69,12 +69,12 @@ local lastAgendaSent, lastAgendaWarn = -math.huge, -math.huge
 -- like a character name ("Pyralis Ashandar") or an ChillZone guild name, nothing else.
 local function CleanName(s)
 	s = tostring(s or ""):gsub("%-.*$", "")
-	if #s > 30 or not s:match("^[%a\128-\255]+ ?[%a\128-\255]*$") then return nil end
+	if #s > 90 or select(2, s:gsub("[^\128-\191]", "")) > 30 or not s:match("^[%a\128-\255]+ ?[%a\128-\255]*$") then return nil end
 	return s
 end
 local function CleanGuild(s)
 	s = tostring(s or ""):gsub("[%c|]", "")
-	if #s > 24 or not ns.IsFederation(s) or not s:match("^[%w\128-\255 ]+$") then return nil end
+	if #s > 72 or select(2, s:gsub("[^\128-\191]", "")) > 24 or not ns.IsFederation(s) or not s:match("^[%w\128-\255 ]+$") then return nil end
 	return s
 end
 

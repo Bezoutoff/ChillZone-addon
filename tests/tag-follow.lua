@@ -1262,9 +1262,11 @@ test("accord: tag follow: the TOC loads it after Moderation, Accord and WatchCha
 	-- (Changed on purpose, the merge into the integration: the letter's bound is tests/accord.lua's,
 	-- 389 since the Companion's and the cover names' bullets joined it; the follow is bullet 5.5 there,
 	-- in place of "It helps spot one player's characters", one word trimmed to keep that bound. 410
-	-- since the Companion's chat record, 6.3, joined it, 2026-10-20: tests/accord.lua says why.)
-	assert(total <= 410, "the letter is " .. total .. " words")
-	assert(L.ACCORD_T5_5:find("follows your BattleTag", 1, true), L.ACCORD_T5_5)
+	-- since the Companion's chat record, 6.3, joined it, 2026-10-20: tests/accord.lua says why. 412
+	-- since English joined Russian in the language rule, 3.2, 2026-11-07. 230 since the owner's
+	-- shortened letter the same day, the follow now bullet 4.3.)
+	assert(total <= 230, "the letter is " .. total .. " words")
+	assert(L.ACCORD_T4_3:find("follows your BattleTag", 1, true), L.ACCORD_T4_3)
 end)
 
 ---------------------------------------------------------------------------
