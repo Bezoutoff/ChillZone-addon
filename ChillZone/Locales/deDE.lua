@@ -9,6 +9,9 @@ local ADDON, ns = ...
 local code = GetLocale and GetLocale()
 if code ~= "deDE" then return end
 ns.Locale("deDE", {
+	LETTER_1_5_3_TITLE = "Verifizierungshinweise nur für Gildenleiter",
+	LETTER_1_5_3_HEAD = "Verifizierungshinweise nur für Gildenleiter",
+	LETTER_1_5_3 = "Version 1.5.3.\n\n- Hinweise für Mitglieder nach Fristablauf sind vorübergehend ausgesetzt.\n- Gildenleiter und Hoher Rat erhalten weiterhin Erinnerungen; Fristen und gespeicherte Bestätigungen bleiben bestehen.\n\nAktualisiere ChillZone und lade die Oberfläche neu. Alte Versionen zeigen weiterhin die bisherigen Hinweise.",
 	MAPNAME_EDIT = "Karte bearbeiten",
 	MAPNAME_DONE = "Bearbeitung beenden",
 	MAPNAME_PICK = "Klicke auf einen Ortsnamen. Klicke auf andere aufgedruckte Namen, um dort eine gemeinsame Beschriftung zu setzen.",

@@ -9,6 +9,9 @@ local ADDON, ns = ...
 local code = GetLocale and GetLocale()
 if code ~= "esES" and code ~= "esMX" then return end
 ns.Locale({ "esES", "esMX" }, {
+	LETTER_1_5_3_TITLE = "Los recordatorios quedan con los maestros de hermandad",
+	LETTER_1_5_3_HEAD = "Los recordatorios quedan con los maestros de hermandad",
+	LETTER_1_5_3 = "Versión 1.5.3.\n\n- Se pausan los avisos a miembros cuando vence el plazo.\n- Continúan los recordatorios a los maestros y al Alto Consejo; se conservan los plazos y las verificaciones.\n\nActualiza ChillZone y recarga la interfaz. Las versiones antiguas mantienen sus avisos.",
 	MAPNAME_EDIT = "Editar mapa",
 	MAPNAME_DONE = "Terminar edición",
 	MAPNAME_PICK = "Haz clic en el nombre de un lugar. Haz clic en otro nombre impreso para colocar allí una etiqueta compartida.",

@@ -9,6 +9,9 @@ local ADDON, ns = ...
 local code = GetLocale and GetLocale()
 if code ~= "itIT" then return end
 ns.Locale("itIT", {
+	LETTER_1_5_3_TITLE = "I promemoria restano ai capigilda",
+	LETTER_1_5_3_HEAD = "I promemoria restano ai capigilda",
+	LETTER_1_5_3 = "Versione 1.5.3.\n\n- Gli avvisi ai membri dopo la scadenza sono sospesi.\n- Continuano i promemoria ai capigilda e all’Alto Consiglio; scadenze e verifiche restano valide.\n\nAggiorna ChillZone e ricarica l’interfaccia. Le vecchie versioni mantengono gli avvisi precedenti.",
 	MAPNAME_EDIT = "Modifica mappa",
 	MAPNAME_DONE = "Termina modifica",
 	MAPNAME_PICK = "Clicca sul nome di un luogo. Clicca su un altro nome stampato per inserire un'etichetta condivisa.",
