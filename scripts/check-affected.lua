@@ -1,7 +1,7 @@
 -- Conservative file dependencies. Whole monolithic setup/tests and gamepad always stay enabled.
 local M = {}
 local groups = {
-	bones = { "ArenaFarkle.lua", "bones-board-layout.lua", "bones-campfire.lua", "bones-find-compact.lua", "bones-find-level.lua",
+	bones = { "ArenaFarkle.lua", "bones-152.lua", "bones-board-layout.lua", "bones-campfire.lua", "bones-find-compact.lua", "bones-find-level.lua",
 		"bones-chat.lua", "bones-fewer-popups.lua", "bones-first-lesson-gates.lua", "bones-guide-routing.lua", "bones-hic-reuse.lua",
 		"bones-innkeeper.lua", "bones-invalid-actions.lua", "bones-lesson.lua", "bones-live-tables.lua", "bones-lobby.lua",
 		"bones-keep.lua", "bones-pick-busy.lua", "bones-pick-edge.lua", "bones-practice-again.lua", "bones-ranking.lua",

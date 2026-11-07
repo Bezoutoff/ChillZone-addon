@@ -64,7 +64,10 @@ earliest start a verifier's client gave, so a reinstall, a rejoin or a new guild
 restarts it; until one reaches it, a client counts from its own first sighting). Meanwhile its guild
 master sees **GM verification pending** (once a session, and the line on top of the Census or
 `/cz verify` opens it again) with the steps: whisper a verifier (**Whisper a verifier** writes it
-for him in ChillZone's own whisper window, with a short code), or **Ask the High Council**. A verifier
+for him in ChillZone's own whisper window, with a short code), or **Resend verification request**
+to an available High Councillor. Resending keeps the original deadline, including after a reload;
+an accepted request has a five-minute cooldown, and only the councillor's acknowledgement confirms
+receipt. If nobody is available or the local queue refuses it, the button can be tried again. A verifier
 approves it from The Watch's **Guilds** (every ChillZone guild still to verify, with its guild master,
 members, time left and code, overdue ones first; a click approves it or whispers its guild master,
 who may not have the addon yet; **Copy the list** opens it in a window to copy from) or with
@@ -72,9 +75,9 @@ who may not have the addon yet; **Copy the list** opens it in a window to copy f
 back. The verifiers are told once of each pending guild (and of each new guild master to check)
 and reminded 12 hours before its deadline. A verification belongs to the guild **and** its guild
 master: while the census names someone else as guild master, it lapses until the new one is
-verified, on the guild's same clock. Past 48 hours an unverified guild is overdue: every member
-sees, once a session, that it is not sanctioned yet (ask the guild master to verify, or find
-another ChillZone guild); it stays on the verifiers' list, marked overdue; and its guild master's own
+verified, on the guild's same clock. Past 48 hours an unverified guild is overdue. Member-facing popups, chat warnings and Census
+notices are temporarily paused; the guild master still receives the verification reminder.
+The guild stays on the verifiers' list, marked overdue; and its guild master's own
 powers in ChillZone wait for his verification (others take him as an officer: his public card, his
 Legates and correspondents, his guild decrees and his guild bank grant wait too). Nothing is taken
 from the members and nobody is removed. The King's guild and the approved guilds (shipped with the
@@ -84,6 +87,13 @@ status. Switches in `Core.lua`: `ns.VERIFY_HOLD` (the guild master's hold, on) a
 `ns.VERIFY_GATE` (whole-guild features through `ns.GuildSanctioned`, off: no feature is gated); the
 exemptions are one predicate, `Verify.Exempt`.
 
+Verification catch-up crosses signed relays to an available verifier without sending requests to
+every guild. It compares the contents of saved decisions as well as their counts, and recovers an
+approval with its original verifier and date; rebuilding census rows does not erase that decision.
+A missing local record still needs a valid verifier's copy. A member's claimed approver name, an
+old census total or a guild-start clock cannot create an approval, and an older approval cannot
+replace a retained revocation.
+
 ### Not in ChillZone yet?
 First it asks the obvious question: *"<Your Guild>? Disband immediately. What are you
 doing?"* Then it helps you get in. The **Join ChillZone** screen uses the game's own `/who` to
@@ -92,6 +102,8 @@ request that you can edit ("Hi! I'd love to join ChillZone. Does <ChillZone II> 
 one more?"). No answer? **Try someone else** picks a member you have not asked yet. Replies
 are highlighted. It is rate limited, so nobody gets spammed. The game lists 50 players per
 `/who`: when there are more, each new click searches a range of levels and adds to the list.
+The editable request uses ChillZone's own confirmation window in both input modes, keeping the
+game's guild invitation and Discord settings free of its popup state.
 
 **Where to go** (1.1): a search also asks one member's addon (an addon whisper, not a chat line)
 where recruits should go, and its census answers: the guild the King opened **the gates** of
@@ -156,16 +168,29 @@ channels; the same charter and Join controls work for each side.
   slots, soldiers in a zone, a map pin, the Royal Inspection, the dues table after its members),
   the same count goes to the exact `<CHILLZONE>` first, then the higher average level, then the
   name, and the average level shows after the count (in the dues table, in each guild's hover).
-- **Total soldiers** and **online now** across the whole realm. Next to the soldiers (every
-  character on the guilds' rosters), smaller and darker, the **people**: each player once, the
-  characters their players linked as alts counted once (see Alt links, below).
+- **Total soldiers** and **online now** across the whole realm. The current server's soldiers stay prominent; the smaller **all servers** total includes accepted observations
+  from the other supported realm groups. People estimates remain inside the details page. Stored
+  observations retain their original time and are shown while the current census rebuilds.
+  Scoped snapshots restore a new client's count immediately; complete, newer coverage may raise
+  or lower it. Legacy caches that lost their PvE/PvP origin are preserved separately and labelled
+  as excluded, without clearing guild verification or its deadline. A complete set of correctly
+  scoped direct reports can substantiate an existing saved view.
 - **The census in numbers**: a click on the header's count (from any tab) opens a page of its own
   in the Census tab: characters, people, linked alts, online now, the guilds counted (and how many
   report right now), the army's average level (each guild's, weighted by its size), every server
   (1.4.0: the characters and people of all of them, by ruleset, by region and by faction, then each
   server, yours first; another server's numbers arrive through players who also play there, counted
   when it is what you saw yourself, when two players agree or when a moderator says it, and listed
-  grey otherwise; the beta's realms never count) and the levels online. Two small graphs show how the
+  grey otherwise; the beta's realms never count) and the levels online. Forwarded observations
+  preserve the original observer and date across normal members and reloads. Repeating the same
+  original through several holders never creates independent witnesses. Without authenticated
+  original evidence, these foreign counts are visible as reports, outside the accepted total;
+  this transport does not provide portable identity certificates. A family shared across regions
+  has an unknown aggregate region; the relay's location is not assigned to all its members.
+  An ordinary carrier sends the complete aggregate in one logical chunk, with only the whole
+  guild-detail rows that fit beside it. The local scoped snapshot sends at most 180 guild rows
+  per packet; a larger local census needs subsequent reconciliation for the remaining rows.
+  Two small graphs show how the
   counts moved: the characters over the last 30 days (each day's highest) and who was online over
   the last 24 hours (each hour's most); hover a day or an hour for its numbers. Your own addon
   writes the census down every 15 minutes while you play, about 3 minutes after login once the
@@ -396,6 +421,17 @@ Any soldier can reach the Lord of another ChillZone guild in two clicks.
 A High Councillor's tooltip (1.1.5) says so too: their mark and own icon after their name, then
 **High Councillor**, their department and their title, for whoever may see the council (the
 same as their card); none on the King's screen while the council's names are hidden.
+
+**Player tooltips** (1.5.2, your own portrait's ChillZone menu) adds a compact guild and rank
+line for ChillZone players when the game supplies the rank. Its own settings panel can turn
+that line or its class colour off and adjust player-tooltip size from 80% to 140% (100% by
+default). Native text, owner and positioning stay with the game; no other tooltip addon is
+required. These additions pause during combat and with the gamepad UI. The original size
+returns when the tooltip clears, hides, combat begins or the input mode changes; a later size
+change by another addon is preserved. Secret ranks and covered or hidden council identities
+are not exposed. The compact presentation takes inspiration from
+[PrettyTooltip](https://github.com/FallenShard/PrettyTooltip); no third-party code or assets
+are bundled.
 
 ### Right-click a player (1.1.2)
 Right-click a player (the target frame, party and raid frames, a name in chat, the Who list, the
@@ -1692,7 +1728,8 @@ alone until then).
   level and observation time) can be recovered privately by the same authorized Treasury viewers
   after two independent authorized live holders attest it. No bank item, tab, donor, book or
   snapshot is carried by that ranking relay; a relayed row cannot be opened as a bank, and nothing
-  is published on the ChillZone channel.
+  is published on the ChillZone channel. A complete valuation confirmed by two holders replaces
+  a partial valuation of the same observation, without renewing its date or favoring a higher value.
 - **Sent by each keeper's addon by itself** (every 5 minutes and after a change), once he said
   yes: his book's balance, totals, ranking, items donated and latest lines (1.1: never a line of
   gold given to the Treasurer's characters, see the dues below). On the ChillZone
@@ -3135,7 +3172,7 @@ Other limits:
 | `/cz layerhelp on` · `/cz layerhelp off` | get (or not) requests to invite players to your layer (1.1: not until you say yes) |
 | `/cz layerauto on` · `/cz layerauto off` | invite layer requests without the window |
 | `/cz location on` · `/cz location off` | share (or not) your zone and layer on the ChillZone channel |
-| `/cz borders on` · `/cz borders off` | elite borders round the portrait of your target, focus, party members and your own frame (Forever): the game's gold wings for the King, silver wings for the High Council and Max's bronze wings for ChillZone guild masters (none for a character or guild the moderators took off, net-off). Legates and correspondents use separate verified office shields instead of the old wingless bronze role frame; signed High Council departments use the same shield family without replacing silver, and earned honours remain. Since 1.1.5 the old rank borders (gold for Lords, silver for Captains, bronze for Raiders and Veterans) are gone, and any other member has the nameplate star alone. On by default, hidden with the gamepad UI. Off, the nameplate marks go too |
+| `/cz borders on` · `/cz borders off` | elite borders round the portrait of your target, focus, party members and your own frame (Forever): the game's gold wings for the King, Kaise's red-and-gold dragon for the signed Queen, silver wings for the High Council and Max's bronze wings for ChillZone guild masters (none for a character or guild the moderators took off, net-off). Legates and correspondents use separate verified office shields instead of the old wingless bronze role frame; signed High Council departments use the same shield family without replacing silver, and earned honours remain. Since 1.1.5 the old rank borders (gold for Lords, silver for Captains, bronze for Raiders and Veterans) are gone, and any other member has the nameplate star alone. On by default, hidden with the gamepad UI. Off, the nameplate marks go too |
 | `/cz nameplates on` · `/cz nameplates off` | a small mark left of the name on friendly players' nameplates (Forever; friendly nameplates show with Shift+V): the game's gold elite mark for the King, silver for the High Council, bronze for guild masters, the verified Legate or department shield for an appointee, and a star for any other member of an ChillZone guild (none for a character or a guild the moderators took off, net-off); on by default, hidden with the gamepad UI and with `/cz borders off` |
 | `/cz chatmarks on` · `/cz chatmarks off` | 1.1.5: the verified mark before a player's name in the game's own chat (channels, say, yell, emote, party, raid, instance and whispers; guild and officer chat the office marks alone, never the star): the King's gold dragon, a High Councillor's silver then their icon, a guild master's bronze, the Legate or department shield for an appointee, and the star for any other member your addon can check. ChillZone's own lines carry none. Through the game's own name filter, so the name's link, right-click and /r stay the game's; on by default, hidden with the gamepad UI, and a councillor's on the King's screen while the council's names are hidden |
 | `/cz key <secret>` | officers: seal the ChillZone channel |
@@ -3339,6 +3376,10 @@ kept for good, also once its games go after 62 days; the Games tab shows last mo
 this month's list, and a player's profile shows the games and wins the rankings counted for him.
 A free table's record for a /reload stays in the live realm's store, so `test clear` in the middle
 of a game no longer loses it (`tests/arena/bones-keep.lua`).
+Counted free games recover their original signed halves into the shared records after a
+busy receive queue or a later login, including while the live game's switch is off. The
+opening-roll transcript orders each completed pair by seat, so simultaneous rolls with
+opposite arrival order agree on both players' clients (`tests/arena/bones-152.lua`).
 **Find a player** (`ChillZone/ArenaMatch.lua`, the Find in the Arena and in the Bones window): each
 game has its own Find, a duel's or a Bones game's, so the game is the one it was opened from; a
 duel filters by level (Any, within 5 or within 10 of the player's own); both filter by distance (Nearby: the
@@ -3407,7 +3448,7 @@ source by `scripts/forever-api.lua`); it fails when anything of ChillZone's reac
 where the registry doesn't allow it.
 The offline suite checks the border textures in `ChillZone/media/borders/` (32-bit TGAs with
 alpha, 256 x 256, and the member's 32 x 32 star for the nameplate marks); with Pillow installed,
-`scripts/check.sh` also checks they are what `scripts/make-borders.py` builds from Max's PNGs in
+`scripts/check.sh` also checks they are what `scripts/make-borders.py` builds from Max's and Kaise's PNGs in
 `media/borders/src/` (the star it draws itself: no game file is copied).
 The CurseForge description is `docs/CURSEFORGE-STORE.md` (1.1.5): CurseForge's editor refuses a
 page above about 100 KiB, so `scripts/curseforge-page.lua` makes it from `docs/CURSEFORGE.md`
@@ -3528,6 +3569,7 @@ once the realms and the characters exist:
 python3 scripts/council-sign.py council --group "<Realm>+<Realm>"   # the launch realm group
 python3 scripts/council-sign.py author "<Name-Realm>"               # each of the author's characters
 python3 scripts/council-sign.py king "<Name-Realm>"                 # Horde after the name for the Horde's
+python3 scripts/council-sign.py queen "<Name-Realm>"                # signed Queen; presentation only
 python3 scripts/council-sign.py treasurer "<Treasurer-Realm>,<Mail-Realm>"
 python3 scripts/council-sign.py realm "<Realm>" pvp NA              # each realm: its kind and region
 python3 scripts/council-sign.py check
@@ -3570,7 +3612,7 @@ its changes listed at its top).
   shenanigans_ (the nameplate marks), Valdericht (`<CHILLZONER>`), Pyralis Ashandar (taking
   donations), Zeal (what the King hides stays off the channel), and FedGuy / Fed ChillZone
   (nameplate-assisted layer hopping).
-- **Art:** Max (the bronze elite borders, drawn over the game's own; the winged one remains the guild masters').
+- **Art:** Max (the bronze elite borders, drawn over the game's own; the winged one remains the guild masters') and Kaise (the Queen's red, gold and white-winged dragon frame).
 - **Reports from the field:** Riukensei and PartyRockAce (the gamepad UI; PartyRockAce's report
   of the world map blocked in controller mode, fixed in 1.0), Ignitheus (whispers to Forever
   names), Pyralis Ashandar, the Treasurer (the treasury and the guild bank), and the player who

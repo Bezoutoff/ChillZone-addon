@@ -367,9 +367,16 @@ end
 -- member's addon asked first whether they take recruit whispers.
 function Recruit.Prompt(contact)
 	if not contact then return nil end
+	if ns.Dialog.missing then ns.Print(L.RESTART_NEEDED) return nil end
 	Recruit.pending = contact
 	AskRoute(contact.name, true)
-	return ns.ShowDialog("CHILLZONE_RECRUIT", contact.name, contact.guild, contact)
+	-- Forever's guild-rank update walks StaticPopup_Hide even with its guild window
+	-- closed, then calls Blizzard-only Discord functions. A native recruit popup
+	-- taints that shared state before the player's invitation arrives (70790).
+	-- Keep the editable request in our own window in both input modes.
+	local f = ns.Dialog.Show("CHILLZONE_RECRUIT", contact.name, contact.guild, contact)
+	ns.Dialog.CloseOnEscape(f)
+	return f
 end
 
 function Recruit.PromptNext(guild)

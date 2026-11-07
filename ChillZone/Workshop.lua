@@ -2467,15 +2467,17 @@ end
 function Workshop.AskCouncil(text)
 	text = ns.Cut(ns.Codec.Plain(tostring(text or "")), 180) -- (never half a letter, 0.9.8)
 	local now = ns.Now()
-	if now - lastHelpSent < Workshop.HELP_GAP then return ns.Print(L.COUNCIL_ASK_WAIT) end
+	if now - lastHelpSent < Workshop.HELP_GAP then ns.Print(L.COUNCIL_ASK_WAIT); return false end
 	local list = Workshop.Available()
-	if #list == 0 then return ns.Print(L.COUNCIL_ASK_NOBODY) end
-	lastHelpSent = now
+	if #list == 0 then ns.Print(L.COUNCIL_ASK_NOBODY); return false end
+	local queued = 0
 	for i = 1, math.min(3, #list) do
 		local k = Workshop.random(1, #list)
-		ns.Comm.Whisper(list[k], "HR~" .. text, "councilask" .. i)
+		if ns.Comm.Whisper(list[k], "HR~" .. text, "councilask" .. i) then queued = queued + 1 end
 		table.remove(list, k)
 	end
+	if queued == 0 then ns.Print(L.COUNCIL_ASK_NOBODY); return false end
+	lastHelpSent = now
 	-- Sent is not received (a councillor may have just logged off): told only when one of them
 	-- says "got it"; none within ACK_WAIT, the player is told and may ask again at once.
 	local mine = { t = now }
@@ -2485,6 +2487,7 @@ function Workshop.AskCouncil(text)
 		asking, lastHelpSent = nil, -math.huge
 		ns.Print(L.COUNCIL_ASK_NOBODY)
 	end)
+	return true -- accepted by our queue; only the existing acknowledgement confirms receipt
 end
 function Workshop.HandleCouncilAck(dist, sender)
 	if dist ~= "WHISPER" or not asking or asking.acked or not ns.IsHighCouncillor(sender) then return end

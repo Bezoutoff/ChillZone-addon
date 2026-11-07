@@ -1059,7 +1059,7 @@ end
 -- (RinglessHelpPlateButtonTemplate).
 UI.HELP_ICON = "Interface\\Common\\help-i"
 
--- CR-02 / KH-08: the header's people count, dimmer gold than the characters before it and lit
+-- The header's all-server character count, dimmer gold than the current server's count and lit
 -- while the mouse is on the count (a click opens the census's own page, UI.OpenCensusStats).
 UI.PEOPLE_COLOR, UI.PEOPLE_LIT, UI.PEOPLE_GAP = { 0.72, 0.6, 0.34 }, { 1, 0.82, 0 }, 6
 UI.PEOPLE_CODE = ("|cff%02x%02x%02x"):format(math.floor(UI.PEOPLE_COLOR[1] * 255 + 0.5), math.floor(UI.PEOPLE_COLOR[2] * 255 + 0.5),
@@ -1070,12 +1070,31 @@ local function CensusStatsReady()
 	return type(CS) == "table" and not CS.missing and type(CS.Open) == "function" and type(CS.Build) == "function"
 end
 local function CensusStatsShown() return CensusStatsReady() and ns.CensusStats.Shown() == true end
--- (The author, 2026-10-20) The people as the header shows them (CensusStats.PeopleText): a member's
--- plain count, or a moderation team client's "~" estimate; without the census page, the plain count.
-local function PeopleText(s)
-	local CS = ns.CensusStats
-	if CensusStatsReady() and type(CS.PeopleText) == "function" then return CS.PeopleText(s) end
-	return L.ARMY_PEOPLE:format(ns.FormatNumber(s.total))
+-- Current-server characters lead the header; all-server characters are secondary.
+-- Saved observations retain their original date while current guild reports rebuild.
+function UI.CensusHeader(s, now)
+	now = now or ns.Now()
+	local F = ns.FormatNumber
+	local all = ns.Data.Groups and ns.Data.Groups(s, now)
+	local header = { characters = s.characters or s.total or 0,
+		secondary = L.CENSUS_HEADER_ALL:format(F(all and all.characters or s.characters or s.total or 0)) }
+	local heard = ns.Data.Rebuilding and ns.Data.Rebuilding(now)
+	if s.snapshot then
+		local observed = date("%m/%d %H:%M", s.snapshot.observed)
+		header.sub = L.CENSUS_HEADER_SAVED:format(observed, s.live and s.live.guilds or 0)
+		header.note = L.CENSUS_HEADER_SAVED_TIP:format(observed)
+	elseif s.history then
+		local label = s.history.unscoped and L.CENSUS_HEADER_UNSCOPED or L.CENSUS_HEADER_HISTORY
+		header.sub = label:format(F(s.history.characters), date("%m/%d %H:%M", s.history.observed))
+	elseif heard then
+		header.sub = L.REBUILDING_SUB:format(heard)
+	else
+		header.sub = L.ARMY_SUB:format(F(s.online), #s.guilds, ns.Ago(s.newest))
+	end
+	local kind = ns.Data.GroupInfo and ns.Data.GroupInfo(ns.group)
+	local label = kind and L["CENSUS_STATS_KIND_" .. kind:upper()]
+	if label then header.sub = label .. " · " .. header.sub end
+	return header
 end
 
 -- The help button in the title bar, just left of the close button, where Blizzard puts a
@@ -1272,8 +1291,8 @@ local function CreateMain(style)
 	f.total:SetPoint("TOPLEFT", hx, -28)
 	f.sub = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	f.sub:SetPoint("TOPLEFT", f.total, "BOTTOMLEFT", 0, -1)
-	-- CR-02 (the author's ask): the people, each player once (Data.Summary's total), next to the
-	-- characters, smaller and darker; set and placed by UI.Refresh and FitHeader.
+	-- All-server characters next to the current server, smaller and darker. The legacy
+	-- people widget name remains; people estimates appear only inside the census page.
 	f.people = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	f.people:SetPoint("BOTTOMLEFT", f.total, "BOTTOMLEFT", 0, 1)
 	f.people:SetTextColor(unpack(UI.PEOPLE_COLOR))
@@ -1284,7 +1303,7 @@ local function CreateMain(style)
 	end
 	-- The count explains itself on hover: how the census is gathered, why two players can see
 	-- different totals for a while. The window still drags from there; a click (no drag) opens the
-	-- census's own page in the Census tab (KH-08, UI.OpenCensusStats), the people lit meanwhile.
+	-- census's own page in the Census tab (KH-08, UI.OpenCensusStats), the secondary count lit meanwhile.
 	local hover = CreateFrame("Frame", nil, f)
 	hover:SetPoint("TOPLEFT", f.total, "TOPLEFT", 0, 2)
 	hover:SetPoint("BOTTOMLEFT", f.sub, "BOTTOMLEFT", 0, -2)
@@ -1306,17 +1325,11 @@ local function CreateMain(style)
 		GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
 		GameTooltip:AddLine(L.HEADER_TIP_TITLE, 1, 0.82, 0)
 		GameTooltip:AddLine(L.HEADER_TIP, 1, 1, 1, true)
-		-- 1.1: the characters their players linked as alts count once (Alts.lua). (2026-10-20: then
-		-- what "~" means while a team client's estimate shows, and the staff's line, CensusStats.lua.)
+		-- Explain the all-server scope and the original date of a retained observation.
 		local s = ns.Data.Summary()
-		local notes = {}
-		if (s.alts or 0) > 0 then
-			notes[1] = L.HEADER_TIP_ALTS:format(ns.FormatNumber(s.characters or s.total), ns.FormatNumber(s.alts))
-		end
-		if CensusStatsReady() and type(ns.CensusStats.PeopleNotes) == "function" then
-			for _, note in ipairs(ns.CensusStats.PeopleNotes(s)) do notes[#notes + 1] = note end
-		end
-		for _, note in ipairs(notes) do GameTooltip:AddLine(note, 0.8, 0.8, 0.8, true) end
+		GameTooltip:AddLine(L.CENSUS_HEADER_ALL_TIP, 0.8, 0.8, 0.8, true)
+		local header = UI.CensusHeader(s)
+		if header.note then GameTooltip:AddLine(header.note, 0.8, 0.8, 0.8, true) end
 		GameTooltip:AddLine(" ")
 		GameTooltip:AddLine(L.HEADER_TIP_DIFFER, 0.8, 0.8, 0.8, true)
 		-- 1.1.2: why the list's columns don't add up to these totals (the answer bank's).
@@ -1701,7 +1714,7 @@ function UI.LayoutTabs()
 	end
 end
 
--- (CR-02) The people show with the characters (main.peopleText, UI.Refresh's): never on the Join
+-- The secondary all-server count (legacy main.peopleText) accompanies characters: never on the Join
 -- screen, a person page, the Chat tab or a contributed surface, whose header is theirs.
 local function PeopleShown(locked)
 	if main.peopleText == nil or playerProfile or locked or APISurfaceByTab(main.tab) then return false end
@@ -1712,7 +1725,7 @@ end
 -- line with a long realm name is just over the width of Forever's window.
 local function FitHeader()
 	local room = main:GetWidth() - main.headerX
-	-- (CR-02: the people right after the characters, in the room the characters leave them.)
+	-- The secondary count follows the current-server characters in the space they leave.
 	local people = main.people and main.people:IsShown() and main.people or nil
 	local function Wide(fs) return fs.GetUnboundedStringWidth and fs:GetUnboundedStringWidth() or fs:GetStringWidth() end
 	local peopleW = people and math.ceil(Wide(people)) + UI.PEOPLE_GAP or 0
@@ -1792,7 +1805,7 @@ function UI.Layout()
 	LayoutButtons()
 	LayoutDetailButtons()
 	main.layoutLocked = UI.Locked()
-	-- (CR-02: the people shown or not before the header is fitted.)
+	-- Set visibility of the secondary count before fitting the header.
 	if main.people then main.people:SetShown(PeopleShown(main.layoutLocked)) end
 	FitHeader()
 	local surface = APISurfaceByTab(main.tab)
@@ -2400,15 +2413,12 @@ function UI.Refresh()
 	ns.SafeCall("ui refresh", function()
 		local s = ns.Data.Summary()
 		local F = ns.FormatNumber
-		-- CR-02 (the author's ask): the characters, and next to them, smaller and darker, the
-		-- people (each player once: Data.Summary's total, linked alts counted once; 2026-10-20: a
-		-- team client's "~" estimate, PeopleText).
-		main.total:SetText(L.ARMY_TOTAL:format(F(s.characters or s.total)))
-		main.peopleText = PeopleText(s)
-		main.sub:SetText(L.ARMY_SUB:format(F(s.online), #s.guilds, ns.Ago(s.newest)) .. "  ·  " .. UI.CensusName())
-		-- Right after login (1.1): the census is being rebuilt, and the header says so.
-		local heard = ns.Data.Rebuilding and ns.Data.Rebuilding()
-		if heard then main.sub:SetText(L.REBUILDING_SUB:format(heard) .. "  ·  " .. UI.CensusName()) end
+		-- 1.5.2: this server's soldiers stay prominent; the smaller number combines the
+		-- accepted server snapshots. Player estimates stay on the detailed census page.
+		local header = UI.CensusHeader(s)
+		main.total:SetText(L.ARMY_TOTAL:format(F(header.characters)))
+		main.peopleText = header.secondary
+		main.sub:SetText(header.sub .. "  ·  " .. UI.CensusName())
 		-- Outside an ChillZone guild nothing but the Join ChillZone screen is shown (and in the
 		-- author's "Not in ChillZone" preview, where nothing on it acts: ViewAs.Inert).
 		local locked = UI.Locked()
@@ -2511,7 +2521,7 @@ function UI.Refresh()
 				local gold = ns.Treasury and ns.Treasury.HeaderText and ns.Treasury.HeaderText()
 				if type(gold) == "string" then
 					main.total:SetText(L.ARMY_TOTAL:format(F(s.characters or s.total)) .. "   " .. gold)
-					main.peopleText = nil -- (the gold after the characters; the people on every other tab)
+					main.peopleText = nil -- (gold after the current count; all-server characters on other tabs)
 				end
 			end
 		end
@@ -3544,11 +3554,9 @@ local function CreateMinimapButton() -- gp:minimap
 		local s = ns.Data.Summary()
 		GameTooltip:SetOwner(self, "ANCHOR_LEFT")
 		GameTooltip:AddLine(L.TITLE, 1, 0.82, 0)
-		-- (CR-02: the characters, then the people, as the window's header has them.)
-		GameTooltip:AddLine(L.ARMY_TOTAL:format(ns.FormatNumber(s.characters or s.total)) .. "  " .. UI.PEOPLE_CODE .. PeopleText(s) .. "|r", 1, 1, 1)
-		GameTooltip:AddLine(L.ARMY_SUB:format(ns.FormatNumber(s.online), #s.guilds, ns.Ago(s.newest)), 0.8, 0.8, 0.8)
-		local heard = ns.Data.Rebuilding and ns.Data.Rebuilding()
-		if heard then GameTooltip:AddLine(L.REBUILDING_SUB:format(heard), 1, 0.82, 0) end
+		local header = UI.CensusHeader(s)
+		GameTooltip:AddLine(L.ARMY_TOTAL:format(ns.FormatNumber(header.characters)) .. "  " .. UI.PEOPLE_CODE .. header.secondary .. "|r", 1, 1, 1)
+		GameTooltip:AddLine(header.sub, 0.8, 0.8, 0.8)
 		GameTooltip:AddLine(" ")
 		GameTooltip:AddLine(L.MINIMAP_LEFT, 0.6, 0.6, 0.6)
 		GameTooltip:AddLine(L.MINIMAP_SHIFT, 0.6, 0.6, 0.6)

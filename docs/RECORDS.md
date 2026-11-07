@@ -39,6 +39,25 @@ monthly ranking from those records; direct duels also expose monthly win/loss to
 `ArenaLedger.RecordMonth(month)`. Season Elo, pair/day caps, minimum duration and GUID proof
 continue to use the established rating rules.
 
+## Requesting an inventory from a ranking page (1.5.2)
+
+The first visible games or crafting ranking opened in a session requests the record types whose
+inventory this client has not heard yet (`RH`). It retries once after 90 seconds if inventories
+are still missing. A refused transport send does not consume the first attempt. Quiet presence
+suppresses these requests. Opening a tab without a visible ranking sends none.
+Each attempt carries a bounded time/attempt tag so the relay's five-minute duplicate window
+does not swallow the ninety-second retry. Copies of the same attempt still count once;
+receivers also accept older two-field requests, with the same reply budgets.
+The relay applies its duplicate window to both local delivery and forwarding between relays;
+an unchanged inventory can circulate again after that window expires. Recent copies remain
+suppressed, so discovery is eventual and still depends on inventory rounds, budgets and peers.
+
+Holders schedule replies using the existing spaced digest rounds and low-priority queue. Each
+holder begins at most one reply round per type per minute, even if many players ask; equivalent
+inventories suppress redundant replies. Original records and their two-holder signature checks
+are unchanged. This helps discover records held by online peers; it cannot recover data no
+connected client has retained. Clients predating RH still use their periodic inventory rounds.
+
 ## Closing a month
 
 Seven days after a month closes, `/cz arena records` shows that client's unsigned monthly

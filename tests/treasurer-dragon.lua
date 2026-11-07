@@ -94,6 +94,47 @@ test("honour frames: every plain family uses its normalized visible size without
 	end)
 end)
 
+test("Queen dragon: the exact signed Queen gets Kaise's supplied portrait overlay on unit, party and ChillZone portraits; the King still takes precedence", function()
+	WithBorders(function(w)
+		local queen = BorderUnit("Kaise Kaise", "HOLYPMUS", "Queen", 0)
+		w.ns.IsQueenCharacter = function(name) return name == "Kaise Kaise-Realm" end
+		w.party()
+		w.units.party1 = queen
+		w.internal("LOGIN")
+		w.target(queen)
+		eq(w.B.TierOf("target"), "queen-dragon")
+		eq(w.B.TierOfName("Kaise Kaise-Realm", nil), "queen-dragon", "the signed identity needs no caller-supplied guild")
+		eq(w.B.TierOfName("Kaise Kaise-Elsewhere", "HOLYPMUS"), nil, "a namesake on another realm group")
+		local texture = assert(w.shownTextureOn("TargetFrame.TargetFrameContainer"))
+		eq(texture.file, "Interface\\AddOns\\ChillZone\\media\\borders\\queen-dragon")
+		eq(texture.size, "175 166.25")
+		eq(w.shown("party1"), "queen-dragon", "the same authored dragon round her party portrait")
+		w.ns.IsQueenCharacter = function() return true end
+		w.target(king)
+		eq(w.B.TierOf("target"), "gold-elite", "the King's gold remains the highest portrait tier")
+	end)
+end)
+
+test("Queen dragon fallback: a missing file retains the native atlas placement rather than the enlarged artwork offsets", function()
+	WithBorders(function(w)
+		w.ns.IsQueenCharacter = function(name) return name == "Kaise Kaise-Realm" end
+		w.noFile["Interface\\AddOns\\ChillZone\\media\\borders\\queen-dragon"] = true
+		w.party(); w.units.party1 = BorderUnit("Kaise Kaise", "HOLYPMUS", "Queen", 0)
+		w.internal("LOGIN"); w.target(w.units.party1)
+		local target = assert(w.shownTexture("target"))
+		eq(target.atlas, "UI-HUD-UnitFrame-Target-PortraitOn-Boss-Gold")
+		eq(target.at.x, 0); eq(target.at.y, 1)
+		eq(target.coord, nil, "native atlas coordinates stay intact"); eq(target.useSize, true)
+		local party = assert(w.shownTexture("party1"))
+		local native
+		for _, tex in ipairs(w.textures) do
+			if tex.owner == party.owner and tex.atlas == "ui-hud-unitframe-target-portraiton-boss-rare-silver" then native = tex end
+		end
+		assert(native, "native plain frame on the same party portrait")
+		eq(party.at.x, native.at.x); eq(party.at.y, native.at.y)
+	end)
+end)
+
 test("Treasurer dragon: verified primary pin owns one supplied portrait overlay, never the mail alt or namesake", function()
 	local saved = { ns.TREASURER, ns.TREASURER_CHARACTERS, ns.TREASURER_REALM }
 	local primary, mail = "Test Treasurer-Realm", "Test Mail-Realm"
@@ -195,23 +236,60 @@ local function RingCentre(alpha, x0, y0)
 		pts = keep
 	end
 	assert(#pts >= 40, "enough of the ring's edge: " .. #pts)
-	return cx, cy
+	return cx, cy, cr
 end
 -- The same, from where it finds the centre again until it stops moving: a ray's edge depends on
 -- where the rays start (8 file pixels left or right of the centre move one reading 4 px), so the
 -- start is the portrait's centre only for the first reading.
 local function SettledRingCentre(alpha, x0, y0)
-	local cx, cy = RingCentre(alpha, x0, y0)
+	local cx, cy, cr = RingCentre(alpha, x0, y0)
 	for _ = 1, 20 do
-		local nx, ny = RingCentre(alpha, cx, cy)
+		local nx, ny, nr = RingCentre(alpha, cx, cy)
 		local moved = math.abs(nx - cx) + math.abs(ny - cy)
-		cx, cy = nx, ny
-		if moved < 0.01 then return cx, cy end
+		cx, cy, cr = nx, ny, nr
+		if moved < 0.01 then return cx, cy, cr end
 	end
-	return cx, cy
+	return cx, cy, cr
 end
 
-test("1.2.1 party borders: every border drawn from ChillZone's own file (the Treasurer's dragon, the bronze wings, the plain bronze) has its ring round the party member's portrait, within a pixel of its centre", function()
+test("Queen dragon geometry: the actual alpha opening fits native and party portraits instead of shrinking inside them", function()
+	WithBorders(function(w)
+		w.party(); w.internal("LOGIN")
+		local own = w.B.Rig(w.container("QueenOwn"), true, true)
+		w.B.ShowTier(own, "queen-dragon")
+		-- Forever 70790 Mainline TargetFrame.xml: 58 at -26,-19 from TOPRIGHT;
+		-- PlayerFrame.xml:27-29: 60 at 24,-19; party: 37 at 7,-6.
+		local centres = {
+			["TargetFrame.TargetFrameContainer"] = { -55, 48, 58 },
+			["FocusFrame.TargetFrameContainer"] = { -55, 48, 58 },
+			["PlayerFrame.PlayerFrameContainer"] = { 54, 49, 60 },
+			["QueenOwn"] = { 54, 49, 60 },
+			["PartyMember#1"] = { 25.5, 24.5, 37 },
+		}
+		local measured = 0
+		for _, tex in ipairs(w.textures) do
+			local want = centres[tex.owner]
+			if want and tex.file and tex.file:match("queen%-dragon$") then
+				local l, r, t, b = tex.coord:match("^(%S+) (%S+) (%S+) (%S+)$")
+				l, r, t, b = tonumber(l), tonumber(r), tonumber(t), tonumber(b)
+				local sx, sy = tex.dims[1] / (math.abs(r - l) * 256), tex.dims[2] / ((b - t) * 256)
+				local cx, cy, radius = SettledRingCentre(Alpha(tex.file), 90, 96)
+				local x = tex.at.x + (tex.at.p == "TOPRIGHT" and -tex.dims[1] or 0)
+				local gx = x + (l > r and l * 256 - cx or cx - l * 256) * sx
+				local gy = -tex.at.y + (cy - t * 256) * sy
+				assert(math.abs(radius * 2 * sx - want[3]) < 3,
+					("%s: Queen opening %.2f px must fit its %d px portrait"):format(tex.owner, radius * 2 * sx, want[3]))
+				assert(math.abs(sx - sy) < 0.000001, "the supplied art keeps its proportions")
+				assert(math.abs(gx - want[1]) < 1 and math.abs(gy - want[2]) < 1,
+					("%s: Queen centre is displaced %.2f, %.2f"):format(tex.owner, gx - want[1], gy - want[2]))
+				measured = measured + 1
+			end
+		end
+		eq(measured, 5, "target, focus, own native, own ChillZone and party all measured")
+	end)
+end)
+
+test("1.2.1 party borders: every border drawn from ChillZone's own file (the Queen's and Treasurer's dragons, the bronze wings, the plain bronze) has its ring round the party member's portrait, within a pixel of its centre", function()
 	local saved = { ns.TREASURER, ns.TREASURER_CHARACTERS, ns.TREASURER_REALM }
 	ns.TREASURER, ns.TREASURER_CHARACTERS, ns.TREASURER_REALM = "Test Treasurer", { "Test Treasurer", "Test Mail" }, "Realm"
 	local ok, err = pcall(function()
@@ -242,9 +320,85 @@ test("1.2.1 party borders: every border drawn from ChillZone's own file (the Tre
 						("%s: its ring's centre %.2f px across and %.2f px down from the portrait's"):format(name, gx - px, gy - py))
 				end
 			end
-			for _, name in ipairs({ "treasurer-dragon", "bronze-elite", "bronze" }) do assert(measured[name], name .. " measured") end
+			for _, name in ipairs({ "queen-dragon", "treasurer-dragon", "bronze-elite", "bronze" }) do assert(measured[name], name .. " measured") end
 		end)
 	end)
 	ns.TREASURER, ns.TREASURER_CHARACTERS, ns.TREASURER_REALM = unpack(saved, 1, 3)
 	if not ok then error(err, 0) end
+end)
+
+test("party dragon recovery: PartyFrame created after login is hooked before its pooled member frames appear", function()
+	WithBorders(function(w)
+		w.internal("LOGIN") -- target/player art exists, but PartyFrame has not loaded yet
+		w.party(false)
+		w.units.party1 = king
+		w.fire("GROUP_ROSTER_UPDATE") -- the game's pool exists, its members not assigned yet
+		eq(w.shown("party1"), nil)
+		PartyFrame:InitializePartyMemberFrames()
+		eq(w.shown("party1"), "gold-elite", "the post-initialize hook must draw the new party immediately")
+		local hooks = #w.hooks
+		w.fire("GROUP_ROSTER_UPDATE"); PartyFrame:InitializePartyMemberFrames()
+		eq(#w.hooks, hooks, "one party initialization hook, even after repeated roster updates")
+		eq(w.shown("party1"), "gold-elite")
+	end)
+end)
+
+test("Queen preview regression: slash preview reaches own and self-target portraits without replacing another party member's identity", function()
+	local savedDev, savedEM = ns.devWorkshop, rawget(_G, "EditModeManagerFrame")
+	local ok, err = pcall(WithBorders, function(w)
+		ns.Borders = w.B
+		w.ns.IsQueenCharacter = function(name) return name == "Kaise Kaise-Realm" end
+		w.party()
+		w.units.party1 = king
+		w.units.party2 = BorderUnit("Kaise Kaise", "HOLYPMUS", "Queen", 0)
+		w.internal("LOGIN")
+		SlashCmdList.CHILLZONE("borders test queen-dragon")
+		eq(w.B.Preview(), "queen-dragon"); eq(w.shown("player"), "queen-dragon")
+		w.target(w.units.player); eq(w.shown("target"), "queen-dragon", "self-target follows local preview")
+		eq(w.shown("party1"), "gold-elite", "another player's real King identity")
+		eq(w.shown("party2"), "queen-dragon", "another player's real signed Queen identity")
+		EditModeManagerFrame = { ArePartyFramesForcedShown = function() return true end }
+		PartyFrame:InitializePartyMemberFrames()
+		eq(w.shownOn(w.partyFrame("party4").label), "queen-dragon", "empty Edit Mode stand-in previews supplied art")
+		SlashCmdList.CHILLZONE("borders test off")
+		eq(w.B.Preview(), nil); eq(w.shown("player"), nil)
+		eq(w.shown("party1"), "gold-elite"); eq(w.shown("party2"), "queen-dragon")
+	end, function(w)
+		w.units.player = BorderUnit("Quillpen", "ChillZone II", "Member", 3)
+		ns.me, ns.devWorkshop = "Quillpen-Realm", { Quillpen = true }
+	end)
+	ns.devWorkshop, EditModeManagerFrame = savedDev, savedEM
+	if not ok then error(err, 0) end
+end)
+
+test("party dragon recovery: late pool initialization waits for combat and respects gamepad parking", function()
+	WithBorders(function(w)
+		w.internal("LOGIN")
+		w.combat = true
+		w.party(false)
+		w.units.party1 = king
+		w.fire("GROUP_ROSTER_UPDATE")
+		PartyFrame:InitializePartyMemberFrames()
+		eq(w.shown("party1"), nil, "no party texture allocated in combat")
+		eq(#w.hooks, 2, "only the existing target/focus hooks while in combat")
+		w.combat = false; w.fire("PLAYER_REGEN_ENABLED")
+		eq(w.shown("party1"), "gold-elite"); eq(#w.hooks, 3)
+		w.style = 1; w.fire("INPUT_DEVICE_INTERFACE_TRANSITION", 1, 0)
+		eq(w.shown("party1"), nil)
+		PartyFrame:InitializePartyMemberFrames()
+		eq(w.shown("party1"), nil, "the game's callback remains inert under gamepad")
+		w.style = 0; w.fire("INPUT_DEVICE_INTERFACE_TRANSITION", 0, 1)
+		eq(w.shown("party1"), "gold-elite"); eq(#w.hooks, 3, "no repeated hook on return")
+		-- The input event can be missed: the retained pool callback still removes our art,
+		-- and the next name update must not reuse the frame's old party assignment.
+		w.style = 1
+		w.partyOrder = { 2, 1, 3, 4 }
+		PartyFrame:InitializePartyMemberFrames()
+		eq(w.shownOn("PartyMember#1"), nil, "missed input event still hides the old portrait")
+		eq(w.shownOn("PartyMember#2"), nil, "no new portrait while the gate refuses it")
+		w.style = 0; w.fire("UNIT_NAME_UPDATE", "party1")
+		eq(w.shownOn("PartyMember#2"), "gold-elite", "a name update before the input event remaps the pool")
+		eq(w.shownOn("PartyMember#1"), nil, "the previous pooled frame remains empty")
+		eq(#w.hooks, 3)
+	end)
 end)

@@ -125,6 +125,10 @@ R.ASK_PREFIX_MAX = 350   -- 5,600 bytes, below Arena's 6,600-byte assembly limit
 R.WITNESSES = 2          -- distinct live, first-hand keyed holders required to relay identity
 R.WITNESS_FRESH = 86400  -- an attestation is about what its sender still holds now, not old gossip
 R.KING_AFTER = 60        -- the King's turn: this long after every other holder's latest (R.Slot)
+R.DISCOVERY_RETRY = 90   -- a ranking view's ask for digests (RH): no digest of its types heard this long after, once more...
+R.DISCOVERY_MAX = 2      -- ...this many a session at most
+R.DISCOVERY_GAP = 60     -- a holder's reply round of a type at most this often, whoever asked
+R.DISCOVERY_MIN = 1      -- ...its slots from this long after the ask, over the round's window (R.DigestWindow)
 R.random = math.random
 
 local floor, max, min = math.floor, math.max, math.min
@@ -885,6 +889,7 @@ end
 
 local lastDigest = {}
 local heard, digestSerial, roundHeard, roundDue = {}, {}, {}, {} -- (the rounds, below)
+local digestHeard = {}   -- [letter] = true: another holder's digest of that type heard this session (R.Discover)
 local mySent = {}        -- [letter] = { at, days = { [day] = true }, months = { [month] = true } }: our last digest
 local jobsAt, askerJobs = {}, {} -- the budget: when our jobs went (all of them; [asker] = an asker's)
 local heardBody = {}     -- [letter] = { [Hash36 of a record's body] = when an RR of it was heard }
@@ -1287,6 +1292,7 @@ local function OnDigest(dist, sender, mode, body)
 	-- fact counts for nothing.
 	local facts, by = DigestFacts(days, months), Low(sender)
 	if facts[1] and by then
+		digestHeard[letter] = true
 		digestSerial[letter] = (digestSerial[letter] or 0) + 1
 		Heard(letter, by, facts, now, digestSerial[letter])
 		local r = floor(now / R.DIGEST_EVERY)
@@ -1361,6 +1367,85 @@ local function OnDigest(dist, sender, mode, body)
 	end
 end
 ns.Comm.Handle("RD", ns.Arena.Handle("RD", OnDigest))
+
+-- 1.5.2, discovery (RH). A client that holds nothing sends nothing at its login (the weight rule):
+-- it learns what the holders hold from their rounds, a round and its window later. When the player
+-- first opens a ranking view in a session (the Games tab's rankings, the crafting ranking), it asks
+-- for the digests of the types it heard none of this session ("RH~L1~1~<letters>~<request>"), once; and once
+-- more DISCOVERY_RETRY later if still none came: DISCOVERY_MAX a session. Not while its quiet
+-- presence is on (an ask would say it is online). A client that heard a digest of a type asks for
+-- none of it: a holder that logged in more than a round ago asks for nothing.
+-- Each holder answers with a reply round of its own of that type, as a round's digest: at its slot,
+-- DISCOVERY_MIN + score("RH|letter|minute") × the round's window (the King's after the widest; the
+-- author's and a quiet client's never), staying home once ELECT other holders' digests heard since
+-- the ask told all its own would. One reply round of a type a DISCOVERY_GAP, whoever asked: an ask
+-- heard while a round waits makes the digests heard before it count for nothing (its asker may not
+-- have heard them) and never puts a slot later.
+local discovered, discoverySent = false, 0
+local replyRound, replyStarted = {}, {} -- [letter] = { base, at } (the round waiting); [letter] = when the last began
+local function SendDiscovery()
+	if discoverySent >= R.DISCOVERY_MAX or Quiet() then return false end
+	local list = {}
+	for letter in pairs(R.TYPES) do if not digestHeard[letter] then list[#list + 1] = letter end end
+	if not list[1] then return false end
+	table.sort(list)
+	-- Relay remembers origin+body for five minutes. A bounded per-attempt tag keeps the
+	-- ninety-second retry distinct while copies of that same request still deduplicate.
+	local request = A().B36(Now()) .. "." .. tostring(discoverySent + 1)
+	if A().Send("RH", "L", "1~" .. table.concat(list) .. "~" .. request, { dist = "CHANNEL", key = "records discovery", low = true }) ~= true then return false end
+	discoverySent = discoverySent + 1
+	stats.discovery = discoverySent
+	if discoverySent < R.DISCOVERY_MAX then ns.After(R.DISCOVERY_RETRY, "records discovery", SendDiscovery) end
+	return true
+end
+-- The player opened a ranking view: the first time this session, the ask (true when it went).
+function R.Discover()
+	if discovered or Quiet() then return false end
+	if not SendDiscovery() then return false end
+	discovered = true
+	return true
+end
+local function ReplyRound(letter, now)
+	local s = Store(letter)
+	if not (s and (next(Index(letter).dig) or next(s.seals))) then return end
+	if now - (replyStarted[letter] or -math.huge) < R.DISCOVERY_GAP then return end
+	local at = R.Slot("RH|" .. letter .. "|" .. floor(now / 60), Me(), now + R.DISCOVERY_MIN, R.DigestWindow(), R.DIGEST_WINDOW_MAX)
+	if not at then return end
+	replyStarted[letter] = now
+	stats.replyRounds = (stats.replyRounds or 0) + 1
+	local due = replyRound[letter]
+	if due and due.at > now then
+		due.base = now
+		if at >= due.at then return end
+		due.at = at
+	else
+		due = { base = now, at = at }
+		replyRound[letter] = due
+	end
+	ns.After(at - now, "records reply " .. letter, function()
+		if replyRound[letter] ~= due or Now() < due.at then return end
+		replyRound[letter] = nil
+		local since = due.base
+		local function covered() return Barred() or (lastDigest[letter] or -math.huge) >= since or Covered(letter, since) end
+		if covered() then stats.covered = (stats.covered or 0) + 1 return end
+		QueueDigest(letter, covered, due.at)
+	end)
+end
+local function OnDiscovery(dist, sender, mode, body)
+	if mode ~= "L" or dist ~= "CHANNEL" then return Count("lane") end
+	if type(body) ~= "string" or #body > 64 then return Count("shape") end
+	local version, letters, request = A().Fields(body, 3)
+	if not version then version, letters = A().Fields(body, 2) end -- older two-field asks
+	if request and (#request > 14 or not request:match("^[0-9a-z]+%.[12]$")) then return Count("shape") end
+	if version ~= "1" or type(letters) ~= "string" or letters == "" or #letters > 32 or letters:find("[^%w]") then return Count("shape") end
+	stats.discoveryHeard = (stats.discoveryHeard or 0) + 1
+	if Barred() then return end
+	local now = Now()
+	for letter in letters:gmatch(".") do
+		if R.TYPES[letter] then ReplyRound(letter, now) end
+	end
+end
+ns.Comm.Handle("RH", ns.Arena.Handle("RH", OnDiscovery))
 
 local SendSeal -- (below)
 
@@ -1952,6 +2037,13 @@ function R.StatusText()
 	local keys = 0
 	for _ in pairs((Root(false) or {}).keys or {}) do keys = keys + 1 end
 	lines[#lines + 1] = L.RECORDS_KEYS:format(keys)
+	-- (1.4.0: the network's counters, for the in-game checks: this round, the digests of each type
+	-- heard in it, the answers sent, the budget left, the discovery asks sent; the delay from a
+	-- digest's slot to the wire.)
+	local heardNow = {}
+	for _, letter in ipairs(letters) do heardNow[#heardNow + 1] = letter .. " " .. R.RoundHeard(letter) end
+	lines[#lines + 1] = L.RECORDS_NET:format(floor(Now() / R.DIGEST_EVERY), table.concat(heardNow, ", "), stats.answered, R.Budget(), R.BUDGET, discoverySent)
+	lines[#lines + 1] = L.RECORDS_LAG:format(lag.n, lag.n > 0 and lag.sum / lag.n or 0, lag.max)
 	R.Drafts(true)
 	local req = R.SealRequests()
 	if req[1] then
@@ -2011,6 +2103,7 @@ function R.Reset()
 	lag = { n = 0, sum = 0, max = 0 }
 	mySent, jobsAt, askerJobs, heardBody, rvHeard, witnessSince = {}, {}, {}, {}, {}, {}
 	askWait = {}
+	digestHeard, discovered, discoverySent, replyRound, replyStarted = {}, false, 0, {}, {}
 	askedSeal, heardSealAsk, asm = {}, {}, {}
 	from, attempts, fromDay = {}, {}, -1
 	keySentAt, keyDue = nil, false

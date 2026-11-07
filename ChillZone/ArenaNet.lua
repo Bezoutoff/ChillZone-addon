@@ -62,7 +62,8 @@ Arena.PARK_TRIES = 36         -- ...this many times at most (about six hours)
 -- duels' signed halves AX (ArenaLedger, 1.2.3), and (1.2.4) the shared records' RK RD RA RR RS RT
 -- (Records.lua: a ranking key, a digest, an ask, a record, a month's seal and its totals), and
 -- (1.2.6) RV (Records.lua: a live holder's signed validation of one record, the author's "todos os
--- rankings precisam fazer o relay"): 76.
+-- rankings precisam fazer o relay"), and (1.4.0) RH (Records.lua: a ranking view's ask for the
+-- holders' digests, the first time it is opened in a session): 77.
 -- Arena.Send refuses any other type.
 Arena.TYPES = {
 	EP = "ArenaNet", EC = "ArenaChat", EM = "ArenaChat", ER = "ArenaTest", EH = "ArenaTest",
@@ -84,6 +85,7 @@ Arena.TYPES = {
 	LW = "Lottery",
 	AU = "ArenaRoles",
 	RK = "Records", RD = "Records", RA = "Records", RR = "Records", RV = "Records", RS = "Records", RT = "Records",
+	RH = "Records", -- (1.4.0: a ranking view's ask for the holders' digests)
 }
 -- A player's own obligations go out even with the arena turned off, and in L while the live switch
 -- is off (the design): receipts, key claims, Farkle's payments; a debt mark about himself (ZX) and a
@@ -110,7 +112,7 @@ Arena.FREE_TYPES = {
 	KI = true, KA = true, KO = true, KP = true, KG = true, KY = true, KK = true, KT = true, KE = true, -- Bones
 	KQ = true, KR = true, KS = true, KN = true, KL = true,
 	-- (1.2.4) the shared records (Records.lua): any holder tells the games and duels that count
-	RK = true, RD = true, RA = true, RR = true, RV = true, RS = true, RT = true,
+	RK = true, RD = true, RA = true, RR = true, RV = true, RS = true, RT = true, RH = true,
 }
 -- The types a sender may mark as his own obligation (o.obligation: ZX about himself, a staked AW,
 -- the Wallet's hello): taken in L whatever the switch, their handlers check the rest.

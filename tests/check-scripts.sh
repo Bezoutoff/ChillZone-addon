@@ -372,13 +372,14 @@ if command -v git >/dev/null 2>&1 && command -v zip >/dev/null 2>&1 && command -
 	mkdir -p "$pkg/scripts"
 	cp -R "$repo_root/ChillZone" "$repo_root/ChillZone_Arena" "$repo_root/ChillZoneSiteAggregate" "$pkg/"
 	cp "$repo_root/scripts/package.sh" "$repo_root/scripts/bets-only.txt" "$pkg/scripts/"
+	cp "$repo_root/LICENSE" "$pkg/"
 	rm -f "$pkg/ChillZone/TestBuild.lua"
 	(
 		cd "$pkg"
 		git init -q
 		git config user.name "Package Test"
 		git config user.email "package-test@example.invalid"
-		git add ChillZone ChillZone_Arena ChillZoneSiteAggregate scripts/package.sh scripts/bets-only.txt
+		git add LICENSE ChillZone ChillZone_Arena ChillZoneSiteAggregate scripts/package.sh scripts/bets-only.txt
 		git commit -qm "package fixture"
 	)
 	version=$(grep '^## Version:' "$pkg/ChillZone/ChillZone.toc" | awk '{print $3}' | tr -d '\r')
@@ -397,6 +398,9 @@ if command -v git >/dev/null 2>&1 && command -v zip >/dev/null 2>&1 && command -
 	unzip -p "$release" ChillZoneSiteAggregate/ChillZoneSiteAggregate.toc | tr -d '\r' | grep -qx '## SavedVariables: ChillZoneSiteAggregate' || package_fail 'the site reporter does not own exactly its dedicated variable'
 	grep -q 'TestBuild.lua' "$pkg/list.txt" && package_fail 'the release carries a test build'
 	unzip -p "$release" ChillZone/ChillZone.toc | tr -d '\r' | grep -q "^## Version: $version$" || package_fail 'the release version'
+	# (ChillZone, 2026-11-07: MIT asks its notice in every copy; the repository's LICENSE, the original's
+	# copyright kept, goes in the main addon folder. The site reporter keeps its two files.)
+	unzip -p "$release" ChillZone/LICENSE.txt | cmp -s - "$pkg/LICENSE" || package_fail 'the release lacks the repository LICENSE as ChillZone/LICENSE.txt'
 	printf 'ok: package.sh: the release zip holds all three isolated addon folders, no test build and no wager-only modules; manifest and checksum match\n'
 
 	(cd "$pkg" && bash scripts/package.sh --test 3 > out.txt) || package_fail 'the test build did not build'

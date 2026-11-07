@@ -30,7 +30,8 @@ copying its shell. This page is the whole contract of version 1 (`ChillZoneAPI.V
   ChillZone's tab rail. ChillZone owns the window shell; your addon owns that page's frames and
   callbacks. Hosting the page grants no data access. It works while the answer is pending or refused.
 - **Copies.** Every table you get is built for that call. Changing it changes only your copy.
-- **Pushed, not polled.** Callbacks tell you when something changed.
+- **Pushed, not polled.** Callbacks tell you when something changed, except the optional signed
+  Queen identity: read that bounded metadata periodically while using it.
 
 ## Getting started
 
@@ -209,6 +210,7 @@ separate from the 16 addons that may register data handles.
 | `"profile"` | `handle:GetProfile()` |
 | `"unit.member"` | `handle:IsChillZoneMember(unit)` |
 | `"leader"` | `handle:GetLeaderPresence()` and `LEADER_CHANGED` |
+| `"queen.identity"` | `handle:GetQueenIdentity()` (authorized addons only; exact signed name, no presence or location) |
 | `"network.sightings"` | request-bound exact-name and hostile-area searches through `StartPlayerSearch`, `StartAreaSearch`, their cancel/get methods, and explicit host-owned area map pins |
 | `"network.sightings.area-scope"` | `handle:StartAreaSearch(mapID, scope)` accepts `"outsiders"` as well as `"hostile"` |
 | `"network.profile-effects"` | one bounded host-owned profile-presentation session through `StartProfileSession`, `StopProfileSession`, `SetProfileEffect` and `GetProfileSession` |
@@ -221,7 +223,7 @@ separate from the 16 addons that may register data handles.
 | `"ui.board-groups"` | (1.4.0) one panel in place of the Board's Your group: `RegisterGroupPanel`, `UnregisterGroupPanel`, `RefreshGroupPanel`, `IsGroupPanelShown` |
 
 **Reserved features.** `"leader"`, `"network.sightings"`, `"network.sightings.area-scope"`,
-`"network.profile-effects"` and `"presence.quiet"` are reserved for
+`"network.profile-effects"`, `"presence.quiet"` and `"queen.identity"` are reserved for
 addons the ChillZone team has authorized (`"groups"`, `"groups.manage"` and `"ui.board-groups"` are
 not: every addon the player says Yes to gets them). `Has` still says whether this build has them. For any other
 addon, their methods return `nil` and `"unauthorized"` (`false` and `"unauthorized"` for the cancel and map methods,
@@ -763,6 +765,17 @@ a moderation sanction or a stored list of people, and ChillZone keeps nothing of
 budget of its own, separate from the other data methods: 80 calls in 10 seconds (a raid of 40,
 twice), then `nil, "busy"`. No event tells of a change: ask when the game tells you that unit
 changed.
+
+### `handle:GetQueenIdentity()`
+
+Reserved for authorized companion addons and gated by current API consent and ChillZone membership.
+Returns only the Queen's exact `First Last-Realm` from the current author's signed list for this
+faction and realm group. No signature or no applicable Queen returns `nil, "unknown"`; an older
+host without this capability returns unavailable. There is no hardcoded character or realm fallback.
+This is presentation identity only: no online state, position, layer, guild or authority. It starts
+no request and shares no location. A companion must still use the existing explicit, consented,
+request-bound sightings flow to locate that character. Standard data-call rate limits apply.
+Consent contract 11 adds this identity disclosure; previous permissions must be answered again.
 
 ### `handle:GetLeaderPresence()`
 

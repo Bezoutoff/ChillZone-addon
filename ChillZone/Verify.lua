@@ -21,8 +21,8 @@ local L = ns.L
 -- verifier's start reaches it, a client counts from its own first sighting (ns.rdb.verify.seen).
 -- Within GRACE the guild is pending: only its guild master sees "GM verification pending" (once a
 -- session, reopened with /cz verify or the line on top of the Census). Past it the guild is
--- overdue: every member sees, once a session, that it is not sanctioned yet (ask the guild master
--- to verify, or find another ChillZone guild); the verifiers keep it on their list, marked overdue,
+-- overdue: member-facing notices are temporarily paused; the guild master still sees the
+-- reminder and the verifiers keep the guild on their list, marked overdue,
 -- for follow-up; and while ns.VERIFY_HOLD is on (Core.lua, as it ships) its guild master's own
 -- powers wait for his verification (ns.MasterHeld: Data.AuthorizedRank gives him an officer's
 -- standing; his public card, his Legates and correspondents, his guild decrees and his guild bank
@@ -40,7 +40,7 @@ local L = ns.L
 -- How it travels (GV, Comm.lua's list), on the ChillZone channel:
 --   GV~1~A~<server time>~<Guild>~<Guild master Name-Realm>   a verifier's approval (logged)
 --   GV~1~R~<server time>~<Guild>~<Guild master Name-Realm>   a verifier's revocation (logged)
---   GV~1~Q~<count>~<newest>~<starts>                          any member's ask (after login, then
+--   GV~1~Q~<count>~<newest>~<starts>~<digest>                 any member's ask (after login, then
 --                                                             every half hour): what it holds
 --   GV~1~S~<made>~<row>;<row>;...                             a verifier's client's answer, rows
 --     A|R,<at>,<Guild>,<master>,<by>   every word it holds, the newest first
@@ -50,7 +50,7 @@ local L = ns.L
 -- Each client keeps, per guild, the newest word by its time (the approver's server time, which a
 -- relay carries unchanged: an old approval relayed is as old as it was). On the same second a
 -- revocation stands over an approval. A relay is taken only from a verifier's client, which only
--- answers an ask from a client that holds less. Kept in the realm group's saved data: approvals
+-- answers an ask from a client with different contents. Kept in the realm group's saved data: approvals
 -- until revoked (MAX words at most), revocations REVOKE_KEEP, starts START_KEEP and first sightings
 -- SEEN_KEEP after the guild was last seen.
 
@@ -65,6 +65,7 @@ Verify.TICK = 60                 -- the guilds seen and the notices, every minut
 Verify.ASK_AFTER, Verify.ASK_SPREAD = 25, 35 -- the login's ask, 25 to 60 s after it
 Verify.ASK_EVERY = 30 * 60       -- and every half hour
 Verify.ANSWER_GAP = 180          -- a verifier's client answers asks this often at most
+Verify.REQUEST_GAP = 300         -- a guild master's queued request, kept across reloads
 Verify.REVOKE_KEEP = 30 * 86400  -- a revocation is kept (and relayed) this long
 Verify.START_KEEP = 90 * 86400   -- a guild's start, this long after it was last seen or heard
 Verify.SEEN_KEEP = 30 * 86400    -- a guild's own first sighting, this long after it was last seen
@@ -103,7 +104,7 @@ local function Store()
 		s = {}
 		rdb.verify = s
 	end
-	for _, k in ipairs({ "list", "start", "seen", "told" }) do
+	for _, k in ipairs({ "list", "start", "seen", "told", "requests" }) do
 		if type(s[k]) ~= "table" then s[k] = {} end
 	end
 	return s
@@ -335,6 +336,11 @@ function Verify.Prune(now)
 	Trim(s.start, Verify.MAX_STARTS, Last)
 	Trim(s.seen, Verify.MAX_STARTS, Last)
 	Trim(s.told, Verify.MAX_STARTS, Last)
+	for key, e in pairs(s.requests) do
+		local at = type(e) == "table" and TimeField(e.at)
+		if not at or now - at > Verify.SEEN_KEEP then s.requests[key] = nil end
+	end
+	Trim(s.requests, Verify.MAX_STARTS, Last)
 end
 
 ---------------------------------------------------------------------------
@@ -384,21 +390,30 @@ local function TellOurs(kind, guild, by)
 	ns.Print((kind == "A" and L.VERIFY_HEARD_OURS or L.VERIFY_HEARD_REVOKED):format(guild, Shown(by)))
 end
 
--- What this client holds: its words and shared starts, the newest word's time, and its starts'
--- sum (a client with the same count but earlier starts holds something the asker lacks).
+-- Counts alone cannot distinguish two different sets of approvals made on the same second.
+-- The optional content digest excludes receipt times; it is a convergence hint, never proof
+-- of authority. Older clients still understand the first three fields.
 function Verify.Digest()
 	local n, newest, sum = 0, 0, 0
 	local s = Store()
+	local rows = {}
 	for _, e in pairs(s and s.list or {}) do
 		if Valid(e) then
 			n = n + 1
 			if e.at > newest then newest = e.at end
+			rows[#rows + 1] = table.concat({ e.k, e.at, Key(e.guild), Key(ns.FullName(e.gm)), Key(ns.FullName(e.by)) }, "|")
 		end
 	end
 	for _, e in pairs(s and s.start or {}) do
-		if ValidStart(e) then n, sum = n + 1, (sum + e.at) % 2147483648 end
+		if ValidStart(e) then
+			n, sum = n + 1, (sum + e.at) % 2147483648
+			rows[#rows + 1] = table.concat({ "T", e.at, Key(e.guild) }, "|")
+		end
 	end
-	return n, newest, sum
+	table.sort(rows)
+	local hash = ns.Sign and ns.Sign.SHA256 and ns.Sign.SHA256(table.concat(rows, "\n"))
+	if type(hash) == "string" then hash = hash:gsub(".", function(c) return ("%02x"):format(c:byte()) end) end
+	return n, newest, sum, hash
 end
 
 -- A name as a relay writes it: without the realm when it is ours (the receiver puts the sender's back).
@@ -408,9 +423,21 @@ local function Relative(name)
 	return name
 end
 
+-- Exact decision evidence; a start's earliest time is independent of who forwarded it.
+-- Receipt times and snapshot creation times never establish coverage.
+local function CoverageKey(kind, at, guild, gm, by)
+	local fields = { kind, at, Key(guild) }
+	if kind ~= "T" then
+		fields[#fields + 1] = Key(ns.FullName(gm))
+		fields[#fields + 1] = Key(ns.FullName(by))
+	end
+	return table.concat(fields, "|")
+end
+
 -- A verifier's client's answer: every word it holds, the newest first, then the starts (the
--- unverified guilds' first, the oldest first), bounded. And how many rows.
-function Verify.Payload(now)
+-- unverified guilds' first, the oldest first), bounded. And how many rows; with coverage supplied,
+-- whether that received snapshot contains every row this answer would actually send.
+function Verify.Payload(now, coverage)
 	now = now or Verify.Clock()
 	local s = Store()
 	local words, starts = {}, {}
@@ -432,24 +459,27 @@ function Verify.Payload(now)
 		return Key(a.e.guild) < Key(b.e.guild)
 	end)
 	local head = ("GV~%d~S~%d~"):format(Verify.PROTOCOL, now)
-	local out, bytes = {}, #head
-	local function Add(row)
+	local out, bytes, covered = {}, #head, coverage ~= nil
+	local function Add(row, key)
 		if #out >= Verify.MAX_ROWS then return false end
 		local extra = #row + (#out > 0 and 1 or 0)
 		if bytes + extra > Verify.MAX_BYTES then return false end
 		out[#out + 1], bytes = row, bytes + extra
+		if coverage and not coverage[key] then covered = false end
 		return true
 	end
 	for _, e in ipairs(words) do
-		if not Add(("%s,%d,%s,%s,%s"):format(e.k, e.at, e.guild, Relative(e.gm), Relative(e.by))) then break end
+		if not Add(("%s,%d,%s,%s,%s"):format(e.k, e.at, e.guild, Relative(e.gm), Relative(e.by)),
+			coverage and CoverageKey(e.k, e.at, e.guild, e.gm, e.by)) then break end
 	end
 	for _, x in ipairs(starts) do
-		if not Add(("T,%d,%s,%s"):format(x.e.at, x.e.guild, Relative(type(x.e.by) == "string" and x.e.by or ns.FullName(ns.me)))) then break end
+		if not Add(("T,%d,%s,%s"):format(x.e.at, x.e.guild, Relative(type(x.e.by) == "string" and x.e.by or ns.FullName(ns.me))),
+			coverage and CoverageKey("T", x.e.at, x.e.guild)) then break end
 	end
-	return head .. table.concat(out, ";"), #out
+	return head .. table.concat(out, ";"), #out, covered
 end
 
-local lastSent, heardRelay, pending = -math.huge, -math.huge, false
+local lastSent, pending = -math.huge, false
 function Verify.SendSnapshot()
 	if Quiet() or not ns.IsMember() or not Verify.Trusted(ns.me) then return false end
 	local payload, n = Verify.Payload()
@@ -468,21 +498,30 @@ function Verify.SendSnapshot()
 	return ok
 end
 
--- An ask heard: a verifier's client that holds more answers after 2-9 s, unless another verifier's
--- answer came meanwhile.
+-- An ask heard: a verifier's client with different contents answers after 2-9 s, unless another
+-- verifier delivered every row we would send. A smaller answer must not silence missing decisions.
 local function AnswerAsk(body, now)
 	if Quiet() or not ns.IsMember() or not Verify.Trusted(ns.me) then return true end
 	if pending or now - lastSent < Verify.ANSWER_GAP then return true end
-	local mine, newest, sum = Verify.Digest()
+	local mine, _, _, fingerprint = Verify.Digest()
 	if mine == 0 then return true end
-	local n, theirs, theirSum = tostring(body or ""):match("^(%d+)~(%d+)~(%d+)$")
+	local n, theirs, theirSum, theirFingerprint = tostring(body or ""):match("^(%d+)~(%d+)~(%d+)~(%x+)$")
+	if not n then n, theirs, theirSum = tostring(body or ""):match("^(%d+)~(%d+)~(%d+)$") end
 	n, theirs, theirSum = tonumber(n), tonumber(theirs), tonumber(theirSum)
-	if n and not (mine > n or newest > theirs or (mine == n and sum < theirSum)) then return true end
-	pending = true
-	local heardAt = heardRelay
+	if not n or n > Verify.MAX + Verify.MAX_STARTS or theirs > now + Verify.AHEAD
+		or theirSum >= 2147483648 or (theirFingerprint and #theirFingerprint ~= 64) then return false end
+	if fingerprint and fingerprint == theirFingerprint then return true end
+	-- A legacy ask cannot prove that it holds our words, even with equal counts.
+	-- ANSWER_GAP and the delayed/coalesced answer still bound recovery traffic.
+	local request = {}
+	pending = request
 	ns.After(Verify.random(2, 9), "verify answer", function()
 		pending = false
-		if heardRelay > heardAt or Verify.Clock() - lastSent < Verify.ANSWER_GAP then return end
+		if Verify.Clock() - lastSent < Verify.ANSWER_GAP then return end
+		if request.coverage then
+			local _, _, covered = Verify.Payload(nil, request.coverage)
+			if covered then return end
+		end
 		Verify.SendSnapshot()
 	end)
 	return true
@@ -490,9 +529,11 @@ end
 
 function Verify.Ask()
 	if not ns.IsMember() or Quiet() then return false end
-	local n, newest, sum = Verify.Digest()
+	local n, newest, sum, fingerprint = Verify.Digest()
 	stats.asked = stats.asked + 1
-	return ns.Comm.Send("CHANNEL", ("GV~%d~Q~%d~%d~%d"):format(Verify.PROTOCOL, n, newest, sum), "verify-ask")
+	local body = ("GV~%d~Q~%d~%d~%d"):format(Verify.PROTOCOL, n, newest, sum)
+	if fingerprint then body = body .. "~" .. fingerprint end
+	return ns.Comm.Send("CHANNEL", body, "verify-ask")
 end
 
 function Verify.Handle(dist, sender, text)
@@ -527,6 +568,7 @@ function Verify.Handle(dist, sender, text)
 		end
 		local realm = ns.RealmOf(sender)
 		local count, changed, bad = 0, false, false
+		local coverage = pending and {} -- only while answering; at most MAX_ROWS received entries
 		for row in rows:gmatch("[^;]+") do
 			if count >= Verify.MAX_ROWS then bad = true break end
 			count = count + 1
@@ -535,6 +577,7 @@ function Verify.Handle(dist, sender, text)
 				at, guild, gm, by = TimeField(at), GuildField(guild), NameField(gm, realm), NameField(by, realm)
 				if at and guild and gm and by then
 					if Take(k, at, guild, gm, by, now) then changed = true end
+					if coverage then coverage[CoverageKey(k, at, guild, gm, by)] = true end
 				else
 					bad = true
 				end
@@ -543,12 +586,13 @@ function Verify.Handle(dist, sender, text)
 				sat, sguild, sby = TimeField(sat), GuildField(sguild), NameField(sby, realm)
 				if sat and sguild and sby then
 					if TakeStart(sguild, sat, sby, now) then changed = true end
+					if coverage then coverage[CoverageKey("T", sat, sguild)] = true end
 				else
 					bad = true
 				end
 			end
 		end
-		heardRelay = now
+		if pending and not bad then pending.coverage = coverage end
 		if changed then Changed() end
 		if bad then stats.bad = stats.bad + 1 end
 		return not bad
@@ -682,16 +726,16 @@ function Verify.Duration(seconds)
 	return L.VERIFY_HOURS:format(h, math.floor((s % 3600) / 60))
 end
 
--- What our own guild asks of this player now: "master" or "member", the guild, its status and
--- info; nil when nothing (verified, exempt, no ChillZone guild, or a member while it is pending).
+-- Member-facing notices are paused, including overdue guilds. The master still has the original
+-- deadline and reminder. Approval state and the verifiers' follow-up are independent of notices.
 function Verify.Mine(now)
 	if not ns.IsMember() then return nil end
 	local guild, _, rank = GetGuildInfo("player")
 	local status, info = Verify.Status(guild, now)
 	if status == nil or status == "verified" or status == "exempt" then return nil end
 	local master = rank == 0
-	if status == "pending" and not master then return nil end
-	return master and "master" or "member", guild, status, info
+	if not master then return nil end
+	return "master", guild, status, info
 end
 
 function Verify.WhisperText(guild)
@@ -710,6 +754,7 @@ function Verify.NoticeText(who, guild, status, info)
 			if ns.VERIFY_HOLD == true then parts[#parts + 1] = L.VERIFY_NOTICE_HOLD end
 		end
 		parts[#parts + 1] = L.VERIFY_WHISPER_LABEL .. "\n" .. Verify.WhisperText(guild)
+		parts[#parts + 1] = L.VERIFY_RESEND_NOTE
 	else
 		parts[#parts + 1] = L.VERIFY_NOTICE_MEMBER:format(guild, Shown(info.gm))
 	end
@@ -753,11 +798,34 @@ function Verify.WhisperVerifier(guild)
 	return UI.WhisperText(ns.TellName(list[1]), Verify.WhisperText(guild)) ~= nil
 end
 
--- Ask the High Council: the councillors' own help request (Workshop.AskCouncil), with the code.
+-- Request timing is separate from the guild's earliest observation/start. It limits queued
+-- requests across reloads without renewing the 48-hour verification deadline.
+function Verify.RequestWait(guild, now)
+	now = now or Verify.Clock()
+	local s = Store()
+	local e = s and s.requests[Key(guild)]
+	local at = type(e) == "table" and TimeField(e.at)
+	return at and math.max(0, at + Verify.REQUEST_GAP - now) or 0
+end
+
+-- Reuse the councillors' existing help request (Workshop.AskCouncil), with the same code.
+-- A stale button cannot request for a former guild, a new master or an already approved guild.
 function Verify.AskCouncil(guild)
+	local now = Verify.Clock()
+	local who, mine = Verify.Mine(now)
+	if who ~= "master" or type(guild) ~= "string" or Key(guild) ~= Key(mine) then return false, "master" end
+	local wait = Verify.RequestWait(guild, now)
+	if wait > 0 then
+		ns.Print(L.VERIFY_RETRY_WAIT:format(math.ceil(wait / 60)))
+		return false, "cooldown"
+	end
 	local W = ns.Workshop
 	if type(W) ~= "table" or W.missing or type(W.AskCouncil) ~= "function" then return false end
-	W.AskCouncil(L.VERIFY_ASK_TEXT:format(guild, Verify.Code(guild, ns.me) or "?"))
+	Verify.Observe(now) -- establish a missing first sighting once; an existing start is untouched
+	if W.AskCouncil(L.VERIFY_ASK_TEXT:format(guild, Verify.Code(guild, ns.me) or "?")) ~= true then return false, "unavailable" end
+	local s = Store()
+	if s then s.requests[Key(guild)] = { at = now } end
+	ns.Print(L.VERIFY_RETRY_WAIT:format(math.ceil(Verify.REQUEST_GAP / 60)))
 	return true
 end
 

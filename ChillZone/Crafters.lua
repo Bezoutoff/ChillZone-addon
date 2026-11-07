@@ -745,6 +745,11 @@ function Crafters.Lines(q)
 	-- does not rank how many recipes somebody knows. Search stays about finding a crafter, so the
 	-- compact ranking is shown only on the unfiltered board.
 	if not q and ns.CraftRanking and ns.CraftRanking.Lines then
+		-- (1.4.0: the crafting ranking shown for the first time this session: the ask for the
+		-- holders' digests, Records.Discover. Records is an arena file, loaded after this one: absent
+		-- or a stand-in when the arena is not loaded.)
+		local Rec = ns.Records
+		if type(Rec) == "table" and not Rec.missing and type(Rec.Discover) == "function" then ns.SafeCall("records discovery", Rec.Discover) end
 		ns.CraftRanking.Lines(lines)
 		if lines[#lines] then lines[#lines].gapAfter = true end
 	end

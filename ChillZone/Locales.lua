@@ -138,28 +138,28 @@ L.LETTER_1_4_0_SIGNED = "Your humble artificer, the ChillZone dev"
 L.LETTER_1_4_0_LINK = "https://github.com/Bezoutoff/ChillZone-addon"
 -- 1.4.1 (launch night: the army's channel, refused by WoW: Forever, moves to the next lane by itself).
 -- The letter is the launch letter again, with the fix first: most of the army never saw 1.4.0's.
-L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK = L.LETTER_1_4_0_TITLE, L.LETTER_1_4_0_HEAD, L.LETTER_1_4_0_SIGNED, L.LETTER_1_4_0_LINK
+L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK = "Restoring guild chat", "Restoring guild chat", L.LETTER_1_4_0_SIGNED, L.LETTER_1_4_0_LINK
 L.LETTER_1_4_1 = (L.LETTER_1_4_0:gsub("What's new in version 1%.4%.0, for the march:\n\n",
 	"What's new in version 1.4.1 (and 1.4.0), for the march:\n\n- {team} Launch night fix: the game refused the army's channel, so each guild saw only itself. ChillZone now moves to the next channel by itself the moment the game refuses it, and every updated addon meets there. Update, then close and reopen the game.\n", 1))
 -- 1.4.2 (launch night too: the author may take the army's key back): the 1.4.1 letter, its version.
-L.LETTER_1_4_2_TITLE, L.LETTER_1_4_2_HEAD, L.LETTER_1_4_2_SIGNED, L.LETTER_1_4_2_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
+L.LETTER_1_4_2_TITLE, L.LETTER_1_4_2_HEAD, L.LETTER_1_4_2_SIGNED, L.LETTER_1_4_2_LINK = "Recovering the army channel", "Recovering the army channel", L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
 L.LETTER_1_4_2 = (L.LETTER_1_4_1:gsub("version 1%.4%.1 %(and 1%.4%.0%)", "version 1.4.2 (and 1.4.0)", 1))
 -- 1.4.3 (launch night: Forever delivers nothing an addon says on a chat channel; everything between
 -- guilds travels by addon whispers now, Relay.lua): the launch letter, its version, the fix line's words.
-L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
+L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK = "The relay between guilds", "The relay between guilds", L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
 L.LETTER_1_4_3 = (L.LETTER_1_4_1:gsub("version 1%.4%.1 %(and 1%.4%.0%)", "version 1.4.3 (and 1.4.0)", 1)
 	:gsub("%- {team} Launch night fix:[^\n]*", "- {team} Launch night: we hit technical problems, since the live Forever client differs from the beta's, and part of the network had to be rebuilt. Between guilds, ChillZone now travels by addon whispers relayed through the High Council: silent, invisible to you. The census of every guild, the rankings and the ChillZone chat come back as people update. Hopefully all good now. Update, then close and reopen the game.", 1))
 -- 1.4.4 (the morning after: a guild finds a live relay at once, and the relay's whispers leave no
 -- line in the chat): the same letter, its version, a word on the fix.
-L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK = L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK
+L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK = "Finding the Council sooner", "Finding the Council sooner", L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK
 L.LETTER_1_4_4 = (L.LETTER_1_4_3:gsub("version 1%.4%.3 %(and 1%.4%.0%)", "version 1.4.4 (and 1.4.0)", 1)
 	:gsub("(%- {team} Launch night:[^\n]*)", "%1 In 1.4.4 a guild finds the Council at once, and nothing of it shows in your chat.", 1))
 -- 1.4.5 (the guild's reporter stays, the King's crown on The Realm, a chat line to the guild at once).
-L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK = L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK
+L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK = "One reporter per guild", "One reporter per guild", L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK
 L.LETTER_1_4_5 = (L.LETTER_1_4_4:gsub("version 1%.4%.4 %(and 1%.4%.0%)", "version 1.4.5 (and 1.4.0)", 1)
 	:gsub("(%- {team} Launch night:[^\n]*)", "%1 In 1.4.5 your guild keeps one reporter, your words reach your guild at once, and the King wears his crown on The Realm.", 1))
 -- 1.4.6 (the sub-realms are one realm; the relays speak to each other; Bones at the innkeeper).
-L.LETTER_1_4_6_TITLE, L.LETTER_1_4_6_HEAD, L.LETTER_1_4_6_SIGNED, L.LETTER_1_4_6_LINK = L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK
+L.LETTER_1_4_6_TITLE, L.LETTER_1_4_6_HEAD, L.LETTER_1_4_6_SIGNED, L.LETTER_1_4_6_LINK = "One census for every sub-realm", "One census for every sub-realm", L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK
 L.LETTER_1_4_6 = (L.LETTER_1_4_5:gsub("version 1%.4%.5 %(and 1%.4%.0%)", "version 1.4.6 (and 1.4.0)", 1)
 	:gsub("(%- {team} Launch night:[^\n]*)", "%1 In 1.4.6 every sub-realm of your ruleset counts as one realm, so every guild sees the same census, and the Council's relays pass each word to one another.", 1))
 -- 1.5.0 (the dev's ask, 2026-11-05: the letter of this version is his own word to the army, sorry
@@ -186,9 +186,29 @@ Again, sorry for the delay. I hope you have fun.
 
 Long live the King. Long live ChillZone.]==]
 -- 1.5.1 (the dev's PvP character: the census page tells PvP from PvE again, a PvP census stays PvP's).
-L.LETTER_1_5_1_TITLE, L.LETTER_1_5_1_HEAD, L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK = L.LETTER_1_5_0_TITLE, L.LETTER_1_5_0_HEAD, L.LETTER_1_5_0_SIGNED, L.LETTER_1_5_0_LINK
+L.LETTER_1_5_1_TITLE, L.LETTER_1_5_1_HEAD, L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK = "PvP and PvE, counted separately", "PvP and PvE, counted separately", L.LETTER_1_5_0_SIGNED, L.LETTER_1_5_0_LINK
 L.LETTER_1_5_1 = (L.LETTER_1_5_0:gsub("in version 1%.5%.0:", "in version 1.5.1:", 1)
 	:gsub("%- {star} Update, then close", "- {guild} 1.5.1: the census page tells PvP from PvE again, and a PvP character's census holds the PvP guilds alone.\n- {star} Update, then close", 1))
+-- 1.5.2 (the census as the reporter's own text while no relay answers; the PvP family's second pin).
+L.LETTER_1_5_2_TITLE, L.LETTER_1_5_2_HEAD, L.LETTER_1_5_2_SIGNED, L.LETTER_1_5_2_LINK = "The census across servers", "The census across servers", L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK
+L.LETTER_1_5_2 = [==[Your Majesty. Soldiers of ChillZone.
+
+Version 1.5.2 focuses on the census, rankings and the problems you reported:
+
+- {guild} Your server's soldiers stay prominent. A smaller total includes the other servers we have data for. Click the numbers for the breakdown, dates and estimates of individual people.
+- {team} The last accepted census stays visible while a new one rebuilds. Older observations keep their original date; unavailable servers are not shown as zero.
+- {watch} Guild masters can resend a verification request without restarting their guild's original clock. There is a short cooldown between requests.
+- {star} Church records catch up from the other available Apostles sooner. Opening a games or crafting ranking requests missing inventories from online holders. Bank rankings prefer a confirmed complete valuation of the same snapshot.
+- {star} Bones fixes cover the first innkeeper lesson and simultaneous opening rolls in multiplayer.
+- {crown} The Queen's dragon frame and party-frame display have been updated.
+- {guild} The King and High Council can preview and confirm shared place names from the map. The change stays inside ChillZone.
+- {team} Player tooltips have compact guild details and size options. Your portrait menu can collapse its ChillZone entries.
+
+Stored or relayed numbers are observations, not a promise that every guild is online or already counted. The details page shows what we know and when it was observed.
+
+Please close and reopen the game after updating. Thank you for the reports and for helping test.
+
+Long live the King. Long live ChillZone.]==]
 L.LETTER_1_3_3_TITLE = "Your guild on the website"
 L.LETTER_1_3_3 = [==[Version 1.3.3.
 
@@ -252,21 +272,21 @@ O que há de novo na versão 1.4.0, para a marcha:
 
 Os portões estão abertos.]==]
 	L.LETTER_1_4_0_SIGNED = "Seu humilde artífice, o dev do ChillZone"
-	L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK = L.LETTER_1_4_0_TITLE, L.LETTER_1_4_0_HEAD, L.LETTER_1_4_0_SIGNED, L.LETTER_1_4_0_LINK
+	L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK = "Recuperando o chat das guildas", "Recuperando o chat das guildas", L.LETTER_1_4_0_SIGNED, L.LETTER_1_4_0_LINK
 	L.LETTER_1_4_1 = (L.LETTER_1_4_0:gsub("O que há de novo na versão 1%.4%.0, para a marcha:\n\n",
 		"O que há de novo na versão 1.4.1 (e na 1.4.0), para a marcha:\n\n- {team} Correção da noite do lançamento: o jogo recusou o canal do exército, e cada guilda só via a si mesma. Agora o ChillZone muda para o próximo canal sozinho assim que o jogo recusa, e todo addon atualizado se encontra lá. Atualize, feche e abra o jogo.\n", 1))
-	L.LETTER_1_4_2_TITLE, L.LETTER_1_4_2_HEAD, L.LETTER_1_4_2_SIGNED, L.LETTER_1_4_2_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
+	L.LETTER_1_4_2_TITLE, L.LETTER_1_4_2_HEAD, L.LETTER_1_4_2_SIGNED, L.LETTER_1_4_2_LINK = "Retomando o canal do exército", "Retomando o canal do exército", L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
 	L.LETTER_1_4_2 = (L.LETTER_1_4_1:gsub("versão 1%.4%.1 %(e na 1%.4%.0%)", "versão 1.4.2 (e na 1.4.0)", 1))
-	L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK = L.LETTER_1_4_1_TITLE, L.LETTER_1_4_1_HEAD, L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
+	L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK = "A retransmissão entre guildas", "A retransmissão entre guildas", L.LETTER_1_4_1_SIGNED, L.LETTER_1_4_1_LINK
 	L.LETTER_1_4_3 = (L.LETTER_1_4_1:gsub("versão 1%.4%.1 %(e na 1%.4%.0%)", "versão 1.4.3 (e na 1.4.0)", 1)
 		:gsub("%- {team} Correção da noite do lançamento:[^\n]*", "- {team} Noite do lançamento: tivemos problemas técnicos, porque o cliente do Forever ao vivo é diferente do da beta, e parte da rede teve que ser refeita. Entre guildas, o ChillZone agora viaja por sussurros de addon repassados pelo Alto Conselho: silenciosos, invisíveis para você. O censo de todas as guildas, os rankings e o chat do ChillZone voltam conforme o pessoal atualiza. Espero que agora esteja tudo bem. Atualize, feche e abra o jogo.", 1))
-	L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK = L.LETTER_1_4_3_TITLE, L.LETTER_1_4_3_HEAD, L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK
+	L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK = "Encontrando o Conselho mais rápido", "Encontrando o Conselho mais rápido", L.LETTER_1_4_3_SIGNED, L.LETTER_1_4_3_LINK
 	L.LETTER_1_4_4 = (L.LETTER_1_4_3:gsub("versão 1%.4%.3 %(e na 1%.4%.0%)", "versão 1.4.4 (e na 1.4.0)", 1)
 		:gsub("(%- {team} Noite do lançamento:[^\n]*)", "%1 Na 1.4.4 a guilda encontra o Conselho na hora, e nada disso aparece no seu chat.", 1))
-	L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK = L.LETTER_1_4_4_TITLE, L.LETTER_1_4_4_HEAD, L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK
+	L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK = "Um repórter por guilda", "Um repórter por guilda", L.LETTER_1_4_4_SIGNED, L.LETTER_1_4_4_LINK
 	L.LETTER_1_4_5 = (L.LETTER_1_4_4:gsub("versão 1%.4%.4 %(e na 1%.4%.0%)", "versão 1.4.5 (e na 1.4.0)", 1)
 		:gsub("(%- {team} Noite do lançamento:[^\n]*)", "%1 Na 1.4.5 a sua guilda mantém um só repórter, as suas palavras chegam à sua guilda na hora, e o Rei usa a coroa no Reino.", 1))
-	L.LETTER_1_4_6_TITLE, L.LETTER_1_4_6_HEAD, L.LETTER_1_4_6_SIGNED, L.LETTER_1_4_6_LINK = L.LETTER_1_4_5_TITLE, L.LETTER_1_4_5_HEAD, L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK
+	L.LETTER_1_4_6_TITLE, L.LETTER_1_4_6_HEAD, L.LETTER_1_4_6_SIGNED, L.LETTER_1_4_6_LINK = "Um censo para todos os sub-reinos", "Um censo para todos os sub-reinos", L.LETTER_1_4_5_SIGNED, L.LETTER_1_4_5_LINK
 	L.LETTER_1_4_6 = (L.LETTER_1_4_5:gsub("versão 1%.4%.5 %(e na 1%.4%.0%)", "versão 1.4.6 (e na 1.4.0)", 1)
 		:gsub("(%- {team} Noite do lançamento:[^\n]*)", "%1 Na 1.4.6 todo sub-reino do seu conjunto de regras conta como um reino só, então toda guilda vê o mesmo censo, e os relés do Conselho passam cada palavra uns aos outros.", 1))
 	L.LETTER_1_5_0_TITLE = "Desculpem pela demora"
@@ -290,9 +310,28 @@ Ainda estou arrumando algumas coisas, então esperem mais algumas atualizações
 Mais uma vez, desculpem pela demora. Espero que se divirtam.
 
 Vida longa ao Rei. Vida longa a ChillZone.]==]
-	L.LETTER_1_5_1_TITLE, L.LETTER_1_5_1_HEAD, L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK = L.LETTER_1_5_0_TITLE, L.LETTER_1_5_0_HEAD, L.LETTER_1_5_0_SIGNED, L.LETTER_1_5_0_LINK
+	L.LETTER_1_5_1_TITLE, L.LETTER_1_5_1_HEAD, L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK = "PvP e PvE, contados separadamente", "PvP e PvE, contados separadamente", L.LETTER_1_5_0_SIGNED, L.LETTER_1_5_0_LINK
 	L.LETTER_1_5_1 = (L.LETTER_1_5_0:gsub("na versão 1%.5%.0:", "na versão 1.5.1:", 1)
 		:gsub("%- {star} Atualize, feche", "- {guild} 1.5.1: a página do censo volta a separar PvP de PvE, e o censo de um personagem PvP guarda só as guildas do PvP.\n- {star} Atualize, feche", 1))
+	L.LETTER_1_5_2_TITLE, L.LETTER_1_5_2_HEAD, L.LETTER_1_5_2_SIGNED, L.LETTER_1_5_2_LINK = "O censo entre servidores", "O censo entre servidores", L.LETTER_1_5_1_SIGNED, L.LETTER_1_5_1_LINK
+	L.LETTER_1_5_2 = [==[Sua Majestade. Soldados do ChillZone.
+
+A versão 1.5.2 se concentra no censo, nos rankings e nos problemas que vocês relataram:
+
+- {guild} Os soldados do seu servidor ficam em destaque. Um total menor inclui os outros servidores dos quais temos dados. Clique nos números para ver a divisão, as datas e as estimativas de pessoas distintas.
+- {team} O último censo aceito continua visível enquanto o novo é reconstruído. Observações antigas mantêm a data original; servidores sem dados não aparecem como zero.
+- {watch} Guild masters podem reenviar o pedido de verificação sem reiniciar o prazo original da guilda. Há um pequeno intervalo entre pedidos.
+- {star} Os registros da Igreja sincronizam mais cedo com os outros apóstolos disponíveis. Abrir um ranking de jogos ou crafting pede os registros disponíveis na rede. O ranking dos bancos prefere a avaliação completa confirmada do mesmo snapshot.
+- {star} Bones recebeu correções na primeira aula do taverneiro e nas rolagens iniciais simultâneas do multiplayer.
+- {crown} A moldura de dragão da Rainha e a exibição das molduras no grupo foram atualizadas.
+- {guild} O Rei e o Alto Conselho podem pré-visualizar e confirmar nomes compartilhados pelo mapa. A mudança fica dentro do ChillZone.
+- {team} As dicas de jogadores têm detalhes compactos da guilda e opções de tamanho. O menu do seu retrato pode recolher as opções do ChillZone.
+
+Números armazenados ou retransmitidos são observações, não uma promessa de que todas as guildas estão online ou já foram contadas. A página de detalhes mostra o que sabemos e quando foi observado.
+
+Feche e reabra o jogo depois de atualizar. Obrigado pelos relatos e pela ajuda nos testes.
+
+Vida longa ao Rei. Vida longa ao ChillZone.]==]
 	L.LETTER_1_3_3_TITLE = "Sua guilda no site"
 	L.LETTER_1_3_3 = [==[Versão 1.3.3.
 
@@ -1430,6 +1469,7 @@ L.BORDERS_PREVIEW_SHOWN = "shown"
 L.BORDERS_PREVIEW_TIP = "Shows this border round your own portrait, and on your target frame when you target yourself, as someone who holds it sees his own, and its mark after your name on your own frame and on every friendly player's nameplate. On your screen only: nothing is sent, and a /reload forgets it. Click it again, or type /cz borders test off, to end it."
 L.BORDERS_PREVIEW_TIP_MEMBER = "Shows the star of any other ChillZone member after your name on your own frame and on every friendly player's nameplate (no border has it). On your screen only: nothing is sent, and a /reload forgets it. Click it again, or type /cz borders test off, to end it."
 L.BORDERS_WHO_GOLD_ELITE = "gold wings: the King"
+L.BORDERS_WHO_QUEEN_DRAGON = "the crimson dragon: the Queen"
 L.BORDERS_WHO_TREASURER_DRAGON = "the jewelled dragon: the federal Treasurer"
 L.BORDERS_WHO_SILVER_ELITE = "silver wings: the High Council"
 L.BORDERS_WHO_BRONZE_ELITE = "bronze wings: guild masters"
@@ -3835,6 +3875,7 @@ if GetLocale and GetLocale() == "ptBR" then
 	L.BORDERS_PREVIEW_TIP = "Mostra esta borda em volta do seu próprio retrato, e no quadro do alvo quando você mira em si mesmo, como quem a tem vê a própria, e a marca dela depois do seu nome no seu quadro e na placa de identificação de todo jogador aliado. Só na sua tela: nada é enviado, e um /reload esquece. Clique de novo, ou digite /cz borders test off, para encerrar."
 	L.BORDERS_PREVIEW_TIP_MEMBER = "Mostra a estrela de qualquer outro membro do ChillZone depois do seu nome no seu quadro e na placa de identificação de todo jogador aliado (nenhuma borda a tem). Só na sua tela: nada é enviado, e um /reload esquece. Clique de novo, ou digite /cz borders test off, para encerrar."
 	L.BORDERS_WHO_GOLD_ELITE = "dourada com asas: o Rei"
+	L.BORDERS_WHO_QUEEN_DRAGON = "o dragão carmesim: a Rainha"
 	L.BORDERS_WHO_TREASURER_DRAGON = "o dragão de joias: o Tesoureiro federal"
 	L.BORDERS_WHO_SILVER_ELITE = "prateada com asas: o High Council"
 	L.BORDERS_WHO_BRONZE_ELITE = "bronze com asas: mestres de guilda"
@@ -6179,6 +6220,16 @@ end
 -- player's window for it (Workshop.lua); the answer bank's Answers and each page's "?" (Answers.lua).
 ---------------------------------------------------------------------------
 L.PLAYERMENU_TITLE = "ChillZone"
+L.PLAYERMENU_COLLAPSE = "Collapse ChillZone menu"
+L.PLAYERMENU_EXPAND = "Expand ChillZone menu"
+L.CENSUS_HEADER_ALL = "%s all servers"
+L.CENSUS_HEADER_SAVED = "Saved %s · %d guilds refreshed"
+L.CENSUS_HEADER_SAVED_TIP = "Showing the saved census from %s while current guild reports are checked. Online counts include fresh reports only."
+L.CENSUS_HEADER_UNSCOPED = "Saved %s on %s (origin not confirmed; excluded)"
+L.CENSUS_HEADER_HISTORY = "Last snapshot: %s on %s (out of date)"
+L.CENSUS_HEADER_ALL_TIP = "The large number counts soldiers on this server. The smaller number combines the available accepted server snapshots, each counted once. Open the census for dates, server breakdowns and player estimates. Servers with no accepted data are not included."
+L.CENSUS_STATS_DETAILS_PENDING = "Guild details have not arrived from this server yet."
+L.CENSUS_STATS_DETAILS_PARTIAL = "Carried guild details may be incomplete; the server total above is counted only once."
 L.PLAYERMENU_VERSION = "Their ChillZone version"
 L.VERSION_LINE_CURRENT = "ChillZone %s (up to date)"
 L.VERSION_LINE_NEWER = "ChillZone %s (newer than yours)"
@@ -6277,6 +6328,16 @@ L.BUGASK_GONE = "That ask is over (10 minutes passed): nothing was sent. The aut
 L.PAGE_HELP_ENGLISH = "(This explanation is in English.)"
 if GetLocale and GetLocale() == "ptBR" then
 	L.PLAYERMENU_TITLE = "ChillZone"
+	L.PLAYERMENU_COLLAPSE = "Recolher menu ChillZone"
+	L.PLAYERMENU_EXPAND = "Expandir menu ChillZone"
+	L.CENSUS_HEADER_ALL = "%s em todos os servidores"
+	L.CENSUS_HEADER_SAVED = "Salvo em %s · %d guildas atualizadas"
+	L.CENSUS_HEADER_SAVED_TIP = "Exibindo o censo salvo em %s enquanto os relatos atuais das guildas são conferidos. A contagem online inclui apenas relatos recentes."
+	L.CENSUS_HEADER_UNSCOPED = "Salvo: %s em %s (origem não confirmada; fora da soma)"
+	L.CENSUS_HEADER_HISTORY = "Último registro: %s em %s (desatualizado)"
+	L.CENSUS_HEADER_ALL_TIP = "O número maior conta os soldados deste servidor. O menor soma os registros aceitos dos servidores disponíveis, contando cada um uma vez. Abra o censo para ver datas, dados por servidor e estimativas de pessoas. Servidores sem dados aceitos ficam de fora."
+	L.CENSUS_STATS_DETAILS_PENDING = "Os detalhes das guildas deste servidor ainda não chegaram."
+	L.CENSUS_STATS_DETAILS_PARTIAL = "Os detalhes recebidos das guildas podem estar incompletos; o total do servidor acima é contado uma única vez."
 	L.PLAYERMENU_VERSION = "A versão ChillZone dessa pessoa"
 	L.VERSION_LINE_CURRENT = "ChillZone %s (atualizado)"
 	L.VERSION_LINE_NEWER = "ChillZone %s (mais novo que o seu)"
@@ -7593,4 +7654,14 @@ Wanted e registros compartilhados
 
 O que testar
 - {news} Teste Responder com um segundo cliente atualizado, cada badge no jogador/alvo/foco, sair e voltar a Most Wanted depois de expandir as listas e um login tardio recebendo registros retidos. Os testes offline cobrem as regras, mas somente os clientes ao vivo confirmam a interação final e o caminho de relay.]==]
+end
+
+-- 1.5.3: member-facing verification notices paused; the GM keeps the original deadline.
+L.LETTER_1_5_3_TITLE = "Verification reminders stay with guild masters"
+L.LETTER_1_5_3_HEAD = L.LETTER_1_5_3_TITLE
+L.LETTER_1_5_3 = "Guild verification reminders have been adjusted in version 1.5.3.\n\n- Members no longer receive the overdue popup, chat warning or Census notice.\n- Guild masters still receive verification reminders. Deadlines, saved approvals and High Council follow-up continue.\n\nUpdate ChillZone and reload the UI to stop the notice on your client. Older installed versions keep their previous behavior."
+if GetLocale and GetLocale() == "ptBR" then
+	L.LETTER_1_5_3_TITLE = "Os lembretes de verificação ficam com os GMs"
+	L.LETTER_1_5_3_HEAD = L.LETTER_1_5_3_TITLE
+	L.LETTER_1_5_3 = "Os lembretes de verificação foram ajustados na versão 1.5.3.\n\n- Os membros deixam de receber o popup, a mensagem de chat e o aviso no Censo quando o prazo vence.\n- Os mestres de guilda continuam recebendo os lembretes. Prazos, validações salvas e acompanhamento do High Council continuam.\n\nAtualize o ChillZone e recarregue a interface para parar o aviso no seu cliente. Versões antigas instaladas mantêm o comportamento anterior."
 end

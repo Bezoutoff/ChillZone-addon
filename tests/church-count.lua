@@ -2136,6 +2136,8 @@ end)
 -- of the session (its memory, whom it asked), the files loaded again (INIT). (As tests/church.lua's.)
 local function Reload(w, cl)
 	cl.online = false
+	-- A real /reload discards that Lua session and its timers, including a scheduled sweep.
+	for i = #w.timers, 1, -1 do if w.timers[i].cl == cl then table.remove(w.timers, i) end end
 	local again = w:Client(cl.name, { guild = cl.guild or false, rank = cl.rank, rdb = cl.ns.rdb })
 	w:As(again, again.ns.Fire, "INIT")
 	return again
@@ -2214,7 +2216,7 @@ test("global Church ledger: after a reload a keeper first asks the keeper it nev
 		return Key(q[1].target)
 	end
 	eq(Asks(c.author), Key(A1))
-	w:Run(60)
+	w:Run(0) -- reload after the first completion, before the one-second sweep
 	assert(Rec(w, c.author, "Rot Recb", "Mira Wells"), "caught up from the first keeper asked")
 	local author = Reload(w, c.author)
 	w:Presence()
@@ -2249,7 +2251,7 @@ test("global Church ledger: a keeper asks only keepers for a catch-up: never a c
 		eq(w:As(c.author, c.author.Count.CatchUp, true), true)
 		local q = w:Sent(c.author, "NL", "WHISPER", "q")
 		eq(#q, 1)
-		w:Run(60)
+		w:Run(0) -- test explicit rotation before the newly scheduled sweep
 		return Key(q[1].target)
 	end
 	eq(Asks(), Key(A1))
@@ -2308,7 +2310,7 @@ test("global Church ledger: just logged in, a keeper's first catch-up waits unti
 	w:ClearSent()
 	eq(w:As(c.author, c.author.Count.CatchUp, true), true)
 	eq(Key(w:Sent(c.author, "NL", "WHISPER", "q")[1].target), Key(A1))
-	w:Run(60)
+	w:Run(0) -- close this session before its automatic next-source sweep
 	-- A login: Bera, never caught up from, is the one to ask, and Aldric's presence comes in first (a
 	-- keeper's presence is KEEPER_EVERY apart, the Church tick every 30 seconds).
 	local again = Reload(w, c.author)
@@ -2652,7 +2654,15 @@ test("global Church ledger: a first catch-up in many rounds is not cut short by 
 	while w.clock - t0 < 1500 and not w:As(again, again.Count.Settled) do w:Tick(); w:Run(30) end
 	local q = w:Sent(again, "NL", "WHISPER", "q")
 	assert(#q >= 40 and q[#q].at - q[1].at > again.Count.CATCHUP_RETRY, "a catch-up of many rounds: " .. #q)
-	for _, e in ipairs(q) do eq(Key(e.target), Key(A2), "only Bera, whose rounds kept coming") end
+	local moved = false
+	for _, e in ipairs(q) do
+		if Key(e.target) == Key(A2) then
+			eq(moved, false, "no other keeper was asked between Bera's pages")
+		else
+			moved = true
+			eq(Key(e.target), Key(World.AUTHOR), "the next source is allowed only after completion")
+		end
+	end
 	eq(Joins(w, again, "Mira Wells", "a"), 40)
 end)
 
@@ -2804,4 +2814,77 @@ test("global Church ledger: a keeper's own tab says it is catching up while its 
 	eq(select(4, w:As(alone, alone.Count.RankingView, "m", "a")), true)
 	eq(Told(30), true, "settled")
 	eq(select(4, w:As(alone, alone.Count.RankingView, "m", "a")), false)
+end)
+
+-- Three actual Apostles: council relays intentionally cannot pull a keeper's private ledger.
+local function Catchup152World()
+	local Z = "Zed Last-Realm"
+	local w = World.New({ apostles = { A1, A2, Z }, head = false })
+	local c = { a1 = w:Client(A1), a2 = w:Client(A2, { guild = World.GUILD2 }), recv = w:Client(Z), m1 = w:Client("Mira Wells") }
+	w:Act(c.a1, c.a1.Church.NameMissionary, "Mira Wells")
+	w:Run(8 * 3600)
+	w:Presence()
+	return w, c
+end
+
+test("1.5.2 Church catch-up: a completed source promptly sweeps other keepers' missing records", function()
+	local w, c = Catchup152World()
+	for i = 1, 3 do Give(w, c.a1, "Sweep Ald" .. Letters(i), "Mira Wells", 2) end
+	for i = 1, 4 do Give(w, c.a2, "Sweep Ber" .. Letters(i), "Mira Wells", 2) end
+	w:ClearSent()
+	eq(w:As(c.recv, c.recv.Count.CatchUp, true), true)
+	w:Run(10)
+	local q = w:Sent(c.recv, "NL", "WHISPER", "q")
+	eq(#q, 2, "one bounded request to each visible keeper")
+	eq(Key(q[1].target), Key(A1)); eq(Key(q[2].target), Key(A2))
+	eq(Joins(w, c.recv, "Mira Wells", "a"), 7, "both fragments before the half-hour rotation")
+end)
+
+test("1.5.2 Church catch-up: silence after an earlier completion retries another keeper", function()
+	local w, c = Catchup152World()
+	eq(w:As(c.recv, c.recv.Count.CatchUp, true), true)
+	w:Run(10)
+	eq(w:As(c.recv, c.recv.Count.Settled), true)
+	Give(w, c.a2, "Retry Recruit", "Mira Wells", 2)
+	c.a1.Count.TakeLine = function() return false, "busy" end
+	w:Run(c.recv.Count.CATCHUP_EVERY)
+	w:Presence(); w:ClearSent()
+	eq(w:As(c.recv, c.recv.Count.CatchUp, false), true)
+	eq(Key(w:Sent(c.recv, "NL", "WHISPER", "q")[1].target), Key(A1))
+	w:Run(c.recv.Count.CATCHUP_RETRY)
+	eq(w:As(c.recv, c.recv.Count.CatchUp, false), true, "retry remains active after first completion")
+	w:Run(10)
+	assert(Rec(w, c.recv, "Retry Recruit", "Mira Wells"), "record held only by the responsive keeper arrived")
+end)
+
+test("1.5.2 Church catch-up: a vanished source does not block a newly available keeper", function()
+	local w, c = Catchup152World()
+	c.a1.Count.TakeLine = function() return false, "busy" end
+	eq(w:As(c.recv, c.recv.Count.CatchUp, true), true)
+	c.a1.online, c.a2.online = false, false
+	w:Run(c.recv.Church.KEEPER_EVERY * c.recv.Church.FRESH_FACTOR + 1)
+	eq(w:As(c.recv, c.recv.Count.CatchUp, false), false)
+	c.a2.online = true
+	w:Presence({ c.a2 }); w:ClearSent()
+	eq(w:As(c.recv, c.recv.Count.CatchUp, false), true)
+	eq(Key(w:Sent(c.recv, "NL", "WHISPER", "q")[1].target), Key(A2))
+end)
+
+test("1.5.2 Church catch-up: one silent keeper is bounded by the per-source reask interval", function()
+	local w, c = Catchup152World()
+	c.a2.online = false
+	w:Run(c.recv.Church.KEEPER_EVERY * c.recv.Church.FRESH_FACTOR + 1)
+	w:Presence({ c.a1, c.recv })
+	c.a1.Count.TakeLine = function() return false, "busy" end
+	w:ClearSent()
+	eq(w:As(c.recv, c.recv.Count.CatchUp, true), true)
+	w:Run(c.recv.Count.CATCHUP_RETRY)
+	for _ = 1, 10 do
+		eq(w:As(c.recv, c.recv.Count.CatchUp, false), false)
+		w:Run(1)
+	end
+	eq(#w:Sent(c.recv, "NL", "WHISPER", "q"), 1)
+	w:Run(c.recv.Count.CATCHUP_REASK - c.recv.Count.CATCHUP_RETRY - 10)
+	eq(w:As(c.recv, c.recv.Count.CatchUp, false), true)
+	eq(#w:Sent(c.recv, "NL", "WHISPER", "q"), 2)
 end)

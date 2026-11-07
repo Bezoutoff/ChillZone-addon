@@ -71,3 +71,22 @@ test("Crafting destinations: actual tab callbacks filter saved open, owned, acce
 	eq(Find(c.Crafters.Lines("public"), "Public cloth"), nil, "search cannot leak another view's records")
 	K.NoErrors(w)
 end)
+
+-- 1.4.0: the crafting ranking's board, the first time it is shown in a session, asks the holders for
+-- their digests (Records.Discover, RH); a search shows no ranking and asks nothing, and nor does a
+-- second view.
+test("Crafting board: the ranking's first view of a session asks the holders for their digests; a search and later views ask nothing", function()
+	local w = H.World.New()
+	local c = K.Client(w, "Sage Owl")
+	local function RH() return #w:Sent({ from = c, type = "RH" }) end
+	c.Crafters.Lines("cloth")
+	w:Run(2)
+	eq(RH(), 0, "a search shows no ranking")
+	c.Crafters.Lines()
+	w:Run(2)
+	eq(RH(), 1, "the board's ranking, first shown")
+	c.Crafters.Lines()
+	w:Run(2)
+	eq(RH(), 1, "shown again: nothing more")
+	K.NoErrors(w)
+end)

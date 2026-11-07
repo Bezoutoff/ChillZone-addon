@@ -168,7 +168,7 @@ end
 -- Load addon files like WoW does: each gets (addonName, sharedTable)
 ---------------------------------------------------------------------------
 local ns = {}
-for _, file in ipairs({ "Bootstrap", "Locales", "Locales/deDE", "Locales/esES", "Locales/frFR", "Locales/DuesGraceText", "Locales/DuesRosterText", "Locales/JusticeResponseText", "Locales/CarryText", "Locales/CarryMergerText", "Locales/CampaignText", "Locales/GuildFinanceText", "Locales/RankingRulesText", "Locales/AccordText", "Core", "RankingRules", "GamepadRegistry", "Gamepad", "Diagnostics", "Dialog", "PlayerMenu", "Codec", "Sign", "Authority", "Zones", "Who", "Data", "Roster", "Comm", "Map", "Layers", "Hop", "Positions", "Decree", "Channels", "Filter", "Inspect", "King", "HopSightings", "Vox", "Court", "Board", "Groups", "Week", "Treasury", "Dues", "Bank", "Acts", "Loot", "War", "Crafters", "Chronicle", "Workshop", "Versions", "Ed25519", "libs/QREncode/qrencode", "LinkLoader", "ArmyExport", "Recruit", "PartyGuard", "AnswerBank", "Answers", "Views", "Accord", "Consent", "ChatRooms", "CraftRequests", "ViewAs", "TabardsV2", "Members", "Nominees", "CensusClean", "Bridge", "BridgeSections", "BridgePeople", "BridgeAffairs" }) do
+for _, file in ipairs({ "Bootstrap", "Locales", "Locales/MapNamesText", "Locales/PlayerTooltipText", "Locales/deDE", "Locales/esES", "Locales/frFR", "Locales/DuesGraceText", "Locales/DuesRosterText", "Locales/JusticeResponseText", "Locales/CarryText", "Locales/CarryMergerText", "Locales/CampaignText", "Locales/GuildFinanceText", "Locales/RankingRulesText", "Locales/AccordText", "Core", "RankingRules", "GamepadRegistry", "Gamepad", "Diagnostics", "Dialog", "PlayerMenu", "Codec", "Sign", "Authority", "Zones", "Who", "Data", "Roster", "Comm", "Map", "Layers", "Hop", "Positions", "Decree", "Channels", "Filter", "MapNames", "Inspect", "PlayerTooltip", "King", "HopSightings", "Vox", "Court", "Board", "Groups", "Week", "Treasury", "Dues", "Bank", "Acts", "Loot", "War", "Crafters", "Chronicle", "Workshop", "Versions", "Ed25519", "libs/QREncode/qrencode", "LinkLoader", "ArmyExport", "Recruit", "PartyGuard", "AnswerBank", "Answers", "Views", "Accord", "Consent", "ChatRooms", "CraftRequests", "ViewAs", "TabardsV2", "Members", "Nominees", "CensusClean", "Bridge", "BridgeSections", "BridgePeople", "BridgeAffairs" }) do
 	local chunk = assert(loadfile(ADDON_DIR .. file .. ".lua"))
 	chunk("ChillZone", ns)
 end
@@ -1485,6 +1485,14 @@ test("map refresh runs end to end with a map library (continent totals included)
 		return f
 	end
 	WorldMapFrame = deep()
+	-- WorldMapFrame's ScrollContainer is a frame, not a generated method. Model the
+	-- native canvas values so both the continent totals and name-label layout run.
+	local canvas = deep()
+	canvas.GetWidth, canvas.GetHeight = function() return 1000 end, function() return 800 end
+	canvas.GetScale, canvas.GetFrameLevel = function() return 1 end, function() return 0 end
+	WorldMapFrame.GetCanvas = function() return canvas end
+	WorldMapFrame.GetMapID, WorldMapFrame.IsShown = function() return 947 end, function() return true end
+	WorldMapFrame.ScrollContainer = { GetCanvasScale = function() return 1 end }
 	C_Map.GetMapRectOnMap = function() return 0.1, 0.3, 0.2, 0.8 end
 	MAPS[947] = { "Azeroth", 1 }; MAPS[1415] = { "Eastern Kingdoms", 2, 947 }
 	local oldInfo = C_Map.GetMapInfo
@@ -1508,6 +1516,10 @@ test("map refresh runs end to end with a map library (continent totals included)
 	assert(calls.world >= 2, "zone pins were not added")
 	local totals = ns.Map.ContinentTotals(ns.Data.Summary())
 	eq(totals[1415], 10, "continent total")
+	local continent
+	for _, f in ipairs(made) do if rawget(f, "key") == "m1415" then continent = f end end
+	assert(continent, "continent total is actually drawn on the Azeroth canvas")
+	eq(continent.count, 10)
 	-- (1.1.2's review: a zone pin's tooltip says why its soldiers add up to less than the army online.)
 	local pin
 	for _, f in ipairs(made) do if rawget(f, "scriptOnEnter") and rawget(f, "key") then pin = f end end
@@ -6893,6 +6905,8 @@ local function RelayWorld(me, guild)
 	return cns, Deliver, sent, heard, Pump, Sent, hooks
 end
 
+assert(loadfile(ROOT .. "tests/census-relay.lua"))(ns, test, eq, { RelayWorld = RelayWorld, addon = ADDON_DIR })
+
 test("1.4.3 the relay: where names split, a channel message goes to the picked signed relay by whisper (RL), pinged once; a chat line goes logged; the relay registers reporters (RR), forwards to each guild's reporter (RM) and hears it itself; a reporter takes it once and hands it to its guild (RG); a guildmate takes it once; a stranger's RM is dropped", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
 	local ok, err = pcall(function()
@@ -7375,6 +7389,74 @@ test("ChillZone launch, the relay: a relay's own word of several pieces reaches 
 	if not ok then error(err, 0) end
 end)
 
+-- Identical periodic inventories must circulate again after the transport dedupe window,
+-- even when fewer than SEEN_MAX distinct words have ever arrived. These use the actual
+-- Comm receive path and Relay envelopes; the payload handler only counts delivered words.
+test("1.5.2 the relay expiry: an unchanged RD crosses to another relay again at SEEN_FOR; recent copies do not extend the window and local-only asks never cross", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "ChillZone II", "Member", 3 end
+		local R, deliver, _, _, pump, sentOf = RelayWorld("Hildryn Payne-Realm", "ChillZone II")
+		local origin, body, heard = "Orig Inal-Realm", "RD~L1~b~1.1.a~", 0
+		R.Comm.Handle("RD", function(dist, sender, text)
+			eq(dist, "CHANNEL"); eq(sender, origin); eq(text, body); heard = heard + 1
+		end)
+		deliver("WHISPER", "Max Ran-Realm", "RY~")
+		deliver("WHISPER", "Zed Far-Realm", "RL~P~RR~ChillZone Zeus")
+		local start = R.clock
+		for _, step in ipairs({ { 0, 1 }, { 299, 1 }, { 300, 2 }, { 599, 2 }, { 600, 3 } }) do
+			R.clock = start + step[1]
+			deliver("WHISPER", origin, "RL~P~" .. body)
+			deliver("WHISPER", origin, "RL~P~H3~hello")
+			pump()
+			local across = sentOf("RX~P~" .. origin .. "~RD~")
+			eq(#across, step[2], "the same inventory crosses again only when its original seen time expires, at " .. step[1])
+			eq(across[#across].target, "Max Ran"); eq(across[#across].msg, "RX~P~" .. origin .. "~" .. body)
+			eq(heard, step[2], "local delivery uses the same expiry boundary")
+			eq(#sentOf("RX~P~" .. origin .. "~H3~"), 0, "NO_FORWARD is unchanged after expiry")
+		end
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
+test("1.5.2 the relay expiry: an unchanged RD arriving across reaches the remote reporter again after SEEN_FOR, but recent copies and unsigned relay senders never do", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "ChillZone II", "Member", 3 end
+		local R, deliver, _, _, pump, sentOf = RelayWorld("Max Ran-Realm", "ChillZone II")
+		local origin, body, heard = "Orig Inal-Realm", "RD~L1~b~1.1.a~", 0
+		R.Comm.Handle("RD", function(dist, sender, text)
+			eq(dist, "CHANNEL"); eq(sender, origin); eq(text, body); heard = heard + 1
+		end)
+		deliver("WHISPER", "Far Away-Realm", "RL~P~RR~ChillZone Far")
+		local start = R.clock
+		for _, step in ipairs({ { 0, 1 }, { 299, 1 }, { 301, 2 }, { 599, 2 } }) do
+			R.clock = start + step[1]
+			deliver("WHISPER", "Bob Stranger-Realm", "RX~P~" .. origin .. "~" .. body)
+			pump()
+			eq(#sentOf("RM~"), heard, "an untrusted relay cannot use an expired entry")
+			deliver("WHISPER", "Hildryn Payne-Realm", "RX~P~" .. origin .. "~" .. body)
+			pump()
+			local forwarded = sentOf("RM~")
+			eq(#forwarded, step[2], "the same inventory reaches the reporter again after expiry, at " .. step[1])
+			eq(forwarded[#forwarded].target, "Far Away"); eq(forwarded[#forwarded].msg, "RM~P~" .. origin .. "~" .. body)
+			eq(heard, step[2]); eq(#sentOf("RX~"), 0, "RX never fans across again")
+		end
+		eq(R.Relay.Stats().dropped, 4, "sender authentication remains in force on every arrival")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
 -- 1.4.6 (the dev's cousin, 2026-11-05): each client learned a realm group of its own among
 -- Forever's sub-realms (Realm1 alone here, Realm3+Realm5 there), so census keys and signed lists
 -- disagreed. Fails before: GroupOf gives the realm itself, InGroup false across sub-realms.
@@ -7396,7 +7478,10 @@ test("1.4.6 Forever's realm family is the group: every CAMWOW sub-realm of one r
 		O.realm, O.rdb.council = "CAMWOWUS2Realm5PvE", nil
 		local names = table.concat(O.Relay.Names(true), ",")
 		assert(names:find("Developus Olympicus", 1, true) and names:find("Asmongold Thereal", 1, true), "the launch pins: " .. names)
-		assert(not names:find("Twalin Firebraid", 1, true), "not the PvP family's")
+		assert(not names:find("Twalin Firebraid", 1, true) and not names:find("Elrond Oaklance", 1, true), "not the PvP family's")
+		O.realm = "CAMWOWUS1Realm8PvP"
+		names = table.concat(O.Relay.Names(true), ",")
+		assert(names:find("Twalin Firebraid", 1, true) and names:find("Elrond Oaklance", 1, true), "the PvP family's pins (1.5.2: both of the dev's): " .. names)
 		O.realm = "ClassicBetaPvP"
 		assert(not table.concat(O.Relay.Names(true), ","):find("Developus", 1, true), "nothing by code off Forever")
 	end)
@@ -7422,6 +7507,16 @@ test("1.5.1 a Forever family's ruleset is its name and its region its realms' (m
 		eq(table.concat({ D.GroupInfo("ForeverPvP") }, "/"), "pvp/NA", "a met PvP sub-realm the table does not name: its region by its code")
 		eq(select(1, D.GroupInfo("ForeverRP")), "rp"); eq(select(2, D.GroupInfo("ForeverRP")), nil, "no realm of that family met: the region waits")
 		eq(table.concat({ D.GroupInfo("Whitemane") }, "/"), "pvp/NA", "a plain group as before")
+		eq(table.concat({ D.GroupInfo("CAMWOWUS2Realm3PvE") }, "/"), "pve/NA", "a plain Forever realm the table does not name: its family's (1.5.2)")
+		eq(table.concat({ D.GroupInfo("CAMWOWUS1Realm2PvP+CAMWOWUS1Realm8PvP") }, "/"), "pvp/NA", "a group learned before 1.4.6: its family's")
+		-- (1.5.2) Such a row counts as its family's server, once, the newest of them.
+		local savedCounted = ns.db.groupCensus
+		ns.db.groupCensus = { ["Alliance|CAMWOWUS2Realm3PvE"] = { group = "CAMWOWUS2Realm3PvE", faction = "Alliance", characters = 500, people = 500, guilds = 2, observed = ns.Now() - 10 },
+			["Alliance|ForeverPvE"] = { group = "ForeverPvE", faction = "Alliance", characters = 900, people = 900, guilds = 3, observed = ns.Now() } }
+		local rows, pve = D.Groups({ total = 0, guilds = {} }).rows, {}
+		for _, r in ipairs(rows) do if r.group == "ForeverPvE" or r.group == "CAMWOWUS2Realm3PvE" then pve[#pve + 1] = r end end
+		eq(#pve, 1, "one PvE server"); eq(pve[1].group, "ForeverPvE"); eq(pve[1].characters, 900, "the newest"); eq(pve[1].kind, "pve")
+		ns.db.groupCensus = savedCounted
 		-- Nothing met of a family but the signed table names one of its realms (another character's group).
 		ns.db = { links = {} }
 		ns.realm, ns.group = "CAMWOWUS1Realm8PvP", "ForeverPvP"
@@ -7443,8 +7538,12 @@ test("1.5.1 opening a Forever family's store takes a plain realm's of its own fa
 	local ok, err = pcall(function()
 		local pve = { guilds = { ["chillzone prime"] = { guild = "CHILLZONE PRIME", total = 900, t = 10, heardOn = "CAMWOWUS2Realm1PvE" } }, seen = {} }
 		local pvp = { guilds = { ["chillzone dads"] = { guild = "ChillZone Dads", total = 40, t = 10, heardOn = "CAMWOWUS1Realm8PvP" },
-			["chillzone v"] = { guild = "CHILLZONE V", total = 700, t = 9, heardOn = "CAMWOWUS2Realm3PvE" } }, seen = {} }
+			["chillzone v"] = { guild = "CHILLZONE V", total = 700, t = 9, heardOn = "CAMWOWUS2Realm3PvE" } }, seen = {},
+			censusGlobal = { ["chillzone prime"] = { name = "CHILLZONE PRIME", total = 900, online = 1, avg10 = 100, observed = 10, by = "Someone-CAMWOWUS2Realm1PvE" },
+				["chillzone x"] = { name = "CHILLZONE X", total = 300, online = 1, avg10 = 100, observed = 10, by = "Other-CAMWOWUS1Realm2PvP" } } }
 		local old = { guilds = { ["chillzone ii"] = { guild = "CHILLZONE II", total = 50, t = 8, heardOn = "CAMWOWUS1Realm2PvP" } }, seen = {} }
+		old.guilds["chillzone leaked"] = { guild = "ChillZone Leaked", total = 900, t = 10,
+			from = "CAMWOWUS1Realm1PvE", vouch = { original = { t = 10, leader = "Original" } } }
 		ns.db.realms, ns.db.links = { ForeverPvE = pve, ForeverPvP = pvp, CAMWOWUS1Realm2PvP = old, Whitemane = { guilds = {}, seen = {} } }, {}
 		ns.realm, ns.group = "CAMWOWUS1Realm8PvP", "ForeverPvP"
 		ns.faction = "Horde" -- (not what ns.Faction() says: CheckFaction reopens the group's store)
@@ -7455,9 +7554,124 @@ test("1.5.1 opening a Forever family's store takes a plain realm's of its own fa
 		eq(ns.rdb.guilds["chillzone v"], nil, "a PvE report merged before 1.5.1 is dropped")
 		eq(ns.rdb.guilds["chillzone dads"].total, 40, "our own stay")
 		eq(ns.rdb.guilds["chillzone ii"].total, 50, "a plain PvP realm's store (before 1.4.6) comes in"); eq(ns.db.realms.CAMWOWUS1Realm2PvP, nil)
+		eq(ns.rdb.guilds["chillzone leaked"], nil, "a merged row cannot hide opposite origin behind a newly stamped heardOn")
+		assert(ns.rdb.censusForeign["chillzone leaked"].vouch.original, "quarantine preserves the complete original report")
+		eq(ns.rdb.censusForeign["chillzone v"].total, 700, "foreign reports are preserved outside local authority")
+		eq(ns.rdb.censusGlobal["chillzone prime"].total, 900, "unscoped cache remains available for Data INIT quarantine")
+		eq(ns.rdb.censusGlobal["chillzone x"].total, 300, "a forwarder realm is not proof of census origin")
 		assert(ns.db.realms.Whitemane, "an unrelated realm's store stays")
 	end)
 	ns.db.realms, ns.db.links, ns.rdb, ns.realm, ns.group, ns.faction = saved.realms, saved.links, saved.rdb, saved.realm, saved.group, saved.faction
+	if not ok then error(err, 0) end
+end)
+
+-- 1.5.2 (the dev, 2026-11-05: "deve ficar circulando esses dados... não deve parar enquanto eu
+-- estou fora": the PvP family's only relays are his own characters). Fails before: nothing of a
+-- report leaves while no relay answers but the pings.
+test("verification migration: same-scope legacy stores preserve every decision and earliest clock without importing other rulesets or factions", function()
+	local saved = { db = ns.db, rdb = ns.rdb, realm = ns.realm, group = ns.group, faction = ns.faction, factionAPI = UnitFactionGroup }
+	local ok, err = pcall(function()
+		local vns = setmetatable({ On = function() end, RegisterEvent = function() end, Comm = { Handle = function() end } }, { __index = ns })
+		assert(loadfile(ADDON_DIR .. "Verify.lua"))("ChillZone", vns)
+		local at = vns.Verify.EPOCH + 10000
+		for _, faction in ipairs({ "Alliance", "Horde" }) do
+			for _, rules in ipairs({ "PvP", "PvE", "RP" }) do
+				local realm, group = "CAMWOWUS1Realm8" .. rules, "Forever" .. rules
+				local oldRealm = "CAMWOWUS2Realm2" .. rules
+				local function Word(kind, time, guild, gm)
+					return { k = kind, at = time, guild = guild, gm = (gm or "Original Master") .. "-" .. oldRealm,
+						by = "Original Verifier-" .. oldRealm, heard = time + 9 }
+				end
+				local only = Word("A", at, "ChillZone Migration One")
+				local newer = Word("R", at + 20, "ChillZone Migration Two")
+				local revoked = Word("R", at + 30, "ChillZone Migration Three")
+				local tie = Word("R", at + 40, "ChillZone Migration Four")
+				local leader = Word("A", at + 50, "ChillZone Migration Five", "A Master")
+				local first = { at = at - 100, guild = only.guild, by = only.by, last = at + 1 }
+				local seen = { at = at - 200, guild = only.guild, last = at + 5 }
+				local current = { guilds = {}, seen = {}, verify = { list = {
+					[ns.Fold(newer.guild)] = Word("A", at, newer.guild), [ns.Fold(revoked.guild)] = revoked,
+					[ns.Fold(tie.guild)] = Word("A", tie.at, tie.guild),
+					[ns.Fold(leader.guild)] = Word("A", leader.at, leader.guild, "Z Master") },
+					start = { [ns.Fold(only.guild)] = { at = at, guild = only.guild, by = only.by, last = at + vns.Verify.START_KEEP + 1 } },
+					seen = { [ns.Fold(only.guild)] = { at = at, guild = only.guild, last = at + vns.Verify.START_KEEP + 1 } },
+					requests = { [ns.Fold(only.guild)] = { at = at + 1 } } } }
+				local legacy = { guilds = {}, seen = {}, verify = { list = {
+					[ns.Fold(only.guild)] = only, [ns.Fold(newer.guild)] = newer,
+					[ns.Fold(revoked.guild)] = Word("A", at, revoked.guild), [ns.Fold(tie.guild)] = tie,
+					[ns.Fold(leader.guild)] = leader }, start = { [ns.Fold(only.guild)] = first },
+					seen = { [ns.Fold(only.guild)] = seen }, requests = { [ns.Fold(only.guild)] = { at = at + 7 } } } }
+				local repaired = { at = at - 300, guild = "ChillZone Migration Repair", by = only.by, last = at }
+				local protected = { at = at - 400, guild = "ChillZone Migration Protected", by = only.by, last = at }
+				current.verify.start[ns.Fold(repaired.guild)] = { at = 0, guild = repaired.guild }
+				current.verify.start[ns.Fold(protected.guild)] = protected
+				legacy.verify.start[ns.Fold(repaired.guild)] = repaired
+				legacy.verify.start[ns.Fold(protected.guild)] = { at = 0, guild = protected.guild }
+				legacy.verify.list["chillzone unproven"] = { guild = "ChillZone Unproven", at = at }
+				local foreign = { guilds = {}, verify = { list = { foreign = Word("A", at, "ChillZone Foreign") } } }
+				local otherFaction = { guilds = {}, verify = { list = { outsider = Word("A", at, "ChillZone Other Faction") } } }
+				local foreignRules = rules == "PvP" and "PvE" or "PvP"
+				local foreignGroup, foreignRealm = "Forever" .. foreignRules, "CAMWOWUS1Realm1" .. foreignRules
+				local realms = { [group] = current, [oldRealm] = legacy, [foreignGroup] = foreign, [foreignRealm] = foreign }
+				local opposite = { [group] = otherFaction }
+				ns.db = { log = {}, links = {}, realms = faction == "Alliance" and realms or opposite,
+					horde = { realms = faction == "Horde" and realms or opposite } }
+				ns.realm, ns.group = realm, group
+				UnitFactionGroup = function() return faction end
+				ns.faction = faction == "Alliance" and "Horde" or "Alliance"
+				assert(ns.CheckFaction())
+				local v = ns.rdb.verify
+				vns.rdb = ns.rdb
+				eq(v.list[ns.Fold(only.guild)], only, "a legacy approval is retained, including its original author and dates")
+				eq(v.list[ns.Fold(newer.guild)], newer); eq(v.list[ns.Fold(revoked.guild)], revoked)
+				eq(v.list[ns.Fold(tie.guild)], tie, "revocation wins an equal-time conflict")
+				eq(v.list[ns.Fold(leader.guild)], leader, "the existing canonical GM ordering breaks a same-kind tie")
+				eq(v.start[ns.Fold(only.guild)], first); eq(v.seen[ns.Fold(only.guild)], seen)
+				eq(v.start[ns.Fold(repaired.guild)], repaired); eq(v.start[ns.Fold(protected.guild)], protected)
+				eq(v.list["chillzone unproven"], nil, "a saved guild name without a valid decision never becomes an approval")
+				eq(v.requests[ns.Fold(only.guild)].at, at + 7, "merging cannot shorten a live resend cooldown")
+				eq(vns.Verify.Status(only.guild, at + 100), "verified", "missing census rows do not erase a saved approval")
+				eq(vns.Verify.Start(only.guild, at + 100), first.at)
+				eq(first.last, at + vns.Verify.START_KEEP + 1, "retention uses the newest saved sighting, never migration time")
+				eq(seen.last, first.last)
+				eq(v.list.foreign, nil); eq(v.list.outsider, nil)
+				eq(realms[foreignGroup], foreign); eq(realms[foreignRealm], foreign); eq(opposite[group], otherFaction)
+				eq(realms[oldRealm], nil, "the source is retired only after its verification state is merged")
+				ns.faction = faction == "Alliance" and "Horde" or "Alliance"
+				assert(ns.CheckFaction())
+				eq(ns.rdb.verify.list[ns.Fold(only.guild)], only, "reopening the migrated store is idempotent")
+				vns.Verify.Prune(first.last)
+				eq(ns.rdb.verify.start[ns.Fold(only.guild)].at, at - 100, "normal pruning cannot erase a recently observed original deadline")
+			end
+		end
+	end)
+	ns.db, ns.rdb, ns.realm, ns.group, ns.faction, UnitFactionGroup = saved.db, saved.rdb, saved.realm, saved.group, saved.faction, saved.factionAPI
+	if not ok then error(err, 0) end
+end)
+
+test("1.5.2 the relay: while no relay answers, a word's pieces are handed to the chat hall to go as the reporter's own text in the joined channel; once one answered, the relay alone carries them", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "ChillZone II", "Member", 3 end
+		local O, odeliver, _, _, opump = RelayWorld("Orig Inal-Realm", "ChillZone II")
+		local carried = {}
+		O.ChatHall = { Carry = function(parts) for _, p in ipairs(parts) do carried[#carried + 1] = p end return #parts end }
+		O.Accord = { Quiet = function() end }
+		O.After = function(_, _, fn) end
+		eq(O.Comm.Send("CHANNEL", "C5:1:1:abc", "k1"), true)
+		opump()
+		eq(table.concat(carried, ","), "C5:1:1:abc", "no relay answered: the hall carries it")
+		odeliver("WHISPER", "Max Ran-Realm", "RY~")
+		eq(O.Relay.Stats().sure, true)
+		eq(O.Comm.Send("CHANNEL", "C6:1:1:def", "k2"), true)
+		opump()
+		eq(table.concat(carried, ","), "C5:1:1:abc", "a relay answered: the relay alone")
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
 	if not ok then error(err, 0) end
 end)
 
@@ -7523,6 +7737,13 @@ test("1.5.0 the chat hall: on Forever a tier's chat line leaves as the player's 
 		eq(H.OnChannel("hello there", "Other-Realm", "", "", "", "", 0, 6, "ChillZoneNet1"), false, "plain text in it")
 		eq(H.OnChannel("EC~room~1~hey", "Other-Realm", "", "", "", "", 0, 6, "ChillZoneNet1"), false, "another kind")
 		eq(#received, 2)
+		-- (1.5.2) A census report's pieces are carried as text (Relay.Out, no relay answering) and taken.
+		eq(H.Carry({ "C12:1:2:abc", "C12:2:2:def", "H3~hello", "X1~one" }), 2, "the report's pieces alone")
+		eq(#said, 3); eq(said[2].text, "C12:1:2:abc"); eq(said[3].text, "C12:2:2:def"); eq(said[3].target, 6)
+		eq(H.OnChannel("C7:1:1:zzz", "Far Away-Realm", "", "", "", "", 0, 6, "ChillZoneNet1"), true)
+		eq(#received, 3); eq(received[3].text, "C7:1:1:zzz"); eq(received[3].dist, "CHANNEL")
+		eq(H.OnChannel("H3~hello", "Far Away-Realm", "", "", "", "", 0, 6, "ChillZoneNet1"), false, "no other kind")
+		eq(H.Stats().carried, 2)
 		-- Off: the chat box gate (the gamepad UI), no channel, off Forever.
 		cns.Gate = { Allowed = function() return false end }
 		eq(H.On(), false); eq(H.Send("M1~A~ChillZone II~1~~x"), false)
@@ -7594,7 +7815,7 @@ end)
 
 -- 1.5.0 (the dev's log: every client's channel hello, census ask, lists' ask, positions became 46
 -- whispers each). Fails before: the hello is forwarded to every reporter and across.
-test("1.5.0 the relay: a client's own-clock words (H3, Q1, HQ, P1, W4, GV) are heard by the relay and fanned out to nobody, not across either; a census report, a chat line and the lists go on", function()
+test("1.5.0 the relay: a client's own-clock words (H3, Q1, HQ, P1, W4) are heard by the relay and fanned out to nobody, not across either; a census report, a chat line and the lists go on", function()
 	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
 	local ok, err = pcall(function()
 		GetChannelName = function() return 0 end
@@ -7604,12 +7825,12 @@ test("1.5.0 the relay: a client's own-clock words (H3, Q1, HQ, P1, W4, GV) are h
 		local R, rdeliver, rsent, rheard, rpump, rsentOf = RelayWorld("Hildryn Payne-Realm", "ChillZone II")
 		rdeliver("WHISPER", "Max Ran-Realm", "RY~")
 		rdeliver("WHISPER", "Zed Far-Realm", "RL~P~RR~ChillZone Zeus")
-		for _, kind in ipairs({ "H3~hello", "Q1~ask", "HQ~lists", "P1~pos", "W4~wanted", "GV~verify" }) do
+		for _, kind in ipairs({ "H3~hello", "Q1~ask", "HQ~lists", "P1~pos", "W4~wanted" }) do
 			rdeliver("WHISPER", "Some One-Realm", "RL~P~" .. kind)
 		end
 		rpump()
 		eq(#rsentOf("RM~"), 0, "fanned out to nobody"); eq(#rsentOf("RX~"), 0, "not across")
-		eq(R.Relay.Stats().delivered, 6, "heard here, every one")
+		eq(R.Relay.Stats().delivered, 5, "heard here, every one")
 		rdeliver("WHISPER", "Some One-Realm", "RL~P~C1~census")
 		rdeliver("WHISPER", "Some One-Realm", "RL~L~M1~A~ChillZone II~1~~hi")
 		rdeliver("WHISPER", "Some One-Realm", "RL~P~HS~lists")
@@ -7620,6 +7841,49 @@ test("1.5.0 the relay: a client's own-clock words (H3, Q1, HQ, P1, W4, GV) are h
 	C_ChatInfo = nil
 	if not ok then error(err, 0) end
 end)
+
+-- Decisions must use the same verified-origin transport as every other authorizing word.
+-- The old prefix-wide GV suppression delivered them only to the relay, never the guild.
+test("1.5.2 verification relay: approvals, revocations and snapshots reach guild reporters with the original sender; asks only cross relays", function()
+	local saved = { channel = GetChannelName, member = ns.IsMember, guild = GetGuildInfo, inGuild = IsInGuild }
+	local ok, err = pcall(function()
+		GetChannelName = function() return 0 end
+		ns.IsMember = function() return true end
+		IsInGuild = function() return true end
+		GetGuildInfo = function() return "ChillZone II", "Member", 3 end
+		local R, deliver, _, _, pump, sentOf = RelayWorld("Hildryn Payne-Realm", "ChillZone II")
+		deliver("WHISPER", "Max Ran-Realm", "RY~")
+		deliver("WHISPER", "Zed Far-Realm", "RL~P~RR~ChillZone Zeus")
+		local origin = "Verifier Origin-Realm"
+		local words = {
+			"GV~1~A~1800000000~ChillZone Zeus~Guild Master-Realm",
+			"GV~1~R~1800000001~ChillZone Zeus~Guild Master-Realm",
+			"GV~1~S~1800000002~A,1800000002,ChillZone Zeus,Guild Master,Verifier Origin",
+		}
+		deliver("WHISPER", origin, "RL~P~GV~1~Q~0~0~0")
+		for _, word in ipairs(words) do deliver("WHISPER", origin, "RL~L~" .. word) end
+		pump()
+		local forwarded = sentOf("RM~L~" .. origin .. "~GV~1~")
+		eq(#forwarded, 3, "the guild reporter receives each decision and recovery snapshot")
+		eq(#sentOf("RX~L~" .. origin .. "~GV~1~"), 3, "other signed relays receive them too")
+		eq(#sentOf("RM~P~" .. origin .. "~GV~1~Q~"), 0, "periodic asks stay off guild reporters")
+		eq(#sentOf("RX~P~" .. origin .. "~GV~1~Q~"), 1, "a bounded ask reaches the other signed relay")
+		local receiver, receive = RelayWorld("Zed Far-Realm", "ChillZone Zeus")
+		local heard = {}
+		receiver.Comm.Handle("GV", function(dist, sender, text) heard[#heard + 1] = { dist = dist, sender = sender, text = text } end)
+		for _, packet in ipairs(forwarded) do receive("WHISPER", "Hildryn Payne-Realm", packet.msg) end
+		eq(#heard, 3)
+		for i, word in ipairs(heard) do
+			eq(word.dist, "CHANNEL"); eq(word.sender, origin, "the verifier is never replaced by the relay")
+			eq(word.text, words[i])
+		end
+	end)
+	GetChannelName, ns.IsMember, GetGuildInfo, IsInGuild = saved.channel, saved.member, saved.guild, saved.inGuild
+	C_ChatInfo = nil
+	if not ok then error(err, 0) end
+end)
+
+assert(loadfile(ROOT .. "tests/verify-relay.lua"))(ns, test, eq, RelayWorld, ADDON_DIR)
 
 -- 1.5.0 (the dev's relay: 51 reporters, every guild's three-piece report to each, 2,700 pieces a
 -- minute against 200 sent). Fails before: every word to every reporter, no snapshot of the relay's.
@@ -11517,7 +11781,11 @@ test("the soldier count explains the census on hover; the minimap logo sits on i
 		assert(main.headerHover, "a hover region over the count")
 		main.headerHover:Fire("OnEnter")
 		eq(GameTooltip.owner, main.headerHover)
-		eq(GameTooltip.lines[1], ns.L.HEADER_TIP_TITLE); eq(GameTooltip.lines[2], ns.L.HEADER_TIP); eq(GameTooltip.lines[4], ns.L.HEADER_TIP_DIFFER)
+		eq(GameTooltip.lines[1], ns.L.HEADER_TIP_TITLE); eq(GameTooltip.lines[2], ns.L.HEADER_TIP)
+		eq(GameTooltip.lines[3], ns.L.CENSUS_HEADER_ALL_TIP, "the smaller count explains its all-server scope")
+		local differ
+		for _, line in ipairs(GameTooltip.lines) do if line == ns.L.HEADER_TIP_DIFFER then differ = true end end
+		assert(differ, "the differing-count explanation remains after optional saved-observation details")
 		assert(main.headerHover.w > 100, "as wide as the header")
 		local b = ns.MakeRoundButton("ChillZoneTestRound", UIParent, 31)
 		eq(b.icon.w, 18)
@@ -14550,7 +14818,7 @@ test("0.9.7 the High Council: a list the author signs on his computer, checked b
 	local sent, whispered = {}, {}
 	local ok, err = pcall(function()
 		ns.Comm.SendChunked = function(msg) sent[#sent + 1] = msg end
-		ns.Comm.Whisper = function(to, msg) whispered[#whispered + 1] = to .. " " .. msg end
+		ns.Comm.Whisper = function(to, msg) whispered[#whispered + 1] = to .. " " .. msg; return true end
 		ns.rdb.council = nil
 		eq(ns.IsHighCouncillor("Test Councillor-Realm"), false, "nobody until a signed list arrives")
 		-- Forged or changed lists: refused, whoever sends them.
@@ -14737,7 +15005,7 @@ test("0.9.8 a help request is cut between two letters, never inside one", functi
 		local clock = os.time() + 100000 -- (past the gap any earlier request left)
 		ns.Now = function() return clock end
 		ns.Print = function() end
-		ns.Comm.Whisper = function(to, msg) whispered[#whispered + 1] = msg end
+		ns.Comm.Whisper = function(to, msg) whispered[#whispered + 1] = msg; return true end
 		ns.rdb.council = { at = 1, names = { ["test councillor"] = "Test Councillor" }, realm = "Realm" }
 		W.HandleAvailable("CHANNEL", "Test Councillor-Realm")
 		ns.me = "Player One-Realm"
@@ -15432,21 +15700,34 @@ end)
 test("0.9.8 help requests: 'sent' only once a councillor says got it; a councillor who stops is withdrawn at once", function()
 	local W = ns.Workshop
 	local saved = { council = ns.rdb.council, whisper = ns.Comm.Whisper, send = ns.Comm.Send, after = ns.After, print = ns.Print, me = ns.me, help = ns.db.councilHelp }
-	local whispered, printed, timers = {}, {}, {}
+	local whispered, printed, timers, queueAccepts = {}, {}, {}, false
 	local ok, err = pcall(function()
 		ns.rdb.council = { at = 1, names = { ["test councillor"] = "Test Councillor" }, realm = "Realm" }
-		ns.Comm.Whisper = function(to, msg) whispered[#whispered + 1] = to .. " " .. msg end
+		-- Comm.Whisper returns whether its bounded queue accepted the word; that is not an ACK.
+		ns.Comm.Whisper = function(to, msg)
+			if not queueAccepts then return false end
+			whispered[#whispered + 1] = to .. " " .. msg
+			return true
+		end
 		ns.Comm.Send = function() end
 		ns.After = function(_, _, fn) timers[#timers + 1] = fn end
 		ns.Print = function(m) printed[#printed + 1] = m end
 		W.ResetHelp()
+		eq(W.AskCouncil("nobody available"), false)
+		eq(#timers, 0, "no delivery wait for an unavailable councillor")
 		W.HandleAvailable("CHANNEL", "Test Councillor-Realm", "HA~1")
 		eq(#W.Available(), 1)
 		W.HandleAvailable("CHANNEL", "Test Councillor-Realm", "HA~0")
 		eq(#W.Available(), 0, "withdrawn at once")
 		W.HandleAvailable("CHANNEL", "Test Councillor-Realm", "HA~1")
 		ns.me = "Player One-Realm"
-		W.AskCouncil("help please")
+		eq(W.AskCouncil("queue refused"), false)
+		eq(#timers, 0, "a refused queue does not start a delivery wait")
+		eq(#whispered, 0)
+		queueAccepts = true
+		eq(W.AskCouncil("help please"), true, "queue refusal does not consume the retry cooldown")
+		eq(W.AskCouncil("too soon"), false, "an accepted request starts the cooldown")
+		eq(#whispered, 1)
 		assert(not printed[#printed] or printed[#printed] ~= ns.L.COUNCIL_ASK_SENT, "not 'sent' before the ack")
 		W.HandleCouncilAck("WHISPER", "Random Guy-Realm", "HK~1")
 		assert(printed[#printed] ~= ns.L.COUNCIL_ASK_SENT, "an ack from a non-councillor counts for nothing")
@@ -23862,7 +24143,7 @@ test("1.0.1 borders: each tier's art (the game's atlases, Max's files) at its si
 		-- Then the plain silver (the dev's) and Max's plain bronze (the people a guild master names)
 		-- came back as tiers: five borders; the plain gold alone is kept for later. 1.2: and one
 		-- plain metal underlay per frame.)
-		eq(#w.textures, 21, "six borders (1.1.6: the primary Treasurer's dragon) and one underlay on three frames")
+		eq(#w.textures, 24, "seven borders (the Queen's and Treasurer's dragons) and one underlay on three frames")
 		for _, t in ipairs(w.B.RESERVED) do
 			for _, tex in ipairs(w.textures) do
 				-- (The underlay's plain metal is the plain gold's atlas: no border of its own.)
@@ -23910,6 +24191,7 @@ test("1.0.1 borders: each tier's art (the game's atlases, Max's files) at its si
 		local want = {
 			-- tier, art, size (nil: the atlas's own), target: coords, x y; your own: coords, x y
 			{ "gold-elite", "atlas UI-HUD-UnitFrame-Target-PortraitOn-Boss-Gold-Winged", nil, nil, "11 -4", "1 0 0 1", "-13 -4" },
+			{ "queen-dragon", "file " .. MEDIA .. "queen-dragon", "175 166.25", "0 0.78125 0 0.7421875", "38 34", "0.78125 0 0 0.7421875", "-40 34" },
 			{ "treasurer-dragon", "file " .. MEDIA .. "treasurer-dragon", "100 95", "0 0.78125 0 0.7421875", "0 1", "0.78125 0 0 0.7421875", "-2 1" },
 			{ "silver-elite", "atlas UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Silver-Winged", nil, nil, "8 -7", "1 0 0 1", "-10 -7" },
 			{ "bronze-elite", "file " .. MEDIA .. "bronze-winged", "110 90", "0 0.859375 0 0.703125", "11 -4", "0.859375 0 0 0.703125", "-13 -4" },
@@ -24076,7 +24358,7 @@ test("1.2 borders: an ChillZone portrait (the Arena's) is your own frame's portr
 			end
 			local n = 0
 			for _ in pairs(own) do n = n + 1 end
-			eq(n, 7, "the underlay and the six tiers (1.1.6), as on your frame")
+			eq(n, 8, "the underlay and the seven tiers, as on your frame")
 			eq(own["gold-elite"].point, "TOPLEFT " .. container.label .. " TOPLEFT -13 -4", "the gold wings 37 left and 15 above the portrait")
 			-- A tier shown: its art alone, over its metal turned round, as round your own portrait (1.1.5:
 			-- a Captain has no border of his rank any more; a High Councillor's silver wings, yours here).
@@ -24177,9 +24459,11 @@ test("1.0.1 borders: applied through the hooked CheckClassification after the ga
 			assert(entry:find(":CreateTexture$"), "only CreateTexture on the game's objects: " .. entry)
 			made[entry] = (made[entry] or 0) + 1
 		end
-		-- (1.1.5: one per tier, five with the two without wings; 1.2: and the metal underlay.)
-		eq(made["TargetFrame.TargetFrameContainer:CreateTexture"], 7); eq(made["FocusFrame.TargetFrameContainer:CreateTexture"], 7)
-		eq(made["PlayerFrame.PlayerFrameContainer:CreateTexture"], 7)
+		-- One per tier (including the Queen's and Treasurer's dragons), and the metal underlay.
+		local texturesPerFrame = #w.B.TIERS + 1
+		eq(made["TargetFrame.TargetFrameContainer:CreateTexture"], texturesPerFrame)
+		eq(made["FocusFrame.TargetFrameContainer:CreateTexture"], texturesPerFrame)
+		eq(made["PlayerFrame.PlayerFrameContainer:CreateTexture"], texturesPerFrame)
 		eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification")
 		-- The game updates the target frame (no event of ours): its CheckClassification first, then the
 		-- King's border, shown from the hook; the game's return value kept.
@@ -24224,7 +24508,7 @@ test("1.0.1 borders: applied through the hooked CheckClassification after the ga
 		eq(#w.log, 0, "still in combat")
 		w.combat = false
 		w.fire("PLAYER_REGEN_ENABLED")
-		eq(#w.textures, 21); eq(w.shown("target"), "gold-elite", "made, and the target's border shown")
+		eq(#w.textures, 24); eq(w.shown("target"), "gold-elite", "made, and the target's border shown")
 	end)
 end)
 
@@ -24293,7 +24577,7 @@ test("1.0.1 borders: off with the gamepad UI (no hook, no texture), hidden at a 
 		-- To mouse and keyboard: made and shown.
 		w.style = 0
 		w.fire("INPUT_DEVICE_INTERFACE_TRANSITION", 0, 1)
-		eq(#w.textures, 21); eq(#w.hooks, 2); eq(w.shown("target"), "gold-elite")
+		eq(#w.textures, 24); eq(#w.hooks, 2); eq(w.shown("target"), "gold-elite")
 		-- Back to the gamepad UI: hidden at once; the hook and the events may repeat Hide on the
 		-- existing underlay, but never touch tier art or style/show anything.
 		w.style = 1
@@ -24343,7 +24627,7 @@ test("1.0.1 borders: nothing outside an ChillZone guild, on clients without Fore
 	WithBorders(function(w)
 		w.noAtlas["UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Silver-Winged"] = true
 		w.internal("LOGIN")
-		eq(#w.textures, 18, "five borders and one underlay on three frames (1.1.6: six tiers)")
+		eq(#w.textures, 21, "six available borders and one underlay on three frames (the missing silver wings are left out)")
 		w.target(BorderUnit("Sage Owl", "Wanderers", "Member", 3))
 		eq(w.shown("target"), nil, "no silver wings for a High Councillor")
 		w.target(BorderUnit("Zeusy", "ChillZone Zeus", "Zeus", 0))
@@ -24359,7 +24643,7 @@ test("1.0.1 borders: nothing outside an ChillZone guild, on clients without Fore
 		WithBorders(function(w)
 			w.noFile[MEDIA .. "bronze-winged"] = how
 			w.internal("LOGIN")
-			eq(#w.textures, 21)
+			eq(#w.textures, 24)
 			w.target(BorderUnit("Zeusy", "ChillZone Zeus", "Zeus", 0))
 			eq(w.shown("target"), "bronze-elite", "a guild master keeps a border")
 			local tex = w.shownTexture("target")
@@ -24502,12 +24786,12 @@ end)
 
 -- 1.0.0: the author's preview (/cz borders test <tier>|off, Borders.SetPreview). His character
 -- holds no ChillZone rank (a Member of <ChillZone II> here), so his own portrait showed none of the
--- six borders and he could not check them in game. (1.1.5: the three borders left.)
+-- seven borders and he could not check them in game. (1.1.5: the three borders left.)
 do
 	local AUTHOR_UNIT = BorderUnit("Faladoriel Skylance", "ChillZone II", "Member", 3, { realm = "ClassicBetaPvP" })
 	local function AsAuthor(w) w.units.player = AUTHOR_UNIT; ns.me = "Faladoriel Skylance-ClassicBetaPvP" end
 	local MEDIA = "Interface\\AddOns\\ChillZone\\media\\borders\\"
-	local TIER_LIST = "gold-elite, treasurer-dragon, silver-elite, silver, bronze-elite, bronze"
+	local TIER_LIST = "gold-elite, queen-dragon, treasurer-dragon, silver-elite, silver, bronze-elite, bronze"
 
 	-- Everything the addon could send while fn runs (an addon message by either API, a chat line,
 	-- Comm's own queues), recorded in `sent`.
@@ -24534,6 +24818,7 @@ do
 			-- its point from the right.
 			local want = {
 				{ "gold-elite", "atlas UI-HUD-UnitFrame-Target-PortraitOn-Boss-Gold-Winged", nil, "1 0 0 1", "-13 -4", "11 -4" },
+				{ "queen-dragon", "file " .. MEDIA .. "queen-dragon", "175 166.25", "0.78125 0 0 0.7421875", "-40 34", "38 34" },
 				{ "silver-elite", "atlas UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Silver-Winged", nil, "1 0 0 1", "-10 -7", "8 -7" },
 				{ "silver", "atlas ui-hud-unitframe-target-portraiton-boss-rare-silver", nil, "1 0 0 1", "-2 1", "0 1" },
 				{ "bronze-elite", "file " .. MEDIA .. "bronze-winged", "110 90", "0.859375 0 0 0.703125", "-13 -4", "11 -4" },
@@ -24588,7 +24873,7 @@ do
 			eq(w.shown("target"), "silver", "targeting himself: his own again")
 			assert(not ns.StatusText():find("preview", 1, true), "gone from /cz status")
 			-- The borders' own machinery unchanged: the same textures, the same hooks.
-			eq(#w.textures, 21); eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification")
+			eq(#w.textures, 24); eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification")
 			for _, entry in ipairs(w.log) do assert(entry:find(":CreateTexture$"), entry) end
 		end, AsAuthor)
 		-- An author who does hold a rank: the preview in its place while on, his own again after.
@@ -24674,33 +24959,36 @@ do
 			-- one row per border tier. 1.1.5: five tiers. 1.2: honours add five representative Workshop
 			-- previews between the rank borders and the member star. 1.2.4: four more, the crook, the
 			-- cross, the charm and the slayers' horse, worn now.)
-			eq(#rows, 16, "rank and honour previews, then the member star at the foot of the tab")
+			eq(#rows, 17, "rank and honour previews, then the member star at the foot of the tab")
 			assert(head.right:find(ns.L.BORDERS_PREVIEW_NONE, 1, true), "off")
+			local bronzeEliteRow
 			for i, t in ipairs(w.B.TIERS) do
 				assert(rows[i].text:find(t.name, 1, true), t.name)
 				assert(rows[i].text:find(ns.L["BORDERS_WHO_" .. t.name:upper():gsub("%-", "_")], 1, true), t.name .. ": who holds it")
 				eq(type(rows[i].onClick), "function"); eq(type(rows[i].tooltip), "function"); eq(rows[i].right, nil)
+				if t.name == "bronze-elite" then bronzeEliteRow = i end
 			end
-			assert(rows[16].text:find("member", 1, true) and rows[16].text:find(ns.L.BORDERS_WHO_MEMBER, 1, true), rows[16].text)
+			assert(bronzeEliteRow, "the guild master's tier")
+			assert(rows[17].text:find("member", 1, true) and rows[17].text:find(ns.L.BORDERS_WHO_MEMBER, 1, true), rows[17].text)
 			local tip = {}
-			rows[16].tooltip({ AddLine = function(_, text) tip[#tip + 1] = text end })
+			rows[17].tooltip({ AddLine = function(_, text) tip[#tip + 1] = text end })
 			eq(tip[2], ns.L.BORDERS_PREVIEW_TIP_MEMBER, "the star's own tooltip")
-			rows[16].onClick()
+			rows[17].onClick()
 			eq(w.B.Preview(), "member"); eq(w.shown("player"), nil, "the star: no border round his portrait")
 			eq(w.printed[#w.printed], ns.L.BORDERS_PREVIEW_ON_MEMBER)
-			rows[16].onClick()
+			rows[17].onClick()
 			eq(w.B.Preview(), "member", "the lines were built before the click: a fresh click shows it again")
 			head, rows = Section()
-			assert(rows[16].right and rows[16].right:find(ns.L.BORDERS_PREVIEW_SHOWN, 1, true), "marked shown")
-			rows[16].onClick()
+			assert(rows[17].right and rows[17].right:find(ns.L.BORDERS_PREVIEW_SHOWN, 1, true), "marked shown")
+			rows[17].onClick()
 			eq(w.B.Preview(), nil, "clicked again: off")
 			head, rows = Section()
-			rows[5].onClick()
+			rows[bronzeEliteRow].onClick()
 			eq(w.B.Preview(), "bronze-elite"); eq(w.shown("player"), "bronze-elite", "clicked: shown")
 			eq(w.printed[#w.printed], ns.L.BORDERS_PREVIEW_ON:format("bronze-elite"))
 			head, rows = Section()
 			assert(head.right:find(ns.L.BORDERS_PREVIEW_NOW:format("bronze-elite"), 1, true), head.right)
-			assert(rows[5].right and rows[5].right:find(ns.L.BORDERS_PREVIEW_SHOWN, 1, true), "marked shown")
+			assert(rows[bronzeEliteRow].right and rows[bronzeEliteRow].right:find(ns.L.BORDERS_PREVIEW_SHOWN, 1, true), "marked shown")
 			eq(rows[1].right, nil)
 			rows[1].onClick()
 			eq(w.shown("player"), "gold-elite", "another tier")
@@ -24859,7 +25147,7 @@ do
 			-- To mouse and keyboard: made, and shown.
 			w.style = 0
 			w.fire("INPUT_DEVICE_INTERFACE_TRANSITION", 0, 1)
-			eq(#w.textures, 21); eq(w.shown("player"), "gold-elite"); eq(w.shown("target"), "gold-elite")
+			eq(#w.textures, 24); eq(w.shown("player"), "gold-elite"); eq(w.shown("target"), "gold-elite")
 			-- Back to the gamepad UI: hidden at once; a new tier, the hook and the events may
 			-- repeat Hide on the underlay, but never touch tier art or style/show anything.
 			w.style = 1
@@ -24908,7 +25196,7 @@ do
 			eq(#w.textures, 0, "still in combat")
 			w.combat = false
 			w.fire("PLAYER_REGEN_ENABLED")
-			eq(#w.textures, 21); eq(#w.hooks, 2)
+			eq(#w.textures, 24); eq(#w.hooks, 2)
 			eq(w.shown("player"), "bronze-elite", "made once combat ended, and shown"); eq(w.shown("target"), "bronze-elite")
 			-- In combat again: tier after tier, tier art only switches visibility; the existing
 			-- underlay may be restyled, but nothing is made, sized or re-anchored.
@@ -24923,7 +25211,7 @@ do
 			SlashCmdList.CHILLZONE("borders test off")
 			eq(w.shown("player"), "silver"); eq(w.shown("target"), "silver") -- (1.1.5: his own, the dev's silver)
 			w.assertCombatCalls(12) -- (1.1.5: three tiers, 20 of six; then five)
-			eq(#w.textures, 21, "nothing more made")
+			eq(#w.textures, 24, "nothing more made")
 			for _, entry in ipairs(w.log) do assert(entry:find(":CreateTexture$"), entry) end
 		end, AsAuthor)
 	end)
@@ -24968,7 +25256,7 @@ do
 			"BORDERS_PREVIEW_NOT_MEMBER", "BORDERS_PREVIEW_COMBAT", "BORDERS_PREVIEW_MISSING", "BORDERS_PREVIEW_TITLE",
 			"BORDERS_PREVIEW_NONE", "BORDERS_PREVIEW_NOW", "BORDERS_PREVIEW_SHOWN", "BORDERS_PREVIEW_TIP" }
 		for name in TIER_LIST:gmatch("[^, ]+") do keys[#keys + 1] = "BORDERS_WHO_" .. name:upper():gsub("%-", "_") end
-		eq(#keys, 18, "the six tiers' too (1.1.6: the Treasurer's dragon) (1.1.5: six until then, three, then the two without wings)")
+		eq(#keys, 19, "the seven portrait tiers too")
 		for _, key in ipairs(keys) do
 			assert(type(ns.L[key]) == "string" and ns.L[key] ~= key, "English " .. key)
 			assert(type(pt.L[key]) == "string" and pt.L[key] ~= ns.L[key], "Portuguese " .. key)
@@ -25041,7 +25329,7 @@ do
 			eq(w.shown("target"), "bronze-elite"); eq(w.shown("player"), nil)
 			-- Five textures on each member frame itself (it has no container), as on the target's (1.1.5:
 			-- three, then the two without wings).
-			eq(#w.textures, 45, "six borders (1.1.6: the Treasurer's dragon too) (1.1.5: three, then the two without wings) on the target, the focus, your own and the four party frames, and the metal underlay on the first three (1.2)")
+			eq(#w.textures, 52, "seven borders on the target, the focus, your own and the four party frames, and the metal underlay on the first three")
 			local seen = {}
 			local regions = w.partyRegions -- (the template: the sizes and places below)
 			-- (1.4.4, the dev's ask: the dragons over the game's ring on the party portraits too.) Each
@@ -25106,11 +25394,11 @@ do
 						and tex.at.y > box.y - box.height and tex.at.y - tex.dims[2] < box.y, name .. " reaches the name's box")
 				end
 			end
-			-- The game's frames: CreateTexture alone, five on each member frame; one hook more, on PartyFrame.
+			-- The game's frames: CreateTexture alone, one per tier on each member frame; one hook more, on PartyFrame.
 			local made = {}
 			for _, entry in ipairs(w.log) do made[entry] = (made[entry] or 0) + 1 end
 			OnlyCreateTexture(w)
-			for k = 1, 4 do eq(made["PartyMember#" .. k .. ":CreateTexture"], 6) end
+			for k = 1, 4 do eq(made["PartyMember#" .. k .. ":CreateTexture"], #w.B.TIERS) end
 			eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification PartyFrame.InitializePartyMemberFrames")
 			assert(w.B.StatusLine():find("player -, party1 gold-elite, party2 silver-elite, party3 bronze-elite, party4 -", 1, true), w.B.StatusLine())
 		end)
@@ -25165,11 +25453,11 @@ do
 			picks["Zeusy-Realm"] = nil
 			w.B.Refresh("party3", true)
 			eq(PartyLine(w), "gold-elite silver-elite bronze-elite -")
-			-- Six textures on each member frame, every one a tier's art, never tinted, blended or
+			-- One texture per tier on each member frame, every one a tier's art, never tinted, blended or
 			-- desaturated since it was made: no red of ChillZone's.
 			local made = {}
 			for _, entry in ipairs(w.log) do made[entry] = (made[entry] or 0) + 1 end
-			for k = 1, 4 do eq(made["PartyMember#" .. k .. ":CreateTexture"], 6, "no honour texture on a member frame") end
+			for k = 1, 4 do eq(made["PartyMember#" .. k .. ":CreateTexture"], #w.B.TIERS, "no honour texture on a member frame") end
 			local n = 0
 			for _, tex in ipairs(w.textures) do
 				if tex.owner:find("^PartyMember#") then
@@ -25181,7 +25469,7 @@ do
 					end
 				end
 			end
-			eq(n, 24)
+			eq(n, #w.B.TIERS * 4)
 			-- /cz borders off: every texture of ChillZone's hidden; what a party frame shows then (a red
 			-- ring, a red portrait) is the game's.
 			SlashCmdList.CHILLZONE("borders off")
@@ -25240,7 +25528,7 @@ do
 			local n = w.computed()
 			w.fire("GROUP_ROSTER_UPDATE")
 			eq(w.computed(), n, "empty places again: nothing worked out")
-			eq(#w.textures, 45, "nothing made after the first: six on each frame")
+			eq(#w.textures, 52, "nothing made after the first: seven on each frame")
 			-- Only the guilds of the members looked at were ever looked up.
 			local theirs = { ["ChillZone Zeus"] = true, ["CHILLZONE"] = true, ["ChillZone II"] = true }
 			for _, k in ipairs(looked) do assert(theirs[k], "looked up " .. tostring(k)) end
@@ -25269,7 +25557,7 @@ do
 			eq(w.shownOn("PartyMember#2"), nil, "now the plain member's")
 			eq(PartyLine(w), "gold-elite silver-elite bronze-elite -")
 			eq(w.computed(), n, "nobody worked out again: the same members in the same places")
-			eq(#w.textures, 45, "no texture more")
+			eq(#w.textures, 52, "no texture more")
 			-- Another order, then the first again.
 			w.partyOrder = { 2, 4, 1, 3 }
 			PartyFrame:InitializePartyMemberFrames()
@@ -25335,7 +25623,7 @@ do
 			eq(w.shownOn("PartyMember#1"), nil, "not the one he showed on before")
 			w.fire("INPUT_DEVICE_INTERFACE_TRANSITION", 0, 1)
 			eq(PartyLine(w), "gold-elite - - -")
-			eq(#w.textures, 45, "nothing made again")
+			eq(#w.textures, 52, "nothing made again")
 		end)
 	end)
 
@@ -25406,7 +25694,7 @@ do
 				end
 			end
 			assert(calls >= 10, "shown and hidden in combat: " .. calls)
-			eq(#w.textures, 45, "nothing made in combat")
+			eq(#w.textures, 52, "nothing made in combat")
 			OnlyCreateTexture(w)
 		end)
 		-- Logged in (or reloaded) in combat, in a party: nothing made, no hook, until it ends.
@@ -25420,25 +25708,25 @@ do
 			eq(#w.log, 0, "nothing made in combat"); eq(#w.hooks, 0); eq(#w.textures, 0)
 			w.combat = false
 			w.fire("PLAYER_REGEN_ENABLED")
-			eq(#w.textures, 45); eq(PartyLine(w), "gold-elite silver-elite - -", "made once combat ended, and shown")
+			eq(#w.textures, 52); eq(PartyLine(w), "gold-elite silver-elite - -", "made once combat ended, and shown")
 		end)
 		-- PartyFrame not shown yet at login (no member frame handed out), then first shown in combat.
 		WithBorders(function(w)
 			w.party(false)
 			Party(w, PARTY_MASTER)
 			w.internal("LOGIN")
-			eq(#w.textures, 21, "the target's, the focus's and yours (each with its underlay): no member frame yet")
+			eq(#w.textures, 24, "the target's, the focus's and yours (each with its underlay): no member frame yet")
 			eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification PartyFrame.InitializePartyMemberFrames",
 				"PartyFrame's hook, to see them come")
 			w.combat = true
 			PartyFrame:InitializePartyMemberFrames()
 			w.fire("GROUP_ROSTER_UPDATE")
-			eq(#w.textures, 21, "none made in combat"); eq(w.shown("party1"), nil)
+			eq(#w.textures, 24, "none made in combat"); eq(w.shown("party1"), nil)
 			w.fire("PLAYER_REGEN_ENABLED")
-			eq(#w.textures, 21, "still in combat")
+			eq(#w.textures, 24, "still in combat")
 			w.combat = false
 			w.fire("PLAYER_REGEN_ENABLED")
-			eq(#w.textures, 45); eq(w.shown("party1"), "bronze-elite", "made once combat ended, and shown")
+			eq(#w.textures, 52); eq(w.shown("party1"), "bronze-elite", "made once combat ended, and shown")
 			-- Nothing waits any more: the next fight's end works nothing out again.
 			local n = w.computed()
 			w.combat = true; w.combat = false
@@ -25460,7 +25748,7 @@ do
 			-- To mouse and keyboard: made and shown.
 			w.style = 0
 			w.fire("INPUT_DEVICE_INTERFACE_TRANSITION", 0, 1)
-			eq(#w.textures, 45); eq(#w.hooks, 3); eq(PartyLine(w), "gold-elite silver-elite bronze-elite -")
+			eq(#w.textures, 52); eq(#w.hooks, 3); eq(PartyLine(w), "gold-elite silver-elite bronze-elite -")
 			-- Back to the gamepad UI: hidden at once; the roster, PartyFrame's hook, names and the census
 			-- call nothing on them and work nothing out.
 			w.style = 1
@@ -25593,7 +25881,7 @@ do
 			Party(w, PARTY_MASTER)
 			w.internal("LOGIN")
 			w.fire("GROUP_ROSTER_UPDATE")
-			eq(#w.textures, 21); eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification")
+			eq(#w.textures, 24); eq(table.concat(w.hooks, " "), "TargetFrame.CheckClassification FocusFrame.CheckClassification")
 			eq(w.shown("party1"), nil)
 			assert(w.B.StatusLine():find("target -, focus -, player -  |", 1, true), w.B.StatusLine())
 			OnlyCreateTexture(w)
@@ -26662,7 +26950,7 @@ do
 	end)
 end
 
-test("1.0.1 borders: Max's frames ship as 256 x 256 32-bit TGAs with alpha, the art within each tier's texture coordinates; his PNGs kept, README credits him", function()
+test("1.0.1 borders: the custom frames ship as 256 x 256 32-bit TGAs with alpha, the art within each tier's texture coordinates; source PNGs kept and credited", function()
 	WithBorders(function(w)
 		local files = 0
 		-- (1.1.5: his plain bronze is kept for later, on no tier: Borders.RESERVED, its art shipped.)
@@ -26689,25 +26977,41 @@ test("1.0.1 borders: Max's frames ship as 256 x 256 32-bit TGAs with alpha, the 
 				local left, right, top, bottom = unpack(t.coords)
 				eq(left, 0, path); eq(top, 0, path .. ": the art at the top left")
 				local artW, artH = right * 256, bottom * 256
-				eq(artW, t.width * 2, path .. ": the art twice as wide as on screen")
-				eq(artH, t.height * 2, path .. ": the art twice as tall as on screen")
+				if t.name == "queen-dragon" then
+					-- The unchanged authored pixels have transparent padding; runtime fits the
+					-- actual alpha opening, tested against the portrait in treasurer-dragon.lua.
+					eq(artW, 200, path .. ": the original complete authored texture area")
+					eq(artH, 190, path .. ": the original complete authored texture area")
+				else
+					eq(artW, t.width * 2, path .. ": the art twice as wide as on screen")
+					eq(artH, t.height * 2, path .. ": the art twice as tall as on screen")
+				end
 				local topDown = math.floor(descriptor / 32) % 2 == 1
-				local outside, opaque, clear = 0, 0, 0
+				local outside, opaque, partial, clear, alpha = 0, 0, 0, 0, 0
 				for row = 0, height - 1 do
 					local y = topDown and row or (height - 1 - row)
 					local base = start + row * width * 4
 					for x = 0, width - 1 do
 						local a = data:byte(base + x * 4 + 3)
 						if a > 0 and (x >= artW or y >= artH) then outside = outside + 1 end
-						if a == 255 then opaque = opaque + 1 elseif a == 0 then clear = clear + 1 end
+						alpha = alpha + a
+						if a == 255 then opaque = opaque + 1 elseif a == 0 then clear = clear + 1 else partial = partial + 1 end
 					end
 				end
 				eq(outside, 0, path .. ": nothing drawn outside the art's area")
-				assert(opaque > 5000, path .. ": the art is there (" .. opaque .. " opaque pixels)")
+				local visible = opaque + partial
+				assert(visible > 5000, path .. ": the art is there (" .. visible .. " visible pixels)")
+				assert(alpha > 5000 * 255, path .. ": substantial visible art (" .. alpha .. " total alpha)")
+				if t.name == "queen-dragon" then
+					assert(partial > 5000 and partial > opaque,
+						path .. ": the supplied dragon's semi-transparent detail is kept (" .. partial .. " partial-alpha pixels)")
+				else
+					assert(opaque > 5000, path .. ": the opaque art is there (" .. opaque .. " opaque pixels)")
+				end
 				assert(clear > 256 * 256 - artW * artH, path .. ": transparent round the frame")
 			end
 		end
-		eq(files, 3, "Max's two frames and the primary Treasurer's dragon (1.1.6)")
+		eq(files, 4, "Max's two frames, the Queen's dragon and the primary Treasurer's dragon")
 	end)
 	-- His PNGs, in the repository (not in the addon), at the size of the game's frames he drew over.
 	for name, size in pairs({ ["bronze-plain"] = { 200, 200 }, ["bronze-winged"] = { 220, 180 } }) do
@@ -26719,10 +27023,22 @@ test("1.0.1 borders: Max's frames ship as 256 x 256 32-bit TGAs with alpha, the 
 		eq(data:byte(26), 6, path .. ": RGBA")
 		assert(ReadFile(ADDON_DIR .. "media/borders/src/" .. name .. ".png") == nil, "not shipped in the addon")
 	end
-	-- README's Credits name him for them, as Max.
+	-- Kaise's authored source is kept too, outside the shipped addon.
+	do
+		local path = ROOT .. "media/borders/src/queen-dragon.png"
+		local data = ReadFile(path)
+		assert(data and data:sub(1, 8) == "\137PNG\r\n\26\n", "a PNG: " .. path)
+		local function u32(i) local a, b, c, d = data:byte(i, i + 3) return ((a * 256 + b) * 256 + c) * 256 + d end
+		eq(data:sub(13, 16), "IHDR"); eq(u32(17), 1234, path .. ": width"); eq(u32(21), 1187, path .. ": height")
+		eq(data:byte(26), 6, path .. ": RGBA")
+		assert(ReadFile(ADDON_DIR .. "media/borders/src/queen-dragon.png") == nil, "not shipped in the addon")
+	end
+	-- README's Credits name both artists for their work.
 	local readme = assert(ReadFile(ROOT .. "README.md"))
 	local credits = readme:match("\n## Credits\n(.-)\n## ")
 	assert(credits and credits:find("\n%- %*%*Art:%*%* Max %(the bronze elite borders"), "README's Credits credit Max for the bronze frames")
+	assert(credits and credits:find("Kaise %(the Queen's red, gold and white%-winged dragon frame%)"),
+		"README's Credits credit Kaise for the Queen frame")
 end)
 
 ---------------------------------------------------------------------------
@@ -28966,7 +29282,7 @@ do
 		local reg = {}
 		assert(loadfile(ADDON_DIR .. "GamepadRegistry.lua"))("ChillZone", reg)
 		assert(type(reg.GAMEPAD) == "table" and #reg.GAMEPAD >= 20, "the list")
-		eq(reg.GAMEPAD_CHECKED_BUILD, 70205, "Forever 1.60.1's build, the pins were checked on")
+		eq(reg.GAMEPAD_CHECKED_BUILD, 70790, "Forever 1.60.1's build, the pins were checked on")
 		local GUARDS = { gate = true, own = true, click = true, exempt = true, isolated = true }
 		local PAD = { park = true, inert = true, reload = true, stays = true }
 		local MOUSE = { install = true, on = true, nothing = true }
@@ -29037,7 +29353,7 @@ do
 			eq(G.Allowed("no-such-thing"), false)
 			eq(#w.errors, 1, "reported once"); assert(w.errors[1]:find("no-such-thing", 1, true), w.errors[1])
 			assert(G.StatusLine():find("not listed: no-such-thing", 1, true), G.StatusLine())
-			assert(G.StatusLine():find("integrations listed (checked on build 70205)", 1, true), G.StatusLine())
+			assert(G.StatusLine():find("integrations listed (checked on build 70790)", 1, true), G.StatusLine())
 			-- Asked while the files load, before the error capture exists: reported the next time.
 			local early = {}
 			local w2 = NewGate(function(_, gns) gns.CaptureError = false end, style)
@@ -34945,10 +35261,10 @@ end)
 test("1.1 join routing (Fern #20): the Join screen asks one member where to go, lists the gates' guild first and the most free slots, asks their officers, skips a do-not-contact member, and sends one whisper per click with its J3", function()
 	local R, V, L = ns.Recruit, ns.Views, ns.L
 	local saved = { guild = GetGuildInfo, inGuild = IsInGuild, outside = ns.Comm.WhisperOutside, level = UnitLevel, class = UnitClass, time = GetTime }
-	local ok, err = pcall(function()
+	local ok, err = pcall(WithUI, function()
 		WithGamepadUI(false, function(game)
 			Fern.Census(function(w)
-				R.ResetForTests()
+				R.ResetForTests(); ns.Dialog.Reset()
 				GetGuildInfo = function() return nil end
 				IsInGuild = function() return false end
 				UnitLevel = function() return 12 end
@@ -34992,25 +35308,28 @@ test("1.1 join routing (Fern #20): the Join screen asks one member where to go, 
 				assert(guilds[1].gates and guilds[2].free == 900, "with the route's word")
 				-- Asking the gates' guild: its Captain online first, and his addon asked first.
 				lines[at + 1].onClick()
-				eq(game.shown[1].which, "CHILLZONE_RECRUIT"); eq(game.shown[1].a, "Scap-Realm", "by the name /who gave"); eq(game.shown[1].b, "ChillZone R2")
+				local prompt = assert(ns.Dialog.Find("CHILLZONE_RECRUIT"))
+				eq(#game.shown, 0, "recruit confirmation stays off native guild-control state")
+				eq(prompt.data.name, "Scap-Realm", "by the name /who gave"); eq(prompt.data.guild, "ChillZone R2")
 				eq(out[#out], "Scap J1~1", "the member about to be whispered is asked first")
 				-- He takes no recruit whispers: the question closes before anything is sent.
 				eq(R.OnRoute("Scap-Realm", "J2~n~ChillZone R2~3500~"), true)
-				eq(game.hidden[1], "CHILLZONE_RECRUIT"); eq(w.printed[#w.printed], L.RECRUIT_DNC:format("Scap"))
+				eq(prompt:IsShown(), false); eq(w.printed[#w.printed], L.RECRUIT_DNC:format("Scap"))
 				eq(R.NoContact("Scap"), true); eq(#w.said, 0)
 				eq(R.Route().gates, "ChillZone R2", "his answer still routes")
 				-- Next: that guild's member /who found.
 				R.PromptNext("ChillZone R2")
-				eq(game.shown[2].a, "Ccc-Realm")
+				prompt = assert(ns.Dialog.Find("CHILLZONE_RECRUIT"))
+				eq(prompt.data.name, "Ccc-Realm")
 				-- Send: one whisper, the player's own words, and its J3 to the same member.
-				local text = R.Message(game.shown[2].data)
+				local text = R.Message(prompt.data)
 				Fern.NoDues(text, "the request")
-				StaticPopupDialogs.CHILLZONE_RECRUIT.OnAccept({ editBox = { GetText = function() return text end } }, game.shown[2].data)
+				prompt.buttons[1]:Click()
 				eq(#w.said, 1); eq(w.said[1].kind, "WHISPER"); eq(w.said[1].to, "Ccc"); eq(w.said[1].text, text)
 				eq(out[#out], "Ccc J3~ChillZone R2~12~MAGE")
 				-- One whisper per click, and the wait between two.
 				R.PromptNext("ChillZone R2")
-				local contact = game.shown[#game.shown].data
+				local contact = assert(R.lastContact)
 				eq(R.Ask(contact, "hi"), false); eq(#w.said, 1)
 				-- A member of the /who list who asked not to be contacted: marked, no click.
 				R.Prompt(R.found[2])
@@ -35023,6 +35342,7 @@ test("1.1 join routing (Fern #20): the Join screen asks one member where to go, 
 				R.asked.Lordy = 1
 				eq(R.NextContact("ChillZone II").name, "Aaa-Realm", "then /who's, never Bbb")
 				for _, s in ipairs(w.sent) do error("nothing on the channel: " .. s) end
+				ns.Dialog.Reset()
 			end)
 		end)
 	end)
@@ -35258,11 +35578,11 @@ end)
 test("1.1 join routing (Fern #20): do not contact holds under load: past ANSWER_MAX a member still tells each asker no, and the Join screen asks again one who never answered before the whisper", function()
 	local R = ns.Recruit
 	local savedOff = ns.db.recruitsOff
-	local saved = { guild = GetGuildInfo, inGuild = IsInGuild, outside = ns.Comm.WhisperOutside, now = ns.Now, time = GetTime }
-	local ok, err = pcall(function()
+	local saved = { guild = GetGuildInfo, inGuild = IsInGuild, outside = ns.Comm.WhisperOutside, now = ns.Now, time = GetTime, level = UnitLevel, class = UnitClass }
+	local ok, err = pcall(WithUI, function()
 		-- The member's side: fifteen recruits in one minute.
 		Fern.Census(function(w)
-			R.ResetForTests()
+			R.ResetForTests(); ns.Dialog.Reset()
 			local now = os.time()
 			ns.Comm.loginAt = now - 1000
 			ns.Acts.Gates = function() return nil end
@@ -35290,6 +35610,8 @@ test("1.1 join routing (Fern #20): do not contact holds under load: past ANSWER_
 				GetGuildInfo = function() return nil end
 				IsInGuild = function() return false end
 				GetTime = function() return 1000 end
+				UnitLevel = function() return 12 end
+				UnitClass = function() return "Mage", "MAGE", 8 end
 				local clock = os.time()
 				ns.Now = function() return clock end
 				local j1 = {}
@@ -35299,9 +35621,11 @@ test("1.1 join routing (Fern #20): do not contact holds under load: past ANSWER_
 				eq(j1[1], "Busy")
 				clock = clock + 120
 				R.Prompt(busy)
+				local prompt = assert(ns.Dialog.Find("CHILLZONE_RECRUIT"))
 				eq(j1[2], "Busy", "asked again, well within ROUTE_FRESH")
 				eq(R.OnRoute("Busy-Realm", R.DNC_ANSWER), true)
-				eq(game.hidden[#game.hidden], "CHILLZONE_RECRUIT", "closed before anything is sent")
+				eq(prompt:IsShown(), false, "closed before anything is sent")
+				eq(#game.shown, 0, "no native popup")
 				eq(R.Ask(busy, "Hi! I'd love to join ChillZone."), false); eq(#w.said, 0)
 				-- One who answered is not asked again within ROUTE_FRESH.
 				R.Prompt(other)
@@ -35311,10 +35635,12 @@ test("1.1 join routing (Fern #20): do not contact holds under load: past ANSWER_
 				R.Prompt(other)
 				eq(#j1, 3)
 				eq(R.Ask(other, "Hi! I'd love to join ChillZone."), true); eq(w.said[1].to, "Other")
+				ns.Dialog.Reset()
 			end)
 		end)
 	end)
 	GetGuildInfo, IsInGuild, ns.Comm.WhisperOutside, ns.Now, GetTime = saved.guild, saved.inGuild, saved.outside, saved.now, saved.time
+	UnitLevel, UnitClass = saved.level, saved.class
 	ns.db.recruitsOff = savedOff
 	R.ResetForTests()
 	if not ok then error(err, 0) end
@@ -55283,6 +55609,7 @@ do
 			hand = ns.King.IsHandName, hides = ns.Moderation.Hides, tex = C_Texture, known = ns.Data.KnownRank }
 		local ok, err = pcall(function()
 			local filters, printed, gamepad = {}, {}, true
+			local queenActive = true
 			ChatFrameUtil = { AddSenderNameFilter = function(cb) filters[#filters + 1] = cb end }
 			GamepadStyle(function() return gamepad end)
 			ns.Print = function(m) printed[#printed + 1] = m end
@@ -55309,10 +55636,12 @@ do
 			local GOLD = "|A:nameplates-icon-elite-gold:14:14|a"
 			local SILVER = "|A:nameplates-icon-elite-silver:14:14|a"
 			local BRONZE = "|A:nameplates-icon-elite-gold:14:14:0:0:158:118:86|a"
+			local QUEEN = "|TInterface\\AddOns\\ChillZone\\media\\borders\\queen-dragon:14:20:0:0:256:256:44:114:24:73|t"
 			local STAR = "|TInterface\\AddOns\\ChillZone\\media\\borders\\star:14:14|t"
 			-- Borders.lua's own handlers, recorded so the test drives them as the game would.
 			local on, events, every, after = {}, {}, {}, {}
 			local bns = setmetatable({
+				IsQueenCharacter = function(who) return queenActive and who == "Queen Test-Realm" end,
 				On = function(n, f) on[n] = on[n] or {}; table.insert(on[n], f) end,
 				RegisterEvent = function(e, f) events[e] = events[e] or {}; table.insert(events[e], f) end,
 				Every = function(sec, what, f) every[#every + 1] = { sec = sec, f = f } end,
@@ -55345,6 +55674,8 @@ do
 			-- officer chat's: the dragons, never the star.
 			local cases = {
 				{ "Asmongold Asmongler-Realm", GOLD, "the King (his pinned name)", GOLD },
+				{ "Queen Test-Realm", QUEEN, "the exact signed Queen, without a guild claim", QUEEN },
+				{ "Queen Test-Elsewhere", nil, "a Queen namesake on another realm", nil },
 				{ "Sage Owl-Realm", SILVER .. "|T134400:0|t", "a High Councillor, then his icon", SILVER .. "|T134400:0|t" },
 				{ "Zeta Prime-Realm", BRONZE, "another ChillZone guild's master, as its census names him", BRONZE },
 				{ "Guild Boss-Realm", BRONZE, "our own guild master, by our roster", BRONZE },
@@ -55374,6 +55705,25 @@ do
 					eq(cb(event, name, "hello", c[1]), nil, c[3] .. ", " .. event)
 				end
 			end
+			-- A display title grants no authority or nameplate mark. Its signed identity, cover,
+			-- moderation and existing consent/input gates still own the native chat decoration.
+			local queenIdentity = bns.IsQueenCharacter
+			bns.IsQueenCharacter = function(who) return queenIdentity(who) or who == "Asmongold Asmongler-Realm" end
+			B.ChatForget()
+			eq(cb("CHAT_MSG_SAY", "King", "hi", "Asmongold Asmongler-Realm"), GOLD .. "King", "King wins even when both signed titles match")
+			bns.IsQueenCharacter = queenIdentity; B.ChatForget()
+			eq(B.MarkOfName("Queen Test-Realm", nil), nil, "chat-only icon leaves nameplate marks unchanged")
+			queenActive = false; Fire(on, "DATA_CHANGED")
+			eq(cb("CHAT_MSG_GUILD", "Queen Test", "hi", "Queen Test-Realm"), nil, "revoked title loses its cached icon")
+			queenActive = true; Fire(on, "DATA_CHANGED")
+			bns.Cover = { AliasOf = function(who) return who == "Queen Test-Realm" and "Covered" or nil end }
+			Fire(on, "COVER_CHANGED")
+			eq(cb("CHAT_MSG_SAY", "Queen Test", "hi", "Queen Test-Realm"), nil, "cover hides Queen identity")
+			bns.Cover = nil; Fire(on, "COVER_CHANGED")
+			ns.Moderation.Hides = function(who) if who == "Queen Test-Realm" then return { kind = "c" } end end
+			B.ChatForget()
+			eq(cb("CHAT_MSG_GUILD", "Queen Test", "hi", "Queen Test-Realm"), nil, "net-off hides Queen identity")
+			ns.Moderation.Hides = saved.hides; B.ChatForget()
 			-- A star member's line in guild chat first: none there, and the star all the same on his next
 			-- line in Trade (one worked-out mark for both).
 			B.ChatForget()
@@ -55518,11 +55868,13 @@ do
 			eq(cb("CHAT_MSG_GUILD", "Zeta Prime", "hi", "Zeta Prime-Realm"), nil, "kept mark, guild chat")
 			eq(cb("CHAT_MSG_SAY", "Capt", "hi", "Capt Prime-Realm"), nil, "new sender")
 			eq(B.ChatName("Sage Owl-Realm"), false)
+			eq(cb("CHAT_MSG_SAY", "Queen Test", "hi", "Queen Test-Realm"), nil, "Queen hidden outside membership")
 			ns.IsMember = saved.member
 			B.ChatForget()
 			-- /cz chatmarks off: nothing, until on again; registered once all along.
 			B.ChatSlash("off")
 			eq(ns.db.chatMarks, false); eq(printed[#printed], ns.L.CHATMARKS_OFF)
+			eq(cb("CHAT_MSG_SAY", "Queen Test", "hi", "Queen Test-Realm"), nil, "Queen obeys chat marks off")
 			eq(cb("CHAT_MSG_SAY", "Zeta Prime", "hi", "Zeta Prime-Realm"), nil)
 			eq(cb("CHAT_MSG_GUILD", "Guild Boss", "hi", "Guild Boss-Realm"), nil, "off: guild chat too")
 			B.ChatSlash("on")
@@ -55532,6 +55884,7 @@ do
 			-- Switched to the gamepad UI later: the callback returns at once.
 			gamepad = true
 			B.ChatRefresh()
+			eq(cb("CHAT_MSG_SAY", "Queen Test", "hi", "Queen Test-Realm"), nil, "Queen obeys gamepad parking")
 			eq(cb("CHAT_MSG_SAY", "Zeta Prime", "hi", "Zeta Prime-Realm"), nil)
 			eq(cb("CHAT_MSG_GUILD", "Guild Boss", "hi", "Guild Boss-Realm"), nil, "the gamepad UI: guild chat too")
 			gamepad = false
@@ -60313,7 +60666,10 @@ end)()
 	local function MenuRoot()
 		local root = { items = {} }
 		local function Desc(kind, text, cb)
-			local d = { kind = kind, text = text, cb = cb, enabled = true }
+			-- Element descriptions support the same child controls as the root, per
+			-- Blizzard_Menu/11_0_0_MenuImplementationGuide.lua's Submenus example.
+			local d = MenuRoot()
+			d.kind, d.text, d.cb, d.enabled = kind, text, cb, true
 			function d:SetTooltip(fn) self.tip = fn end
 			function d:SetEnabled(on) self.enabled = on end
 			root.items[#root.items + 1] = d
@@ -60407,7 +60763,7 @@ end)()
 		return true
 	end
 
-	test("1.1.2 player menus: Menu.ModifyMenu for each player menu (never ENEMY_PLAYER, SELF, offline names or Battle.net); ChillZone's lines after a divider and its title, only for a player we can reach; nothing without Menu", function()
+	test("1.1.2 player menus: Menu.ModifyMenu for each player menu (never ENEMY_PLAYER, offline names or Battle.net); ChillZone's lines after a divider and its title, only for a player we can reach; nothing without Menu", function()
 		WithVersions("Tester-Realm", function(w)
 			local savedMenu, savedEnum = rawget(_G, "Menu"), Enum.ClubMemberPresence
 			local savedUnit = { player = UnitIsPlayer, is = UnitIsUnit, conn = UnitIsConnected, full = UnitFullName }
@@ -60420,12 +60776,12 @@ end)()
 				Menu = { ModifyMenu = function(tag, cb) hooks[tag] = cb; order[#order + 1] = tag; return {} end }
 				eq(PM.Hook(), true); eq(PM.Hook(), true, "once")
 				eq(#order, #PM.WHICH, "each menu once")
-				for _, which in ipairs({ "PLAYER", "PARTY", "RAID_PLAYER", "RAID", "FRIEND", "COMMUNITIES_WOW_MEMBER", "CHAT_ROSTER" }) do
+				for _, which in ipairs({ "SELF", "PLAYER", "PARTY", "RAID_PLAYER", "RAID", "FRIEND", "COMMUNITIES_WOW_MEMBER", "CHAT_ROSTER" }) do
 					assert(hooks["MENU_UNIT_" .. which], which)
 				end
 				-- (Changed on purpose, 1.2.1, an officer's failed rank change: never the game's guild
 				-- roster menus, which hold its promote, demote, rank and removal; PlayerMenu.NEVER.)
-				for _, which in ipairs({ "ENEMY_PLAYER", "SELF", "FRIEND_OFFLINE", "GUILD_OFFLINE", "BN_FRIEND", "BN_FRIEND_OFFLINE", "TARGET",
+				for _, which in ipairs({ "ENEMY_PLAYER", "FRIEND_OFFLINE", "GUILD_OFFLINE", "BN_FRIEND", "BN_FRIEND_OFFLINE", "TARGET",
 					"COMMUNITIES_GUILD_MEMBER", "GUILD" }) do
 					eq(hooks["MENU_UNIT_" .. which], nil, which)
 				end
@@ -60436,7 +60792,7 @@ end)()
 				-- anyone who may run ChillZone, greyed with the reason when they can't go. Changed on
 				-- purpose, 1.2.1, the author's call: Ask to update in the author's, the King's and the
 				-- High Council's menus alone; this one is a plain member's.)
-				eq(root.Texts(), "divider: | title:ChillZone | title:" .. L.VERSION_LINE_UNKNOWN .. " | button:" .. L.VERSION_CHECK)
+				eq(root.Texts(), "divider: | title:ChillZone | title:" .. L.VERSION_LINE_UNKNOWN .. " | button:" .. L.VERSION_CHECK .. " | divider: | button:" .. L.PLAYERMENU_COLLAPSE)
 				assert(TipOf(root.Find(L.VERSION_CHECK)):find(L.VERSION_CHECK_TIP, 1, true))
 				eq(#w.whispered + #w.sent, 0, "opening a menu sends nothing")
 				-- Whoever we can't reach: no line at all.
@@ -60462,11 +60818,11 @@ end)()
 				-- from, when and the newest known: a gamepad can't reach a menu line's tooltip.)
 				local detail = L.VERSION_DETAIL_HELLO:format(ns.Ago(w.clock)) .. "; " .. L.VERSION_DETAIL_NEWEST:format(ns.VERSION)
 				-- (Check version there too, the owner's call, 2026-09-30; Ask to update for a councillor.)
-				eq(r.Texts(), "divider: | title:ChillZone | title:" .. L.VERSION_LINE_OUTDATED:format("1.0.0") .. " | title:|cff9d9d9d" .. detail .. "|r | button:" .. L.VERSION_CHECK)
+				eq(r.Texts(), "divider: | title:ChillZone | title:" .. L.VERSION_LINE_OUTDATED:format("1.0.0") .. " | title:|cff9d9d9d" .. detail .. "|r | button:" .. L.VERSION_CHECK .. " | divider: | button:" .. L.PLAYERMENU_COLLAPSE)
 				Council("Tester")
 				r = MenuRoot()
 				hooks.MENU_UNIT_PLAYER(nil, r, { unit = "target" })
-				eq(r.Texts(), "divider: | title:ChillZone | title:" .. L.VERSION_LINE_OUTDATED:format("1.0.0") .. " | title:|cff9d9d9d" .. detail .. "|r | button:" .. L.VERSION_ASK .. " | button:" .. L.VERSION_CHECK)
+				eq(r.Texts(), "divider: | title:ChillZone | title:" .. L.VERSION_LINE_OUTDATED:format("1.0.0") .. " | title:|cff9d9d9d" .. detail .. "|r | button:" .. L.VERSION_ASK .. " | button:" .. L.VERSION_CHECK .. " | divider: | button:" .. L.PLAYERMENU_COLLAPSE)
 				ns.rdb.council = nil
 				eq(PM.Target("PLAYER", { unit = "target" }).name, "Bob-Realm")
 				for _, unit in ipairs({ "npc", "gone", "player" }) do eq(PM.Target("PLAYER", { unit = unit }), nil, unit) end
@@ -60491,6 +60847,95 @@ end)()
 			Menu, Enum.ClubMemberPresence = savedMenu, savedEnum
 			UnitIsPlayer, UnitIsUnit, UnitIsConnected, UnitFullName = savedUnit.player, savedUnit.is, savedUnit.conn, savedUnit.full
 			PM.Reset()
+			if not ok then error(err, 0) end
+		end)
+	end)
+
+	test("player menus 1.5.2: native self portrait offers local tooltip settings, including the collapsed submenu, without adding them to other menus", function()
+		WithVersions("Tester-Realm", function(w)
+			local old = { menu = Menu, tooltip = ns.PlayerTooltip, ui = ns.UI, collapsed = ns.db.playerMenuCollapsed,
+				full = UnitFullName, player = UnitIsPlayer, is = UnitIsUnit, connected = UnitIsConnected }
+			local hooks, opened = {}, 0
+			local ok, err = pcall(function()
+				Menu = { ModifyMenu = function(tag, cb) hooks[tag] = cb end }
+				ns.PlayerTooltip = { OpenSettings = function() opened = opened + 1 end }
+				ns.UI = { OpenPlayerProfile = function() end }
+				UnitFullName = function(unit) return unit == "player" and "Tester" or "Other", "Realm" end
+				UnitIsPlayer, UnitIsConnected = function() return true end, function() return true end
+				UnitIsUnit = function(a, b) return a == b end
+				ns.db.playerMenuCollapsed = nil
+				PM.Reset(); eq(PM.Hook(), true)
+				local callback = assert(hooks.MENU_UNIT_SELF, "PlayerFrame.lua opens SELF, not PLAYER")
+				local root = MenuRoot()
+				callback(nil, root, { unit = "player", fromPlayerFrame = true })
+				assert(root.Find(L.ARENA_MENU_PROFILE), "own profile remains available")
+				assert(root.Find(L.PLAYER_TOOLTIP_SETTINGS), "settings on the native own portrait").cb()
+				eq(opened, 1)
+				eq(root.Find(L.VERSION_CHECK), nil, "no self version request")
+				assert(root.Find(L.PLAYERMENU_COLLAPSE)).cb()
+				local compact = MenuRoot()
+				callback(nil, compact, { unit = "player", fromPlayerFrame = true })
+				eq(compact.Texts(), "divider: | button:ChillZone")
+				local sub = assert(compact.Find(L.PLAYERMENU_TITLE))
+				assert(sub.Find(L.PLAYER_TOOLTIP_SETTINGS)).cb(); eq(opened, 2)
+				assert(sub.Find(L.PLAYERMENU_EXPAND)).cb()
+				for _, which in ipairs({ "FRIEND", PM.ROW, "PLAYER" }) do
+					local other = MenuRoot()
+					PM.Build(which, other, { name = ns.me })
+					eq(other.Find(L.PLAYER_TOOLTIP_SETTINGS), nil, "own name outside portrait: " .. which)
+				end
+				local other = MenuRoot()
+				hooks.MENU_UNIT_PLAYER(nil, other, { unit = "target" })
+				eq(other.Find(L.PLAYER_TOOLTIP_SETTINGS), nil, "other player's portrait")
+				local malformed = MenuRoot()
+				callback(nil, malformed, { unit = "target", fromPlayerFrame = true })
+				eq(#malformed.items, 0, "SELF never targets another character")
+				ns.PlayerTooltip = nil
+				local missing = MenuRoot()
+				callback(nil, missing, { unit = "player", fromPlayerFrame = true })
+				eq(missing.Find(L.PLAYER_TOOLTIP_SETTINGS), nil, "old client without the module")
+				assert(missing.Find(L.ARENA_MENU_PROFILE))
+				eq(#w.whispered + #w.sent, 0, "local settings never send messages")
+			end)
+			Menu, ns.PlayerTooltip, ns.UI, ns.db.playerMenuCollapsed = old.menu, old.tooltip, old.ui, old.collapsed
+			UnitFullName, UnitIsPlayer, UnitIsUnit, UnitIsConnected = old.full, old.player, old.is, old.connected
+			PM.Reset()
+			if not ok then error(err, 0) end
+		end)
+	end)
+
+	test("player menus 1.5.2: collapse keeps actions in one submenu, persists and can expand again without sending anything", function()
+		WithVersions("Tester-Realm", function(w)
+			local previous = ns.db.playerMenuCollapsed
+			local ok, err = pcall(function()
+				ns.db.playerMenuCollapsed = nil
+				local full = MenuRoot()
+				PM.Build("FRIEND", full, { name = "Ann" })
+				assert(full.Find(L.VERSION_CHECK), "normal actions visible")
+				assert(full.Find(L.PLAYERMENU_COLLAPSE), "collapse offered in the menu").cb()
+				eq(ns.db.playerMenuCollapsed, true, "saved preference")
+				PM.Reset()
+				local compact = MenuRoot()
+				PM.Build("FRIEND", compact, { name = "Ann" })
+				eq(compact.Texts(), "divider: | button:ChillZone", "only one ChillZone option at the top level")
+				local sub = assert(compact.Find(L.PLAYERMENU_TITLE))
+				assert(sub.Find(L.VERSION_CHECK), "original action remains available")
+				assert(sub.Find(L.PLAYERMENU_EXPAND), "expand stays accessible").cb()
+				eq(ns.db.playerMenuCollapsed, false)
+				local reopened = MenuRoot()
+				PM.Build("FRIEND", reopened, { name = "Ann" })
+				assert(reopened.Find(L.VERSION_CHECK), "expanded next opening")
+				eq(#w.whispered + #w.sent, 0, "display changes never send messages")
+				-- Already-built callbacks become inert after switching to the gamepad UI.
+				GamepadStyle(function() return true end)
+				reopened.Find(L.PLAYERMENU_COLLAPSE).cb()
+				eq(ns.db.playerMenuCollapsed, false, "stale click cannot act with gamepad")
+				local empty = MenuRoot()
+				eq(PM.Build("FRIEND", empty, { name = "Ann" }), 0)
+				eq(#empty.items, 0)
+			end)
+			GamepadStyle(nil)
+			ns.db.playerMenuCollapsed = previous
 			if not ok then error(err, 0) end
 		end)
 	end)
@@ -62280,9 +62725,11 @@ end)()
 	end)
 
 	test("1.4.0: the version, the TOC's files in order, the new message types in Comm.lua's list", function()
-		eq(ns.VERSION, "1.5.1") -- the release has one identity in both folders
+		eq(ns.VERSION, "1.5.3") -- the release has one identity in both folders
 		local toc = assert(ReadFile(ADDON_DIR .. "ChillZone.toc"))
-		assert(toc:find("## Version: 1.5.1", 1, true))
+		-- (ChillZone, the port of 1.5.3: the original's hotfix raised the TOC and ns.VERSION to 1.5.3 and left
+		-- this line at 1.5.2; both folders say 1.5.3.)
+		assert(toc:find("## Version: 1.5.3", 1, true))
 		eq(ns.Workshop.Newer("1.4.0", "1.3.3"), true, "the launch release is newer")
 		eq(ns.Workshop.Newer("1.3.3", "1.4.0"), false)
 		eq(ns.Workshop.Newer("1.4.1", "1.4.0"), true, "the next patch remains newer")
@@ -62367,7 +62814,7 @@ test("hop sighting mixed versions: a client without LY ignores the new word", fu
 end)
 assert(loadfile(ROOT .. "tests/hop-regressions.lua"))(ns, test, eq, WithHop)
 local focused = Harness.watchOnly and { "watch", "watch-chat", "chat-strikes", "watch-council-view" }
-		or { "hop", "hop-sightings", "player-sightings", "transport", "admission", "privacy", "census", "authority", "chat-rooms", "war", "watch", "watch-chat", "chat-strikes", "wanted", "wanted-guilds", "wanted-sightings", "map-wanted", "king-arrow",
+		or { "hop", "hop-sightings", "player-sightings", "transport", "admission", "privacy", "census", "authority", "chat-rooms", "war", "watch", "watch-chat", "chat-strikes", "wanted", "wanted-guilds", "wanted-sightings", "map-wanted", "map-names", "king-arrow",
 		"church", "church-count", "church-fullness", "church-view", "church-head", "department-access", "nominees-durable", "watch-council-view", "innkeeper-arrow", "squads", "king-centurions", "court-calls", "weekly-brief", "main-key", "guild-charter", "officer-muster", "dues-history", "accord", "tag-follow",
 		"campaign", "guild-finance", "dues-grace", "dues-roster-checkpoints", "justice-tasks", "justice-shared", "chat-channel-links", "perf", "roster", "census-avg-level", "ranking-rules", "profile-menu", "history-carry", "carry-history", "carry-merger", "party-guard", "profile-effects", "quiet-presence", "record", "realm-pages", "census-clean", "census-stats", "cover", "bridge-people", "bridge-affairs", "site-aggregate", "selftest", "locales-full", "role-briefings", "church-top-relay", "bridge-membership", "verify", "groups" }
 for _, name in ipairs(focused) do
@@ -62729,7 +63176,7 @@ end)()
 	end
 
 	test("1.4.0 version letters: release identity agrees across both TOCs and localized letters; reading the old release does not hide the new letter", function()
-		eq(ns.VERSION, "1.5.1")
+		eq(ns.VERSION, "1.5.3")
 		for _, path in ipairs({ "ChillZone/ChillZone.toc", "ChillZone_Arena/ChillZone_Arena.toc" }) do
 			local toc = assert(ReadFile(ROOT .. path))
 			eq(toc:match("## Version:%s*(%S+)"), ns.VERSION, path)
@@ -63228,7 +63675,7 @@ end)()
 			eq(f.title:IsShown(), false); eq(f.body:IsShown(), false); eq(f.all:IsShown(), false)
 			local versions = Lt.Versions()
 			eq(#versions, #Lt.LIST, "a letter for every version listed")
-			eq(table.concat(versions, " "), "1.5.1 1.5.0 1.4.6 1.4.5 1.4.4 1.4.3 1.4.2 1.4.1 1.4.0 1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
+			eq(table.concat(versions, " "), "1.5.3 1.5.2 1.5.1 1.5.0 1.4.6 1.4.5 1.4.4 1.4.3 1.4.2 1.4.1 1.4.0 1.3.3 1.3.2 1.3.0 1.2.5.1 1.2.5 1.2.4 1.2.3 1.2.2 1.2.1 1.2.0 1.1.5 1.1.4 1.1.3 1.1.2 1.1.1 1.1.0", "newest first")
 			for i, v in ipairs(versions) do
 				local r = f.rows[i]
 				eq(r:IsShown(), true); eq(r.version, v)
@@ -63412,6 +63859,30 @@ end)()
 			end)
 		end)
 		ns.Borders, C_Texture, GetLocale = saved.borders, saved.tex, saved.locale
+		if not ok then error(err, 0) end
+	end)
+
+	test("version letters: every historical title and window heading is unique", function()
+		local savedLocale = GetLocale
+		local ok, err = pcall(function()
+			for _, code in ipairs({ "enUS", "ptBR" }) do
+				GetLocale = function() return code end
+				local lns = setmetatable({ L = {}, On = function() end }, { __index = ns })
+				assert(loadfile(ADDON_DIR .. "Locales.lua"))("ChillZone", lns)
+				assert(loadfile(ADDON_DIR .. "Letters.lua"))("ChillZone", lns)
+				local titles, heads = {}, {}
+				for _, version in ipairs(lns.Letters.LIST) do
+					local title, body = lns.Letters.Text(version)
+					assert(title and body, code .. ": letter " .. version)
+					assert(not titles[title], code .. ": repeated title " .. title)
+					titles[title] = true
+					local head = rawget(lns.L, "LETTER_" .. version:gsub("%.", "_") .. "_HEAD") or lns.L.LETTER_TITLE:format(version)
+					assert(not heads[head], code .. ": repeated window heading " .. head)
+					heads[head] = true
+				end
+			end
+		end)
+		GetLocale = savedLocale
 		if not ok then error(err, 0) end
 	end)
 
@@ -63990,6 +64461,9 @@ assert(loadfile(ROOT .. "tests/link-loader.lua"))(ns, test, eq, { ROOT = ROOT, A
 
 print("tests/army-export.lua")
 assert(loadfile(ROOT .. "tests/army-export.lua"))(ns, test, eq, ADDON_DIR, WithUI)
+
+print("tests/census-header.lua")
+assert(loadfile(ROOT .. "tests/census-header.lua"))(ns, test, eq, { WithUI = WithUI, LoadUI = LoadUI })
 
 -- 1.1.5: the gamepad pass (tests/gamepad.lua): whole sessions with Blizzard's gamepad UI simulated, in
 -- a model of Forever's client of their own, from a gamepad login and across switches both ways.

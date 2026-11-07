@@ -24,7 +24,7 @@ local AFTER = {
 	end,
 	["Locales.lua"] = function(ns) ns.TEXT_LOCALE = nil end, -- (the tests: the client's language, as they set GetLocale)
 	["Relay.lua"] = function(ns)
-		ns.Relay.LAUNCH_PINS = { ForeverPvE = { "Developus Olympicus", "Asmongold Thereal" }, ForeverPvP = { "Twalin Firebraid" } }
+		ns.Relay.LAUNCH_PINS = { ForeverPvE = { "Developus Olympicus", "Asmongold Thereal" }, ForeverPvP = { "Twalin Firebraid", "Elrond Oaklance" } }
 	end,
 	-- The original's public key: tests/run.lua's lists were signed with it (the author's key there).
 	["Sign.lua"] = function(ns)

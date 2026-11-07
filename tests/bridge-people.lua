@@ -17,7 +17,7 @@ local MY_GK = "4619-0000ABCD"
 local NEW = { "realm", "roster", "church", "games", "profile" }
 -- (The census's guilds and statistics too: no page shows them before the Accord or to an outsider,
 -- UI.Locked; the review of 2026-10-20 found them given to both.)
-local GATED = { "realm", "roster", "church", "games", "profile", "rankings", "wanted", "guilds", "stats" }
+local GATED = { "realm", "roster", "church", "games", "profile", "rankings", "wanted", "guilds", "stats", "censusOrigins" }
 
 local function Fields(row) local out = {} for f in (row .. "~"):gmatch("(.-)~") do out[#out + 1] = f end return out end
 local function Count(fields) local n = 0 for _ in fields:gmatch("[^~]+") do n = n + 1 end return n end
@@ -231,6 +231,58 @@ local function With(o, fn)
 end
 
 local function Data(name) return assert(B.GetSection(name), name .. ": the section").data end
+
+test("bridge origin metadata: preserves source scope and validation without assigning the carrier's region", function()
+	With({ modules = { Data = { Groups = function() return {
+		characters = 640, people = 600, rows = {
+			{ group = "Foreign", canonicalGroup = "Population-A", faction = "Alliance", characters = 640,
+				people = 600, guilds = 1, observed = NOW - 600, src = "witnessed", w = 2,
+				counted = true, fresh = true, kind = "pvp", region = "EU", product = "forever", era = "launch", validation = "accepted" },
+			{ group = "Unclassified", faction = "Alliance", characters = 100, people = 100, guilds = 1,
+				observed = NOW - 700, src = "heard", counted = false, fresh = true, validation = "reported" },
+		},
+	} end, GroupGuilds = function(group)
+		return group == "Unclassified" and { { name = "ChillZone Reported", characters = 100, online = 0,
+			observed = NOW - 700, source = "heard", counted = false, fresh = true } } or {}
+	end } } }, function()
+		local origins = Data("censusOrigins").origins
+		local first, unknown = origins[1], origins[2]
+		eq(first.canonicalGroup, "Population-A"); eq(first.region, "EU")
+		eq(first.product, "forever"); eq(first.era, "launch"); eq(first.validation, "accepted")
+		eq(first.observed, NOW - 600); eq(first.counted, true)
+		eq(unknown.region, nil); eq(unknown.product, nil); eq(unknown.era, nil)
+		eq(unknown.canonicalGroup, nil); eq(unknown.validation, "reported"); eq(unknown.counted, false)
+		eq(unknown.source, "relay"); eq(unknown.guilds[1].source, "relay"); eq(unknown.guilds[1].counted, false)
+	end)
+end)
+
+test("census continuity: companion exports distinct origins and dated retained counts without authority or private fields", function()
+	local oldGroups, oldDetails, login = ns.db.groupCensus, ns.db.groupDetails, ns.Comm.loginAt
+	local ok, err = pcall(function()
+		With({}, function()
+			ns.db.groupCensus = {
+				["Alliance|Foreign"] = { group = "Foreign", faction = "Alliance", characters = 640, people = 600, guilds = 1, observed = NOW - 600, src = "witnessed", w = 2 },
+				["Alliance|Realm"] = { group = "Realm", faction = "Alliance", characters = 9000, people = 8500, guilds = 20, observed = NOW - 600, src = "own" },
+			}
+			ns.db.groupDetails = { ["Alliance|Foreign"] = { group = "Foreign", faction = "Alliance", source = "witnessed", observed = NOW - 600,
+				rows = { dawn = { name = "ChillZone Dawn", total = 640, online = 20, avg10 = 300, observed = NOW - 600,
+					source = "witnessed", witnesses = 2, leader = "Private Leader", battleTag = "Secret#1234" } } } }
+			ns.Comm.loginAt = NOW
+			local origins = Data("censusOrigins")
+			eq(origins.characters, 9640); eq(origins.peoplePerOrigin, 9100)
+			local foreign
+			for _, r in ipairs(origins.origins) do if r.group == "Foreign" then foreign = r end end
+			assert(foreign); eq(foreign.observed, NOW - 600); eq(foreign.guilds[1].name, "ChillZone Dawn")
+			eq(foreign.guilds[1].witnesses, 2); Never(origins, "Private Leader"); Never(origins, "Secret#1234")
+			local checkpoint = B.GetCensusCheckpoint()
+			eq(checkpoint.retained.characters, 9000); eq(checkpoint.retained.observedAt, NOW - 600)
+			eq(checkpoint.retained.realmGroup, "Realm"); eq(checkpoint.retained.counted, true)
+			assert(checkpoint.summary.characters < checkpoint.retained.characters, "partial detailed rows stay distinct")
+		end)
+	end)
+	ns.db.groupCensus, ns.db.groupDetails, ns.Comm.loginAt = oldGroups, oldDetails, login
+	if not ok then error(err, 0) end
+end)
 
 local function BoardOf(boards, board, period, list)
 	for _, b in ipairs(boards) do

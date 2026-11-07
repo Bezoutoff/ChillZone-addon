@@ -2975,6 +2975,15 @@ local function DecreeLines(q)
 	-- guild's timed word (its parchment again). A hidden officer cannot enter The Watch, so this
 	-- line is where he reads why; nobody else's name shows here.
 	for _, l in ipairs(ns.Moderation.SelfLines and ns.Moderation.SelfLines() or {}) do lines[#lines + 1] = l end
+	local names, map = ns.MapNames, ns.Map
+	if names and names.CanEdit and names.CanEdit() then
+		local available = map and map.CanOpenNamesMap and map.CanOpenNamesMap()
+		lines[#lines + 1] = { header = true, text = L.MAPNAME_TITLE }
+		lines[#lines + 1] = { text = Grey(L.MAPNAME_DECREE_HELP) }
+		lines[#lines + 1] = { text = Grey(L.MAPNAME_DECREE_LIMIT) }
+		lines[#lines + 1] = { text = (available and Green or Grey)(L.MAPNAME_OPEN_MAP),
+			onClick = available and map.OpenNamesMap or nil, mapNamesShortcut = true, gapAfter = true }
+	end
 	lines[#lines + 1] = { header = true, text = L.DECREES }
 	local decrees = ns.Decree.Active()
 	if #decrees == 0 then lines[#lines + 1] = { text = Grey(L.NO_DECREES), gapAfter = true } end

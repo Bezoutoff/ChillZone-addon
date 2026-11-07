@@ -205,6 +205,7 @@ end
 -- to it, the totals, the ChillZone button and its menu hide; back, laid out again.)
 function Map.LayoutOverlay()
 	if not ns.Gate.Allowed("map-overlay") then return end
+	if Map.LayoutNames then Map.LayoutNames() end
 	for _, f in ipairs(overlay) do f:Hide() end
 	local canvas = Canvas()
 	if not canvas or not WorldMapFrame:IsShown() or not ns.db.showMap or not ns.IsMember() then return end
@@ -499,6 +500,21 @@ function Map.WorldMapOpen()
 	return type(f) == "table" and type(f.IsShown) == "function" and f:IsShown() == true
 end
 
+-- Decrees offers the existing map editor's entry point to its actual editors.
+-- Opening the map neither enables editing nor previews or publishes a name.
+function Map.CanOpenNamesMap() -- gp:map-overlay
+	if not ns.Gate.Allowed("map-overlay") then return false end
+	local names = ns.MapNames
+	if not names or not names.CanEdit or not names.CanEdit() then return false end
+	if InCombatLockdown and InCombatLockdown() then return false end
+	return type(WorldMapFrame) == "table" and type(ShowUIPanel) == "function"
+end
+function Map.OpenNamesMap() -- gp:map-overlay
+	if not ns.Gate.Allowed("map-overlay") then return false end
+	if not Map.CanOpenNamesMap() then return false end
+	return pcall(ShowUIPanel, WorldMapFrame)
+end
+
 -- The census's refresh, when its turn comes: drawn while the map is open, else left for its opening.
 function Map.CensusRefresh()
 	if not Map.WorldMapOpen() then
@@ -528,6 +544,243 @@ function Map.WorldMapShown()
 	if type(W) == "table" and type(W.RefreshPins) == "function" then ns.SafeCall("wanted map shown", W.RefreshPins) end
 end
 
+-- 1.5.2: ChillZone owns these labels; the game's geographical names may be painted into its
+-- artwork. Edit mode adds a click surface and clickable map labels, then a free-text preview.
+-- A point label's backing covers the printed name locally; no Blizzard title/global is changed.
+local nameButton, nameTitle, nameHint, nameHit, nameEditor
+local nameLabels, nameEditing = {}, false
+Map.nameLabels = nameLabels
+local function NameButton(parent, text, width)
+	local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+	b:SetSize(width, 24)
+	b:SetText(text)
+	return b
+end
+local function NameLine(parent, text, x, y, width)
+	local line = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	line:SetPoint("TOPLEFT", x, y)
+	line:SetWidth(width)
+	line:SetJustifyH("LEFT")
+	line:SetText(text)
+	return line
+end
+function Map.OpenNameEditor(key) -- gp:map-overlay
+	if not ns.Gate.Allowed("map-overlay") then return end
+	local N = ns.MapNames
+	if not nameEditing or not N or not N.CanEdit() or not N.Place(key) then return end
+	if not nameEditor then
+		local f = ns.Window("ChillZoneMapNameEditor", WorldMapFrame, { title = L.MAPNAME_TITLE, escape = false })
+		f:SetSize(410, 340)
+		f:SetPoint("CENTER", WorldMapFrame, "CENTER", 0, 0)
+		f:SetFrameLevel(WorldMapFrame:GetFrameLevel() + 200)
+		f.place = NameLine(f, "", 20, -38, 370)
+		NameLine(f, L.MAPNAME_TEXT, 20, -67, 370)
+		f.input = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
+		f.input:SetSize(355, 25)
+		f.input:SetPoint("TOPLEFT", 26, -88)
+		f.input:SetAutoFocus(false)
+		f.input:SetMaxBytes(N.MAX_TEXT)
+		f.input:SetScript("OnEscapePressed", function(self)
+			if not ns.Gate.Allowed("map-overlay") then return end
+			self:ClearFocus()
+			f:Hide()
+		end)
+		NameLine(f, L.MAPNAME_SCOPE, 20, -122, 370)
+		f.previewButton = NameButton(f, L.MAPNAME_PREVIEW, 110)
+		f.previewButton:SetPoint("TOPLEFT", 20, -164)
+		f.revertButton = NameButton(f, L.MAPNAME_REVERT, 150)
+		f.revertButton:SetPoint("LEFT", f.previewButton, "RIGHT", 8, 0)
+		f.result = NameLine(f, "", 20, -198, 370)
+		f.publish = NameButton(f, L.MAPNAME_PUBLISH, 275)
+		f.publish:SetPoint("BOTTOMLEFT", 20, 18)
+		f.publish:Disable()
+		local function Preview(revert)
+			if not ns.Gate.Allowed("map-overlay") then return end
+			local preview, err = N.Preview(f.key, f.input:GetText(), revert)
+			f.preview = preview
+			f.result:SetText(preview and L.MAPNAME_CONFIRM:format(preview.original, preview.shown) or err)
+			f.publish:SetEnabled(preview ~= nil)
+		end
+		f.previewButton:SetScript("OnClick", function()
+			if not ns.Gate.Allowed("map-overlay") then return end
+			Preview(false)
+		end)
+		f.revertButton:SetScript("OnClick", function()
+			if not ns.Gate.Allowed("map-overlay") then return end
+			Preview(true)
+		end)
+		f.input:SetScript("OnTextChanged", function()
+			if not ns.Gate.Allowed("map-overlay") then return end
+			f.preview = nil
+			f.publish:Disable()
+			f.result:SetText("")
+		end)
+		f.publish:SetScript("OnClick", function()
+			if not ns.Gate.Allowed("map-overlay") then return end
+			local ok, err = N.Confirm(f.preview)
+			f.preview = nil
+			f.publish:Disable()
+			f.result:SetText(ok and L.MAPNAME_SAVED or err)
+		end)
+		nameEditor, Map.nameEditor = f, f
+	end
+	nameEditor.key, nameEditor.preview = key, nil
+	nameEditor.place:SetText(N.Original(key))
+	nameEditor.input:SetText(N.Name(key, type(key) == "number" and N.Original(key) or ""))
+	nameEditor.result:SetText("")
+	nameEditor.publish:Disable()
+	nameEditor:Show()
+	nameEditor.input:SetFocus()
+end
+function Map.SetNameEditing(on) -- gp:map-overlay
+	if not ns.Gate.Allowed("map-overlay") then return end
+	nameEditing = on == true and ns.MapNames ~= nil and ns.MapNames.CanEdit()
+	if not nameEditing and nameEditor then nameEditor.input:ClearFocus(); nameEditor:Hide() end
+	Map.LayoutNames()
+end
+function Map.LayoutNames() -- gp:map-overlay
+	if not ns.Gate.Allowed("map-overlay") then return end
+	local N, canvas = ns.MapNames, Canvas()
+	for _, label in ipairs(nameLabels) do label:Hide() end
+	if nameHit then nameHit:Hide() end
+	if nameTitle then nameTitle:Hide() end
+	if nameHint then nameHint:Hide() end
+	if not N or not canvas or not WorldMapFrame:IsShown() or not ns.IsMember() then
+		if nameButton then nameButton:Hide() end
+		if not ns.IsMember() then
+			nameEditing = false
+			if nameEditor then nameEditor.input:ClearFocus(); nameEditor:Hide() end
+		end
+		return
+	end
+	local canEdit, shown = N.CanEdit(), WorldMapFrame:GetMapID()
+	if not canEdit then
+		nameEditing = false
+		if nameEditor then nameEditor.input:ClearFocus(); nameEditor:Hide() end
+	end
+	if nameButton then
+		nameButton:SetShown(canEdit)
+		nameButton:SetText(nameEditing and L.MAPNAME_DONE or L.MAPNAME_EDIT)
+	end
+	local original = N.Original(shown)
+	local title = N.Name(shown, original)
+	if nameTitle and title and (nameEditing or title ~= original) then
+		nameTitle.text:SetText(title)
+		nameTitle:SetShown(true)
+		nameTitle:EnableMouse(nameEditing)
+	end
+	if nameEditing and nameHint then nameHint:Show() end
+	local labels, seen = {}, {}
+	local function Add(key, text, map, x, y)
+		if seen[key] or #labels >= N.MAX_PLACES then return end
+		if map == shown and x and y then
+			labels[#labels + 1] = { key = key, text = text, x = x, y = y }
+			seen[key] = true
+		end
+	end
+	for _, entry in ipairs(N.Entries()) do
+		local map, x, y = N.Place(entry.key)
+		if x then Add(entry.key, entry.text, map, x, y)
+		elseif map ~= shown and C_Map.GetMapRectOnMap then
+			local info = C_Map.GetMapInfo(map)
+			if info and info.parentMapID == shown then
+				local left, right, top, bottom = C_Map.GetMapRectOnMap(map, shown)
+				if left and right and top and bottom then Add(map, entry.text, shown, (left + right) / 2, (top + bottom) / 2) end
+			end
+		end
+	end
+	if nameEditing then
+		for _, info in ipairs(C_Map.GetMapChildrenInfo(shown) or {}) do
+			local id = info.mapID
+			if id and id ~= shown and not seen[id] and C_Map.GetMapRectOnMap then
+				local left, right, top, bottom = C_Map.GetMapRectOnMap(id, shown)
+				if left and right and top and bottom then Add(id, N.Name(id, ns.Codec.Plain(info.name)), shown, (left + right) / 2, (top + bottom) / 2) end
+			end
+		end
+		if not nameHit then
+			nameHit = CreateFrame("Button", "ChillZoneMapNameSurface", canvas)
+			nameHit:SetAllPoints(canvas)
+			nameHit:SetScript("OnClick", function()
+				if not ns.Gate.Allowed("map-overlay") then return end
+				if not nameEditing or not N.CanEdit() then return end
+				local px, py = GetCursorPosition()
+				local scale = canvas:GetEffectiveScale()
+				local width, height = canvas:GetWidth(), canvas:GetHeight()
+				if not scale or scale <= 0 or width <= 0 or height <= 0 then return end
+				local key = N.Point(WorldMapFrame:GetMapID(), (px / scale - canvas:GetLeft()) / width, (canvas:GetTop() - py / scale) / height)
+				if key then Map.OpenNameEditor(key) end
+			end)
+			Map.nameHit = nameHit
+		end
+		nameHit:SetFrameLevel(canvas:GetFrameLevel() + 80)
+		nameHit:Show()
+	end
+	local w, h, scale = canvas:GetWidth(), canvas:GetHeight(), CanvasScale()
+	for i, entry in ipairs(labels) do
+		local f = nameLabels[i]
+		if not f then
+			f = CreateFrame("Button", nil, canvas)
+			f:SetSize(210, 28)
+			f.bg = f:CreateTexture(nil, "BACKGROUND")
+			f.bg:SetAllPoints()
+			f.bg:SetColorTexture(0.12, 0.08, 0.03, 0.96)
+			f.text = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+			f.text:SetPoint("LEFT", 8, 0)
+			f.text:SetPoint("RIGHT", -8, 0)
+			f:SetScript("OnClick", function(self)
+				if not ns.Gate.Allowed("map-overlay") then return end
+				Map.OpenNameEditor(self.key)
+			end)
+			nameLabels[i] = f
+		end
+		f.key = entry.key
+		f.text:SetText(entry.text)
+		f:EnableMouse(nameEditing)
+		f:SetFrameLevel(canvas:GetFrameLevel() + 90)
+		f:SetScale(1 / scale)
+		f:ClearAllPoints()
+		f:SetPoint("CENTER", canvas, "TOPLEFT", w * entry.x * scale, -h * entry.y * scale)
+		f:Show()
+	end
+end
+local function CreateNameControls(anchor) -- gp:map-overlay
+	if not ns.Gate.Allowed("map-overlay") then return end
+	if nameButton then return end
+	nameButton = NameButton(WorldMapFrame, L.MAPNAME_EDIT, 115)
+	nameButton:SetPoint("LEFT", anchor, "RIGHT", 6, 0)
+	nameButton:SetFrameLevel(anchor:GetFrameLevel())
+	nameButton:SetScript("OnClick", function()
+		if not ns.Gate.Allowed("map-overlay") then return end
+		Map.SetNameEditing(not nameEditing)
+	end)
+	Map.nameButton = nameButton
+	nameTitle = CreateFrame("Button", nil, WorldMapFrame)
+	nameTitle:SetSize(255, 26)
+	nameTitle:SetPoint("LEFT", nameButton, "RIGHT", 6, 0)
+	nameTitle:SetFrameLevel(anchor:GetFrameLevel())
+	nameTitle.text = nameTitle:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	nameTitle.text:SetAllPoints()
+	nameTitle:SetScript("OnClick", function()
+		if not ns.Gate.Allowed("map-overlay") then return end
+		Map.OpenNameEditor(WorldMapFrame:GetMapID())
+	end)
+	nameHint = WorldMapFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	nameHint:SetPoint("BOTTOMLEFT", anchor, "TOPLEFT", 0, 8)
+	nameHint:SetWidth(420)
+	nameHint:SetJustifyH("LEFT")
+	nameHint:SetText(L.MAPNAME_PICK)
+	Map.LayoutNames()
+end
+local function ParkNames() -- gp:map-overlay!undo
+	nameEditing = false
+	if nameEditor then nameEditor.input:ClearFocus(); nameEditor:Hide() end
+	if nameButton then nameButton:Hide() end
+	if nameTitle then nameTitle:Hide() end
+	if nameHint then nameHint:Hide() end
+	if nameHit then nameHit:Hide() end
+	for _, f in ipairs(nameLabels) do f:Hide() end
+end
+
 -- "ChillZone" menu on the world map: everything map related lives here, like Questie's toggle.
 local toggle, menu
 local OPTIONS = {
@@ -540,6 +793,7 @@ local OPTIONS = {
 }
 
 local function CreateMapToggle() -- gp:map-overlay
+	if not ns.Gate.Allowed("map-overlay") then return end
 	if toggle or not WorldMapFrame then return end
 	local anchor = WorldMapFrame.ScrollContainer or WorldMapFrame
 	-- Round, bottom left corner of the map (Questie uses the top right; Forever's map has its
@@ -593,6 +847,7 @@ local function CreateMapToggle() -- gp:map-overlay
 		GameTooltip:Show()
 	end)
 	toggle:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	CreateNameControls(toggle)
 end
 
 function Map.SetEnabled(on)
@@ -702,8 +957,18 @@ ns.Gate.Hooks("map-overlay", {
 		Map.LayoutOverlay()
 	end,
 	park = function()
+		ParkNames()
 		if menu then menu:Hide() end
 		if toggle then toggle:Hide() end
 		for _, f in ipairs(overlay) do f:Hide() end
 	end,
 })
+
+-- Permission and filtering changes re-evaluate existing labels without changing shared history.
+ns.On("MAP_NAMES_CHANGED", function()
+	if not ns.Gate.Allowed("map-overlay") then return end
+	Map.LayoutNames()
+	ns.Fire("DATA_CHANGED")
+end)
+ns.On("FILTER_CHANGED", Map.LayoutNames)
+ns.On("DATA_CHANGED", Map.LayoutNames)

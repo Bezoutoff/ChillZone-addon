@@ -17,7 +17,7 @@ local Hall = {}
 ns.ChatHall = Hall
 local pending = {} -- msg -> when: sent as text, its echo counted
 local stats = { sent = 0, echoed = 0, heard = 0 }
-function Hall.Stats() return { sent = stats.sent, echoed = stats.echoed, heard = stats.heard, on = Hall.On() } end
+function Hall.Stats() return { sent = stats.sent, echoed = stats.echoed, heard = stats.heard, carried = stats.carried or 0, on = Hall.On() } end
 
 function Hall.On() -- gp:chat-box
 	if not ns.Gate.Allowed("chat-box") then return false end
@@ -47,10 +47,29 @@ end
 
 -- The channel's text heard (CHAT_MSG_CHANNEL): a chat line written as the hidden message, in
 -- our channel, taken as the hidden one is; our own echo settles its send.
+-- (1.5.2, the dev: "deve ficar circulando esses dados... não deve parar enquanto eu estou fora":
+-- the PvP family has no relay but his own characters) A guild's census report, a piece as the
+-- hidden way chunks it ("C<id>:<i>:<n>:..."), goes as its reporter's own text in the joined
+-- channel while no relay answers (Relay.Out), and is taken from it by everyone in the channel.
+local function Report(text) return type(text) == "string" and #text <= 255 and text:find("^C%d+:%d+:%d+:") ~= nil end
+function Hall.Carry(parts) -- gp:chat-box
+	if not ns.Gate.Allowed("chat-box") then return 0 end
+	if not Hall.On() or type(parts) ~= "table" then return 0 end
+	local index, n = ns.Comm.ChannelIndex(), 0
+	for _, p in ipairs(parts) do
+		if Report(p) then
+			local ok = pcall(SendChatMessage, p, "CHANNEL", nil, index) -- gp:chat-box
+			if ok then n = n + 1 end
+		end
+	end
+	stats.carried = (stats.carried or 0) + n
+	return n
+end
+
 function Hall.OnChannel(text, sender, _, _, _, _, _, _, baseName)
 	local joined = ns.Comm and ns.Comm.ChannelName and ns.Comm.ChannelName()
 	if type(joined) ~= "string" or type(baseName) ~= "string" or baseName:lower() ~= joined:lower() then return false end
-	if type(text) ~= "string" or text:sub(1, 3) ~= "M1~" or #text > 255 then return false end
+	if type(text) ~= "string" or #text > 255 or (text:sub(1, 3) ~= "M1~" and not Report(text)) then return false end
 	if pending[text] then
 		pending[text] = nil
 		stats.echoed = stats.echoed + 1

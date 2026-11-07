@@ -57,7 +57,7 @@ local ADDON, ns = ...
 -- gamepad pass (tests/gamepad.lua), with the gamepad UI on and across switches (AGENTS.md).
 
 -- The Forever client build the pins were last checked against (1.60.1).
-ns.GAMEPAD_CHECKED_BUILD = 70205
+ns.GAMEPAD_CHECKED_BUILD = 70790
 
 local APPROVED = "the author, 2026-10-04"
 
@@ -70,18 +70,22 @@ ns.GAMEPAD = {
 		globals = { "SLASH_CHILLZONE1", "SLASH_CHILLZONE2", "SLASH_CHILLZONEARMY1", "SLASH_CHILLZONESITEAGGREGATE1", "SLASH_CHILLZONEARENA1", "SLASH_CHILLZONEALL1", "SLASH_CHILLZONECAPTAINS1", "SLASH_CHILLZONELORDS1" },
 		guard = "gate", toPad = "reload", toMouse = "install", safe = "off",
 		why = "The chat box calls a slash command's function directly, then closes itself (ClearChat, its focus lost, ClearGamepadFocus) in that function's taint: nothing the function does can prevent it, so none is registered at a gamepad login.",
-		pins = { "Blizzard_ChatFrameBase/Shared/ChatFrameEditBox.lua:267 hash_SlashCmdList[command](strtrim(msg), self);",
-			"Blizzard_ChatFrameBase/Shared/ChatFrameEditBox.lua:413 self.chatFrame:ClearGamepadFocus();",
-			"Blizzard_ChatFrameBase/Shared/ChatFrameUtil.lua:794 ImportListToHash: the game's hash keeps every command once imported" } },
+		pins = { "Blizzard_ChatFrameBase/Shared/ChatFrameEditBox.lua:271 hash_SlashCmdList[command](strtrim(msg), self);",
+			"Blizzard_ChatFrameBase/Shared/ChatFrameEditBox.lua:422 self.chatFrame:ClearGamepadFocus();",
+			"Blizzard_ChatFrameBase/Shared/ChatFrameUtil.lua:809 ImportListToHash: the game's hash keeps every command once imported" } },
 	{ id = "communities-button", kind = "frame-child", files = { "GuildFrame.lua", "UI.lua" },
 		guard = "gate", toPad = "park", toMouse = "install", safe = "off",
 		why = "The ChillZone button in the guild windows (Guild & Communities, the Social window's Guild tab) is a Button the gamepad's Smart Navigation finds and selects, writing its own state in ChillZone's taint; the window docked to them reads those frames.",
-		pins = { "Blizzard_GamepadSmartNavigation/Utility.lua:208 Utility.FindButtons = function(inFrame, extraPanels, includeInFrame)" } },
+		pins = { "Blizzard_GamepadSmartNavigation/Utility.lua:263 function SmartNavigation_CanFocusFrame(frame)",
+			"Blizzard_GamepadSmartNavigation/Utility.lua:279 function Utility.FindButtons(inFrame, extraPanels, includeInFrame)" } },
 
 	-- P1 and P2: narrower, each through the gate.
 	{ id = "tooltip-unit", kind = "tooltip-postcall", files = { "Inspect.lua" },
 		guard = "gate", toPad = "inert", toMouse = "install", safe = "off",
 		why = "ChillZone's lines on a player's tooltip: the gamepad's soft target shows that tooltip again and again, and ChillZone writes nothing in the game's frames there." },
+	{ id = "player-tooltip", kind = "tooltip-postcall", files = { "PlayerTooltip.lua" },
+		guard = "gate", toPad = "park", toMouse = "install", safe = "off",
+		why = "Compact guild ranks and optional player-tooltip scale: mouse login installs hide/clear cleanup once; gamepad login installs nothing, switching to gamepad restores the borrowed scale and callbacks stay inert except cleanup." },
 	{ id = "error-handler", kind = "global-handler", files = { "Bootstrap.lua", "Diagnostics.lua" },
 		guard = "gate", toPad = "park", toMouse = "nothing", safe = "off",
 		why = "Every error would pass through ChillZone's handler, which opens the game's error window in ChillZone's taint; at a switch to the gamepad UI the game's own handler is put back, and never replaced again that session." },
@@ -93,10 +97,10 @@ ns.GAMEPAD = {
 		why = "Every icon added or removed, including the bounded pins for a consented API area search, goes through the map library into the map's canvas from ChillZone's code, and the gamepad map then runs in ChillZone's taint: none on the world map, and at a switch every one taken off at once." },
 	{ id = "map-overlay", kind = "frame-child", files = { "Map.lua" },
 		guard = "gate", toPad = "park", toMouse = "install", safe = "off",
-		why = "The continent totals, the ChillZone button and its menu on the world map, and the hooks on its changes: the gamepad map is the game's alone (the author's call: no continent totals there either)." },
+		why = "The continent totals, the ChillZone button and its menu, the map-name edit button, editor, click surface and shared name labels on the world map, the Decrees shortcut that opens it outside combat for current map-name editors, and the hooks on its changes: the gamepad map is the game's alone (the author's call: no continent totals there either)." },
 	{ id = "dialogs", kind = "popup", files = { "Core.lua" },
 		guard = "gate", toPad = "reload", toMouse = "on", safe = "off",
-		why = "A game popup opened from ChillZone writes the popups' shared state in ChillZone's taint: with the gamepad UI ChillZone asks in its own windows (Dialog.lua); one of the game's still up at a switch leaves that state behind until a /reload." },
+		why = "A game popup opened from ChillZone writes the popups' shared state in ChillZone's taint: with the gamepad UI ChillZone asks in its own windows (Dialog.lua); one of the game's still up at a switch leaves that state behind until a /reload. Recruit confirmation stays in an ChillZone window in both modes: Forever's background guild-rank update reads the same popup state before its restricted Discord calls." },
 	{ id = "chat-box", kind = "chat-box", files = { "UI.lua", "Board.lua", "Crafters.lua", "Views.lua", "Channels.lua", "ChatHall.lua" },
 		guard = "gate", toPad = "reload", toMouse = "on", safe = "off",
 		why = "The game's chat box opened from ChillZone (a whisper, a link; 1.2.1: /czn, /czc or /czl from a click on that channel's name in chat) keeps ChillZone's taint in its last active box, which the gamepad chat reads: with the gamepad UI ChillZone's whisper window; used this session, the player is told a /reload clears it. 1.5.0 (ChatHall.lua): on Forever a chat line leaves as the player's own text in the hidden channel (SendChatMessage from his Enter), never with the gamepad UI, where the hidden way stays." },
@@ -130,7 +134,7 @@ ns.GAMEPAD = {
 	-- P3: already through the gate, or allowed for the reason given.
 	{ id = "player-menu", kind = "menu", files = { "PlayerMenu.lua", "ArenaHome.lua", "ChillZone_Arena/Window.lua" },
 		guard = "gate", toPad = "inert", toMouse = "install", safe = "off",
-		why = "ChillZone's lines in the game's right-click player menus (Menu.ModifyMenu; 1.2: the Arena's lines, through PlayerMenu.lua's list, and a row's own context menu, MenuUtil.CreateContextMenu, and the Arena window's button menus, ArenaUI.Menu, ChillZone's own pop-up in their place with the gamepad UI): the gamepad's player menu runs its interact target state while the menu is built; not registered at a gamepad login, and a callback registered before does nothing." },
+		why = "ChillZone's lines in the game's right-click player menus, including local profile and tooltip settings on the SELF portrait, optionally collapsed into one submenu with a saved expand/collapse choice (Menu.ModifyMenu; the Arena's lines use PlayerMenu.lua, rows use MenuUtil.CreateContextMenu, and ArenaUI.Menu supplies ChillZone's own pop-up with the gamepad UI). The gamepad's player menu runs its interact target state while built: no registration at a gamepad login, and previously registered callbacks and clicks are inert after switching." },
 	{ id = "borders", kind = "unit-frame-art", files = { "Borders.lua", "ProfileEffects.lua" },
 		guard = "gate", toPad = "park", toMouse = "install", safe = "off",
 		why = "ChillZone's border textures and hooks on the target, focus, player and party frames (CheckClassification on TargetFrame/FocusFrame; InitializePartyMemberFrames on PartyFrame, whose member frames get textures and, 1.4.4, their Name and Flash moved one ARTWORK sublevel up, over the border), plus the temporary host-owned presentation parented to the target frame." },

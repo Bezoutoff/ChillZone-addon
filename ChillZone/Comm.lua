@@ -420,7 +420,7 @@ end
 --   ZW ZS ZQ ZL ZJ | Debts ZT ZX ZY ZR ZF | Stakes ZA ZV | Markets BM BO BS BK BV | MarketBank BF |
 --   ArenaFights AF AG AC AW AR AS AN | ArenaLedger AE AB AQ AV AH AY AX | ArenaTourney AT AD |
 --   ArenaProfile AP | HonorsNet IL ID IO | FarkleTable KI KA KO KP KG KY KH KK KT KE KQ KR KS KN KD |
---   ArenaMatch AM | Lottery LW | ArenaRoles AU | Records RK RD RA RR RV RS RT.
+--   ArenaMatch AM | Lottery LW | ArenaRoles AU | Records RK RD RA RR RV RS RT RH.
 --   (The Lottery's: a day's bank publishes that day's winners for the Games tab's rankings.)
 --   FarkleTable also registers KL at runtime (the design: the arbiter's floor under a drunk level),
 --   without extending this legacy inventory.
@@ -451,6 +451,8 @@ end
 --   1.2.4, ChurchFullness NF (private coverage recovery between a current nominee and the guild desk).
 --   1.2.6, global census CG (trusted anti-entropy snapshots; counts only, never census authority).
 --   1.4.0, every server's census CX (a realm group's totals, carried to the other groups by players who were there).
+--     1.5.2: version 2 adds bounded counts-only guild detail under its original group and faction.
+--   1.5.2, MapNames MN (shared place labels from the King or signed High Council).
 --   1.2.5, PlayerSightings PS (request-bound queries; private last-seen answers and withdrawals).
 --   1.2.5.1, the ChillZone Accord: Accord BT BQ (the first, a player's BattleTag to a moderation team
 --   member who asked, a logged whisper; the second, that member's ask, on the ChillZone channel).
@@ -488,6 +490,7 @@ Comm.QUIET_WORDS = {
 	"^PS~[RBXW]~",  -- a player-sighting answer, or its withdrawal (PlayerSightings.lua)
 	"^T1~[PQ]~",    -- the King's crown on the map, or its removal (King.lua)
 	"^CG~%d+~S~",   -- a global census snapshot (Data.lua)
+	"^CX~%d+~S~",   -- carried origin totals or guild detail (Data.lua)
 	"^V[248]~",     -- a roll call's answer, the author's presence, a version check's answer (Workshop.lua, Versions.lua)
 	"^NK~1~p~",     -- the Church's presence (Church.lua)
 	"^D[VW]~",      -- ChillZone Link's confirmer and watcher presence (its own addon, ChillZone_Link, when installed)

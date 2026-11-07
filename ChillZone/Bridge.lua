@@ -201,8 +201,17 @@ function ChillZoneBridge.GetCensusCheckpoint()
 		scope = scope,
 		guilds = guilds,
 		seenOnly = seen,
-		summary = Summary(guilds, seen, source.alts),
+		summary = Summary(guilds, seen, source.live and source.live.alts or source.alts),
 	}
+	-- A retained display total is separate from the detailed rows in this checkpoint. A desktop
+	-- consumer can keep the dated number visible without inventing missing guilds or fresh data.
+	local retained = source.snapshot or source.history
+	if type(retained) == "table" then
+		checkpoint.retained = { realmGroup = scope.realmGroup, faction = scope.faction,
+			characters = Whole(retained.characters), people = Whole(retained.people), guilds = Whole(retained.guilds),
+			observedAt = Whole(retained.observed, CHECKPOINT_MAX_TIME), source = Plain(retained.source, 16),
+			counted = retained.counted == true, witnesses = Whole(retained.witnesses, 8) }
+	end
 	if serverNow then checkpoint.capturedAtServer = serverNow end
 	return checkpoint
 end

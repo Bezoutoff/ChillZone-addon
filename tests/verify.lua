@@ -77,7 +77,10 @@ local function World(fn)
 				w.Deliver(c, dist, payload)
 				return true
 			end }
-		c.Workshop = setmetatable({ Available = function() return w.available end, AskCouncil = function(text) c.asked = text end,
+		c.Workshop = setmetatable({ Available = function() return w.available end, AskCouncil = function(text)
+			c.asked, c.askCalls = text, (c.askCalls or 0) + 1
+			return c.helpQueued ~= false -- Workshop's result means queued, not remotely acknowledged.
+		end,
 			AuthorOnline = function() return false end }, { __index = ns.Workshop })
 		assert(loadfile(ADDON_DIR .. "Locales/VerifyText.lua"))("ChillZone", c)
 		assert(loadfile(ADDON_DIR .. "Verify.lua"))("ChillZone", c)
@@ -101,9 +104,108 @@ local function World(fn)
 	if not ok then error(err, 0) end
 end
 
+test("verify: verification recovery distinguishes different words with the same counts and clock", function()
+	World(function(w)
+		local hc = w.Client(HC, HEARTH, 3)
+		local member = w.Client(MEMBER, GUILD, 3)
+		w.Census(GUILD, "Bram Hollow", 120)
+		w.Census(OTHER, "Corin Ash", 80)
+		-- Each holds a genuine but different approval, made on the same second.
+		member.online = false
+		w.As(hc, hc.Verify.Approve, GUILD, GM)
+		hc.online, member.online = false, true
+		w.As(member, member.Verify.Handle, "CHANNEL", HC, ("GV~1~A~%d~%s~%s"):format(w.now, OTHER, GM2))
+		hc.online = true
+		local n, newest, starts = w.As(hc, hc.Verify.Digest)
+		local n2, newest2, starts2 = w.As(member, member.Verify.Digest)
+		eq(n, n2); eq(newest, newest2); eq(starts, starts2)
+		w.As(member, member.Verify.Ask)
+		w.now = w.now + 9; w.Run()
+		eq(w.Status(member, GUILD), "verified", "equal counts do not prove equal approvals")
+		local _, info = w.Status(member, GUILD)
+		eq(info.entry.at, T0); eq(info.entry.by, HC, "recovered, not approved again")
+	end)
+end)
+
 ---------------------------------------------------------------------------
 -- Who approves
 ---------------------------------------------------------------------------
+
+-- Competing legitimate verifiers may hold different parts of the saved decisions.
+-- A smaller, faster answer must not silence the holder of the missing original words.
+local function RecoveryCoverage(kind, fullExpected)
+	World(function(w)
+		local full = w.Client(HC, HEARTH, 3)
+		local fast = w.Client(HC2, ROGUES, 3)
+		local member = w.Client(MEMBER, GUILD, 3)
+		full.Verify.random = function(_, b) return b end
+		w.Census(GUILD, "Bram Hollow", 120)
+		w.Census(OTHER, "Corin Ash", 80)
+		local function Word(c, k, guild, gm, at)
+			eq(w.As(c, c.Verify.Handle, "CHANNEL", HC, ("GV~1~%s~%d~%s~%s"):format(k, at, guild, gm)), true)
+		end
+		local function Start(c, at)
+			eq(w.As(c, c.Verify.Handle, "CHANNEL", HC,
+				("GV~1~S~%d~T,%d,%s,%s"):format(w.now, at, OTHER, HC)), true)
+		end
+		Word(full, "A", GUILD, GM, T0 - 100)
+		Word(fast, "A", GUILD, GM, T0 - 100)
+		if kind == "start" then
+			Start(full, T0 - 90); Start(fast, T0 - 50)
+		else
+			Word(full, kind == "revocation" and "R" or "A", OTHER, GM2, T0 - 80)
+			if kind ~= "subset" then
+				Word(fast, "A", OTHER, GM2, kind == "revocation" and T0 - 95 or T0 - 80)
+			end
+			if kind == "superset" then Word(fast, "A", ROGUES, FORGER, T0 - 70) end
+		end
+		w.As(member, member.Verify.Ask)
+		w.now = T0 + 2; w.Run() -- the smaller/equal/larger fast answer reaches everyone
+		eq(fast.Verify.Stats().answered, 1)
+		w.now = T0 + 9; w.Run()
+		eq(full.Verify.Stats().answered, fullExpected, "only a covering snapshot suppresses the pending answer")
+		if kind == "start" then
+			eq(w.As(member, member.Verify.Start, OTHER), T0 - 90, "the earliest original start reaches the requester")
+			eq(w.As(full, full.Verify.Start, OTHER), T0 - 90, "the newer snapshot never resets the clock")
+		elseif kind == "revocation" then
+			local _, info = w.Status(member, OTHER)
+			eq(info.revoked.at, T0 - 80, "a newer original revocation reaches the requester")
+			eq(info.revoked.by, HC)
+		else
+			local status, info = w.Status(member, OTHER)
+			eq(status, "verified"); eq(info.entry.at, T0 - 80); eq(info.entry.by, HC)
+			if kind == "superset" then eq(w.Status(member, ROGUES), "verified") end
+		end
+		for _, p in ipairs(w.sent) do
+			if p.msg:match("^GV~1~S~") then assert(#p.msg <= full.Verify.MAX_BYTES, "existing byte budget retained") end
+		end
+		if kind == "subset" then
+			for _ = 1, 5 do w.As(full, full.Verify.Handle, "CHANNEL", MEMBER, "GV~1~Q~0~0~0") end
+			w.now = T0 + 20; w.Run()
+			eq(full.Verify.Stats().answered, 1, "duplicate asks retain the 180-second answer budget")
+			w.now = T0 + 9 + full.Verify.ANSWER_GAP
+			for _ = 1, 5 do w.As(full, full.Verify.Handle, "CHANNEL", MEMBER, "GV~1~Q~0~0~0") end
+			w.now = w.now + 9; w.Run()
+			eq(full.Verify.Stats().answered, 2, "later repeated asks coalesce to one answer")
+		end
+	end)
+end
+
+test("verify: recovery coverage retains a richer answer after a smaller snapshot and keeps its send budget", function()
+	RecoveryCoverage("subset", 1)
+end)
+test("verify: recovery coverage suppresses an answer already delivered by an equal snapshot", function()
+	RecoveryCoverage("equal", 0)
+end)
+test("verify: recovery coverage suppresses an answer already delivered by a superset snapshot", function()
+	RecoveryCoverage("superset", 0)
+end)
+test("verify: recovery coverage delivers the latest revocation after an older approval snapshot", function()
+	RecoveryCoverage("revocation", 1)
+end)
+test("verify: recovery coverage delivers the earliest start without resetting its original clock", function()
+	RecoveryCoverage("start", 1)
+end)
 
 test("verify: an approval is taken only from the King, a High Councillor or the author; a member's forged word or relay is refused", function()
 	World(function(w)
@@ -218,7 +320,8 @@ test("verify: the earliest start a verifier gave wins, in any order, and a reins
 		-- Its ask (it holds less): a verifier's client answers after a few seconds.
 		w.As(member, member.Verify.Ask)
 		local ask = w.sent[#w.sent].msg
-		assert(ask:match("^GV~1~Q~0~0~0$"), ask)
+		local digest = ask:match("^GV~1~Q~0~0~0~(%x+)$")
+		assert(digest and #digest == 64, ask) -- content digest supplements the legacy counts
 		w.now = w.now + 9
 		w.Run()
 		_, info = w.Status(member, GUILD)
@@ -291,7 +394,32 @@ end)
 -- The notices
 ---------------------------------------------------------------------------
 
-test("verify: within 48 hours only the guild master sees \"GM verification pending\", once a session; after them every member is told", function()
+test("verify: paused member notices leave overdue state and GM follow-up intact", function()
+	World(function(w)
+		local gm = w.Client(GM, GUILD, 0)
+		local member = w.Client(MEMBER, GUILD, 3)
+		w.Census(GUILD, "Bram Hollow", 120)
+		w.As(gm, gm.Verify.Observe)
+		w.As(member, member.Verify.Observe)
+		w.now = T0 + 48 * H + 1
+		w.As(member, member.Verify.Login)
+		w.now = w.now + member.Verify.NOTICE_AFTER
+		eq(w.Status(member, GUILD), "overdue", "the original deadline stays")
+		eq(w.As(member, member.Verify.Tick), false, "no automatic warning")
+		eq(#member.copies, 0, "no member popup")
+		assert(not Find(member.printed, "find another ChillZone guild"), "no instruction to leave")
+		eq(#w.As(member, member.Verify.Lines), 0, "no member warning banner")
+		eq(w.As(member, member.Verify.ShowNotice), false, "no manual warning popup either")
+		eq(w.As(member, member.GuildSanctioned, GUILD), true, "members keep access")
+		w.As(gm, gm.Verify.Login)
+		w.now = w.now + gm.Verify.NOTICE_AFTER
+		eq(w.As(gm, gm.Verify.Tick), true, "GM still gets follow-up")
+		assert(Find(gm.printed, "GM verification overdue"))
+		eq(w.As(gm, gm.MasterHeld, GUILD), true, "GM rules stay intact")
+	end)
+end)
+
+test("verify: within 48 hours only the guild master sees \"GM verification pending\", once a session; overdue notices stay with the guild master", function()
 	World(function(w)
 		local gm = w.Client(GM, GUILD, 0)
 		local member = w.Client(MEMBER, GUILD, 3)
@@ -320,18 +448,15 @@ test("verify: within 48 hours only the guild master sees \"GM verification pendi
 		w.As(gm, gm.Verify.Slash, "")
 		eq(#gm.copies, 3, "reopened twice")
 		eq(gm.copies[3].opts.auto, nil, "a click's: the keyboard may follow")
-		-- 48 hours on, a new session each: every member is told; the guild master's powers wait.
+		-- 48 hours on, a new session each: members stay quiet; the guild master's powers wait.
 		w.now = T0 + 48 * H + 1
 		for _, c in ipairs({ gm, member }) do w.As(c, c.Verify.Login) end
 		w.now = w.now + member.Verify.NOTICE_AFTER
-		eq(w.As(member, member.Verify.Tick), true)
+		eq(w.As(member, member.Verify.Tick), false)
 		eq(w.As(gm, gm.Verify.Tick), true)
-		assert(Find(member.printed, "ask your guild master to verify it, or find another ChillZone guild"), "the member's chat line")
-		local told = member.copies[1]
-		assert(told.text:find("not sanctioned", 1, true) and told.text:find("Bram Hollow", 1, true), told.text)
-		assert(told.text:find(member.L.VERIFY_NO_GATE, 1, true), "nothing is taken")
-		eq(told.action, nil, "a member has no verifier buttons")
-		assert(w.As(member, member.Verify.Lines)[1].text:find("not sanctioned", 1, true))
+		eq(#member.copies, 0, "member notices are paused after the deadline too")
+		assert(not Find(member.printed, "find another ChillZone guild"))
+		eq(#w.As(member, member.Verify.Lines), 0)
 		assert(gm.copies[#gm.copies].text:find(gm.L.VERIFY_NOTICE_HOLD, 1, true), "the guild master learns his powers wait")
 		assert(Find(gm.printed, "GM verification overdue for <" .. GUILD .. ">"))
 		-- Verified: nobody is told any more.
@@ -580,6 +705,94 @@ test("verify: the verifiers' page lists pending and overdue guilds with guild ma
 		eq(w.As(member, member.Verify.Mark, OTHER), member.Verify.MARK_OK)
 		eq(w.As(member, member.Verify.Mark, GUILD), "", "a member sees no overdue mark")
 		eq(w.As(hc, hc.Verify.Mark, GUILD), hc.Verify.MARK_LATE)
+	end)
+end)
+
+test("verify: resend button preserves the original guild clock and its cooldown across reloads", function()
+	World(function(w)
+		local gm, hc = w.Client(GM, GUILD, 0), w.Client(HC, HEARTH, 3)
+		w.Census(GUILD, "Bram Hollow", 120)
+		w.As(hc, hc.Verify.Observe)
+		w.now = T0 + H
+		w.As(gm, gm.Verify.Observe)
+		w.As(hc, hc.Verify.SendSnapshot)
+		local key = gm.Fold(GUILD)
+		eq(w.As(gm, gm.Verify.Start, GUILD), T0, "earliest verifier start")
+		eq(gm.rdb.verify.seen[key].at, T0 + H, "different local sighting")
+		w.now = T0 + 2 * H
+		assert(w.As(gm, gm.Verify.ShowNotice))
+		local button = gm.copies[#gm.copies].opts.second
+		eq(button.label, gm.L.VERIFY_ASK_BTN)
+		w.As(gm, button.fn); eq(gm.askCalls, 1)
+		w.As(gm, button.fn); eq(gm.askCalls, 1, "a repeated click does not submit another request")
+		eq(w.As(gm, gm.Verify.Start, GUILD), T0)
+		eq(gm.rdb.verify.seen[key].at, T0 + H)
+		local since = gm.rdb.verify.start[key].at
+		local attempt = gm.rdb.verify.requests[key].at
+		-- Reload the actual module over the same saved data; no session-only timer may reset it.
+		assert(loadfile(ADDON_DIR .. "Verify.lua"))("ChillZone", gm)
+		gm.Verify.Clock = function() return w.now end
+		w.As(gm, gm.Verify.Login)
+		local ok, why = w.As(gm, gm.Verify.AskCouncil, GUILD)
+		eq(ok, false); eq(why, "cooldown"); eq(gm.askCalls, 1)
+		eq(gm.rdb.verify.start[key].at, since); eq(gm.rdb.verify.requests[key].at, attempt)
+		w.now = w.now + gm.Verify.REQUEST_GAP + 1
+		eq(w.As(gm, gm.Verify.AskCouncil, GUILD), true); eq(gm.askCalls, 2)
+		eq(gm.rdb.verify.start[key].at, since); eq(gm.rdb.verify.seen[key].at, T0 + H)
+		local status, info = w.Status(gm, GUILD)
+		eq(status, "pending"); eq(info.left, T0 + gm.Verify.GRACE - w.now, "resending never renews grace")
+	end)
+end)
+
+test("verify: resend failure, stale buttons and non-masters never change the guild deadline or claim a queued request", function()
+	World(function(w)
+		local gm, hc = w.Client(GM, GUILD, 0), w.Client(HC, HEARTH, 3)
+		w.Census(GUILD, "Bram Hollow", 120)
+		w.As(gm, gm.Verify.Observe); w.As(hc, hc.Verify.Observe)
+		w.As(hc, hc.Verify.SendSnapshot)
+		w.now = T0 + gm.Verify.GRACE + H
+		local key = gm.Fold(GUILD)
+		gm.helpQueued = false
+		eq(w.As(gm, gm.Verify.AskCouncil, GUILD), false, "the actual request helper refused the queue")
+		eq(gm.rdb.verify.start[key].at, T0); eq(gm.rdb.verify.seen[key].at, T0)
+		eq(gm.rdb.verify.requests[key], nil, "a refused send consumes no successful-request cooldown")
+		gm.helpQueued = true
+		eq(w.As(gm, gm.Verify.AskCouncil, GUILD), true)
+		eq(w.Status(gm, GUILD), "overdue", "resend is not approval and never restores grace")
+		local calls = gm.askCalls
+		gm.rank = 3
+		eq(w.As(gm, gm.Verify.AskCouncil, GUILD), false, "only the native guild master can resend")
+		gm.rank, gm.guild = 0, OTHER
+		eq(w.As(gm, gm.Verify.AskCouncil, GUILD), false, "a button retained after changing guild cannot request for the old one")
+		eq(gm.askCalls, calls); eq(gm.rdb.verify.start[key].at, T0)
+		gm.guild = GUILD
+		eq(w.As(hc, hc.Verify.Approve, GUILD, GM), true)
+		eq(w.As(gm, gm.Verify.AskCouncil, GUILD), false, "approval makes an already-open resend button inert")
+		eq(gm.askCalls, calls); eq(gm.rdb.verify.start[key].at, T0)
+	end)
+end)
+
+test("verify: resend cooldown records are bounded, expire and never get younger when read", function()
+	World(function(w)
+		local gm = w.Client(GM, GUILD, 0)
+		w.As(gm, gm.Verify.Observe)
+		local requests, V = gm.rdb.verify.requests, gm.Verify
+		w.now = T0 + V.MAX_STARTS + 2
+		for i = 1, V.MAX_STARTS + 1 do requests["guild" .. i] = { at = T0 + i } end
+		requests.expired = { at = w.now - V.SEEN_KEEP - 1 }
+		requests.future = { at = w.now + V.AHEAD + 1 }
+		requests.malformed = "invalid"
+		local original = requests["guild" .. (V.MAX_STARTS + 1)].at
+		w.As(gm, V.Prune)
+		local n = 0
+		for _ in pairs(requests) do n = n + 1 end
+		eq(n, V.MAX_STARTS)
+		eq(requests.guild1, nil); eq(requests.expired, nil); eq(requests.future, nil); eq(requests.malformed, nil)
+		local key = "guild" .. (V.MAX_STARTS + 1)
+		eq(w.As(gm, V.RequestWait, key), V.REQUEST_GAP - 1)
+		w.now = w.now + 10
+		eq(w.As(gm, V.RequestWait, key), V.REQUEST_GAP - 11)
+		eq(requests[key].at, original, "reading does not renew cooldown")
 	end)
 end)
 

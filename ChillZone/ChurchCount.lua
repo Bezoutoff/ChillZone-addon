@@ -137,10 +137,9 @@ Count.PUBLIC_EVERY, Count.PUBLIC_FRESH, Count.TOP_EVERY = 1800, 7200, 1800
 Count.TOP_FIRST, Count.TOP_GRACE, Count.TOP_JITTER, Count.TOP_KING_AFTER, Count.TOP_MAX_AGE = 300, 120, 300, 480, 30 * 86400
 Count.ASK_GAP, Count.ANSWERS_PER, Count.ANSWER_WINDOW = 60, 12, 300
 Count.CATCHUP_EVERY, Count.CATCHUP_LINES = 1800, 150
--- Until its first catch-up ended, a keeper asks the next keeper when nothing came for CATCHUP_RETRY from
--- the ones it asked, never one asked less than CATCHUP_REASK ago (Count.CatchUp): asked once, a keeper
--- that logged out while his presence still counted, or whose sends were full, left it behind until
--- SETTLE_MAX, CATCHUP_EVERY before the next ask.
+-- A silent active keeper is retried through another source after CATCHUP_RETRY, even after a
+-- previous successful catch-up. A completed source sweeps the others; CATCHUP_REASK bounds each
+-- source across those attempts and reloads.
 Count.CATCHUP_RETRY, Count.CATCHUP_REASK = 120, 600
 -- (1.2.1) Just logged in, a keeper answers no audience ask, nor another keeper's catch-up ask, until its
 -- first catch-up ends: its ledger missed what came while it was away. It waits to hear every keeper
@@ -168,7 +167,7 @@ local asks = {}             -- what|window|person -> when we asked
 local askedOf = {}          -- what:window:person key -> { k = the keeper asked, t } (1.2.1: only his answer is taken)
 local answersTo = {}        -- asker key -> { times }
 local incoming = {}         -- sender key|what|window|person -> rows being received
-local catch = { asked = {}, last = -math.huge, heard = -math.huge, settled = false } -- heard: a line from a keeper asked
+local catch = { asked = {}, last = -math.huge, heard = -math.huge, settled = false } -- heard: a line from the active keeper only
 local lastPublic, lastTop, lastPublicAt = -math.huge, -math.huge, nil
 local topHeard, topRelayAt = nil, nil -- (1.3.4) when the last same-or-newer top 3 was heard; our next relay
 local outq = {}             -- line transfers waiting, one target each: { target, list, i }
@@ -1758,14 +1757,17 @@ end
 -- the King's client, which, as in 1.2.5.1, does no background Church work: it asks for none either.
 -- Just logged in, it waits until every keeper online has been heard (SettledSinceLogin, as the desk
 -- does before it speaks for its switch): at once, the first keeper heard was the one asked, whatever
--- the saved turn said, and the next catch-up came CATCHUP_EVERY later. Until its first catch-up
--- ended, when nothing came for CATCHUP_RETRY from the ones it asked (any line of theirs: a round of
--- CATCHUP_LINES takes minutes), it asks the next one, not one asked within CATCHUP_REASK.
-function Count.CatchUp(force)
+-- the saved turn said, and the next catch-up came CATCHUP_EVERY later. Completed sources now sweep
+-- the other keepers promptly; an active paged response stays with its source until completion or
+-- CATCHUP_RETRY of silence. Each source still waits at least CATCHUP_REASK between fresh attempts.
+function Count.CatchUp(force, sweep)
 	if not Church.IsLedgerRelay(ns.me) or Church.IsKing(ns.me) or Off() then return false end
 	local t = ns.Now()
-	local retry = not catch.settled and t - math.max(catch.last, catch.heard) >= Count.CATCHUP_RETRY
-	if not force and ((t - catch.last < Count.CATCHUP_EVERY and not retry) or not Count.SettledSinceLogin()) then return false end
+	local retry = catch.active ~= nil and t - math.max(catch.last, catch.heard) >= Count.CATCHUP_RETRY
+	if sweep and catch.active ~= nil then return false end
+	local rotating = sweep or catch.rotate
+	if not force and (((not rotating and t - catch.last < Count.CATCHUP_EVERY) and not retry)
+		or not Count.SettledSinceLogin()) then return false end
 	local list = Church.KeepersOnline(false)
 	if not Church.IsKeeper(ns.me) then
 		if #list > 0 then return false end
@@ -1774,18 +1776,33 @@ function Count.CatchUp(force)
 	local l = Led()
 	local caught = type(l.caught) == "table" and l.caught or {}
 	local asked = type(l.asked) == "table" and l.asked or {}
-	local soon = not force and t - catch.last < Count.CATCHUP_EVERY
+	local soon = rotating or (not force and t - catch.last < Count.CATCHUP_EVERY)
 	local k, at
 	for _, o in ipairs(list) do
 		local rk = Key(o.name)
-		if not Church.IsKing(o.name) and not (soon and t - (catch.asked[rk] or -math.huge) < Count.CATCHUP_REASK) then
+		local lastAsked = math.max(tonumber(asked[rk]) or -math.huge, catch.asked[rk] or -math.huge)
+		if not Church.IsKing(o.name) and not (soon and t - lastAsked < Count.CATCHUP_REASK) then
 			local seen = math.max(tonumber(caught[rk]) or -math.huge, tonumber(asked[rk]) or -math.huge, catch.asked[rk] or -math.huge)
 			if not k or seen < at then k, at = o, seen end
 		end
 	end
-	if not k then return false end
+	if not k then
+		-- The active keeper may have disappeared before answering. Do not leave its name behind:
+		-- if a keeper becomes available later, the next ordinary tick must be allowed to choose it
+		-- instead of waiting CATCHUP_EVERY on an impossible active request.
+		if retry then
+			-- Preserve `last` and the per-target ask stamp. Clearing those let an ordinary Tick select
+			-- the same one silent keeper again on every frame. `rotate` permits a newly visible/different
+			-- keeper immediately, while CATCHUP_REASK still bounds the silent keeper itself.
+			catch.active, catch.heard, catch.rotate = nil, -math.huge, true
+		end
+		return false
+	end
 	local rk = Key(k.name)
 	catch.last = t
+	catch.active = rk
+	catch.heard = -math.huge
+	catch.rotate = false
 	catch.asked[rk] = t
 	if type(l.asked) ~= "table" then l.asked = {} end
 	l.asked[rk] = t
@@ -1900,7 +1917,7 @@ function Count.TakeLine(sender, text)
 	if Church.IsKing(ns.me) or Church.IsKing(sender) then return Drop("king") end
 	if Church.IsKeeper(ns.me) and not Church.IsKeeper(sender) then return Drop("keeper") end
 	-- (A line from one asked for a catch-up: his answer is coming, Count.CatchUp asks no other yet.)
-	if kind ~= "q" and catch.asked[Key(sender)] then catch.heard = ns.Now() end
+	if kind ~= "q" and catch.active == Key(sender) then catch.heard = ns.Now() end
 	if kind == "q" then
 		local since = UnB36(text:match("^NL~1~q~([0-9a-z]+)$"))
 		if not since then return Drop("shape") end
@@ -1940,17 +1957,26 @@ function Count.TakeLine(sender, text)
 		if more == "0" then
 			-- (A keeper's own tab said it was catching up, Count.RankingView.)
 			if not catch.settled then catch.settled = true; ViewChanged() end
+			if catch.active == k then catch.active = nil end
 			if type(l.caught) ~= "table" then l.caught = {} end
 			l.caught[k] = ns.Now()
+			-- One completed source is not convergence: another keeper may hold records received while
+			-- this one was offline. Sweep the other current keepers promptly, with the same one-active
+			-- and per-target reask bounds as the ordinary retry path.
+			Count.after(1, "church catch-up sweep", function()
+				if catch.active == nil then Count.CatchUp(false, true) end
+			end)
 		elseif l.from[k] > before and type(l.asked) == "table" then
 			-- (A catch-up that brought something, a logout may cut short before its last round: its keeper
 			-- is asked first again, from where it stopped. One never answered stays behind the others.)
 			l.asked[k] = nil
 		end
-		if more == "1" then
+		if more == "1" and catch.active == k then
 			local who = ns.FullName(sender)
 			Count.after(5, "church catch-up", function()
-				catch.asked[Key(who)] = ns.Now()
+				local now, key = ns.Now(), Key(who)
+				if catch.active ~= key then return end
+				catch.active, catch.last, catch.asked[key] = key, now, now
 				ns.Comm.Whisper(who, "NL~1~q~" .. B36(Led().from[Key(who)] or 0), nil, false, false, nil, { owner = Count })
 			end)
 		end

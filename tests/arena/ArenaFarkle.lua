@@ -1087,7 +1087,9 @@ test("1.2 Farkle: the opening rolls decide who starts; a tie rolls again; only t
 	eq(F.Expect(g), 1)
 	eq(F.Apply(g, "O1:90"), true)
 	eq(g.current, 1); eq(g.first, 1); eq(g.ties, 1)
-	eq(codes(g), "O2:50 O1:50 O2:10 O1:90")
+	-- Completed pairs use seat order: a client which saw the guest first must
+	-- still share the other client's opening handshake and signed transcript.
+	eq(codes(g), "O1:50 O2:50 O1:90 O2:10")
 	eq(F.OPENING_TIES, 5, "the table gives up after five ties (the design)")
 end)
 

@@ -1631,7 +1631,9 @@ local function Written(t, from, how, before)
 	local dice = before.dice
 	local out = {}
 	for i = from + 1, g.step do
-		local code = g.events[i]
+		-- The rules canonically order an opening pair once both server lines are
+		-- known. Animate the line just observed, not the reordered pair's tail.
+		local code = i == from + 1 and before.opening or g.events[i]
 		local ev = R().Event(code) or {}
 		local info = { t = ev.t, seat = ev.p, code = code, step = i, how = i == from + 1 and how or "held", relayed = ev.relayed or nil, lvl = ev.lvl }
 		if ev.t == "R" then
@@ -1684,6 +1686,7 @@ local function Apply(t, ev, how)
 	local g = t.game
 	if not g or g.over then return nil, "over" end
 	local before = { dice = g.turn.dice, step = g.step, shakes = g.shakes and { g.shakes[1], g.shakes[2] } }
+	if ev.t == "O" then before.opening = R().Code(ev) end
 	if ev.t == "R" and ev.p == g.current and g.hiccupRule == "bones2" then
 		before.rollSeat, before.rollValue, before.rollK = ev.p, ev.value, ev.k
 		local _, chance, left = R().Level(g, ev.p)
@@ -4832,7 +4835,10 @@ if ns.Records and ns.Records.Register then
 		Mine = function()
 			local out = {}
 			for _, e in pairs((RankStore(false) or {}).own or {}) do
-				if e.mode == "L" and e.mine and e.theirs then
+				-- This store holds counted games only. A free release game still
+				-- travels in T while the King's live switch is off; its wire mode
+				-- must not prevent recovery of the two original signed results.
+				if e.mine and e.theirs then
 					local f = Split(e.mine)
 					out[#out + 1] = f[16] == "1" and HV.RecordBody(e.mine, e.theirs) or HV.RecordBody(e.theirs, e.mine)
 				end

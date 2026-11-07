@@ -33,6 +33,24 @@ local function Load(code)
 end
 
 local english = Load("enUS")
+test("map names languages: Cyrillic labels are selected only for the Russian client's fonts", function()
+	local expected = 0
+	for key in pairs(english.L) do if key:match("^MAPNAME_") then expected = expected + 1 end end
+	assert(expected >= 17, "the map-name interface loaded")
+	for _, code in ipairs({ "enUS", "enGB", "ptBR", "deDE", "esES", "esMX", "frFR", "itIT", "ruRU" }) do
+		local L = Load(code).L
+		local count = 0
+		for key, value in pairs(L) do
+			if key:match("^MAPNAME_") then
+				count = count + 1
+				local cyrillic = value:find("[\208-\211][\128-\191]") ~= nil
+				eq(cyrillic, code == "ruRU", code .. " " .. key .. " uses its supported font range")
+			end
+		end
+		eq(count, expected, "the complete map-name interface")
+	end
+end)
+
 local function EnglishKeys()
 	local n = 0
 	for k, v in pairs(english.L) do if type(v) == "string" and not Whisper(k) then n = n + 1 end end
@@ -130,14 +148,20 @@ end)
 
 test("languages (1.4.0): the Agenda reads a day or today/tomorrow in each language", function()
 	local W = assert(ns.Week, "Week.lua")
-	for _, input in ipairs({ "lun 20:00 Banda", "mié 21:00 Mazmorra", "mañana 19h Corte", "hoy 22:30 Raid",
-		"Do 20:00 Schlachtzug", "morgen 20h Rat", "sam 20:00 Raid", "demain 21:30 Cour", "aujourd'hui 22:00 Raid",
-		"gio 20:00 Incursione", "domani 21:00 Corte", "Пт 20:00 Рейд", "завтра 21:00 Совет", "сб 20:00 Рейд",
-		"Sat 20:00 Raid night", "amanhã 20h Corte" }) do
-		local at, title = W.Parse(input)
-		assert(at and title and title ~= "", "parsed: " .. input)
-	end
-	eq(W.Parse("xyz 20:00 Raid"), nil, "an unknown word is no day")
+	local saved = W.RealmNow
+	W.RealmNow = function() return { year = 2026, month = 11, monthDay = 5, hour = 8, minute = 0, second = 0 } end
+	local ok, err = pcall(function()
+		for _, input in ipairs({ "lun 20:00 Banda", "mié 21:00 Mazmorra", "mañana 19h Corte", "hoy 22:30 Raid",
+			"Do 20:00 Schlachtzug", "morgen 20h Rat", "sam 20:00 Raid", "demain 21:30 Cour", "aujourd'hui 22:00 Raid",
+			"gio 20:00 Incursione", "domani 21:00 Corte", "Пт 20:00 Рейд", "завтра 21:00 Совет", "сб 20:00 Рейд",
+			"Sat 20:00 Raid night", "amanhã 20h Corte" }) do
+			local at, title = W.Parse(input)
+			assert(at and title and title ~= "", "parsed: " .. input)
+		end
+		eq(W.Parse("xyz 20:00 Raid"), nil, "an unknown word is no day")
+	end)
+	W.RealmNow = saved
+	if not ok then error(err, 0) end
 end)
 
 test("languages (1.4.0): the lists (places, weekdays, months, class and race names, honours, the King's letters, the nickname words) are each language's own, every key the English one's", function()
@@ -158,20 +182,23 @@ test("languages (1.4.0): the lists (places, weekdays, months, class and race nam
 	end
 end)
 
--- 1.4.0 (the Board's groups and IsChillZoneMember join the API): what another addon's Yes gives grew
--- (API.CONSENT_VERSION 10), and the two privacy lines say so. (Changed on purpose: they were held in
--- English until translated from contract 10's words; translated now, each language names the groups
--- and the unit check in its own words, never the earlier English's.)
-local CONTRACT_10 = { "API_CONSENT_TEXT", "API_CONSENT_TEXT_BASIC" }
-test("languages (1.4.0): the API's privacy lines, translated from contract 10's words, in every language", function()
+-- Contract 11 adds the signed Queen's exact identity to authorized addons only. Every language's
+-- full privacy line names that addition; the basic line for ordinary addons deliberately does not.
+local CONTRACT_11 = { "API_CONSENT_TEXT", "API_CONSENT_TEXT_BASIC" }
+local QUEEN_WORD = { deDE = "Königin", esES = "Reina", esMX = "Reina", frFR = "Reine", itIT = "Regina", ruRU = "Королевы" }
+test("languages: the API's contract 11 privacy lines, including the reserved Queen identity, in every language", function()
+	assert(english.L.API_CONSENT_TEXT:find("signed Queen's exact character name and realm", 1, true), "the English full line names the Queen identity")
+	assert(not english.L.API_CONSENT_TEXT_BASIC:find("Queen", 1, true), "the ordinary addon's line does not offer the reserved identity")
 	assert(english.L.API_CONSENT_TEXT:find("Board's group listings", 1, true), "the English line names the groups")
 	assert(english.L.API_CONSENT_TEXT:find("is in an ChillZone guild", 1, true), "and the unit check")
 	for code, file in pairs(LANGS) do
 		local L = Load(code).L
-		for _, k in ipairs(CONTRACT_10) do
+		for _, k in ipairs(CONTRACT_11) do
 			assert(type(L[k]) == "string" and L[k] ~= english.L[k], file .. " " .. k .. ": its own words")
 			eq(ns.LocaleCodes(L[k]), ns.LocaleCodes(english.L[k]), file .. " " .. k .. " codes")
-			assert(#L[k] > #english.L[k] * 0.6, file .. " " .. k .. ": the whole of contract 10, not the earlier shorter line")
+			assert(#L[k] > #english.L[k] * 0.6, file .. " " .. k .. ": the whole contract, not an earlier shorter line")
 		end
+		assert(L.API_CONSENT_TEXT:find(QUEEN_WORD[code], 1, true), file .. ": its full line names the Queen identity")
+		assert(not L.API_CONSENT_TEXT_BASIC:find(QUEEN_WORD[code], 1, true), file .. ": its basic line does not offer it")
 	end
 end)

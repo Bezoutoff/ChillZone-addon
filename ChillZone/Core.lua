@@ -2,7 +2,7 @@ local ADDON, ns = ...
 local L = ns.L
 
 ns.NAME = "ChillZone"
-ns.VERSION = "1.5.1"
+ns.VERSION = "1.5.3"
 ns.PREFIX = "CHILLZONE"        -- addon message prefix (max 16 chars)
 ns.CHANNEL = "ChillZoneNet"    -- hidden chat channel shared by every ChillZone guild (Alliance)
 ns.CHANNEL_HORDE = "ChillZoneNetH" -- the Horde's: the two factions never see each other's guilds
@@ -321,6 +321,20 @@ function ns.InGroup(realm)
 	return false
 end
 
+-- A report's observation and guild home must agree with its store. The last
+-- forwarder's realm is not the origin; never overwrite contrary evidence.
+function ns.ReportInGroup(report, group)
+	if type(report) ~= "table" then return false end
+	group = group or ns.group
+	local family = type(group) == "string" and (ForeverFamily(group) or group:match("^Forever%a+$"))
+	if not family then return true end
+	for _, field in ipairs({ "from", "home", "heardOn", "realm" }) do
+		local origin = ForeverFamily(report[field])
+		if origin and origin ~= family then return false end
+	end
+	return true
+end
+
 -- Newest `t` wins, per key; on a tie the entry already there stays.
 local function MergeNewest(dst, src)
 	if type(src) ~= "table" then return end
@@ -381,6 +395,64 @@ end
 -- and the copy merged first would be kept whole).
 local MERGED_BY = { chatStrikes = "ChatStrikes" }
 
+-- Verification tables have no table-wide timestamp. A same-scope store merge
+-- must combine their original words, not pick one whole table and discard the
+-- other. Match Verify.Take's ordering: newer word, revocation on a tie, then the
+-- canonical GM name; an unchanged kind/GM keeps the existing word. This only
+-- merges saved state already admitted in that scope, never creates an approval.
+local function MergeVerification(dst, src)
+	dst = type(dst) == "table" and dst or {}
+	local function Word(e)
+		return type(e) == "table" and (e.k == "A" or e.k == "R") and type(e.at) == "number" and e.at >= 1767225600
+			and type(e.guild) == "string" and type(e.gm) == "string" and type(e.by) == "string"
+	end
+	local function Same(a, b)
+		a, b = ns.FullName(a), ns.FullName(b)
+		return ns.Fold(ns.ShortName(a)) == ns.Fold(ns.ShortName(b))
+			and ns.GroupOf(ns.RealmOf(a) or ns.realm) == ns.GroupOf(ns.RealmOf(b) or ns.realm)
+	end
+	local function LaterWord(e, old)
+		if not Word(e) then return false end
+		if not Word(old) then return true end
+		if e.at ~= old.at then return e.at > old.at end
+		if e.k == old.k and Same(e.gm, old.gm) then return false end
+		if e.k ~= old.k then return e.k == "R" end
+		return ns.Fold(e.gm) < ns.Fold(old.gm)
+	end
+	for field, entries in pairs(src) do
+		if (field == "list" or field == "start" or field == "seen" or field == "requests" or field == "told") and type(entries) == "table" then
+			dst[field] = type(dst[field]) == "table" and dst[field] or {}
+			for key, e in pairs(entries) do
+				local old, take = dst[field][key], false
+				if field == "list" then take = LaterWord(e, old)
+				elseif type(e) == "table" then
+					local at = tonumber(field == "told" and (e.last or e.new) or e.at)
+					local before = type(old) == "table" and tonumber(field == "told" and (old.last or old.new) or old.at)
+					if field == "start" and (type(e.at) ~= "number" or e.at < 1767225600 or type(e.guild) ~= "string") then at = nil end
+					if field == "start" and type(old) == "table" and (type(old.at) ~= "number" or old.at < 1767225600 or type(old.guild) ~= "string") then before = nil end
+					if field == "seen" then
+						if type(e.at) ~= "number" then at = nil end
+						if type(old) == "table" and type(old.at) ~= "number" then before = nil end
+					end
+					if at then
+						if field == "start" or field == "seen" then
+							take = not before or at < before
+							-- Keep the earliest start and the latest EXISTING sighting.
+							-- Otherwise selecting an old start can immediately expire a
+							-- clock that the other saved store still observed recently.
+							local last = math.max(tonumber(e.last) or at, (type(old) == "table" and (tonumber(old.last) or before)) or 0)
+							local kept = take and e or old
+							if type(kept) == "table" and last > (tonumber(kept.last) or tonumber(kept.at) or 0) then kept.last = last end
+						else take = not before or at > before end
+					end
+				end
+				if take then dst[field][key] = e end -- original at/by/heard, without a new receipt time
+			end
+		elseif dst[field] == nil then dst[field] = entries end
+	end
+	return dst
+end
+
 -- Moves one store into another, losing nothing that is newer. Our own guild's report (`mine`)
 -- is kept like any other: an alt's own guild is a report nobody else may be sending. The
 -- realm key is settled by OpenStore, which sees every store at once.
@@ -409,7 +481,9 @@ local function MergeStore(dst, src)
 			local old = dst[k]
 			local file = MERGED_BY[k] and rawget(ns, MERGED_BY[k])
 			local merge = type(file) == "table" and not file.missing and rawget(file, "Merge")
-			if old ~= nil and type(merge) == "function" then
+			if k == "verify" and type(v) == "table" then
+				dst[k] = MergeVerification(old, v)
+			elseif old ~= nil and type(merge) == "function" then
 				local ok, merged = pcall(merge, old, v)
 				if ok and merged ~= nil then dst[k] = merged end
 			elseif old == nil or (type(v) == "table" and type(old) == "table" and (tonumber(v.t) or 0) > (tonumber(old.t) or 0)) then dst[k] = v end
@@ -451,16 +525,15 @@ local function OpenStore(db, group)
 	for key in pairs(db.realms) do
 		if key ~= group and type(key) == "string" and Inside(key) then merge[#merge + 1] = key end
 	end
-	-- A family's store holding another family's reports (merged so before 1.5.1): those go.
-	if family and type(R.guilds) == "table" then
-		local dropped = 0
-		for k, g in pairs(R.guilds) do
-			local on = type(g) == "table" and ForeverFamily(g.heardOn) or nil
-			if on and on ~= family then R.guilds[k] = nil; dropped = dropped + 1 end
+	local function Isolate()
+		for k, g in pairs(type(R.guilds) == "table" and R.guilds or {}) do
+			if not ns.ReportInGroup(g, group) then
+				R.censusForeign = type(R.censusForeign) == "table" and R.censusForeign or {}
+				R.censusForeign[k], R.guilds[k] = g, nil
+			end
 		end
-		if dropped > 0 then ns.Log("census of %s: %d reports of another family dropped", group, dropped) end
 	end
-	if #merge == 0 then return R end
+	if #merge == 0 then Isolate(); return R end
 	table.sort(merge)
 	local keys, distinct = {}, 0
 	local function Key(k)
@@ -490,6 +563,7 @@ local function OpenStore(db, group)
 		R.realmKey = nil
 	end
 	ns.Log("census of %s merged into %s%s", table.concat(merge, ", "), group, distinct > 1 and " (different realm keys dropped)" or "")
+	Isolate() -- includes reports just merged from a legacy realm-keyed store
 	return R
 end
 
@@ -931,7 +1005,7 @@ local function OfGroup(name, realm)
 end
 local NO_PINS = {}
 -- (1.3.4) The pins the author's signed titles list gives our side, where it names any:
--- Signed("king" | "treasurer"), a list of "First Surname-Realm" (ns.SignedPins, below with the
+-- Signed("king" | "queen" | "treasurer"), a list of "First Surname-Realm" (ns.SignedPins, below with the
 -- list it reads), or nil. Where it names one, the code's pin for that role no longer counts.
 local function Signed(kind)
 	local p = ns.SignedPins and ns.SignedPins()
@@ -1157,11 +1231,36 @@ function ns.KingFullName()
 	if not pin then return nil, false end
 	return ns.FullName(pin, KingRealm()), Signed("king") ~= nil
 end
+
+-- The Queen is a signed presentation identity only: her exact character receives her
+-- portrait, and private companion addons may name that character. This does not make her the King,
+-- a councillor, a Steward, an officer or any other authority. There is deliberately no code pin or
+-- guild-rank fallback: until the author's signed list names her for this faction, there is no Queen.
+function ns.QueenRealm()
+	local signed = Signed("queen")
+	return signed and ns.RealmOf(signed[1]) or nil
+end
+function ns.QueenCharacter()
+	local signed = Signed("queen")
+	local realm = signed and ns.RealmOf(signed[1])
+	if not realm or ns.GroupOf(ns.realm or ns.CurrentRealm()) ~= ns.GroupOf(realm) then return nil end
+	return ns.ShortName(signed[1])
+end
+function ns.IsQueenCharacter(name)
+	local pin = ns.QueenCharacter()
+	local realm = ns.QueenRealm()
+	return pin ~= nil and realm ~= nil and type(name) == "string" and ns.ShortName(name) == pin and OfGroup(name, realm)
+end
+function ns.QueenFullName()
+	local pin = ns.QueenCharacter()
+	return pin and ns.FullName(pin, ns.QueenRealm()) or nil
+end
 -- (1.3.4) The titles list we hold for this realm group is the author's launch list: it names a King,
--- a Treasurer, the author's characters or the realms (ns.SignedPins), for either side.
+-- a Queen, a Treasurer, the author's characters or the realms (ns.SignedPins), for either side.
 function ns.LaunchListHeld()
 	local p = ns.SignedPins and ns.SignedPins()
-	return p ~= nil and (next(p.king) ~= nil or next(p.treasurer) ~= nil or next(p.author) ~= nil or next(p.realms) ~= nil)
+	return p ~= nil and (next(p.king or NO_PINS) ~= nil or next(p.queen or NO_PINS) ~= nil
+		or next(p.treasurer or NO_PINS) ~= nil or next(p.author or NO_PINS) ~= nil or next(p.realms or NO_PINS) ~= nil)
 end
 -- No King named here, and no launch list here either: only then does the guild master of the King's
 -- guild stand for him (King.IsKing, its soft word, Borders, Wanted: each asks
@@ -1411,20 +1510,21 @@ end
 
 -- Launch identities (1.3.4, the author's: names get sniped on launch realms, so the code names
 -- nobody for them). The code's pins (ns.KING_CHARACTER, ns.TREASURER_CHARACTERS, ns.AUTHOR) are the
--- beta's and count on its realm group alone. Anywhere else the King, the Treasurer and the author
+-- beta's and count on its realm group alone. Anywhere else the King, the Queen, the Treasurer and the author
 -- are whom the author's signed titles list names for that realm group, in entries of their own
 -- after the Apostles, three "^" each like the Steward's (clients before 1.3.4 leave them out
 -- unread, and still take, show and pass on the whole list; the signature covers them too):
 --   ^king^<Alliance|Horde>^<First Surname-Realm>                     that side's King
+--   ^queen^<Alliance|Horde>^<First Surname-Realm>                    that side's Queen (presentation only)
 --   ^treasurer^<Alliance|Horde>^<First Surname-Realm>,...            the Treasurer, then his mail characters
 --   ^author^<Alliance|Horde>^<First Surname-Realm>,...               the author's own characters (the dev's
 --                                                                    privileges: never the King's or the council's)
 --   ^realms^<NA|EU>^<Realm>=<pvp|pve|rp|rppvp|hardcore>,...          what each realm is (ns.RealmInfo)
 -- Every name carries its realm, as the server writes it: it counts on that realm's group alone, and
--- a namesake on another group is someone else. A side the list names a King or a Treasurer for has
+-- a namesake on another group is someone else. A side the list names a King, Queen or Treasurer for has
 -- that one alone; a side it names none for keeps the code's (on the beta's group alone). Nobody else
 -- ever is one: no census vote counts, and a newer signed list without him ends it at once.
-ns.PINS_MAX = { king = 1, treasurer = 4, author = 8 } -- names a side, each kind
+ns.PINS_MAX = { king = 1, queen = 1, treasurer = 4, author = 8 } -- names a side, each kind
 ns.REALM_KINDS = { pvp = true, pve = true, rp = true, rppvp = true, hardcore = true }
 ns.REALM_REGIONS = { NA = true, EU = true }
 ns.REALMS_MAX = 40 -- realms a region
@@ -1440,12 +1540,12 @@ local function PinName(s)
 	return short .. "-" .. realm
 end
 
--- What a titles list's text names: { king = { Alliance = { "Name-Realm" } }, treasurer = { ... },
+-- What a titles list's text names: { king = { Alliance = { "Name-Realm" } }, queen = { ... }, treasurer = { ... },
 -- author = { ... }, realms = { [realm, lower case] = { realm, kind, region } } }, a side left out
 -- where it names nobody valid. Anything PinName, ns.PINS_MAX, the kinds or the regions leave out is
 -- left out.
 function ns.ReadPins(text)
-	local out = { king = {}, treasurer = {}, author = {}, realms = {} }
+	local out = { king = {}, queen = {}, treasurer = {}, author = {}, realms = {} }
 	local regions = {}
 	for entry in tostring(text or ""):gmatch("[^;]+") do
 		local kind, slot, list = entry:match("^%^(%l+)%^(%a+)%^([^%^]*)$")
@@ -1528,12 +1628,13 @@ end
 function ns.PinsStatus()
 	local p = ns.SignedPins()
 	local king = ns.KingCharacter() and (Signed("king") and "signed" or "code") or (ns.KingUnpinned() and "none (its guild master)" or "none")
+	local queen = ns.QueenCharacter() and "signed" or "none"
 	local treasurer, tSigned = ns.TreasurerPins()
 	local authors, aSigned = ns.AuthorCharacters()
 	local realms = 0
 	for _ in pairs(p and p.realms or NO_PINS) do realms = realms + 1 end
-	return ("King %s  |  Treasurer %s (%d)  |  author %s (%d, this character: %s)  |  realms %d  |  signed list: %s"):format(
-		king, tSigned and "signed" or "code", #treasurer, aSigned and "signed" or "code", #authors,
+	return ("King %s  |  Queen %s  |  Treasurer %s (%d)  |  author %s (%d, this character: %s)  |  realms %d  |  signed list: %s"):format(
+		king, queen, tSigned and "signed" or "code", #treasurer, aSigned and "signed" or "code", #authors,
 		ns.IsAuthorName(ns.me) and "yes" or "no", realms, p and "held" or "none here")
 end
 

@@ -799,7 +799,13 @@ function ArenaHome.TabLines()
 	-- (1.2.4: a member holding no publish word for a game asks the members who hold one, once a
 	-- session: ArenaRoles.AskPublish; the tab shows it as it comes.)
 	if not staff then Call("ArenaRoles", "AskPublish") end
-	if staff or ArenaHome.RankingsPublic() then ArenaHome.RankingLines(lines) end
+	if staff or ArenaHome.RankingsPublic() then
+		-- (1.4.0: the rankings shown for the first time this session: the ask for the holders'
+		-- digests of the types this client heard none of, Records.Discover; only where the member
+		-- sees them, never on a refresh of a tab without them.)
+		Call("Records", "Discover")
+		ArenaHome.RankingLines(lines)
+	end
 	if staff then ArenaHome.StaffLines(lines) end
 	ArenaHome.ArbiterLines(lines)
 	local census = ArenaHome.CensusLine()

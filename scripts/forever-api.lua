@@ -44,7 +44,7 @@ IFACE = IFACE:gsub("[/\\]$", "")
 local ROOT = (arg[0] or ""):match("^(.*)[/\\]scripts[/\\]forever%-api%.lua$") or "."
 if ROOT == "" then ROOT = "." end
 local CHECK = arg[2] == "--check"
-local BUILD = tonumber(arg[2]) or 70205
+local BUILD = tonumber(arg[2]) or 70790
 local OUT = ROOT .. "/tests/fixtures/forever-api.lua"
 
 -- Proved in game by ChillZone itself, though no line of the client's source shows them (functions
