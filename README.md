@@ -2687,7 +2687,7 @@ authority, and never exports another player's BattleTag from the moderation team
 The Companion also keeps a record of the ChillZone chats: every ChillZone and guild chat line your
 client shows (your own included) goes, through the same bridge addon and at the same moments, to ChillZone's
 staff, who keep them to confirm what was said, several players' Companions agreeing on a line,
-and to moderate. The ChillZone Accord's letter and the privacy page say so.
+and to moderate. The privacy page says so.
 
 **What waits for your yes.** Your zone and layer (below), layer help, your dot on your guild's
 map, a treasury keeper's book, a sister guild's bank (1.1), a Royal Inspection's report, your answers to the author's roll

@@ -50,7 +50,8 @@ local L = ns.L
 -- has. The King's game account (ns.db.kingAccount) answers the King and the author alone, as his
 -- own character does.
 --
--- The ChillZone Companion app (the letter's ACCORD_T5_3): once accepted, the bridge's "self" section
+-- The ChillZone Companion app (the privacy page names it; the letter did as ACCORD_T5_3 until its
+-- 2026-11-07 shortening, ChillZone having no Companion): once accepted, the bridge's "self" section
 -- (BridgeSections.lua) hands this character's name and own tag, read here (ReadTag), to the private
 -- sidecar a Companion user installed, which saves it in its own file at logout or /reload; the
 -- Companion takes it to ChillZone's online census, where only its staff see BattleTags. Nothing is
@@ -90,8 +91,10 @@ Accord.SCREEN_MARGIN = 48
 -- The letter's topics: { n, bullets }, keys ACCORD_T<n>_HEAD and ACCORD_T<n>_<i> (AccordText.lua),
 -- each bullet one short sentence. BOLD: the bullets in heavier ink (a font string has no inline
 -- bold: the whole line, its shadow one pixel to the right in the ink's own colour).
-Accord.TOPICS = { { 1, 2 }, { 2, 2 }, { 3, 6 }, { 4, 7 }, { 5, 6 }, { 6, 4 }, { 7, 1 }, { 8, 2 }, { 9, 2 } }
-Accord.BOLD = { ["2_1"] = true, ["5_2"] = true, ["5_3"] = true, ["5_4"] = true }
+-- (ChillZone, 2026-11-07: the owner asked for a shorter letter, five topics instead of nine: what it
+-- is with Blizzard's rules, not allowed, moderation, your BattleTag, accepting.)
+Accord.TOPICS = { { 1, 2 }, { 2, 6 }, { 3, 4 }, { 4, 3 }, { 5, 2 } }
+Accord.BOLD = { ["1_2"] = true, ["4_1"] = true, ["4_2"] = true }
 -- A BattleTag as Battle.net writes one: a name, "#", digits. Never "~", "|" or a control byte.
 Accord.TAG_SHAPE = "^[^#~|%c]+#%d+$"
 -- A game account's follow key (TagFollow.lua's code): 16 lowercase hex digits.
