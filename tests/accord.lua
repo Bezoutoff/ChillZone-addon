@@ -789,8 +789,9 @@ test("accord: the letter: ChillZone's own bronze window over parchment, the Acco
 			-- ChillZone and guild chats the player sees, to confirm what was said and moderate. Its 21
 			-- words grow the bound to 410, as the moderator protection's bullet grew it; nothing else in
 			-- the letter changed. Its review named the guild chat, which the record takes too, in the
-			-- same 21 words.)
-			assert(total <= 410, "the letter is " .. total .. " words")
+			-- same 21 words. Then, 2026-11-07, the owner allowed English beside Russian in ChillZone's
+			-- chats, 3.2: its two more words, "or English", grow the bound to 412.)
+			assert(total <= 412, "the letter is " .. total .. " words")
 			-- Bold where it matters: who gets the BattleTag (the moderation team in game, the
 			-- Companion's census staff), that no other player sees it, and Blizzard's rules first, a
 			-- deep red ink and doubled strokes (the dot too); the other bullets in the plain ink.
@@ -947,7 +948,7 @@ test("accord: its words in English and pt-BR, the same format codes; the name in
 	end
 	eq(en.ACCORD_T1_2, "Not made or endorsed by Blizzard Entertainment.")
 	eq(pt.ACCORD_T1_2, "Não é feito nem endossado pela Blizzard Entertainment.")
-	-- The rules it states are the code's: the ladder, the 30 days, English only, no stakes, 180 days.
+	-- The rules it states are the code's: the ladder, the 30 days, Russian and English only, no stakes, 180 days.
 	assert(en.ACCORD_T4_2:find("1 hour, 24 hours and 7 days", 1, true) and en.ACCORD_T4_2:find("30 days", 1, true))
 	eq(ns.Accord.KEEP, 180 * 86400); assert(en.ACCORD_T5_2:find("180 days", 1, true))
 	-- (2026-10-19) Where the BattleTag goes: the moderation team in game, and with the Companion
@@ -1001,11 +1002,11 @@ test("accord: its words in English and pt-BR, the same format codes; the name in
 	for k in src:sub(1, ptAt):gmatch("\nL%.(ACCORD_[%w_]+) = ") do enKeys[#enKeys + 1] = k end
 	for k in src:sub(ptAt):gmatch("\n\tL%.(ACCORD_[%w_]+) = ") do ptKeys[#ptKeys + 1] = k end
 	eq(table.concat(ptKeys, " "), table.concat(enKeys, " "), "the pt-BR block has every English key, in order")
-	assert(en.ACCORD_T3_2:find("Russian", 1, true))
+	assert(en.ACCORD_T3_2:find("Russian or English", 1, true))
 	local watch = assert(io.open(ROOT .. "ChillZone/Watch.lua", "rb")):read("*a")
 	assert(watch:find("Watch.TIMEOUTS = { 0, 60 * 60, 24 * 60 * 60, 7 * 24 * 60 * 60 }", 1, true), "the ladder the letter states")
 	assert(watch:find("Watch.WARNING_KEEP = 30 * 86400", 1, true))
-	assert(watch:find("ChillZone's chats are in English only", 1, true))
+	assert(watch:find("ChillZone's chats are in Russian and English only", 1, true))
 	-- /cz help names it.
 	local lines, savedPrint = {}, print
 	print = function(s) lines[#lines + 1] = tostring(s) end
