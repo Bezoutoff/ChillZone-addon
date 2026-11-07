@@ -2,6 +2,7 @@
 # Builds dist/ChillZone-<version>.zip with ChillZone, ChillZone_Arena and ChillZoneSiteAggregate (the
 # deliberate, no-upload site reporter); unzip it into World of Warcraft/<flavor>/Interface/AddOns.
 # Every zip also gets a sorted .files.txt manifest and a .sha256 checksum.
+# (ChillZone) The repository's LICENSE (MIT, the original's copyright kept) goes in as ChillZone/LICENSE.txt.
 # 1.4.0: OLY_LINK_REPO=<path to the private olympus-network checkout> adds its committed
 #   addon/ChillZone_Link folder (ChillZone Link, a separate load-on-demand addon) to a release zip, from
 #   that repository's HEAD and only while it is clean and versioned as this release. The public
@@ -102,6 +103,7 @@ case "$SITE_VERSION" in
 	"$VERSION"-site.*) ;;
 	*) fail "package.sh requires the site reporter for ChillZone $VERSION: ChillZoneSiteAggregate is $SITE_VERSION" ;;
 esac
+git cat-file -e HEAD:LICENSE 2>/dev/null || fail "package.sh requires LICENSE (the MIT text) in the commit: every copy carries it"
 
 if ! command -v zip >/dev/null 2>&1; then fail "package.sh requires zip"; fi
 if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1 && ! command -v openssl >/dev/null 2>&1; then
@@ -114,6 +116,7 @@ mkdir -p dist
 stage_source() {
 	local out=$1
 	git archive --format=tar HEAD -- "${FOLDERS[@]}" | tar -xf - -C "$out"
+	git show HEAD:LICENSE > "$out/ChillZone/LICENSE.txt"
 	find "$out" -name '.DS_Store' -delete
 }
 
