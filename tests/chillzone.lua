@@ -57,8 +57,8 @@ test("ChillZone release: only the network's relay characters are named in the co
 	eq(r.KingName("Lead Chill-Realm"), "Lead Chill", "the King by his character's name")
 	local rel = ReleaseRelay()
 	local want = { "Вован Дубан", "Wipe Copium", "Татарин Уфимский", "Peepo Ingore", "Vladimir Goyda", "Гулдан Казмодан",
-		"Сундук Открою", "Yara Pimaru", "Джейн Джинджер", "Наруто Узумаки", "Метал Чел" }
-	eq(#rel.Relay.LAUNCH_PINS.ForeverPvP, 11, "the guild master and the ten officers")
+		"Сундук Открою", "Yara Pimaru", "Джейн Джинджер", "Наруто Узумаки", "Метал Чел", "Пепел Вована" }
+	eq(#rel.Relay.LAUNCH_PINS.ForeverPvP, 12, "the guild master, the ten officers and Пепел Вована")
 	for i, n in ipairs(want) do eq(rel.Relay.LAUNCH_PINS.ForeverPvP[i], n, "pin " .. i) end
 	eq(rel.Relay.LAUNCH_PINS.ForeverPvE, nil, "the owner's guilds play in the PvP family only")
 	assert(ReadFile(h.ADDON_DIR .. "API.lua"):find("API.AUTHORIZED = {}", 1, true), "no partner addon trusted")
@@ -74,7 +74,7 @@ test("ChillZone release: the pinned relays are in Relay.Names on a PvP Forever r
 	local got, n = {}, 0
 	for _, name in ipairs(rel.Relay.Names()) do got[name] = true; n = n + 1 end
 	for _, name in ipairs(rel.Relay.LAUNCH_PINS.ForeverPvP) do assert(got[name], "pinned relay named: " .. name) end
-	eq(n, 11, rel.realm)
+	eq(n, 12, rel.realm)
 	rel.realm = "CAMWOWEU1Realm3PvE"
 	eq(rel.Relay.On(), true)
 	eq(#rel.Relay.Names(), 0, "no pinned relay on a PvE realm")

@@ -59,6 +59,7 @@ Relay.SNAPSHOT_WINDOW = 60  -- at most one bounded snapshot transfer per signed 
 Relay.PEERS_EVERY = 300      -- a relay's client pings the other relays this often (so its words go across, RX)
 -- ChillZone's relays, by the owner's choice (2026-11-06): the guild master and the officers. The
 -- owner's guilds play in the PvP family (owner, 2026-11-06), so they are pinned there alone.
+-- (2026-11-09) Пепел Вована, on CAMWOWEU4Realm8PvP, added by the owner.
 Relay.LAUNCH_PINS = { ForeverPvP = {
 	"Вован Дубан",
 	"Wipe Copium",
@@ -71,6 +72,7 @@ Relay.LAUNCH_PINS = { ForeverPvP = {
 	"Джейн Джинджер",
 	"Наруто Узумаки",
 	"Метал Чел",
+	"Пепел Вована",
 } }
 -- (1.5.0) Words every client says on the channel on its own clock (the channel's hello H3, the
 -- census ask Q1, the lists' ask HQ, positions P1, the Wanted list's ask W4, verification asks GV)
